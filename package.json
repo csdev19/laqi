@@ -1,0 +1,29 @@
+{
+  "name": "mock-server",
+  "version": "1.0.0",
+  "description": "Mock server library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node src/index.js",
+    "link": "npm unlink && npm link"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csdev19/mock-server.git"
+  },
+  "keywords": [
+    "mock",
+    "server",
+    "express"
+  ],
+  "author": "Cristian Sotomayor",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/csdev19/mock-server/issues"
+  },
+  "homepage": "https://github.com/csdev19/mock-server#readme",
+  "dependencies": {
+    "express": "^4.17.2"
+  }
+}
