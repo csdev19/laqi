@@ -1,0 +1,88 @@
+{
+  "path4": {
+    "method": "GET",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "eve0000",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "eve0001",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "code": "eve0001",
+          "description": "Datos inválidos.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "eve0002",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "code": "eve0002",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+    ]
+  },
+  "path3": {
+    "method": "POST",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "eve0000",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "eve0001",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "code": "eve0001",
+          "description": "Datos inválidos.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "eve0002",
+        "headers": {
+          "response": {},
+          "request": {}
+        },
+        "body": {
+          "code": "eve0002",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+    ]
+  }
+}
