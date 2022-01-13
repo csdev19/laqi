@@ -1,0 +1,64 @@
+{
+  "path3": {
+    "method": "GET",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "200",
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "code1",
+        "body": {
+          "code": "code1",
+          "description": "Invalid data.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "code2",
+        "body": {
+          "code": "code2",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+    ]
+  },
+  "path4": {
+    "method": "POST",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "code0",
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "code1",
+        "body": {
+          "code": "code1",
+          "description": "Invalid data.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "code2",
+        "body": {
+          "code": "code2",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+    ]
+  }
+}
