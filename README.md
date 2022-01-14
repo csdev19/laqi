@@ -1,22 +1,29 @@
-# Mock-server
+# LAQI
 
-This repository will contain the mock-server code. A library I want to publish.
+⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
+
+## Why that name?
+
+The name is composed of 2 Quechua words [l**L**ull**A**](https://es.glosbe.com/quz/es/llulla) (meaning false) and [chas**Q**u**I**](https://es.glosbe.com/qu/es/chaski) (referring to a messenger) that together I give the meaning of "false-messenger" (l**L**ull**a** + chas**Q**u**I** = **LAQI**) for being a server that returns simulated or false information. Also that in English sounds like the word **"lucky"** 😃😃
 
 ## Installation
 
-
-## Features
-
-- Express
-- Cors
 
 
 ## Usage
 
 This is a practical mock server based on jsons. All you need to have to do is:
 
-1. Create a folder called `mock-server`
-2. Put jsons in the folder with this structure:
+1. Create a file called `mock.config.json` in the root of you project with the following structure in case you want to custom your mock server:
+   ```json
+   {
+    "ip": "127.0.0.1",
+    "port": 8000,
+    "path": "mock-data"
+    }
+   ```
+2. Create a folder called `mock-server` or the one you specified in the config file
+3. Put jsons in the folder with this structure:
    ```json
    {
       "path-name": {
@@ -52,7 +59,7 @@ This is a practical mock server based on jsons. All you need to have to do is:
       },
     }
    ```
-3. Start the server with `npm run dev`
+4. Start the server with `npx laqi`
 
 
 
