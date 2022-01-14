@@ -67,6 +67,7 @@ This is a practical mock server based on jsons. All you need to have to do is:
     ...
     "mock": "laqi"
   }
+   ```
 4. Then start the server with `npm run mock` or simply `npx laqi` without adding the script to your package.json
 
 ## Contributors
