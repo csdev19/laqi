@@ -1,4 +1,5 @@
 const express = require('express');
+const killable = require('killable');
 const cors = require('cors');
 
 class Server {
@@ -25,19 +26,22 @@ class Server {
 
         if (!response) return;
 
-        return res
-        .status(response.statusCode)
-        .send(response.body);
+        res
+          .status(response.statusCode)
+          .send(response.body);
+
       });
     }
   }
 
   start() {
-    this.app.listen(this.port, this.ip, () => {
+    const server = this.app.listen(this.port, this.ip, () => {
       console.log('--------------------------------------------');
       console.log('| Mock Server running in port: ' + this.port + ' & ip: ' + this.ip + ' |');
       console.log('--------------------------------------------');
     });
+
+    killable(server);
   }
 }
 

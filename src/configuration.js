@@ -1,4 +1,3 @@
-const { defaultMaxListeners } = require('events');
 const fs = require('fs');
 
 // Constants
@@ -11,15 +10,23 @@ const DEFAULT_PATH = 'mock-data';
 
 class Configuration {
   constructor() {
-    const config = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH, 'utf8'));
-    // set configuration variables
-    this.port = config?.port || DEFAULT_PORT;
-    this.path = config?.path || DEFAULT_PATH;
-    this.ip = config?.ip || DEFAULT_IP;
+    let config;
+    try {
+      config = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH, 'utf8'));
+    } catch (error) {
+      config = {};
+    } finally {
+      // set configuration variables
+      this.port = config?.port || DEFAULT_PORT;
+      this.path = config?.path || DEFAULT_PATH;
+      this.ip = config?.ip || null;
+    }
   }
 
   loadData() {
     const files = fs.readdirSync(this.path);
+    if (!files) return;
+    if (files.length === 0) return;
     const parsed = files
       .filter(file => file.indexOf('.json') !== -1)
       .map(file => {
@@ -32,13 +39,6 @@ class Configuration {
     return parsed;
   }
 
-  getConfig() {
-    return {
-      port: this.port,
-      ip: this.ip,
-      path: this.path
-    }
-  }
 }
 
 module.exports = Configuration;
