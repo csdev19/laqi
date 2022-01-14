@@ -2,11 +2,12 @@
   "name": "mock-server",
   "version": "1.0.0",
   "description": "Mock server library",
-  "main": "index.js",
+  "main": "cli.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon src/index.js",
-    "link": "npm unlink && npm link"
+    "dev": "nodemon cli.js",
+    "link": "npm unlink && npm link",
+    "deploy": "npm publish"
   },
   "repository": {
     "type": "git",
@@ -17,6 +18,9 @@
     "server",
     "express"
   ],
+  "bin": {
+    "mock-server": "./cli.js"
+  },
   "author": "Cristian Sotomayor",
   "license": "MIT",
   "bugs": {
@@ -26,6 +30,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.17.2",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "yargs": "^17.3.1"
   }
 }
