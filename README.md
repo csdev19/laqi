@@ -22,7 +22,7 @@ This is a practical mock server based on jsons. All you need to have to do is:
     "path": "mock-data"
     }
    ```
-2. Create a folder called `mock-server` or the one you specified in the config file
+2. Create a folder called `mock-data` or the one you specified in the config file
 3. Put jsons in the folder with this structure:
    ```json
    {
