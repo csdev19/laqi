@@ -16,12 +16,14 @@
   "keywords": [
     "mock",
     "server",
-    "express"
+    "express",
+    "json",
+    "frontend-tool"
   ],
   "bin": {
     "mock-server": "./cli.js"
   },
-  "author": "Cristian Sotomayor",
+  "author": "Cristian Sotomayor <cristiansotomayor.dev@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/csdev19/mock-server/issues"
