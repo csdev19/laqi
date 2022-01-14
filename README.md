@@ -8,7 +8,7 @@ The name is composed of 2 Quechua words [llul**LA**](https://es.glosbe.com/quz/e
 
 ## Installation
 
-
+Just install the package with `npm install laqi`
 
 ## Usage
 
@@ -59,7 +59,16 @@ This is a practical mock server based on jsons. All you need to have to do is:
       },
     }
    ```
-4. Start the server with `npx laqi`
+5. You can add the following script to your package.json:
+  ```json
+  "scripts": {
+    ...
+    "mock": "laqi"
+  }
+4. Then start the server with `npm run mock` or simply `npx laqi` without adding the script to your package.json
 
+## Contributors
+
+- Cristian Sotomayor [@csdev19](https://github.com/csdev19) - Creator
 
 
