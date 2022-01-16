@@ -26,22 +26,38 @@ class Server {
 
         if (!response) return;
 
+        const body = response.body;
+        if (Object.keys(req.params).length > 0){
+          body.params = req.params;
+        }
+
         res
           .status(response.statusCode)
-          .send(response.body);
+          .send(body);
 
       });
     }
   }
 
   start() {
-    const server = this.app.listen(this.port, this.ip, () => {
-      console.log('--------------------------------------------');
-      console.log('| Mock Server running in port: ' + this.port + ' & ip: ' + this.ip + ' |');
-      console.log('--------------------------------------------');
+    this.server = this.app.listen(this.port, this.ip, () => {
+      console.log(`
+        ⚡⚡ Mock Server running ⚡⚡
+          -> port: ${this.port}
+          -> ip: ${this.ip}
+      `);
     });
 
-    killable(server);
+    killable(this.server);
+  }
+
+  end() {
+    this.server.close(() => {
+      console.log(`
+      ☠️  The server is closed ☠️
+      `);
+    });
+
   }
 }
 
