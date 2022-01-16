@@ -24,19 +24,43 @@ class Configuration {
   }
 
   loadData() {
-    const files = fs.readdirSync(this.path);
-    if (!files) return;
-    if (files.length === 0) return;
-    const parsed = files
-      .filter(file => file.indexOf('.json') !== -1)
+
+    const data = this.recursiveChargeFiles(this.path);
+    const parsedData = data.reduce((prev, curr) => {
+      return { ...prev, ...curr }
+    }, {});
+
+    return parsedData;
+  }
+
+  extractJsonFromFile(filePath) {
+    const dataRaw = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(dataRaw || '{}');
+    return data;
+  }
+
+  recursiveChargeFiles(basePath, filesJson = {}) {
+    const files = fs.readdirSync(basePath);
+
+    if (!files) return filesJson;
+    if (files.length === 0) return filesJson;
+
+    const newFilesJson = files
       .map(file => {
-        const dataRaw = fs.readFileSync(`${this.path}/${file}`, 'utf8');
-        return JSON.parse(dataRaw);
+        const filePath = `${basePath}/${file}`;
+        if (file.indexOf('.json') !== -1) {
+          const extractedJson = this.extractJsonFromFile(filePath);
+          return { ...filesJson, ...extractedJson };
+        } else if (file.indexOf('.') !== -1) {
+          return {}
+        } else {
+          const isDirectory = fs.lstatSync(filePath).isDirectory()
+          if (!isDirectory) return {}
+          const [result] = this.recursiveChargeFiles(filePath, filesJson);
+          return result;
+        }
       })
-      .reduce((prev, curr) => {
-        return { ...prev, ...curr }
-      }, {});
-    return parsed;
+    return newFilesJson;
   }
 
 }
