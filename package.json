@@ -6,6 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon cli.js",
+    "start": "node cli.js",
     "link": "npm unlink && npm link",
     "deploy": "npm publish"
   },
@@ -30,6 +31,7 @@
   },
   "homepage": "https://github.com/csdev19/laqi#readme",
   "dependencies": {
+    "chokidar": "^3.5.2",
     "cors": "^2.8.5",
     "express": "^4.17.2",
     "killable": "^1.0.1",
