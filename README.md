@@ -12,6 +12,16 @@ On spanish [here](documentacion/name.md)
 
 Just install the package with `npm install laqi`
 
+
+## Features
+
+- [x] Accept methods GET, POST, PUT, DELETE
+- [x] Refresh endpoints by the change of the files automatically
+- [ ] Nested files to group endpoints
+- [ ] Type of response: JSON
+- [ ] Create example files
+- [ ] Documented CLI
+
 ## Usage
 
 This is a practical mock server based on jsons. All you need to have to do is:
@@ -30,29 +40,27 @@ This is a practical mock server based on jsons. All you need to have to do is:
    {
       "path-name": {
         "method": "GET", // ["GET", "POST", "PUT", "DELETE"]
-        "codeResponse": "200", // This code match with responses selectorCode item
+        "codeResponse": "success", // This code match with responses selectorCode item
         "responses": [
           {
             "statusCode": "200", // The status code of the response
-            "selectorCode": "200", // The code to select the response
+            "selectorCode": "success", // The code to select the response
             "body": { // The body of the response
               "message": "OK"
             }
           },
           {
             "statusCode": "400",
-            "selectorCode": "code1",
+            "selectorCode": "error400",
             "body": {
-              "code": "code1",
               "description": "Invalid data.",
               "errorType": "Functional"
             }
           },
           {
             "statusCode": "401",
-            "selectorCode": "code2",
+            "selectorCode": "error401",
             "body": {
-              "code": "code2",
               "description": "Unauthorized User.",
               "errorType": "Functional"
             }
@@ -68,6 +76,10 @@ This is a practical mock server based on jsons. All you need to have to do is:
     "mock": "laqi"
   }
 4. Then start the server with `npm run mock` or simply `npx laqi` without adding the script to your package.json
+
+## Documentation
+
+
 
 ## Contributors
 
