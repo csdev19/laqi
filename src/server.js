@@ -4,13 +4,20 @@ const cors = require('cors');
 
 class Server {
   constructor(port, ip, path) {
-    this.app = express();
-    this.app.use(cors());
-    this.app.options('*', cors());
-
     this.port = port;
     this.ip = ip;
     this.path = path;
+  }
+
+  async initialize(data) {
+    if (this.server) {
+      await this.stop()
+    }
+    this.app = express();
+    this.app.use(cors());
+    this.app.options('*', cors());
+    this.defineEndpoints(data);
+    this.start();
   }
 
   defineEndpoints(data) {
@@ -34,7 +41,6 @@ class Server {
         res
           .status(response.statusCode)
           .send(body);
-
       });
     }
   }
@@ -44,21 +50,23 @@ class Server {
       console.log(`
         ⚡⚡ Mock Server running ⚡⚡
           -> port: ${this.port}
-          -> ip: ${this.ip}
+          ${this.ip ? '-> ip: ' + this.ip : ''}
       `);
     });
 
     killable(this.server);
   }
 
-  end() {
-    this.server.close(() => {
-      console.log(`
-      ☠️  The server is closed ☠️
-      `);
+  stop() {
+    return new Promise((resolve) => {
+      if (!this.server) return resolve('Server not exists');
+      this.server.kill(() => {
+        this.server = null;
+        return resolve('Server stopped');
+      });
     });
-
   }
+
 }
 
 module.exports = Server;
