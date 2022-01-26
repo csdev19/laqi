@@ -56,8 +56,10 @@ class Configuration {
         } else {
           const isDirectory = fs.lstatSync(filePath).isDirectory()
           if (!isDirectory) return {}
-          const [result] = this.recursiveChargeFiles(filePath, filesJson);
-          return result;
+          const result = this.recursiveChargeFiles(filePath, filesJson);
+          return (Array.isArray(result) ? result : []).reduce((prev, curr) => {
+            return { ...prev, ...curr }
+          }, {});
         }
       })
     return newFilesJson;
