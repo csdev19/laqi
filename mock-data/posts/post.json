@@ -1,0 +1,33 @@
+{
+  "posts": {
+    "method": "POST",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "200",
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "error1",
+        "body": {
+          "code": "error1",
+          "description": "Invalid data.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "error2",
+        "body": {
+          "code": "error2",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+    ]
+  }
+}

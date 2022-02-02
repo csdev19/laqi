@@ -8,6 +8,8 @@ const execute = () => {
   try {
 
     let data = configuration.loadData();
+    console.log(data)
+
     const server = new Server(configuration.port, configuration.ip, configuration.path, data);
     server.initialize(data);
     chokidar.watch('./mock-data', {
@@ -15,6 +17,7 @@ const execute = () => {
       persistent: false,
     }).on('change', async (event, path) => {
       data = configuration.loadData();
+      console.log(data)
       server.initialize(data);
     });
 
