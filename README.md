@@ -15,6 +15,7 @@ Just install the package with `npm install laqi` you can use it with the `--save
 - [x] Refresh endpoints by the change of the files automatically
 - [x] Nested files to group endpoints
 - [x] Type of response: JSON
+- [x] Posibility to specify the response method (GET, POST, PUT, DELETE) with the same name fixing json problem
 - [ ] Create example files
 - [ ] Documented CLI
 
@@ -127,6 +128,43 @@ For example
     ]
   },
 }
+```
+
+## Case of use one endpoint multiple methods
+
+The case of use for example is when you want to create a endpoint that accept multiple methods. The endpoint's name is `products` and you want to GET all the products and get an specific product and you need to do **products/:id** to get an specific product. And you also want to POST, PUT and DELETE the product, in the clasic json format doesn't ley you to do this, so you need to create a new endpoint specifying the method like this `(get/post/put/delete)products/:id` and the server will work with the method you specify in the parenthesis.
+
+```JSON
+  "(get)files/:id": {
+    "method": "GET",
+    "codeResponse": "200",
+    "responses": [
+      {
+        "statusCode": "200",
+        "selectorCode": "200",
+        "body": {
+          "message": "OK"
+        }
+      },
+      {
+        "statusCode": "400",
+        "selectorCode": "error400",
+        "body": {
+          "code": "error1",
+          "description": "Invalid data.",
+          "errorType": "Functional"
+        }
+      },
+      {
+        "statusCode": "401",
+        "selectorCode": "error401",
+        "body": {
+          "code": "error2",
+          "description": "Unauthorized User.",
+          "errorType": "Functional"
+        }
+      }
+  }
 ```
 
 
