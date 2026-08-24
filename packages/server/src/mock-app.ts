@@ -64,5 +64,22 @@ export function createMockApp(runtime: MockRuntime): Hono {
     })
   }
 
+  /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */
+  const MAX_SUGGESTIONS = 20
+
+  app.all('*', (c) =>
+    c.json(
+      {
+        error: 'laqi',
+        message: 'no matching route',
+        method: c.req.method,
+        path: new URL(c.req.url).pathname,
+        available: runtime.table.endpoints.slice(0, MAX_SUGGESTIONS).map((e) => e.id),
+        totalEndpoints: runtime.table.endpoints.length,
+      },
+      404,
+    ),
+  )
+
   return app
 }
