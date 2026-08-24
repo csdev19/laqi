@@ -1,0 +1,8 @@
+{
+  "name": "@laqi/schema",
+  "version": "2.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
+  "dependencies": { "zod": "catalog:" },
+  "scripts": { "check-types": "tsc --noEmit -p ." }
+}
