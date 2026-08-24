@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { basename, join, relative } from 'node:path'
 import {
   EndpointSchema,
   formatEndpointId,
@@ -94,7 +94,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
       continue
     }
 
-    if (path.endsWith(SCENARIOS_FILENAME)) {
+    if (basename(path) === SCENARIOS_FILENAME) {
       const result = ScenariosSchema.safeParse(parsed.value)
       if (result.success) scenarios = { ...scenarios, ...result.data }
       else errors.push({ file: displayPath, message: formatZodMessage(result.error.issues) })

@@ -85,6 +85,13 @@ describe('loadMocks', () => {
     expect(result.scenarios['checkout-broken']).toEqual({ 'GET /users': 'boom' })
   })
 
+  it('does not treat a file merely ending in "scenarios.json" as the scenarios file', () => {
+    writeMock('laqi/user-scenarios.json', usersEndpoint)
+    const result = load()
+    expect(result.endpoints.map((e) => e.id)).toEqual(['GET /users'])
+    expect(result.errors).toEqual([])
+  })
+
   it('keeps serving other files when one has broken JSON (H3)', () => {
     writeMock('laqi/api.json', usersEndpoint)
     writeMock('laqi/orders.json', '{\n  "GET /orders": {},\n}\n')
