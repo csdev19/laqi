@@ -64,6 +64,7 @@ describe('watchMocks', () => {
   it('debounces a burst of writes into a single call (v1 defect H)', async () => {
     const file = join(root, 'laqi', 'api.json')
     writeFileSync(file, '{}', 'utf8')
+    await settle()
 
     let calls = 0
     watcher = watchMocks({ root, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 120 })
