@@ -120,7 +120,7 @@ Abres el devtools y ves qué capa decidió. Sin adivinar, sin ir a buscar archiv
 ```
 resolver(ruta, request):
     si request tiene X-Laqi-Response  -> ésa,                 origen "header"
-    si request tiene X-Laqi-Scenario  -> la del escenario,    origen "scenario:<n>"
+    si request tiene X-Laqi-Scenario  -> la del escenario,    origen "header"
     si state.overrides[ruta]          -> ésa,                 origen "state"
     si state.scenario                 -> la del escenario,    origen "scenario:<n>"
     si no                             -> definicion.default,  origen "default"
@@ -129,6 +129,10 @@ resolver(ruta, request):
         -> 500 con un cuerpo que dice exactamente qué selector faltaba
            (NUNCA colgar la request — ver defecto C del análisis de v1)
 ```
+
+> Las palabras de capa son exactamente cuatro: `header`, `state`, `scenario` y
+> `default`. Un escenario pedido por header reporta `header`, no `scenario`,
+> porque no persiste nada — y porque el panel mapea cada palabra a un color.
 
 La última línea es deliberada: el peor bug de v1 era que un selector inexistente
 colgaba la conexión. En v2 es un error explícito y ruidoso.
