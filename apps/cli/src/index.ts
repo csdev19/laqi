@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
+import { runMigrate } from './migrate'
 import type { Runtime } from './runtime'
 import { startServer } from './serve'
 import { watchMocks } from './watcher'
@@ -87,9 +88,11 @@ async function main(): Promise<void> {
     file: values.file,
   })
 
-  // La rama `migrate` la añade la Tarea 13 (Modify: index.ts), justo aquí,
-  // antes del chequeo de "unknown command" de abajo. No la agregues en esta
-  // tarea — `./migrate` todavía no existe.
+  if (positionals[0] === 'migrate') {
+    const failed = runMigrate({ root, config, dryRun: values['dry-run'] === true })
+    if (failed) process.exitCode = 1
+    return
+  }
 
   if (positionals[0] !== undefined) {
     console.error(`✖ unknown command ${JSON.stringify(positionals[0])}\n`)
