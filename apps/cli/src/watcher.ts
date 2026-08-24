@@ -2,6 +2,16 @@
 import { relative, sep } from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
 
+// ¿`relativePath` es el propio target, un ancestro suyo (para poder bajar
+// hasta él) o algo dentro de él?
+function matchesTarget(relativePath: string, target: string): boolean {
+  return (
+    relativePath === target ||
+    relativePath.startsWith(`${target}${sep}`) ||
+    target.startsWith(`${relativePath}${sep}`)
+  )
+}
+
 export function watchMocks(options: {
   root: string
   dir: string
@@ -15,15 +25,21 @@ export function watchMocks(options: {
   // raíz del proyecto y PODAMOS todo lo que no sea la carpeta o el archivo de
   // mocks. Así un proyecto fresco (F9) detecta `laqi/` cuando se crea, sin
   // indexar src/ ni node_modules.
+  // dir/file pueden ser rutas anidadas ("config/mocks"): comparar sólo el
+  // primer segmento las podaba enteras. Normalizamos a separadores del SO
+  // para comparar contra `relative()`, que ya usa `sep`.
+  const normalizedDir = dir.split('/').join(sep)
+  const normalizedFile = file.split('/').join(sep)
+
   const watcher: FSWatcher = watch(root, {
     ignoreInitial: true,
     ignored: (path: string) => {
       if (path === root) return false
-      const parts = relative(root, path).split(sep)
+      const relativePath = relative(root, path)
       // Los dotfiles incluyen .laqi/state.json, que escribimos nosotros:
       // observarlo sería un bucle de recarga infinito.
-      if (parts.some((part) => part.startsWith('.'))) return true
-      return parts[0] !== dir && parts[0] !== file
+      if (relativePath.split(sep).some((part) => part.startsWith('.'))) return true
+      return !matchesTarget(relativePath, normalizedDir) && !matchesTarget(relativePath, normalizedFile)
     },
   })
 

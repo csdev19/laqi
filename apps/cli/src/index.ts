@@ -101,7 +101,19 @@ async function main(): Promise<void> {
     return
   }
 
-  const handle = await startServer({ root, config })
+  let handle: Awaited<ReturnType<typeof startServer>>
+  try {
+    handle = await startServer({ root, config })
+  } catch (error) {
+    if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+      console.error(
+        `✖ port ${config.port} is already in use — pick another with --port, or stop whatever else is using it`,
+      )
+      process.exitCode = 1
+      return
+    }
+    throw error
+  }
   report(handle.current(), handle.port, config)
 
   watchMocks({

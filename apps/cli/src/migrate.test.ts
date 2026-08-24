@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import { migrateV1 } from './migrate'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { ConfigSchema } from '@laqi/schema'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { migrateV1, runMigrate } from './migrate'
 
 const simple = {
   post: {
@@ -119,5 +123,49 @@ describe('migrateV1', () => {
   it('returns nothing for input that is not an object', () => {
     expect(migrateV1('nope').output).toEqual({})
     expect(migrateV1(null).warnings.length).toBeGreaterThan(0)
+  })
+})
+
+describe('runMigrate', () => {
+  let root: string
+  const config = ConfigSchema.parse({})
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'laqi-migrate-'))
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it('does not write a target file and reports failure when every source is unparseable (I7)', () => {
+    mkdirSync(join(root, 'mock-data'), { recursive: true })
+    writeFileSync(join(root, 'mock-data', 'api.json'), '{ this is not json }', 'utf8')
+
+    const failed = runMigrate({ root, config, dryRun: false })
+
+    expect(failed).toBe(true)
+    expect(existsSync(join(root, config.file))).toBe(false)
+  })
+
+  it('writes the target file and reports success when at least one source converts', () => {
+    mkdirSync(join(root, 'mock-data'), { recursive: true })
+    writeFileSync(
+      join(root, 'mock-data', 'api.json'),
+      JSON.stringify({
+        post: {
+          method: 'GET',
+          codeResponse: '200',
+          responses: [{ statusCode: '200', selectorCode: '200', body: { message: 'OK' } }],
+        },
+      }),
+      'utf8',
+    )
+
+    const failed = runMigrate({ root, config, dryRun: false })
+
+    expect(failed).toBe(false)
+    expect(existsSync(join(root, config.file))).toBe(true)
+    expect(JSON.parse(readFileSync(join(root, config.file), 'utf8'))).toHaveProperty('GET /post')
   })
 })

@@ -38,8 +38,6 @@ export function buildRouteTable(endpoints: LoadedEndpoint[]): {
     })
   }
 
-  kept.sort((a, b) => endpoints.indexOf(a) - endpoints.indexOf(b))
-
   return {
     table: { endpoints: kept, byId: new Map(kept.map((e) => [e.id, e])) },
     errors,

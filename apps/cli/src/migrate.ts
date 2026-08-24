@@ -95,7 +95,7 @@ export function migrateV1(input: unknown): MigrationResult {
 /** Devuelve true si hubo algún fallo, para que el CLI ponga exit code 1. */
 export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: boolean }): boolean {
   const { root, config, dryRun } = options
-  const sources = findV1Sources(root, config)
+  const sources = findV1Sources(root)
 
   if (sources.length === 0) {
     console.error('✖ nothing to migrate — no mock-data/ folder or mock.config.json found')
@@ -113,6 +113,12 @@ export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: 
     } catch (error) {
       warnings.push(`${relative(root, source)}: ${error instanceof Error ? error.message : String(error)}`)
     }
+  }
+
+  if (Object.keys(merged).length === 0 && warnings.length > 0) {
+    console.error('✖ nothing migrated — every source file failed to convert')
+    for (const warning of warnings) console.warn(`  ! ${warning}`)
+    return true
   }
 
   const target = join(root, config.file)
@@ -133,7 +139,7 @@ export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: 
   return false
 }
 
-function findV1Sources(root: string, config: LaqiConfig): string[] {
+function findV1Sources(root: string): string[] {
   // v1 leía `path` de mock.config.json, con 'mock-data' por defecto.
   let dir = 'mock-data'
   const legacyConfig = join(root, 'mock.config.json')
@@ -144,6 +150,7 @@ function findV1Sources(root: string, config: LaqiConfig): string[] {
       if (typeof parsed.path === 'string') dir = parsed.path
     } catch {
       // Config ilegible: seguimos con el default de v1.
+      console.warn(`  ! mock.config.json could not be parsed — using default path ${JSON.stringify(dir)}`)
     }
   }
 

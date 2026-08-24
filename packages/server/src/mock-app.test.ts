@@ -27,6 +27,15 @@ const endpoints: LoadedEndpoint[] = [
     file: 'laqi/api.json',
     line: 10,
   },
+  {
+    id: 'OPTIONS /widgets',
+    method: 'OPTIONS',
+    path: '/widgets',
+    default: 'ok',
+    responses: { ok: { status: 200, body: { allowed: ['GET'] } } },
+    file: 'laqi/api.json',
+    line: 20,
+  },
 ]
 
 function makeApp(state: LaqiState = { scenario: null, overrides: {} }, scenarios: Scenarios = {}) {
@@ -99,5 +108,31 @@ describe('createMockApp', () => {
     expect(res.status).toBe(500)
     expect(JSON.stringify(await res.json())).toContain('ghost')
     expect(res.headers.get('X-Laqi-Resolved')).toBe('ghost (state)')
+  })
+
+  it('reaches a declared OPTIONS mock instead of hono cors() swallowing it with a bare 204 (I5)', async () => {
+    const res = await makeApp().request('/widgets', { method: 'OPTIONS' })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ allowed: ['GET'] })
+    expect(res.headers.get('X-Laqi-Resolved')).toBe('ok (default)')
+  })
+
+  it('never lets a mock-declared header override the real resolved header (I11)', async () => {
+    const spoofed: LoadedEndpoint[] = [
+      {
+        id: 'GET /users',
+        method: 'GET',
+        path: '/users',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {}, headers: { 'X-Laqi-Resolved': 'fake' } } },
+        file: 'laqi/api.json',
+        line: 2,
+      },
+    ]
+    const { table } = buildRouteTable(spoofed)
+    const runtime: MockRuntime = { table, scenarios: {}, getState: () => ({ scenario: null, overrides: {} }), cors: '*' }
+    const res = await createMockApp(runtime).request('/users')
+
+    expect(res.headers.get('X-Laqi-Resolved')).toBe('ok (default)')
   })
 })

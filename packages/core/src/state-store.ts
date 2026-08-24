@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DEFAULT_STATE, StateSchema, type LaqiState } from '@laqi/schema'
 
@@ -29,6 +29,11 @@ export class StateStore {
 
   write(state: LaqiState): void {
     mkdirSync(dirname(this.path), { recursive: true })
-    writeFileSync(this.path, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+    // Escribe a un temporal y renombra encima: un rename en el mismo
+    // filesystem es atómico, así que un lector jamás ve un archivo a medio
+    // escribir.
+    const tmpPath = `${this.path}.tmp`
+    writeFileSync(tmpPath, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
+    renameSync(tmpPath, this.path)
   }
 }

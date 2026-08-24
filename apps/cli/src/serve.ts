@@ -35,7 +35,7 @@ export async function startServer(options: {
     })
   }
 
-  const server: ServerType = await new Promise((resolve) => {
+  const server: ServerType = await new Promise((resolve, reject) => {
     const instance = serve(
       {
         // La indirección es el punto: `app` es mutable, el servidor no.
@@ -45,6 +45,9 @@ export async function startServer(options: {
       },
       () => resolve(instance),
     )
+    // Sin esto, un puerto ocupado (EADDRINUSE) nunca dispara el callback de
+    // éxito y la promesa cuelga para siempre, en silencio.
+    instance.on('error', reject)
   })
 
   const address = server.address()

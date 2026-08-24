@@ -1,4 +1,4 @@
-import { formatResolvedHeader, resolveResponse, type RouteTable } from '@laqi/core'
+import { formatResolvedHeader, resolveResponse, type LoadedEndpoint, type RouteTable } from '@laqi/core'
 import type { LaqiConfig, LaqiState, Scenarios } from '@laqi/schema'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -19,16 +19,7 @@ export const RESOLVED_HEADER = 'X-Laqi-Resolved'
 export function createMockApp(runtime: MockRuntime): Hono {
   const app = new Hono()
 
-  app.use(
-    '*',
-    cors({
-      origin: runtime.cors === '*' ? '*' : runtime.cors,
-      allowHeaders: ['Content-Type', 'Authorization', RESPONSE_HEADER, SCENARIO_HEADER],
-      exposeHeaders: [RESOLVED_HEADER],
-    }),
-  )
-
-  for (const endpoint of runtime.table.endpoints) {
+  const registerEndpoint = (endpoint: LoadedEndpoint) => {
     app.on(endpoint.method, endpoint.path, async (c) => {
       const resolution = resolveResponse({
         endpoint,
@@ -38,10 +29,9 @@ export function createMockApp(runtime: MockRuntime): Hono {
         headerScenario: c.req.header(SCENARIO_HEADER),
       })
 
-      c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
-
       // Un selector inexistente es un 500 explícito. Jamás una request colgada.
       if (!resolution.ok) {
+        c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
         return c.json({ error: 'laqi', endpoint: endpoint.id, message: resolution.message }, 500)
       }
 
@@ -55,6 +45,10 @@ export function createMockApp(runtime: MockRuntime): Hono {
         c.header(name, value)
       }
 
+      // Se fija DESPUÉS de los headers del mock: uno declarado como
+      // "X-Laqi-Resolved" nunca puede mentir sobre la capa que decidió.
+      c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
+
       if (response.body === undefined) {
         return c.body(null, response.status as StatusCode)
       }
@@ -62,6 +56,27 @@ export function createMockApp(runtime: MockRuntime): Hono {
       // structuredClone: el cuerpo servido nunca es la referencia cargada.
       return c.json(structuredClone(response.body), response.status as ContentfulStatusCode)
     })
+  }
+
+  // Los endpoints OPTIONS se registran ANTES de cors(): cors() intercepta
+  // toda request OPTIONS con un 204 propio antes de que corra cualquier ruta,
+  // así que un mock declarado para OPTIONS nunca sería alcanzable si cors()
+  // fuera primero.
+  for (const endpoint of runtime.table.endpoints) {
+    if (endpoint.method === 'OPTIONS') registerEndpoint(endpoint)
+  }
+
+  app.use(
+    '*',
+    cors({
+      origin: runtime.cors === '*' ? '*' : runtime.cors,
+      allowHeaders: ['Content-Type', 'Authorization', RESPONSE_HEADER, SCENARIO_HEADER],
+      exposeHeaders: [RESOLVED_HEADER],
+    }),
+  )
+
+  for (const endpoint of runtime.table.endpoints) {
+    if (endpoint.method !== 'OPTIONS') registerEndpoint(endpoint)
   }
 
   /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */

@@ -76,6 +76,26 @@ describe('watchMocks', () => {
     expect(calls).toBe(1)
   })
 
+  it('fires on a nested dir config, not just the first path segment (I6)', async () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'laqi-nested-'))
+    let calls = 0
+    watcher = watchMocks({
+      root: fresh,
+      dir: 'config/mocks',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 20,
+    })
+    await settle()
+
+    mkdirSync(join(fresh, 'config', 'mocks'), { recursive: true })
+    writeFileSync(join(fresh, 'config', 'mocks', 'api.json'), '{}', 'utf8')
+    await settle(600)
+
+    expect(calls).toBeGreaterThanOrEqual(1)
+    rmSync(fresh, { recursive: true, force: true })
+  })
+
   it('detects the mocks folder even when it is created after startup (F9)', async () => {
     const fresh = mkdtempSync(join(tmpdir(), 'laqi-fresh-'))
     let calls = 0

@@ -86,4 +86,19 @@ describe('startServer', () => {
     expect(error?.file).toContain('broken.json')
     expect(error?.excerpt).toContain('^')
   })
+
+  it('rejects instead of hanging forever when the port is already in use (C3)', async () => {
+    handle = await startServer({ root, config })
+    const busyPort = handle.port
+
+    const otherRoot = mkdtempSync(join(tmpdir(), 'laqi-serve-'))
+    mkdirSync(join(otherRoot, 'laqi'), { recursive: true })
+    try {
+      await expect(
+        startServer({ root: otherRoot, config: ConfigSchema.parse({ port: busyPort, host: '127.0.0.1' }) }),
+      ).rejects.toThrow()
+    } finally {
+      rmSync(otherRoot, { recursive: true, force: true })
+    }
+  }, 5000)
 })

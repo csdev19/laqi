@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -129,6 +129,22 @@ describe('loadMocks', () => {
   it('records the line of each endpoint key', () => {
     writeMock('laqi/api.json', '{\n  "GET /users": {\n    "default": "ok",\n    "responses": { "ok": { "status": 200 } }\n  }\n}\n')
     expect(load().endpoints[0]?.line).toBe(2)
+  })
+
+  it('reports a per-file error instead of throwing when a file goes unreadable between scan and read (C2)', () => {
+    // Un symlink cuyo target se borra justo antes de leerlo: readdirSync lo lista,
+    // pero readFileSync explota — el mismo hueco que un archivo borrado a mitad de carga.
+    writeMock('laqi/api.json', usersEndpoint)
+    const target = join(root, 'ghost-target.json')
+    writeFileSync(target, usersEndpoint, 'utf8')
+    symlinkSync(target, join(root, 'laqi', 'ghost.json'))
+    unlinkSync(target)
+
+    const result = load()
+    expect(result.endpoints.map((e) => e.id)).toEqual(['GET /users'])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]?.file).toContain('ghost.json')
+    expect(result.errors[0]?.message).toContain('could not read file')
   })
 
   it('preserves file order', () => {

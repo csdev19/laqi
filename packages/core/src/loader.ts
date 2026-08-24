@@ -79,7 +79,18 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
 
   for (const path of paths) {
     const displayPath = relative(root, path)
-    const raw = readFileSync(path, 'utf8')
+
+    let raw: string
+    try {
+      raw = readFileSync(path, 'utf8')
+    } catch (error) {
+      errors.push({
+        file: displayPath,
+        message: `could not read file: ${error instanceof Error ? error.message : String(error)}`,
+      })
+      continue
+    }
+
     const parsed = parseJsonWithPosition(raw)
 
     // Un error de parseo invalida el archivo entero: no hay nada que rescatar.
