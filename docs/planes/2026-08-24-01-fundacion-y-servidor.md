@@ -2694,13 +2694,17 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
-import { runMigrate } from './migrate'
 import type { Runtime } from './runtime'
 import { startServer } from './serve'
 import { watchMocks } from './watcher'
 
 const CONFIG_FILE = 'laqi.config.json'
 
+// NOTA para quien implemente esta tarea: la USAGE de abajo ya anuncia
+// `laqi migrate`, pero el comando en sí (el import de `runMigrate` y su
+// bloque `if (positionals[0] === 'migrate')`) los añade la Tarea 13, que crea
+// `migrate.ts`. Hasta entonces `laqi migrate` cae en el "unknown command" de
+// más abajo — es el comportamiento esperado de ESTA tarea, no un bug.
 const USAGE = `
 laqi — mock server for frontend development
 
@@ -2773,11 +2777,9 @@ async function main(): Promise<void> {
     file: values.file,
   })
 
-  if (positionals[0] === 'migrate') {
-    const failed = runMigrate({ root, config, dryRun: values['dry-run'] === true })
-    if (failed) process.exitCode = 1
-    return
-  }
+  // La rama `migrate` la añade la Tarea 13 (Modify: index.ts), justo aquí,
+  // antes del chequeo de "unknown command" de abajo. No la agregues en esta
+  // tarea — `./migrate` todavía no existe.
 
   if (positionals[0] !== undefined) {
     console.error(`✖ unknown command ${JSON.stringify(positionals[0])}\n`)
@@ -2867,9 +2869,10 @@ Convierte el formato de v1, incluido el hack `(get)files/:id`. Es lo que hace de
 
 **Files:**
 - Create: `apps/cli/src/migrate.ts`, `apps/cli/src/migrate.test.ts`
+- Modify: `apps/cli/src/index.ts` (la Tarea 12 dejó la rama `migrate` sin conectar a propósito — ver Step 7 de esta tarea)
 
 **Interfaces:**
-- Consumes: `HTTP_METHODS`, `isHttpMethod`, `formatEndpointId`, `EndpointDefinition` (Tareas 2–4)
+- Consumes: `HTTP_METHODS`, `isHttpMethod`, `formatEndpointId`, `EndpointDefinition` (Tareas 2–4); `type Runtime`, `startServer`, `report` — el `main()` de `apps/cli/src/index.ts` (Tarea 12)
 - Produces: `type MigrationResult = { output: Record<string, EndpointDefinition>; warnings: string[] }`, `migrateV1(input: unknown): MigrationResult`, `runMigrate(options: { root: string; config: LaqiConfig; dryRun: boolean }): boolean`
 
 - [ ] **Step 1: Escribir el test que falla**
@@ -3190,8 +3193,41 @@ function findV1Sources(root: string, config: LaqiConfig): string[] {
 }
 ```
 
+- [ ] **Step 6: Conectar el comando en `index.ts`**
 
-- [ ] **Step 6: Probarlo contra los mocks reales de v1**
+La Tarea 12 dejó `laqi migrate` sin conectar a propósito (`./migrate` todavía no existía). Ahora sí existe: conectarlo.
+
+En `apps/cli/src/index.ts`, añadir el import junto a los demás:
+
+```ts
+import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
+import { runMigrate } from './migrate'
+import type { Runtime } from './runtime'
+```
+
+Y reemplazar el comentario que la Tarea 12 dejó como marcador:
+
+```ts
+  // La rama `migrate` la añade la Tarea 13 (Modify: index.ts), justo aquí,
+  // antes del chequeo de "unknown command" de abajo. No la agregues en esta
+  // tarea — `./migrate` todavía no existe.
+
+  if (positionals[0] !== undefined) {
+```
+
+por la rama real:
+
+```ts
+  if (positionals[0] === 'migrate') {
+    const failed = runMigrate({ root, config, dryRun: values['dry-run'] === true })
+    if (failed) process.exitCode = 1
+    return
+  }
+
+  if (positionals[0] !== undefined) {
+```
+
+- [ ] **Step 7: Probarlo contra los mocks reales de v1**
 
 ```bash
 mkdir -p /tmp/laqi-migrate && cd /tmp/laqi-migrate
@@ -3203,7 +3239,12 @@ bun <ruta-al-repo>/apps/cli/src/index.ts migrate --dry-run
 
 Esperado: las cinco claves `(get)files/:id`, `(post)files/:id`, etc. salen como `GET /files/:id`, `POST /files/:id`… y `files` como `GET /files`. Sin avisos de colisión.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Correr todo el conjunto de tests y verificar tipos**
+
+Run: `bun run test && bun run check-types`
+Expected: todo verde — este es el paso que habría fallado si `index.ts` se hubiera dejado sin conectar.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add apps/cli
