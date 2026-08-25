@@ -24,6 +24,8 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     getScenarios: () => ({}),
     getStatus: () => ({ watching: 'laqi/', endpointCount: 1, address: '127.0.0.1:8000', errors: [] }),
     createEndpoint: () => ({ ok: true, id: 'GET /new' }),
+    updateEndpoint: () => ({ ok: true }),
+    deleteEndpoint: () => ({ ok: true }),
     ...overrides,
   }
 }
@@ -228,5 +230,72 @@ describe('POST /api/endpoints', () => {
     expect(res.status).toBe(409)
     const body = (await res.json()) as { message: string }
     expect(body.message).toContain('already exists')
+  })
+})
+
+describe('PUT /api/endpoints/:id', () => {
+  it('updates the endpoint addressed by the URL-encoded id', async () => {
+    const updateEndpoint = vi.fn(() => ({ ok: true as const }))
+    const app = createControlPlaneApp(makeRuntime({ updateEndpoint }))
+
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default: 'empty', responses: { empty: { status: 200, body: [] } } }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(updateEndpoint).toHaveBeenCalledWith('GET /users', {
+      description: undefined,
+      default: 'empty',
+      responses: { empty: { status: 200, body: [] } },
+    })
+  })
+
+  it('returns 404 when the runtime reports the id does not exist', async () => {
+    const updateEndpoint = vi.fn(() => ({ ok: false as const, error: 'no endpoint "GET /ghost"' }))
+    const app = createControlPlaneApp(makeRuntime({ updateEndpoint }))
+
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /ghost')}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default: 'ok', responses: { ok: { status: 200 } } }),
+    })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('rejects an invalid definition with 400', async () => {
+    const updateEndpoint = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ updateEndpoint }))
+
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ default: 'ok', responses: {} }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(updateEndpoint).not.toHaveBeenCalled()
+  })
+})
+
+describe('DELETE /api/endpoints/:id', () => {
+  it('deletes the endpoint and returns 204', async () => {
+    const deleteEndpoint = vi.fn(() => ({ ok: true as const }))
+    const app = createControlPlaneApp(makeRuntime({ deleteEndpoint }))
+
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}`, { method: 'DELETE' })
+
+    expect(res.status).toBe(204)
+    expect(deleteEndpoint).toHaveBeenCalledWith('GET /users')
+  })
+
+  it('returns 404 when the id does not exist', async () => {
+    const deleteEndpoint = vi.fn(() => ({ ok: false as const, error: 'no endpoint "GET /ghost"' }))
+    const app = createControlPlaneApp(makeRuntime({ deleteEndpoint }))
+
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /ghost')}`, { method: 'DELETE' })
+    expect(res.status).toBe(404)
   })
 })

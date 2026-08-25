@@ -20,6 +20,11 @@ export type ControlPlaneRuntime = {
     default: string
     responses: Record<string, unknown>
   }) => { ok: true; id: string } | { ok: false; error: string }
+  updateEndpoint: (
+    id: string,
+    definition: { description?: string; default: string; responses: Record<string, unknown> },
+  ) => { ok: true } | { ok: false; error: string }
+  deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -100,7 +105,44 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.json({ id: result.id }, 201)
   })
 
-  // Punto de inserción para las tareas 7–8: las rutas nuevas van ACÁ,
+  app.put('/api/endpoints/:id', async (c) => {
+    const id = decodeURIComponent(c.req.param('id'))
+
+    let raw: unknown
+    try {
+      raw = await c.req.json()
+    } catch {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const definition = EndpointSchema.safeParse(raw)
+    if (!definition.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: definition.error.issues.map((i) => i.message).join('; ') },
+        400,
+      )
+    }
+
+    const result = runtime.updateEndpoint(id, definition.data)
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+    }
+
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/endpoints/:id', (c) => {
+    const id = decodeURIComponent(c.req.param('id'))
+    const result = runtime.deleteEndpoint(id)
+
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+    }
+
+    return c.body(null, 204)
+  })
+
+  // Punto de inserción para la Tarea 8 (SSE): la ruta nueva va ACÁ,
   // antes de este catch-all — nunca después.
   app.all('*', (c) =>
     c.json({ error: 'laqi-control-plane', message: 'no matching route', path: c.req.path }, 404),
