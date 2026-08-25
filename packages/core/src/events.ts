@@ -2,11 +2,19 @@ export type LaqiEvent =
   | {
       type: 'request'
       method: string
+      /** El path PEDIDO (`/users/42`), no el patrón de la ruta. */
       path: string
       status: number
-      resolvedName: string
-      resolvedLayer: string
       ms: number
+      /**
+       * El endpoint que la sirvió, o `null` cuando no matcheó ninguna ruta.
+       * La fila no-route es la más importante del log del panel, así que
+       * tiene que viajar por el mismo stream que las demás.
+       */
+      endpointId: string | null
+      /** Ausentes en una no-route: no hubo nada que resolver. */
+      resolvedName?: string
+      resolvedLayer?: string
     }
   | { type: 'endpoints-changed'; endpointCount: number }
   | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }
