@@ -1401,7 +1401,9 @@ describe('GET /events (SSE)', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     await reader.cancel()
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // 150ms: 5x el intervalo de poll de 30ms del handler SSE, margen de
+    // sobra para no ser un test frágil por estar justo en el borde.
+    await new Promise((resolve) => setTimeout(resolve, 150))
 
     expect(unsubscribed).toBe(true)
   })
@@ -1474,8 +1476,15 @@ por:
       })
 
       try {
+        // 30ms, no 1000ms: el loop existe sólo para mantener vivo el
+        // generador mientras la conexión sigue abierta; el intervalo es la
+        // latencia máxima antes de notar un abort y desuscribirse. Verificado
+        // durante la ejecución: a 1000ms, el test de desconexión (que sólo
+        // espera 150ms tras el cancel) fallaba de forma determinista aunque
+        // onAbort disparaba correctamente — el cleanup real ocurría, sólo
+        // que tarde.
         while (!closed) {
-          await stream.sleep(1000)
+          await stream.sleep(30)
         }
       } finally {
         unsubscribe()
