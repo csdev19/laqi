@@ -104,8 +104,9 @@ four layers, in this order — the first one that applies wins:
 
 1. **header** — an explicit `X-Laqi-Response: <name>` (or
    `X-Laqi-Scenario: <name>`) request header. Doesn't persist anything.
-2. **state** — a per-endpoint override, written to `.laqi/state.json` (by a
-   future control panel or MCP server — not built yet on this branch).
+2. **state** — a per-endpoint override, written to `.laqi/state.json` via
+   the control plane API below (a web panel or MCP server, in a later
+   plan, will write there too).
 3. **scenario** — the currently active scenario from `scenarios.json`, if
    one is set in state.
 4. **default** — the endpoint's own `default` response. Always available,
@@ -113,6 +114,29 @@ four layers, in this order — the first one that applies wins:
 
 Every response carries an `X-Laqi-Resolved: <name> (<layer>)` header so you
 can always see which layer decided it.
+
+## Control plane API
+
+Alongside the mocks, `laqi` serves a small HTTP + SSE API under `/__laqi`,
+local-only by default:
+
+```
+GET    /__laqi/api/endpoints          list loaded endpoints
+POST   /__laqi/api/endpoints          create one
+PUT    /__laqi/api/endpoints/:id      update one (:id is URL-encoded, e.g. "GET /users")
+DELETE /__laqi/api/endpoints/:id      delete one
+GET    /__laqi/api/state              read the active overrides + scenario
+PUT    /__laqi/api/state              flip them
+GET    /__laqi/api/scenarios          read scenarios.json (read-only — edit the file to author one)
+GET    /__laqi/api/status             what's being watched, endpoint count, load errors
+GET    /__laqi/events                 live SSE stream: request | endpoints-changed | error
+```
+
+Every write goes through the same file it would if you'd hand-edited it,
+and reloads immediately — no restart, no waiting on the file watcher. This
+API has no authentication yet; it's withheld automatically unless `--host`
+is left at its loopback default. A web panel and an MCP server consuming
+this API are on the roadmap.
 
 ## Why that name?
 
