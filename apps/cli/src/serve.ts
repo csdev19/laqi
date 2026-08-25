@@ -18,6 +18,7 @@ import {
 } from '@laqi/schema'
 import { createControlPlaneApp, createMockApp, type ControlPlaneRuntime } from '@laqi/server'
 import { Hono } from 'hono'
+import { createEditorApp } from './editor-assets'
 import { buildRuntime, type Runtime } from './runtime'
 
 export type ServeHandle = {
@@ -148,12 +149,15 @@ export async function startServer(options: {
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 
     const top = new Hono()
-    // El control plane sólo se monta cuando el server escucha en loopback —
-    // con --host 0.0.0.0 (la feature intencional de LAN/mobile testing de un
-    // plan anterior) montarlo acá lo expondría a cualquiera en la red local.
-    // Sin este mount, /__laqi/* simplemente cae al 404 del mock app, como
-    // cualquier otra ruta no encontrada.
+    // El panel y el control plane sólo se montan cuando el server escucha en
+    // loopback — con --host 0.0.0.0 (la feature intencional de LAN/mobile
+    // testing de un plan anterior) montarlos acá los expondría a cualquiera
+    // en la red local. Sin estos mounts, /__laqi/* simplemente cae al 404 del
+    // mock app, como cualquier otra ruta no encontrada.
     if (config.host === '127.0.0.1' || config.host === 'localhost') {
+      // El panel va PRIMERO: el control plane termina en un catch-all que
+      // se comería /__laqi y /__laqi/assets/*.
+      top.route('/', createEditorApp())
       top.route('/__laqi', controlPlaneApp)
     }
     top.route('/', mockApp)
