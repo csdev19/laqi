@@ -53,7 +53,6 @@ export function EndpointDetail(props: {
   const names = Object.keys(draft.responses)
   const current = draft.responses[selected]
   const bodySource = draft.bodies[selected] ?? ''
-  const bodyCheck = checkJson(bodySource || 'null')
 
   const dirty = useMemo(() => !sameDefinition(draft, endpoint), [draft, endpoint])
 

@@ -19,8 +19,9 @@ export function toLogEntry(event: RequestEvent, seq: number, at: Date): LogEntry
   }
 }
 
+const pad = (n: number) => String(n).padStart(2, '0')
+
 function formatTime(at: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`
 }
 
