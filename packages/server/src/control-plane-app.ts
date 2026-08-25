@@ -1,5 +1,5 @@
-import type { LoadedEndpoint } from '@laqi/core'
-import { StateSchema, type LaqiState } from '@laqi/schema'
+import type { LoadedEndpoint, LoadError } from '@laqi/core'
+import { StateSchema, type LaqiState, type Scenarios } from '@laqi/schema'
 import { Hono } from 'hono'
 
 /**
@@ -11,6 +11,8 @@ export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
   getState: () => LaqiState
   setState: (state: LaqiState) => void
+  getScenarios: () => Scenarios
+  getStatus: () => { watching: string; endpointCount: number; address: string; errors: LoadError[] }
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -40,7 +42,11 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.json(parsed.data)
   })
 
-  // Punto de inserción para las tareas 5–8: las rutas nuevas van ACÁ,
+  app.get('/api/scenarios', (c) => c.json(runtime.getScenarios()))
+
+  app.get('/api/status', (c) => c.json(runtime.getStatus()))
+
+  // Punto de inserción para las tareas 6–8: las rutas nuevas van ACÁ,
   // antes de este catch-all — nunca después.
   app.all('*', (c) =>
     c.json({ error: 'laqi-control-plane', message: 'no matching route', path: c.req.path }, 404),

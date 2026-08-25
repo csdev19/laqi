@@ -21,6 +21,8 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     setState: (next) => {
       state = next
     },
+    getScenarios: () => ({}),
+    getStatus: () => ({ watching: 'laqi/', endpointCount: 1, address: '127.0.0.1:8000', errors: [] }),
     ...overrides,
   }
 }
@@ -106,5 +108,39 @@ describe('unmatched /__laqi paths', () => {
     expect(res.status).toBe(404)
     const body = (await res.json()) as { error: string }
     expect(body.error).toBe('laqi-control-plane')
+  })
+})
+
+describe('GET /api/scenarios', () => {
+  it('returns the loaded scenarios', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({ getScenarios: () => ({ 'checkout-broken': { 'GET /users': 'boom' } }) }),
+    )
+    const res = await app.request('/api/scenarios')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ 'checkout-broken': { 'GET /users': 'boom' } })
+  })
+})
+
+describe('GET /api/status', () => {
+  it('returns what the CLI is watching, and load errors', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({
+        getStatus: () => ({
+          watching: 'laqi/',
+          endpointCount: 27,
+          address: '127.0.0.1:8000',
+          errors: [{ file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' }],
+        }),
+      }),
+    )
+    const res = await app.request('/api/status')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      watching: 'laqi/',
+      endpointCount: 27,
+      address: '127.0.0.1:8000',
+      errors: [{ file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' }],
+    })
   })
 })
