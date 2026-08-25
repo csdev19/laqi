@@ -1,4 +1,4 @@
-import type { LoadedEndpoint } from '@laqi/core'
+import type { LaqiEvent, LoadedEndpoint } from '@laqi/core'
 import type { LaqiState } from '@laqi/schema'
 import { describe, expect, it, vi } from 'vitest'
 import { createControlPlaneApp, type ControlPlaneRuntime } from './control-plane-app'
@@ -26,6 +26,7 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     createEndpoint: () => ({ ok: true, id: 'GET /new' }),
     updateEndpoint: () => ({ ok: true }),
     deleteEndpoint: () => ({ ok: true }),
+    subscribe: () => () => {},
     ...overrides,
   }
 }
@@ -297,5 +298,64 @@ describe('DELETE /api/endpoints/:id', () => {
 
     const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /ghost')}`, { method: 'DELETE' })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /events (SSE)', () => {
+  it('streams events emitted after the connection opens', async () => {
+    let emit: ((event: LaqiEvent) => void) | undefined
+    const app = createControlPlaneApp(
+      makeRuntime({
+        subscribe: (listener) => {
+          emit = listener
+          return () => {
+            emit = undefined
+          }
+        },
+      }),
+    )
+
+    const res = await app.request('/events')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('text/event-stream')
+
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+
+    // El handler recién queda "conectado" cuando terminó de registrar el
+    // listener — darle una vuelta de microtask antes de emitir.
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(emit).toBeDefined()
+
+    emit!({ type: 'endpoints-changed', endpointCount: 5 })
+
+    const { value } = await reader.read()
+    const text = decoder.decode(value)
+    expect(text).toContain('event: endpoints-changed')
+    expect(text).toContain(JSON.stringify({ type: 'endpoints-changed', endpointCount: 5 }))
+
+    await reader.cancel()
+  })
+
+  it('unsubscribes when the client disconnects', async () => {
+    let unsubscribed = false
+    const app = createControlPlaneApp(
+      makeRuntime({
+        subscribe: () => () => {
+          unsubscribed = true
+        },
+      }),
+    )
+
+    const res = await app.request('/events')
+    const reader = res.body!.getReader()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    await reader.cancel()
+    // 150ms: 5x el intervalo de poll de 30ms del handler SSE, margen de
+    // sobra para no ser un test frágil por estar justo en el borde.
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
+    expect(unsubscribed).toBe(true)
   })
 })

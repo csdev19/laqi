@@ -1,6 +1,7 @@
-import type { LoadedEndpoint, LoadError } from '@laqi/core'
+import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
 import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiState, type Scenarios } from '@laqi/schema'
 import { Hono } from 'hono'
+import { streamSSE } from 'hono/streaming'
 
 /**
  * Todo lo que el control plane necesita del proceso que lo hospeda. Cada
@@ -25,6 +26,7 @@ export type ControlPlaneRuntime = {
     definition: { description?: string; default: string; responses: Record<string, unknown> },
   ) => { ok: true } | { ok: false; error: string }
   deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }
+  subscribe: (listener: (event: LaqiEvent) => void) => () => void
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -142,8 +144,36 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.body(null, 204)
   })
 
-  // Punto de inserción para la Tarea 8 (SSE): la ruta nueva va ACÁ,
-  // antes de este catch-all — nunca después.
+  app.get('/events', (c) =>
+    streamSSE(c, async (stream) => {
+      let closed = false
+      stream.onAbort(() => {
+        closed = true
+      })
+
+      const unsubscribe = runtime.subscribe((event) => {
+        void stream.writeSSE({ event: event.type, data: JSON.stringify(event) })
+      })
+
+      try {
+        // 30ms, no 1000ms: el loop existe sólo para mantener vivo el
+        // generador mientras la conexión sigue abierta; el intervalo es la
+        // latencia máxima antes de notar un abort y desuscribirse. Verificado
+        // durante la ejecución: a 1000ms, el test de desconexión (que sólo
+        // espera 150ms tras el cancel) fallaba de forma determinista aunque
+        // onAbort disparaba correctamente — el cleanup real ocurría, sólo
+        // que tarde.
+        while (!closed) {
+          await stream.sleep(30)
+        }
+      } finally {
+        unsubscribe()
+      }
+    }),
+  )
+
+  // Punto de inserción para futuras rutas: van ACÁ, antes de este
+  // catch-all — nunca después.
   app.all('*', (c) =>
     c.json({ error: 'laqi-control-plane', message: 'no matching route', path: c.req.path }, 404),
   )
