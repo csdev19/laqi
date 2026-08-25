@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
@@ -19,6 +19,7 @@ function readFileObject(fullPath: string): { ok: true; value: Record<string, unk
 }
 
 function writeFileObject(fullPath: string, contents: Record<string, unknown>): void {
+  mkdirSync(dirname(fullPath), { recursive: true })
   writeFileSync(fullPath, `${JSON.stringify(contents, null, 2)}\n`, 'utf8')
 }
 

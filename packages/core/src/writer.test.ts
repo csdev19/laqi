@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { deleteEndpointFromFile, updateEndpointInFile } from './writer'
+import { createEndpointInFile, deleteEndpointFromFile, updateEndpointInFile } from './writer'
 
 let root: string
 
@@ -95,5 +95,46 @@ describe('deleteEndpointFromFile', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
     const result = deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /ghost' })
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('createEndpointInFile', () => {
+  it('creates the file if it does not exist yet, with the one endpoint', () => {
+    const result = createEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /users', definition: okDefinition })
+
+    expect(result.ok).toBe(true)
+    expect(readMock('laqi/api.json')).toEqual({ 'GET /users': okDefinition })
+  })
+
+  it('appends to an existing file without touching its other keys', () => {
+    writeMock('laqi/api.json', { 'GET /users': okDefinition })
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /orders',
+      definition: { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+    })
+
+    expect(result.ok).toBe(true)
+    const contents = readMock('laqi/api.json') as Record<string, unknown>
+    expect(contents['GET /users']).toEqual(okDefinition)
+    expect(contents['GET /orders']).toBeDefined()
+  })
+
+  it('refuses to overwrite an id that already exists', () => {
+    writeMock('laqi/api.json', { 'GET /users': okDefinition })
+    const result = createEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /users', definition: okDefinition })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects an invalid definition without creating the file', () => {
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /users',
+      definition: { default: 'ghost', responses: { ok: { status: 200 } } } as never,
+    })
+    expect(result.ok).toBe(false)
+    expect(existsSync(join(root, 'laqi/api.json'))).toBe(false)
   })
 })
