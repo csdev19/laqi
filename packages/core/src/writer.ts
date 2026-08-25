@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
 
@@ -20,7 +20,13 @@ function readFileObject(fullPath: string): { ok: true; value: Record<string, unk
 
 function writeFileObject(fullPath: string, contents: Record<string, unknown>): void {
   mkdirSync(dirname(fullPath), { recursive: true })
-  writeFileSync(fullPath, `${JSON.stringify(contents, null, 2)}\n`, 'utf8')
+  // Mismo patrón que state-store.ts: escribe a un temporal y renombra
+  // encima — chokidar está mirando fullPath activamente, y un rename en el
+  // mismo filesystem es atómico, así que un lector nunca ve un archivo a
+  // medio escribir.
+  const tmpPath = `${fullPath}.tmp`
+  writeFileSync(tmpPath, `${JSON.stringify(contents, null, 2)}\n`, 'utf8')
+  renameSync(tmpPath, fullPath)
 }
 
 export function updateEndpointInFile(params: {

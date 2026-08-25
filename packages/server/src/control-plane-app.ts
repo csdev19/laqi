@@ -1,5 +1,13 @@
 import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
-import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiState, type Scenarios } from '@laqi/schema'
+import {
+  EndpointSchema,
+  isHttpMethod,
+  RESERVED_PREFIX,
+  StateSchema,
+  type HttpMethod,
+  type LaqiState,
+  type Scenarios,
+} from '@laqi/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 
@@ -31,6 +39,21 @@ export type ControlPlaneRuntime = {
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   const app = new Hono()
+
+  // Un POST con Content-Type: text/plain es un CORS "simple request" — un
+  // navegador lo manda SIN preflight — y c.req.json() igual lo parsea sin
+  // mirar el content-type declarado. Sin esto, cualquier pestaña abierta en
+  // otro sitio podría escribir en el proyecto del developer en silencio.
+  // Ningún Origin header (curl, fetch same-origin) pasa igual: sólo un
+  // navegador cross-origin siempre manda Origin.
+  app.use('*', async (c, next) => {
+    const origin = c.req.header('Origin')
+    const isWriteMethod = ['POST', 'PUT', 'DELETE'].includes(c.req.method)
+    if (isWriteMethod && origin && !origin.startsWith('http://127.0.0.1') && !origin.startsWith('http://localhost')) {
+      return c.json({ error: 'laqi-control-plane', message: 'cross-origin write rejected' }, 403)
+    }
+    await next()
+  })
 
   app.get('/api/endpoints', (c) => c.json(runtime.getEndpoints()))
 
@@ -78,6 +101,12 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     }
     if (typeof input.path !== 'string' || !input.path.startsWith('/')) {
       return c.json({ error: 'laqi-control-plane', message: 'path must start with "/"' }, 400)
+    }
+    if (input.path === RESERVED_PREFIX || input.path.startsWith(`${RESERVED_PREFIX}/`)) {
+      return c.json(
+        { error: 'laqi-control-plane', message: `${RESERVED_PREFIX} is reserved by the laqi control panel and cannot be mocked` },
+        400,
+      )
     }
 
     const definition = EndpointSchema.safeParse({
@@ -163,6 +192,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
         // espera 150ms tras el cancel) fallaba de forma determinista aunque
         // onAbort disparaba correctamente — el cleanup real ocurría, sólo
         // que tarde.
+        // oxlint-disable-next-line no-unmodified-loop-condition -- `closed` is set from stream.onAbort()'s callback, not visible to this lint rule
         while (!closed) {
           await stream.sleep(30)
         }

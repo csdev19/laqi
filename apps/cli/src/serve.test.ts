@@ -225,13 +225,62 @@ describe('control plane, mounted under /__laqi', () => {
       }),
     })
 
-    // La ruta de creación en sí no valida el prefijo reservado (eso lo hace
-    // parseEndpointKey al CARGAR, Plan 1) — pero el archivo sí queda escrito,
-    // y la recarga inmediata debe reportar el error de LOAD FAILED en vez
-    // de registrar el endpoint.
-    expect(post.status).toBe(201)
+    // La ruta de creación rechaza explícitamente el prefijo reservado ANTES
+    // de escribir nada — no hay LOAD FAILED que limpiar a mano, ni archivo
+    // contaminado con una entrada muerta.
+    expect(post.status).toBe(400)
     const status = await (await get('/__laqi/api/status')).json()
-    expect((status as { errors: unknown[] }).errors.length).toBeGreaterThan(0)
+    expect((status as { errors: unknown[] }).errors).toHaveLength(0)
     expect((await get('/__laqi/panel')).status).not.toBe(200)
+  })
+
+  it('rejects creating an id that already exists in a DIFFERENT mock file, without touching the existing endpoint (cross-file duplicate)', async () => {
+    // Modo carpeta: todo endpoint nuevo va a laqi/api.json, así que un id
+    // preexistente en laqi/users.json debe rechazarse ANTES de escribir —
+    // si no, buildRouteTable ve el duplicado cross-file y descarta AMBOS
+    // lados, matando el endpoint que ya funcionaba.
+    writeFileSync(
+      join(root, 'laqi', 'users.json'),
+      JSON.stringify({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } }),
+      'utf8',
+    )
+    handle = await startServer({ root, config })
+
+    expect((await get('/users')).status).toBe(200)
+
+    const post = await fetch(`http://127.0.0.1:${handle!.port}/__laqi/api/endpoints`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/users',
+        default: 'ok',
+        responses: { ok: { status: 200, body: [] } },
+      }),
+    })
+    expect(post.status).toBe(409)
+
+    expect((await get('/users')).status).toBe(200)
+    const status = (await (await get('/__laqi/api/status')).json()) as { endpointCount: number; errors: unknown[] }
+    expect(status.endpointCount).toBe(1)
+    expect(status.errors).toHaveLength(0)
+  })
+})
+
+describe('control plane mount is restricted to loopback hosts', () => {
+  it('does not mount /__laqi on a non-loopback host — falls through to the mock app 404', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+    // El chequeo de mount es puramente sobre el string config.host, no sobre
+    // el binding real — 0.0.0.0 con puerto efímero sigue siendo alcanzable
+    // vía 127.0.0.1 (0.0.0.0 escucha en todas las interfaces, loopback
+    // incluida), así que no hace falta una IP de LAN real para probar esto.
+    const nonLoopbackConfig = ConfigSchema.parse({ port: 0, host: '0.0.0.0' })
+    handle = await startServer({ root, config: nonLoopbackConfig })
+
+    const controlPlaneRes = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/endpoints`)
+    expect(controlPlaneRes.status).toBe(404)
+
+    const mockRes = await fetch(`http://127.0.0.1:${handle.port}/users`)
+    expect(mockRes.status).toBe(200)
   })
 })

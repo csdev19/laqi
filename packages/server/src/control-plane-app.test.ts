@@ -232,6 +232,69 @@ describe('POST /api/endpoints', () => {
     const body = (await res.json()) as { message: string }
     expect(body.message).toContain('already exists')
   })
+
+  it('rejects a path under the reserved /__laqi prefix with 400, before calling createEndpoint', async () => {
+    const createEndpoint = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/__laqi/panel',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+})
+
+describe('cross-origin write protection', () => {
+  it('rejects a POST with a foreign Origin header with 403, and never calls createEndpoint', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /pwned' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'https://evil.example' },
+      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(403)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('allows a POST with a legitimate local Origin (http://localhost:3000)', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /orders' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Origin: 'http://localhost:3000' },
+      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(createEndpoint).toHaveBeenCalled()
+  })
+
+  it('allows a POST with no Origin header at all (curl, server-to-server)', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /orders' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(createEndpoint).toHaveBeenCalled()
+  })
 })
 
 describe('PUT /api/endpoints/:id', () => {

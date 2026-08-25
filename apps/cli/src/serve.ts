@@ -87,6 +87,18 @@ export async function startServer(options: {
         if (!isHttpMethod(method)) return { ok: false, error: `unknown method ${JSON.stringify(input.method)}` }
 
         const id = formatEndpointId(method as HttpMethod, input.path)
+
+        // createEndpointInFile sólo detecta un id duplicado DENTRO del
+        // archivo destino — en modo carpeta, todo endpoint nuevo va a
+        // laqi/api.json, así que un id que ya existe en OTRO archivo se
+        // escribiría igual, y buildRouteTable rechazaría ambos lados como
+        // colisión (correcto de su parte) dejando el endpoint preexistente
+        // muerto también. Hay que rechazar ACÁ, antes de escribir.
+        if (runtime.table.byId.has(id)) {
+          const existing = runtime.table.byId.get(id)!
+          return { ok: false, error: `${JSON.stringify(id)} already exists in ${existing.file}` }
+        }
+
         const result: WriteResult = createEndpointInFile({
           root,
           file: targetFileForNewEndpoint(),
@@ -136,7 +148,14 @@ export async function startServer(options: {
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 
     const top = new Hono()
-    top.route('/__laqi', controlPlaneApp)
+    // El control plane sólo se monta cuando el server escucha en loopback —
+    // con --host 0.0.0.0 (la feature intencional de LAN/mobile testing de un
+    // plan anterior) montarlo acá lo expondría a cualquiera en la red local.
+    // Sin este mount, /__laqi/* simplemente cae al 404 del mock app, como
+    // cualquier otra ruta no encontrada.
+    if (config.host === '127.0.0.1' || config.host === 'localhost') {
+      top.route('/__laqi', controlPlaneApp)
+    }
     top.route('/', mockApp)
     return top
   }
