@@ -4,14 +4,20 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createEndpointInFile, deleteEndpointFromFile, updateEndpointInFile } from './writer'
 
+let sandbox: string
 let root: string
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'laqi-writer-'))
+  // root anidado a propósito: los tests de contención escriben hacia
+  // afuera, y tienen que caer en un lugar que este test sea dueño de
+  // limpiar — no en el tmpdir compartido de la máquina.
+  sandbox = mkdtempSync(join(tmpdir(), 'laqi-writer-'))
+  root = join(sandbox, 'project')
+  mkdirSync(root, { recursive: true })
 })
 
 afterEach(() => {
-  rmSync(root, { recursive: true, force: true })
+  rmSync(sandbox, { recursive: true, force: true })
 })
 
 function writeMock(relative: string, contents: unknown) {
@@ -136,5 +142,63 @@ describe('createEndpointInFile', () => {
     })
     expect(result.ok).toBe(false)
     expect(existsSync(join(root, 'laqi/api.json'))).toBe(false)
+  })
+})
+
+describe('containment', () => {
+  // ADR-0006 lo pide explícitamente para el servidor MCP: un agente con
+  // estas herramientas escribe archivos del proyecto y tiene que quedar
+  // acotado al directorio de mocks. `join(root, file)` solo no alcanza.
+  const escapes = [
+    '../escaped.json',
+    '../../escaped.json',
+    'nested/../../escaped.json',
+    '/etc/laqi-escaped.json',
+  ]
+
+  it('refuses to create outside the project root', () => {
+    for (const file of escapes) {
+      const result = createEndpointInFile({
+        root,
+        file,
+        id: 'GET /x',
+        definition: { default: 'ok', responses: { ok: { status: 200 } } },
+      })
+      expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+      expect(existsSync(join(root, file))).toBe(false)
+    }
+  })
+
+  it('refuses to update outside the project root', () => {
+    for (const file of escapes) {
+      expect(
+        updateEndpointInFile({
+          root,
+          file,
+          id: 'GET /x',
+          definition: { default: 'ok', responses: { ok: { status: 200 } } },
+        }),
+      ).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+    }
+  })
+
+  it('refuses to delete outside the project root', () => {
+    for (const file of escapes) {
+      expect(deleteEndpointFromFile({ root, file, id: 'GET /x' })).toEqual({
+        ok: false,
+        error: expect.stringContaining('outside the project'),
+      })
+    }
+  })
+
+  it('still allows a legitimate nested path inside the root', () => {
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/nested/deep.json',
+      id: 'GET /deep',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+    expect(result).toEqual({ ok: true })
+    expect(existsSync(join(root, 'laqi/nested/deep.json'))).toBe(true)
   })
 })
