@@ -1,12 +1,18 @@
 /**
- * Las formas que devuelve el control plane (Plan 2a). Se declaran acá en vez
- * de importarse de @laqi/core a propósito: ese barrel arrastra `node:fs`
- * (loader.ts, state-store.ts) y este paquete corre en el navegador. Sólo se
- * importa @laqi/schema, que es Zod puro.
+ * Las formas que devuelve el control plane (Plan 2a).
+ *
+ * `LaqiEvent` se importa del subpath `@laqi/core/events` y NO del barrel:
+ * `@laqi/core` re-exporta loader/state-store/writer, que importan `node:fs`,
+ * y este paquete corre en el navegador. El subpath existe justamente para
+ * esto — antes el tipo estaba redeclarado acá y podía driftear del real.
+ *
+ * Las formas que el control plane serializa a JSON (endpoints, status) sí se
+ * declaran localmente: son lo que sale por HTTP, no el tipo interno.
  */
+import type { LaqiEvent } from '@laqi/core/events'
 import type { LaqiState, MockResponse, Scenarios } from '@laqi/schema'
 
-export type { LaqiState, MockResponse, Scenarios }
+export type { LaqiEvent, LaqiState, MockResponse, Scenarios }
 
 export type Endpoint = {
   id: string
@@ -33,20 +39,6 @@ export type Status = {
   address: string
   errors: LoadError[]
 }
-
-/** Igual que `LaqiEvent` de @laqi/core — el SSE los manda tal cual. */
-export type LaqiEvent =
-  | {
-      type: 'request'
-      method: string
-      path: string
-      status: number
-      resolvedName: string
-      resolvedLayer: string
-      ms: number
-    }
-  | { type: 'endpoints-changed'; endpointCount: number }
-  | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }
 
 /** Una entrada del log, que es un evento `request` más un id de render. */
 export type LogEntry = {

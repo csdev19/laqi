@@ -7,6 +7,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@laqi/core": "workspace:*",
     "@laqi/schema": "workspace:*"
   },
   "devDependencies": {
