@@ -864,12 +864,21 @@ export type ControlPlaneRuntime = {
 }
 ```
 
-y el import:
+Reemplazar las dos líneas de import del inicio del archivo (las que escribió la Tarea 4):
+
+```ts
+import type { LoadedEndpoint } from '@laqi/core'
+import { StateSchema, type LaqiState } from '@laqi/schema'
+```
+
+por:
 
 ```ts
 import type { LoadedEndpoint, LoadError } from '@laqi/core'
 import { StateSchema, type LaqiState, type Scenarios } from '@laqi/schema'
 ```
+
+(La tercera línea, `import { Hono } from 'hono'`, no cambia — dejarla como está.)
 
 Reemplazar:
 
@@ -1039,11 +1048,21 @@ export type ControlPlaneRuntime = {
 }
 ```
 
-y el import:
+Reemplazar las dos líneas de import del inicio del archivo (tal como quedaron tras la Tarea 5):
 
 ```ts
+import type { LoadedEndpoint, LoadError } from '@laqi/core'
+import { StateSchema, type LaqiState, type Scenarios } from '@laqi/schema'
+```
+
+por:
+
+```ts
+import type { LoadedEndpoint, LoadError } from '@laqi/core'
 import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiState, type Scenarios } from '@laqi/schema'
 ```
+
+(La línea de `Hono` no cambia.)
 
 Reemplazar el marcador de inserción:
 
@@ -1253,7 +1272,7 @@ por:
       return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
     }
 
-    const definition = EndpointSchema.pick({ description: true, default: true, responses: true }).safeParse(raw)
+    const definition = EndpointSchema.safeParse(raw)
     if (!definition.success) {
       return c.json(
         { error: 'laqi-control-plane', message: definition.error.issues.map((i) => i.message).join('; ') },
@@ -1285,15 +1304,22 @@ por:
   app.all('*', (c) =>
 ```
 
-> Nota: `EndpointSchema.pick(...)` requiere que `EndpointSchema` (Plan 1,
-> `packages/schema/src/endpoint.ts`) esté definido con `z.object({...})` en
-> su nivel superior — lo está: el `.superRefine` se aplica encadenado sobre
-> el `z.object`, y `.pick()` sigue funcionando sobre el objeto base sin
-> perder la validación estructural de `default`/`responses`. La validación
-> cruzada de `.superRefine` (que `default` exista entre `responses`) **no**
-> se re-ejecuta con `.pick()` — está bien: acá `default` y `responses`
-> siempre viajan juntos en el mismo body, así que la relación entre ambos
-> sigue siendo válida por construcción del propio payload.
+> Nota: no hace falta `.pick()`. `EndpointSchema` (Plan 1,
+> `packages/schema/src/endpoint.ts`) ya tiene exactamente esta forma —
+> `{ description?, default, responses }` — porque `method`/`path` nunca
+> fueron parte de ese schema (viajan en la URL, no en la definición). Usar
+> `EndpointSchema.safeParse(raw)` directo además mantiene viva la validación
+> cruzada del `.superRefine` (que `default` exista entre `responses`) para
+> el body del PUT, que es estrictamente mejor.
+>
+> **Se verificó, ejecutando Zod 4.3.6 de verdad, que `.pick()` NO es una
+> opción acá**: sobre un schema construido con `z.object({...}).superRefine(...)`,
+> `.pick()` **lanza una excepción** ("`.pick()` cannot be used on object
+> schemas containing refinements"), no silenciosamente pierde la validación
+> cruzada como podría parecer razonable asumir. Si algún cambio futuro
+> necesitara un subconjunto de campos de un schema con `.superRefine()`
+> encadenado, la solución es definir un schema aparte para ese subconjunto,
+> nunca `.pick()`.
 
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
@@ -1402,7 +1428,15 @@ Expected: FAIL — `/events` no existe, cae en el catch-all (404, no 200 con `te
 
 - [ ] **Step 3: Implementar**
 
-Agregar el import de `streamSSE` y `LaqiEvent`:
+Reemplazar las dos líneas de import del inicio del archivo (tal como quedaron tras la Tarea 6):
+
+```ts
+import type { LoadedEndpoint, LoadError } from '@laqi/core'
+import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiState, type Scenarios } from '@laqi/schema'
+import { Hono } from 'hono'
+```
+
+por (agrega `LaqiEvent` al primer import, y una línea nueva para `streamSSE`):
 
 ```ts
 import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
