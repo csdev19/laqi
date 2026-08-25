@@ -1,5 +1,5 @@
 // apps/cli/src/serve.test.ts
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ConfigSchema } from '@laqi/schema'
@@ -282,5 +282,120 @@ describe('control plane mount is restricted to loopback hosts', () => {
 
     const mockRes = await fetch(`http://127.0.0.1:${handle.port}/users`)
     expect(mockRes.status).toBe(200)
+  })
+})
+
+describe('startServer with --share (H1)', () => {
+  const shared = (over: Partial<{ token: string | null; origins: string[] }> = {}) => ({
+    port: 0,
+    token: 'testtoken' as string | null,
+    origins: [] as string[],
+    ...over,
+  })
+
+  const publicGet = (path: string, init?: RequestInit) =>
+    fetch(`http://127.0.0.1:${handle?.publicPort}${path}`, init)
+
+  const auth = { Authorization: 'Bearer testtoken' }
+
+  it('serves mocks on the public port only with a token', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+    handle = await startServer({ root, config, share: shared() })
+
+    expect((await publicGet('/users', { headers: auth })).status).toBe(200)
+    expect((await publicGet('/users')).status).toBe(401)
+  })
+
+  it('never exposes the control plane on the public port, even with a valid token', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared() })
+
+    for (const path of ['/__laqi', '/__laqi/api/endpoints', '/__laqi/api/status', '/__laqi/events']) {
+      expect((await publicGet(path, { headers: auth })).status, `public ${path}`).toBe(404)
+    }
+
+    // Pero sí en el puerto local — que es exactamente el punto de tener dos.
+    expect((await get('/__laqi/api/status')).status).toBe(200)
+  })
+
+  it('leaves the mock files byte-identical after a write attempt through the tunnel', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared() })
+    const before = readFileSync(join(root, 'laqi', 'api.json'), 'utf8')
+
+    const res = await publicGet('/__laqi/api/endpoints', {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/stolen',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
+    })
+
+    expect(res.status).toBe(404)
+    expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
+  })
+
+  it('reports the share state to the panel, including the H1 guarantee in words', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared() })
+    handle.setShareUrl('https://shy-forest-1234.trycloudflare.com')
+
+    const status = (await (await get('/__laqi/api/status')).json()) as {
+      share: { url: string; token: string; exposed: string }
+    }
+    expect(status.share).toMatchObject({
+      url: 'https://shy-forest-1234.trycloudflare.com',
+      token: 'testtoken',
+    })
+    expect(status.share.exposed).toContain('not exposed')
+  })
+
+  it('says share is null when --share was not asked for', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const status = (await (await get('/__laqi/api/status')).json()) as { share: unknown }
+    expect(status.share).toBeNull()
+  })
+
+  it('keeps the tunnel surface correct across a hot reload', async () => {
+    writeMocks({ 'GET /a': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared() })
+    expect((await publicGet('/a', { headers: auth })).status).toBe(200)
+
+    writeMocks({
+      'GET /a': { default: 'ok', responses: { ok: { status: 200 } } },
+      'GET /b': { default: 'ok', responses: { ok: { status: 201 } } },
+    })
+    handle.reload()
+
+    expect((await publicGet('/b', { headers: auth })).status).toBe(201)
+    // Y la garantía sigue en pie tras reconstruir la app.
+    expect((await publicGet('/__laqi/api/status', { headers: auth })).status).toBe(404)
+  })
+
+  it('never answers a wildcard CORS through the tunnel', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared({ origins: ['https://app.example.com'] }) })
+
+    const allowed = await publicGet('/x', { headers: { ...auth, Origin: 'https://app.example.com' } })
+    expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com')
+
+    const evil = await publicGet('/x', { headers: { ...auth, Origin: 'https://evil.example' } })
+    expect(evil.headers.get('Access-Control-Allow-Origin')).not.toBe('*')
+  })
+
+  it('closes both listeners', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config, share: shared({ token: null }) })
+    const publicPort = handle.publicPort!
+
+    await handle.close()
+    handle = undefined
+
+    await expect(fetch(`http://127.0.0.1:${publicPort}/x`)).rejects.toThrow()
   })
 })

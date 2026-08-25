@@ -9,6 +9,7 @@ import { FreshProject } from './components/FreshProject'
 import { Header } from './components/Header'
 import { RequestLog } from './components/RequestLog'
 import { ScenarioStrip } from './components/ScenarioStrip'
+import { ShareBand } from './components/ShareBand'
 import { useEvents } from './hooks/useEvents'
 import { appendLog, toLogEntry } from './log'
 import { isDirty, overriddenCount, overridesAfterChipClick } from './resolve'
@@ -223,6 +224,8 @@ export function App() {
           </div>
         </div>
       ) : null}
+
+      {status?.share ? <ShareBand share={status.share} /> : null}
 
       {errors.length > 0 ? <ErrorBand errors={errors} onReload={() => void refresh()} /> : null}
 

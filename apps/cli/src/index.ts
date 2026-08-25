@@ -4,9 +4,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
+import { generateToken } from '@laqi/server'
 import { runMigrate } from './migrate'
 import type { Runtime } from './runtime'
-import { startServer } from './serve'
+import { startServer, type ShareOptions } from './serve'
+import { createCloudflaredProvider } from './tunnel'
 import { watchMocks } from './watcher'
 
 const CONFIG_FILE = 'laqi.config.json'
@@ -24,6 +26,10 @@ Options:
   --host <address>     address to bind            (default 127.0.0.1)
   --dir <path>         mocks folder               (default laqi)
   --file <path>        single mock file           (default laqi.json)
+  --share              open a public URL to the mocks (needs cloudflared)
+  --public             with --share: no bearer token. Anyone with the URL
+                       can read your mocks. Off by default, on purpose.
+  --share-port <n>     local port the tunnel points at (default 8001)
   --dry-run            with migrate: print, do not write
 `.trim()
 
@@ -66,6 +72,9 @@ async function main(): Promise<void> {
       host: { type: 'string' },
       dir: { type: 'string' },
       file: { type: 'string' },
+      share: { type: 'boolean' },
+      public: { type: 'boolean' },
+      'share-port': { type: 'string' },
       'dry-run': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -106,9 +115,41 @@ async function main(): Promise<void> {
     return
   }
 
+  const wantsShare = values.share === true
+
+  if (values.public === true && !wantsShare) {
+    console.error('✖ --public only means something with --share\n')
+    console.error(USAGE)
+    process.exitCode = 1
+    return
+  }
+
+  const provider = createCloudflaredProvider()
+  let share: ShareOptions | undefined
+
+  if (wantsShare) {
+    // Se chequea ANTES de abrir puertos: fallar después de imprimir el
+    // banner de arranque haría creer que algo quedó a medio levantar.
+    const unavailable = await provider.unavailable()
+    if (unavailable !== null) {
+      console.error(`✖ ${unavailable}`)
+      process.exitCode = 1
+      return
+    }
+
+    share = {
+      port: values['share-port'] === undefined ? config.port + 1 : Number(values['share-port']),
+      token: values.public === true ? null : generateToken(),
+      // El ADR-0007 prohíbe `*` en modo compartido. Con la config por
+      // defecto no hay ningún origen de navegador permitido — que es lo
+      // seguro. curl y React Native no mandan Origin, así que siguen andando.
+      origins: config.cors === '*' ? [] : config.cors,
+    }
+  }
+
   let handle: Awaited<ReturnType<typeof startServer>>
   try {
-    handle = await startServer({ root, config })
+    handle = await startServer({ root, config, share })
   } catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
       console.error(
@@ -127,6 +168,50 @@ async function main(): Promise<void> {
     file: config.file,
     onChange: () => report(handle.reload(), handle.port, config),
   })
+
+  if (share === undefined) return
+
+  let tunnel: Awaited<ReturnType<typeof provider.start>>
+  try {
+    tunnel = await provider.start({ port: handle.publicPort ?? share.port })
+  } catch (error) {
+    console.error(`\n✖ could not open the tunnel: ${error instanceof Error ? error.message : String(error)}`)
+    console.error('  The local server is still running.')
+    return
+  }
+
+  handle.setShareUrl(tunnel.url)
+  reportShare(tunnel.url, share, config)
+
+  // Sin esto cloudflared sobrevive al CLI y el túnel queda abierto apuntando
+  // a un puerto muerto.
+  const shutDown = () => {
+    void tunnel.stop().finally(() => process.exit(0))
+  }
+  process.once('SIGINT', shutDown)
+  process.once('SIGTERM', shutDown)
+}
+
+function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void {
+  console.log(`\n🌐 EXPOSED TO THE INTERNET  ${url}`)
+  console.log(`   mocks only — the panel and the control plane stay on ${config.host}:${config.port}`)
+
+  if (share.token === null) {
+    console.log('\n   ⚠ NO TOKEN (--public). Anyone with this URL can read your mocks.')
+    console.log('     These URLs are actively scanned by bots. Drop --public to require a token.')
+  } else {
+    console.log(`\n   token  ${share.token}`)
+    console.log(`   curl -H 'Authorization: Bearer ${share.token}' ${url}/`)
+  }
+
+  if (share.origins.length === 0) {
+    console.log('\n   No browser origin is allowed through the tunnel (CORS is never "*" when shared).')
+    console.log('   Declare them in laqi.config.json as "cors": ["https://your.app"] if a browser needs it.')
+  } else {
+    console.log(`\n   CORS allows: ${share.origins.join(', ')}`)
+  }
+
+  console.log('')
 }
 
 function report(runtime: Runtime, port: number, config: LaqiConfig): void {

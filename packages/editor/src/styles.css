@@ -1235,3 +1235,63 @@ button.log-path:hover {
     --palem: #008062;
   }
 }
+
+/* ── Sharing band ──────────────────────────────────────────────────────── */
+
+/* Lo más ruidoso del producto: nada compite con esto. */
+.band-share {
+  background: rgba(255, 0, 160, 0.1);
+  border-bottom-color: rgba(255, 0, 160, 0.45);
+  align-items: center;
+}
+
+.band-share .band-title {
+  color: var(--mag);
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+
+.share-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mag);
+  flex: none;
+  margin-top: 4px;
+  animation: share-pulse 1.4s ease-in-out infinite;
+}
+
+/* La única animación del producto, junto al slide-in de la banda. */
+@keyframes share-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-dot {
+    animation: none;
+  }
+}
+
+.share-url {
+  color: var(--fg);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.share-token {
+  color: var(--dim);
+  font-size: 11.5px;
+  margin-top: 3px;
+  word-break: break-all;
+}
+
+.share-warning {
+  color: var(--mag);
+  margin-top: 4px;
+}
