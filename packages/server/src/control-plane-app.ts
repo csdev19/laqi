@@ -49,9 +49,20 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   app.use('*', async (c, next) => {
     const origin = c.req.header('Origin')
     const isWriteMethod = ['POST', 'PUT', 'DELETE'].includes(c.req.method)
-    if (isWriteMethod && origin && !origin.startsWith('http://127.0.0.1') && !origin.startsWith('http://localhost')) {
-      return c.json({ error: 'laqi-control-plane', message: 'cross-origin write rejected' }, 403)
+
+    if (isWriteMethod && origin) {
+      let allowed = false
+      try {
+        const parsed = new URL(origin)
+        allowed = parsed.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname)
+      } catch {
+        allowed = false
+      }
+      if (!allowed) {
+        return c.json({ error: 'laqi-control-plane', message: 'cross-origin write rejected' }, 403)
+      }
     }
+
     await next()
   })
 

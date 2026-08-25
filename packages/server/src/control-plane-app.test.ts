@@ -295,6 +295,48 @@ describe('cross-origin write protection', () => {
     expect(res.status).toBe(201)
     expect(createEndpoint).toHaveBeenCalled()
   })
+
+  it('rejects a POST with Origin http://localhost.evil.example (startsWith bypass) with 403, and never calls createEndpoint', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /pwned' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'http://localhost.evil.example' },
+      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(403)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('rejects a POST with Origin http://127.0.0.1.evil.example (startsWith bypass) with 403, and never calls createEndpoint', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /pwned' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'http://127.0.0.1.evil.example' },
+      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(403)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('allows a POST with Origin http://[::1]:5173 (IPv6 loopback, e.g. Vite dev server)', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'GET /orders' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Origin: 'http://[::1]:5173' },
+      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(createEndpoint).toHaveBeenCalled()
+  })
 })
 
 describe('PUT /api/endpoints/:id', () => {
