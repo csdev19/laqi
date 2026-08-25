@@ -63,9 +63,28 @@ describe('EventBus', () => {
       method: 'GET',
       path: '/users',
       status: 200,
+      ms: 4,
+      endpointId: 'GET /users',
       resolvedName: 'ok',
       resolvedLayer: 'default',
-      ms: 4,
+    }
+    bus.emit(event)
+
+    expect(listener).toHaveBeenCalledWith(event)
+  })
+
+  it('carries a no-route request event, which has no resolution', () => {
+    const bus = new EventBus()
+    const listener = vi.fn()
+    bus.subscribe(listener)
+
+    const event: LaqiEvent = {
+      type: 'request',
+      method: 'GET',
+      path: '/typo',
+      status: 404,
+      ms: 0,
+      endpointId: null,
     }
     bus.emit(event)
 
