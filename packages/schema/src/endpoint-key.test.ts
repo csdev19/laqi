@@ -70,3 +70,22 @@ describe('formatEndpointId', () => {
     expect(ok(id)).toEqual({ method: 'GET', path: '/users/:id' })
   })
 })
+
+describe('unreachable paths', () => {
+  // Un cliente y un servidor normalizan la URL antes de rutear, así que una
+  // ruta declarada con `..` no puede ser alcanzada nunca. Rechazarla la
+  // convierte en un error explícito en vez de un endpoint muerto.
+  it('rejects a path with a .. segment', () => {
+    for (const key of ['GET /../escaped', 'GET /a/../b', 'GET /..', 'POST /a/b/../../c']) {
+      const result = parseEndpointKey(key)
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toContain('..')
+    }
+  })
+
+  it('allows a dot that is not a traversal segment', () => {
+    for (const key of ['GET /files/report.pdf', 'GET /v1.2/users', 'GET /a..b']) {
+      expect(parseEndpointKey(key).ok).toBe(true)
+    }
+  })
+})

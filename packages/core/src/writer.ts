@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
+import { dirname, resolve, sep } from 'node:path'
 import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
 
 export type WriteResult = { ok: true } | { ok: false; error: string }

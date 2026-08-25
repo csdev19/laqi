@@ -11,15 +11,11 @@ import { watchMocks } from './watcher'
 
 const CONFIG_FILE = 'laqi.config.json'
 
-// NOTA para quien implemente esta tarea: la USAGE de abajo ya anuncia
-// `laqi migrate`, pero el comando en sí (el import de `runMigrate` y su
-// bloque `if (positionals[0] === 'migrate')`) los añade la Tarea 13, que crea
-// `migrate.ts`. Hasta entonces `laqi migrate` cae en el "unknown command" de
-// más abajo — es el comportamiento esperado de ESTA tarea, no un bug.
 const USAGE = `
 laqi — mock server for frontend development
 
   laqi                 serve the mocks in ./laqi/ or ./laqi.json
+  laqi mcp             run the MCP server over stdio, for coding agents
   laqi migrate         convert v1 mock files to the v2 format
   laqi --help          show this message
 
@@ -87,6 +83,15 @@ async function main(): Promise<void> {
     dir: values.dir,
     file: values.file,
   })
+
+  if (positionals[0] === 'mcp') {
+    // stdout es el canal del protocolo MCP: nada puede escribir ahí salvo
+    // el transport. El banner de arranque va a stderr.
+    const { startMcpStdio } = await import('@laqi/mcp')
+    console.error(`laqi mcp — serving ${root}`)
+    await startMcpStdio({ root, config })
+    return
+  }
 
   if (positionals[0] === 'migrate') {
     const failed = runMigrate({ root, config, dryRun: values['dry-run'] === true })
