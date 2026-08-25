@@ -102,3 +102,136 @@ describe('startServer', () => {
     }
   }, 5000)
 })
+
+describe('control plane, mounted under /__laqi', () => {
+  it('lists the loaded endpoints', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+    handle = await startServer({ root, config })
+
+    const res = await get('/__laqi/api/endpoints')
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { id: string }[]
+    expect(body.map((e) => e.id)).toEqual(['GET /users'])
+  })
+
+  it('flips the live response via PUT /api/state, and the mock reflects it immediately', async () => {
+    writeMocks({
+      'GET /users': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: [] }, boom: { status: 500, body: {} } },
+      },
+    })
+    handle = await startServer({ root, config })
+
+    const put = await fetch(`http://127.0.0.1:${handle!.port}/__laqi/api/state`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: null, overrides: { 'GET /users': 'boom' } }),
+    })
+    expect(put.status).toBe(200)
+
+    const res = await get('/users')
+    expect(res.status).toBe(500)
+    expect(res.headers.get('X-Laqi-Resolved')).toBe('boom (state)')
+  })
+
+  it('creates an endpoint via POST, and it is immediately servable — no restart, no wait for the watcher', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+    handle = await startServer({ root, config })
+
+    const post = await fetch(`http://127.0.0.1:${handle!.port}/__laqi/api/endpoints`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200, body: [] } },
+      }),
+    })
+    expect(post.status).toBe(201)
+
+    const res = await get('/orders')
+    expect(res.status).toBe(200)
+  })
+
+  it('updates an endpoint via PUT, immediately reflected', async () => {
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [{ id: 1 }] } } },
+    })
+    handle = await startServer({ root, config })
+
+    const put = await fetch(
+      `http://127.0.0.1:${handle!.port}/__laqi/api/endpoints/${encodeURIComponent('GET /users')}`,
+      {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ default: 'ok', responses: { ok: { status: 200, body: [] } } }),
+      },
+    )
+    expect(put.status).toBe(200)
+
+    const res = await get('/users')
+    expect(await res.json()).toEqual([])
+  })
+
+  it('deletes an endpoint via DELETE, immediately gone', async () => {
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+      'GET /orders': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+    })
+    handle = await startServer({ root, config })
+
+    const del = await fetch(
+      `http://127.0.0.1:${handle!.port}/__laqi/api/endpoints/${encodeURIComponent('GET /orders')}`,
+      { method: 'DELETE' },
+    )
+    expect(del.status).toBe(204)
+
+    expect((await get('/orders')).status).toBe(404)
+    expect((await get('/users')).status).toBe(200)
+  })
+
+  it('streams a request event over SSE when a mock is hit', async () => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+    handle = await startServer({ root, config })
+
+    const sse = await fetch(`http://127.0.0.1:${handle!.port}/__laqi/events`)
+    const reader = sse.body!.getReader()
+    const decoder = new TextDecoder()
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    await get('/users')
+
+    const { value } = await reader.read()
+    const text = decoder.decode(value)
+    expect(text).toContain('event: request')
+    expect(text).toContain('"path":"/users"')
+
+    await reader.cancel()
+  })
+
+  it('a mock endpoint can never be created under the reserved /__laqi prefix', async () => {
+    handle = await startServer({ root, config })
+
+    const post = await fetch(`http://127.0.0.1:${handle!.port}/__laqi/api/endpoints`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/__laqi/panel',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
+    })
+
+    // La ruta de creación en sí no valida el prefijo reservado (eso lo hace
+    // parseEndpointKey al CARGAR, Plan 1) — pero el archivo sí queda escrito,
+    // y la recarga inmediata debe reportar el error de LOAD FAILED en vez
+    // de registrar el endpoint.
+    expect(post.status).toBe(201)
+    const status = await (await get('/__laqi/api/status')).json()
+    expect((status as { errors: unknown[] }).errors.length).toBeGreaterThan(0)
+    expect((await get('/__laqi/panel')).status).not.toBe(200)
+  })
+})
