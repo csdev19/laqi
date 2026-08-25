@@ -69,20 +69,6 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
         // escrituras, así que hay que acumular en vez de mirar chunk a chunk.
         let buffered = ''
 
-        const finish = (action: () => void) => {
-          if (settled) return
-          settled = true
-          clearTimeout(timer)
-          action()
-        }
-
-        const timer = setTimeout(() => {
-          finish(() => {
-            child.kill()
-            reject(new Error(`cloudflared did not report a URL within ${URL_TIMEOUT_MS / 1000}s`))
-          })
-        }, URL_TIMEOUT_MS)
-
         const onChunk = (chunk: Buffer | string) => {
           buffered += String(chunk)
           const match = TRYCLOUDFLARE.exec(buffered)
@@ -100,6 +86,27 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
             }),
           )
         }
+
+        const finish = (action: () => void) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          // Soltar los listeners y el buffer. cloudflared loguea de forma
+          // continua mientras el túnel vive (registros de conexión,
+          // heartbeats), así que sin esto `buffered` crece sin límite y el
+          // regex se re-corre sobre una cadena cada vez más larga.
+          child.stdout?.off('data', onChunk)
+          child.stderr?.off('data', onChunk)
+          buffered = ''
+          action()
+        }
+
+        const timer = setTimeout(() => {
+          finish(() => {
+            child.kill()
+            reject(new Error(`cloudflared did not report a URL within ${URL_TIMEOUT_MS / 1000}s`))
+          })
+        }, URL_TIMEOUT_MS)
 
         // La URL sale por stderr, pero no en todas las versiones — mirar los dos.
         child.stdout?.on('data', onChunk)

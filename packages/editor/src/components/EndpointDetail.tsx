@@ -44,10 +44,17 @@ export function EndpointDetail(props: {
 
   // El watcher puede recargar el endpoint bajo los pies (alguien editó el
   // archivo a mano). Rearmar el draft desde la definición nueva.
+  //
+  // La dependencia es el CONTENIDO, no la identidad del objeto: `refresh()`
+  // devuelve objetos nuevos en cada llamada aunque nada haya cambiado, y
+  // cualquier recarga ajena (el watcher, un agente escribiendo por MCP,
+  // otra pestaña guardando) borraba lo que estabas tipeando.
+  const fingerprint = JSON.stringify([endpoint.id, endpoint.description, endpoint.default, endpoint.responses])
   useEffect(() => {
     setDraft(toDraft(endpoint))
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
-  }, [endpoint])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` a propósito no está: ver arriba
+  }, [fingerprint])
 
   const live = liveResponse({ endpoint, state, scenarios })
   const names = Object.keys(draft.responses)

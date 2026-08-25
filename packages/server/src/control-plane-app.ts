@@ -155,7 +155,11 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   })
 
   app.put('/api/endpoints/:id', async (c) => {
-    const id = decodeURIComponent(c.req.param('id'))
+    // Sin decodeURIComponent: Hono ya decodifica el param. Decodificar otra
+    // vez rompe cualquier id con un '%' literal — encodeURIComponent lo
+    // manda como %25, Hono lo devuelve como '%', y el segundo decode tira
+    // URIError, o sea un 500 en vez de editar el endpoint.
+    const id = c.req.param('id')
 
     let raw: unknown
     try {
@@ -181,7 +185,8 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   })
 
   app.delete('/api/endpoints/:id', (c) => {
-    const id = decodeURIComponent(c.req.param('id'))
+    // Ver el comentario del PUT: Hono ya decodificó.
+    const id = c.req.param('id')
     const result = runtime.deleteEndpoint(id)
 
     if (!result.ok) {
@@ -193,9 +198,12 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
   app.get('/events', (c) =>
     streamSSE(c, async (stream) => {
-      let closed = false
-      stream.onAbort(() => {
-        closed = true
+      // Sin busy-loop: el generador se queda esperando esta promesa, que
+      // resuelve en el momento exacto en que el cliente corta. Antes había
+      // un `while (!closed) await stream.sleep(30)`, que despertaba un timer
+      // 33 veces por segundo por conexión sólo para mirar un flag.
+      const disconnected = new Promise<void>((resolve) => {
+        stream.onAbort(() => resolve())
       })
 
       const unsubscribe = runtime.subscribe((event) => {
@@ -203,17 +211,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       })
 
       try {
-        // 30ms, no 1000ms: el loop existe sólo para mantener vivo el
-        // generador mientras la conexión sigue abierta; el intervalo es la
-        // latencia máxima antes de notar un abort y desuscribirse. Verificado
-        // durante la ejecución: a 1000ms, el test de desconexión (que sólo
-        // espera 150ms tras el cancel) fallaba de forma determinista aunque
-        // onAbort disparaba correctamente — el cleanup real ocurría, sólo
-        // que tarde.
-        // oxlint-disable-next-line no-unmodified-loop-condition -- `closed` is set from stream.onAbort()'s callback, not visible to this lint rule
-        while (!closed) {
-          await stream.sleep(30)
-        }
+        await disconnected
       } finally {
         unsubscribe()
       }

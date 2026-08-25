@@ -177,8 +177,8 @@ GET    /__laqi/events                 live SSE stream: request | endpoints-chang
 Every write goes through the same file it would if you'd hand-edited it,
 and reloads immediately — no restart, no waiting on the file watcher. This
 API has no authentication yet; it's withheld automatically unless `--host`
-is left at its loopback default. The web panel above consumes it; an MCP
-server is on the roadmap.
+is left at its loopback default. The web panel above consumes it, and so
+does the MCP server described below.
 
 The SSE stream carries every request the mock server answers, including the
 ones that matched no route (`endpointId` is `null` on those, and they carry

@@ -128,6 +128,22 @@ async function main(): Promise<void> {
   let share: ShareOptions | undefined
 
   if (wantsShare) {
+    // Un flag mal escrito se reporta antes que un problema del entorno: es
+    // lo que el developer puede arreglar solo. --port pasa por ConfigSchema;
+    // --share-port no tenía nada, así que un valor no numérico llegaba como
+    // NaN hasta server.listen() y salía como un stack pelado.
+    let sharePort = config.port + 1
+    if (values['share-port'] !== undefined) {
+      sharePort = Number(values['share-port'])
+      if (!Number.isInteger(sharePort) || sharePort < 0 || sharePort > 65535) {
+        console.error(
+          `✖ --share-port must be a port number between 0 and 65535, got ${JSON.stringify(values['share-port'])}`,
+        )
+        process.exitCode = 1
+        return
+      }
+    }
+
     // Se chequea ANTES de abrir puertos: fallar después de imprimir el
     // banner de arranque haría creer que algo quedó a medio levantar.
     const unavailable = await provider.unavailable()
@@ -138,7 +154,7 @@ async function main(): Promise<void> {
     }
 
     share = {
-      port: values['share-port'] === undefined ? config.port + 1 : Number(values['share-port']),
+      port: sharePort,
       token: values.public === true ? null : generateToken(),
       // El ADR-0007 prohíbe `*` en modo compartido. Con la config por
       // defecto no hay ningún origen de navegador permitido — que es lo

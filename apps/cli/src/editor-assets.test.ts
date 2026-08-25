@@ -99,3 +99,12 @@ describe('editorDistDir — packaged layout', () => {
     expect(existsSync(join(dir!, 'index.html'))).toBe(true)
   })
 })
+
+describe('malformed percent escapes', () => {
+  it('404s instead of throwing a 500 with a stack', async () => {
+    const app = createEditorApp(dist)
+    for (const path of ['/__laqi/assets/%', '/__laqi/assets/%zz', '/__laqi/assets/a%2']) {
+      expect((await app.request(path)).status, path).toBe(404)
+    }
+  })
+})

@@ -33,7 +33,6 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",
-    "@modelcontextprotocol/sdk": "^1.30.0",
     "chokidar": "^4.0.3",
     "hono": "4.12.3",
     "zod": "4.3.6"
@@ -44,6 +43,7 @@
     "@laqi/mcp": "workspace:*",
     "@laqi/schema": "workspace:*",
     "@laqi/server": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^26.2.0",
     "tsdown": "0.18.4"
   },

@@ -1,21 +1,8 @@
 // apps/cli/src/serve.ts
-import { join } from 'node:path'
+
 import { serve, type ServerType } from '@hono/node-server'
-import {
-  createEndpointInFile,
-  deleteEndpointFromFile,
-  EventBus,
-  StateStore,
-  updateEndpointInFile,
-  type WriteResult,
-} from '@laqi/core'
-import {
-  formatEndpointId,
-  isHttpMethod,
-  type EndpointDefinition,
-  type HttpMethod,
-  type LaqiConfig,
-} from '@laqi/schema'
+import { EventBus, Project, StateStore } from '@laqi/core'
+import type { EndpointDefinition, LaqiConfig } from '@laqi/schema'
 import {
   createControlPlaneApp,
   createMockApp,
@@ -61,8 +48,13 @@ export async function startServer(options: {
   let shareUrl: string | null = null
   const store = new StateStore(root)
   const bus = new EventBus()
+  const project = new Project(root, config)
 
   let runtime = buildRuntime(root, config)
+  // Con --port 0 el puerto real lo asigna el SO. Se rellena cuando el
+  // listener está arriba; hasta entonces vale el configurado. Sin esto el
+  // panel muestra "127.0.0.1:0" y el curl que ofrece copiar no funciona.
+  let boundPort = config.port
   let app: Hono = buildApp()
   // Se reconstruye en cada reload igual que la local: el hot-reload tiene
   // que valer también para lo que sale por el túnel.
@@ -72,17 +64,16 @@ export async function startServer(options: {
     runtime = buildRuntime(root, config)
     app = buildApp()
     if (share) publicApp = buildPublicApp(share)
-    bus.emit({ type: 'endpoints-changed', endpointCount: runtime.table.endpoints.length })
-    for (const error of runtime.errors) {
-      bus.emit({
-        type: 'error',
-        file: error.file,
-        line: error.line,
-        col: error.col,
-        message: error.message,
-        excerpt: error.excerpt,
-      })
-    }
+    // Un solo evento por recarga. Antes se emitía un `endpoints-changed`
+    // MÁS un `error` por archivo roto, y el panel hace un refresh completo
+    // por evento: con tres archivos rotos, un guardado disparaba cuatro
+    // refreshes y dieciséis GETs. Los errores viajan adentro del evento; el
+    // panel igual los relee de /api/status, que es la fuente de verdad.
+    bus.emit({
+      type: 'endpoints-changed',
+      endpointCount: runtime.table.endpoints.length,
+      errorCount: runtime.errors.length,
+    })
     return runtime
   }
 
@@ -97,10 +88,6 @@ export async function startServer(options: {
       token: options.token,
       origins: options.origins,
     })
-  }
-
-  function targetFileForNewEndpoint(): string {
-    return runtime.source === 'file' ? config.file : join(config.dir, 'api.json')
   }
 
   function buildApp(): Hono {
@@ -121,7 +108,7 @@ export async function startServer(options: {
       getStatus: () => ({
         watching: runtime.source === 'file' ? config.file : config.dir,
         endpointCount: runtime.table.endpoints.length,
-        address: `${config.host}:${config.port}`,
+        address: `${config.host}:${boundPort}`,
         errors: runtime.errors,
         share: share
           ? {
@@ -135,66 +122,38 @@ export async function startServer(options: {
             }
           : null,
       }),
+      // Las tres escrituras delegan en Project, que es la MISMA
+      // implementación que usa el servidor MCP. Antes había una copia acá
+      // que ya había divergido: le faltaba la validación de la clave (un
+      // POST con un path inválido escribía un endpoint muerto y devolvía
+      // 201) y la limpieza del override al borrar. Una sola implementación
+      // no puede driftear.
       createEndpoint: (input) => {
-        const method = input.method.toUpperCase()
-        if (!isHttpMethod(method)) return { ok: false, error: `unknown method ${JSON.stringify(input.method)}` }
-
-        const id = formatEndpointId(method as HttpMethod, input.path)
-
-        // createEndpointInFile sólo detecta un id duplicado DENTRO del
-        // archivo destino — en modo carpeta, todo endpoint nuevo va a
-        // laqi/api.json, así que un id que ya existe en OTRO archivo se
-        // escribiría igual, y buildRouteTable rechazaría ambos lados como
-        // colisión (correcto de su parte) dejando el endpoint preexistente
-        // muerto también. Hay que rechazar ACÁ, antes de escribir.
-        if (runtime.table.byId.has(id)) {
-          const existing = runtime.table.byId.get(id)!
-          return { ok: false, error: `${JSON.stringify(id)} already exists in ${existing.file}` }
-        }
-
-        const result: WriteResult = createEndpointInFile({
-          root,
-          file: targetFileForNewEndpoint(),
-          id,
-          // `responses` llega tipado como `Record<string, unknown>` desde el
-          // contrato de ControlPlaneRuntime (para no acoplar @laqi/server a
-          // @laqi/schema's EndpointDefinition), pero ya fue validado por
-          // EndpointSchema antes de llegar aquí (control-plane-app.ts) y se
-          // vuelve a validar dentro de createEndpointInFile — el cast sólo
-          // reconcilia los dos contratos de tipos, no evita la validación.
-          definition: {
-            description: input.description,
-            default: input.default,
-            responses: input.responses,
-          } as EndpointDefinition,
+        const result = project.createEndpoint({
+          method: input.method,
+          path: input.path,
+          description: input.description,
+          // Ya validado por EndpointSchema en control-plane-app.ts; el cast
+          // sólo reconcilia los dos contratos de tipos, y Project lo vuelve
+          // a validar antes de escribir.
+          default: input.default,
+          responses: input.responses as EndpointDefinition['responses'],
         })
-
         if (!result.ok) return result
         reload()
-        return { ok: true, id }
+        return { ok: true, id: result.value.id }
       },
       updateEndpoint: (id, definition) => {
-        const existing = runtime.table.byId.get(id)
-        if (!existing) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}` }
-
-        // Mismo reconciliado de tipos que en createEndpoint (ver comentario
-        // arriba): ya validado por EndpointSchema en control-plane-app.ts.
-        const result = updateEndpointInFile({
-          root,
-          file: existing.file,
-          id,
-          definition: definition as EndpointDefinition,
-        })
-        if (result.ok) reload()
-        return result
+        const result = project.updateEndpoint(id, definition as EndpointDefinition)
+        if (!result.ok) return result
+        reload()
+        return { ok: true }
       },
       deleteEndpoint: (id) => {
-        const existing = runtime.table.byId.get(id)
-        if (!existing) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}` }
-
-        const result = deleteEndpointFromFile({ root, file: existing.file, id })
-        if (result.ok) reload()
-        return result
+        const result = project.deleteEndpoint(id)
+        if (!result.ok) return result
+        reload()
+        return { ok: true }
       },
       subscribe: (listener) => bus.subscribe(listener),
     }
@@ -233,6 +192,7 @@ export async function startServer(options: {
 
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : config.port
+  boundPort = port
 
   let publicServer: ServerType | null = null
   let publicPort: number | undefined
@@ -268,12 +228,23 @@ export async function startServer(options: {
     },
     close: async () => {
       await Promise.all(
-        [server, publicServer].filter((instance) => instance !== null).map(
-          (instance) =>
-            new Promise<void>((resolve, reject) => {
-              instance.close((error) => (error ? reject(error) : resolve()))
-            }),
-        ),
+        [server, publicServer]
+          .filter((instance) => instance !== null)
+          .map(
+            (instance) =>
+              new Promise<void>((resolve, reject) => {
+                instance.close((error) => (error ? reject(error) : resolve()))
+                // http.Server#close deja de aceptar conexiones nuevas pero
+                // espera a que terminen las abiertas — y el stream de
+                // /__laqi/events no termina nunca por su cuenta: vive hasta
+                // que el cliente corta. Con el panel abierto en el
+                // navegador, close() no resolvía jamás. Cortar las
+                // conexiones vivas es lo que hace que termine.
+                // El tipo de @hono/node-server es una unión con Http2Server,
+                // que no lo declara. En la práctica es siempre un http.Server.
+                ;(instance as { closeAllConnections?: () => void }).closeAllConnections?.()
+              }),
+          ),
       )
     },
   }

@@ -55,3 +55,23 @@ describe('the published package', () => {
     expect(cli.engines).toMatchObject({ node: '>=20' })
   })
 })
+
+describe('install weight', () => {
+  it('does not drag the MCP SDK into every install', () => {
+    // Como dependencia instalada arrastra express, jose, ajv y compañía:
+    // 91 paquetes y 24 MB en TODA instalación, aunque nunca corras
+    // `laqi mcp`. Va bundleada, y el tree-shaking deja fuera el transport
+    // HTTP que no usamos — medido: 97 paquetes instalados pasaron a 6.
+    expect(dependencies).not.toHaveProperty('@modelcontextprotocol/sdk')
+    expect(devDependencies).toHaveProperty('@modelcontextprotocol/sdk')
+  })
+
+  it('keeps the runtime dependency list small on purpose', () => {
+    expect(Object.keys(dependencies).sort()).toEqual([
+      '@hono/node-server',
+      'chokidar',
+      'hono',
+      'zod',
+    ])
+  })
+})

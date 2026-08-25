@@ -1,15 +1,14 @@
 import { join } from 'node:path'
+import { loadMocks, type LoadedEndpoint, type LoadError } from './loader'
+import { resolveResponse } from './resolve'
+import { buildRouteTable } from './route-table'
+import { StateStore } from './state-store'
 import {
-  buildRouteTable,
   createEndpointInFile,
+  createEndpointsInFile,
   deleteEndpointFromFile,
-  loadMocks,
-  resolveResponse,
-  StateStore,
   updateEndpointInFile,
-  type LoadedEndpoint,
-  type LoadError,
-} from '@laqi/core'
+} from './writer'
 import {
   formatEndpointId,
   isHttpMethod,
@@ -164,6 +163,71 @@ export class Project {
     })
 
     return result.ok ? ok({ id, file }) : fail(result.error)
+  }
+
+  /**
+   * Crea muchos endpoints de una. Existe porque `import_openapi` llamaba a
+   * `createEndpoint` una vez por operación, y cada llamada recarga y
+   * re-parsea TODOS los archivos de mock y después reescribe el archivo
+   * destino entero — O(n^2) de disco, y una recarga del watcher por cada
+   * endpoint. Un spec de 150 operaciones hacía 150 de cada cosa.
+   *
+   * Se carga una vez, se valida todo, y se escribe una vez.
+   */
+  createEndpoints(
+    inputs: {
+      method: string
+      path: string
+      description?: string
+      default: string
+      responses: EndpointDefinition['responses']
+    }[],
+  ): ProjectResult<{ created: string[]; rejected: { id: string; error: string }[] }> {
+    const { byId, source } = this.load()
+    const file = this.targetFile(source)
+
+    const created: string[] = []
+    const rejected: { id: string; error: string }[] = []
+    const definitions: { id: string; definition: EndpointDefinition }[] = []
+    // Los ids nuevos también cuentan como ocupados: dos operaciones del
+    // mismo spec pueden colisionar entre sí, no sólo contra lo que ya había.
+    const taken = new Set(byId.keys())
+
+    for (const input of inputs) {
+      const method = input.method.toUpperCase()
+      if (!isHttpMethod(method)) {
+        rejected.push({
+          id: `${input.method} ${input.path}`,
+          error: `unknown HTTP method ${JSON.stringify(input.method)}`,
+        })
+        continue
+      }
+
+      const id = formatEndpointId(method as HttpMethod, input.path)
+      const parsed = parseEndpointKey(id)
+      if (!parsed.ok) {
+        rejected.push({ id, error: parsed.error })
+        continue
+      }
+      if (taken.has(id)) {
+        rejected.push({ id, error: `${JSON.stringify(id)} already exists in ${byId.get(id)?.file ?? file}` })
+        continue
+      }
+
+      taken.add(id)
+      definitions.push({
+        id,
+        definition: { description: input.description, default: input.default, responses: input.responses },
+      })
+      created.push(id)
+    }
+
+    if (definitions.length > 0) {
+      const result = createEndpointsInFile({ root: this.root, file, entries: definitions })
+      if (!result.ok) return fail(result.error)
+    }
+
+    return ok({ created, rejected })
   }
 
   updateEndpoint(id: string, definition: EndpointDefinition): ProjectResult<{ id: string; file: string }> {

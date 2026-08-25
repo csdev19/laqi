@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { RESERVED_PREFIX } from '@laqi/schema'
 import { createMockApp, type MockRuntime } from './mock-app'
 
@@ -29,6 +28,9 @@ export type PublicRuntime = {
 
 export const DEFAULT_RATE_LIMIT = { windowMs: 60_000, max: 240, globalMax: 1200 }
 
+/** Techo de buckets vivos. Ver el barrido en `consume`. */
+export const MAX_BUCKETS = 10_000
+
 /**
  * La superficie pública: lo que de verdad viaja por el túnel.
  *
@@ -39,6 +41,20 @@ export const DEFAULT_RATE_LIMIT = { windowMs: 60_000, max: 240, globalMax: 1200 
  */
 export function createPublicApp(runtime: PublicRuntime): Hono {
   const app = new Hono()
+
+  /**
+   * Los headers de CORS para las respuestas que genera ESTA app (401, 429,
+   * el 404 del prefijo reservado). Nada de un `cors()` propio acá: ese
+   * middleware corta toda request OPTIONS con un 204 antes de llegar al
+   * mock app, y `createMockApp` se toma el trabajo de registrar los mocks
+   * OPTIONS antes de su propio cors() justo para que sean alcanzables. Con
+   * un cors() acá, un mock `"OPTIONS /x"` que anda en local devolvía un 204
+   * vacío por el túnel.
+   */
+  const corsHeaders = (origin: string | undefined): Record<string, string> =>
+    origin !== undefined && runtime.origins.includes(origin)
+      ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
+      : {}
   const now = runtime.now ?? (() => Date.now())
   const limit = runtime.rateLimit ?? DEFAULT_RATE_LIMIT
   const buckets = new Map<string, { count: number; resetAt: number }>()
@@ -55,21 +71,14 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
       return c.json(
         { error: 'laqi', message: 'too many requests' },
         429,
-        { 'Retry-After': String(Math.ceil(verdict.retryInMs / 1000)) },
+        {
+          'Retry-After': String(Math.ceil(verdict.retryInMs / 1000)),
+          ...corsHeaders(c.req.header('Origin')),
+        },
       )
     }
     await next()
   })
-
-  app.use(
-    '*',
-    cors({
-      // Nunca '*': el ADR-0007 lo prohíbe explícitamente en modo compartido.
-      origin: (origin) => (runtime.origins.includes(origin) ? origin : null),
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Laqi-Response', 'X-Laqi-Scenario'],
-      exposeHeaders: ['X-Laqi-Resolved'],
-    }),
-  )
 
   if (runtime.token !== null) {
     const expected = `Bearer ${runtime.token}`
@@ -84,7 +93,7 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
         return c.json(
           { error: 'laqi', message: 'this laqi tunnel requires a bearer token' },
           401,
-          { 'WWW-Authenticate': 'Bearer' },
+          { 'WWW-Authenticate': 'Bearer', ...corsHeaders(c.req.header('Origin')) },
         )
       }
       await next()
@@ -96,6 +105,26 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
 
   function consume(key: string): { ok: true } | { ok: false; retryInMs: number } {
     const at = now()
+
+    // Sin esto el Map crece para siempre: la clave sale de un header que
+    // el que llama controla, nada borra las entradas vencidas, y rotar el
+    // header agrega una entrada permanente por request. A 1200 req/min eso
+    // es ~1.7M entradas por día hasta quedarse sin memoria. Se barre en
+    // cada escritura, y hay un techo duro por si el barrido no alcanza.
+    if (buckets.size >= MAX_BUCKETS) {
+      for (const [bucketKey, bucket] of buckets) {
+        if (at >= bucket.resetAt) buckets.delete(bucketKey)
+      }
+      // Todas vivas y aun así por encima del techo: se tira la mitad más
+      // vieja. Peor caso, alguien recupera cuota antes de tiempo — muy
+      // preferible a que el proceso muera.
+      if (buckets.size >= MAX_BUCKETS) {
+        const ordered = [...buckets.entries()].sort((a, b) => a[1].resetAt - b[1].resetAt)
+        for (const [bucketKey] of ordered.slice(0, Math.floor(ordered.length / 2))) {
+          if (bucketKey !== 'global') buckets.delete(bucketKey)
+        }
+      }
+    }
 
     // El límite global es el que de verdad protege: `CF-Connecting-IP` lo
     // fija cloudflared, pero quien llegue directo al puerto podría inventarlo

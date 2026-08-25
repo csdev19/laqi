@@ -105,6 +105,45 @@ export function createEndpointInFile(params: {
   return { ok: true }
 }
 
+/**
+ * Escribe varios endpoints en un archivo de una sola pasada: una lectura,
+ * una validación por entrada, una escritura atómica. Escribirlos uno por uno
+ * relee y reescribe el archivo entero cada vez, y dispara el watcher una vez
+ * por endpoint.
+ */
+export function createEndpointsInFile(params: {
+  root: string
+  file: string
+  entries: { id: string; definition: EndpointDefinition }[]
+}): WriteResult {
+  const { root, file, entries } = params
+  const inside = resolveInside(root, file)
+  if (!inside.ok) return inside
+  const fullPath = inside.path
+
+  const validated: { id: string; definition: EndpointDefinition }[] = []
+  for (const entry of entries) {
+    const parsed = EndpointSchema.safeParse(entry.definition)
+    if (!parsed.success) {
+      return { ok: false, error: `${entry.id}: ${parsed.error.issues.map((i) => i.message).join('; ')}` }
+    }
+    validated.push({ id: entry.id, definition: parsed.data })
+  }
+
+  const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
+  if (!read.ok) return read
+
+  for (const entry of validated) {
+    if (Object.hasOwn(read.value, entry.id)) {
+      return { ok: false, error: `${JSON.stringify(entry.id)} already exists in ${file}` }
+    }
+    read.value[entry.id] = entry.definition
+  }
+
+  writeFileObject(fullPath, read.value)
+  return { ok: true }
+}
+
 export function deleteEndpointFromFile(params: { root: string; file: string; id: string }): WriteResult {
   const { root, file, id } = params
   const inside = resolveInside(root, file)

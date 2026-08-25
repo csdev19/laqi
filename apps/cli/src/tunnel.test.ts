@@ -177,3 +177,28 @@ describe('start', () => {
     expect(children[0]!.killed).toBe(true)
   })
 })
+
+describe('after the URL is found', () => {
+  it('stops listening, so a long-lived tunnel does not accumulate its own logs', async () => {
+    const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
+    const starting = provider.start({ port: 8000 })
+    children[0]!.stderr.write(BANNER)
+    await starting
+
+    // cloudflared loguea sin parar mientras el túnel vive. Si los listeners
+    // siguieran puestos, cada línea se acumularía y el regex se re-correría
+    // sobre una cadena cada vez más larga.
+    expect(children[0]!.stderr.listenerCount('data')).toBe(0)
+    expect(children[0]!.stdout.listenerCount('data')).toBe(0)
+  })
+
+  it('detaches on the failure paths too', async () => {
+    const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
+    const starting = provider.start({ port: 8000 })
+    const rejects = expect(starting).rejects.toThrow()
+    children[0]!.emit('exit', 1)
+    await rejects
+
+    expect(children[0]!.stderr.listenerCount('data')).toBe(0)
+  })
+})

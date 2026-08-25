@@ -16,7 +16,13 @@ export default defineConfig({
   dts: false,
   // Los paquetes del workspace se meten en el bundle: se publica UN paquete,
   // no seis. Las dependencias reales de npm quedan afuera y se instalan.
-  noExternal: [/^@laqi\//],
+  //
+  // El SDK de MCP también entra al bundle, y no por gusto: como dependencia
+  // instalada arrastra express, jose, ajv y compañía — 91 paquetes y 24 MB
+  // en TODA instalación, aunque nunca corras `laqi mcp`. Nosotros sólo
+  // usamos el transport de stdio; bundleándolo, el tree-shaking deja fuera
+  // el transport HTTP y todo lo que cuelga de él.
+  noExternal: [/^@laqi\//, '@modelcontextprotocol/sdk'],
   shims: true,
   hooks: {
     'build:done': () => {

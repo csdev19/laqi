@@ -80,7 +80,17 @@ export function createEditorApp(distDir: string | null = editorDistDir()): Hono 
   app.get('/__laqi/', index)
   app.get('/__laqi/assets/*', (c) => {
     const path = new URL(c.req.url).pathname.slice('/__laqi/'.length)
-    return serveFile(c, decodeURIComponent(path))
+
+    let decoded: string
+    try {
+      decoded = decodeURIComponent(path)
+    } catch {
+      // `%` suelto o `%zz`: los bots y los escáneres de links los producen
+      // todo el tiempo. Es un 404, no un 500 con stack.
+      return c.text('not found', 404)
+    }
+
+    return serveFile(c, decoded)
   })
   app.get('/__laqi/favicon.svg', (c) => serveFile(c, 'favicon.svg'))
 
