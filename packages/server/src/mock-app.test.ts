@@ -1,6 +1,6 @@
 import { buildRouteTable, type LoadedEndpoint } from '@laqi/core'
 import type { LaqiState, Scenarios } from '@laqi/schema'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMockApp, type MockRuntime } from './mock-app'
 
 const endpoints: LoadedEndpoint[] = [
@@ -38,9 +38,13 @@ const endpoints: LoadedEndpoint[] = [
   },
 ]
 
-function makeApp(state: LaqiState = { scenario: null, overrides: {} }, scenarios: Scenarios = {}) {
+function makeApp(
+  state: LaqiState = { scenario: null, overrides: {} },
+  scenarios: Scenarios = {},
+  overrides: Partial<MockRuntime> = {},
+) {
   const { table } = buildRouteTable(endpoints)
-  const runtime: MockRuntime = { table, scenarios, getState: () => state, cors: '*' }
+  const runtime: MockRuntime = { table, scenarios, getState: () => state, cors: '*', ...overrides }
   return createMockApp(runtime)
 }
 
@@ -134,5 +138,53 @@ describe('createMockApp', () => {
     const res = await createMockApp(runtime).request('/users')
 
     expect(res.headers.get('X-Laqi-Resolved')).toBe('ok (default)')
+  })
+
+  describe('onRequest', () => {
+    it('fires with method, path, status, resolved layer/name and timing after a successful response', async () => {
+      const onRequest = vi.fn()
+      const app = makeApp(undefined, undefined, { onRequest })
+
+      await app.request('/users')
+
+      expect(onRequest).toHaveBeenCalledTimes(1)
+      const event = onRequest.mock.calls[0]![0]
+      expect(event).toMatchObject({
+        type: 'request',
+        method: 'GET',
+        path: '/users',
+        status: 200,
+        resolvedName: 'ok',
+        resolvedLayer: 'default',
+      })
+      expect(typeof event.ms).toBe('number')
+      expect(event.ms).toBeGreaterThanOrEqual(0)
+    })
+
+    it('fires on a resolution failure too (500), not just on success', async () => {
+      const onRequest = vi.fn()
+      const state = { scenario: null, overrides: { 'GET /users': 'ghost' } }
+      const app = makeApp(state, undefined, { onRequest })
+
+      await app.request('/users')
+
+      expect(onRequest).toHaveBeenCalledTimes(1)
+      expect(onRequest.mock.calls[0]![0]).toMatchObject({ type: 'request', status: 500 })
+    })
+
+    it('does not fire for a request that matches no endpoint at all', async () => {
+      const onRequest = vi.fn()
+      const app = makeApp(undefined, undefined, { onRequest })
+
+      await app.request('/typo')
+
+      expect(onRequest).not.toHaveBeenCalled()
+    })
+
+    it('is optional — omitting it does not throw', async () => {
+      const app = makeApp()
+      const res = await app.request('/users')
+      expect(res.status).toBe(200)
+    })
   })
 })
