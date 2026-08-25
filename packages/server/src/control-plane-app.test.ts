@@ -23,6 +23,7 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     },
     getScenarios: () => ({}),
     getStatus: () => ({ watching: 'laqi/', endpointCount: 1, address: '127.0.0.1:8000', errors: [] }),
+    createEndpoint: () => ({ ok: true, id: 'GET /new' }),
     ...overrides,
   }
 }
@@ -142,5 +143,90 @@ describe('GET /api/status', () => {
       address: '127.0.0.1:8000',
       errors: [{ file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' }],
     })
+  })
+})
+
+describe('POST /api/endpoints', () => {
+  it('creates the endpoint and returns 201 with its id', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: true as const, id: 'POST /orders' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        method: 'POST',
+        path: '/orders',
+        default: 'created',
+        responses: { created: { status: 201, body: {} } },
+      }),
+    })
+
+    expect(res.status).toBe(201)
+    expect(createEndpoint).toHaveBeenCalledWith({
+      method: 'POST',
+      path: '/orders',
+      description: undefined,
+      default: 'created',
+      responses: { created: { status: 201, body: {} } },
+    })
+    expect(await res.json()).toEqual({ id: 'POST /orders' })
+  })
+
+  it('rejects an unknown HTTP method', async () => {
+    const createEndpoint = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ method: 'FETCH', path: '/orders', default: 'ok', responses: { ok: { status: 200 } } }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('rejects a path that does not start with "/"', async () => {
+    const createEndpoint = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ method: 'GET', path: 'orders', default: 'ok', responses: { ok: { status: 200 } } }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid endpoint definition (no responses)', async () => {
+    const createEndpoint = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: {} }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(createEndpoint).not.toHaveBeenCalled()
+  })
+
+  it('propagates a failure from the runtime (e.g. duplicate id) as a client error', async () => {
+    const createEndpoint = vi.fn(() => ({ ok: false as const, error: '"GET /orders" already exists' }))
+    const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
+
+    const res = await app.request('/api/endpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200 } } }),
+    })
+
+    expect(res.status).toBe(409)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toContain('already exists')
   })
 })
