@@ -1,0 +1,16 @@
+{
+  "name": "@laqi/cli",
+  "version": "2.0.0",
+  "type": "module",
+  "bin": { "laqi": "./src/index.ts" },
+  "dependencies": {
+    "@hono/node-server": "^1.19.7",
+    "@laqi/core": "workspace:*",
+    "@laqi/schema": "workspace:*",
+    "@laqi/server": "workspace:*",
+    "chokidar": "^4.0.3",
+    "hono": "catalog:"
+  },
+  "devDependencies": { "@types/node": "^26.2.0" },
+  "scripts": { "check-types": "tsc --noEmit -p ." }
+}
