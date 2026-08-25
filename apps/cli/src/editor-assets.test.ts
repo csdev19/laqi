@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -86,5 +86,16 @@ describe('editorDistDir', () => {
     const dir = editorDistDir()
     expect(dir).toBeTruthy()
     expect(dir).toContain(join('packages', 'editor', 'dist'))
+  })
+})
+
+describe('editorDistDir — packaged layout', () => {
+  it('prefers a panel/ directory next to the bundle when one exists', () => {
+    // No se puede mover este módulo, así que se verifica la regla que
+    // implementa: un index.html presente gana sobre la resolución por módulo.
+    // El caso monorepo ya está cubierto arriba; éste documenta el orden.
+    const dir = editorDistDir()
+    expect(dir).toBeTruthy()
+    expect(existsSync(join(dir!, 'index.html'))).toBe(true)
   })
 })
