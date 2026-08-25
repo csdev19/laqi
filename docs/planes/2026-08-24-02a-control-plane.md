@@ -767,7 +767,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
 Run: `bun run test -- control-plane-app`
-Expected: PASS, 8 tests.
+Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -903,7 +903,7 @@ por:
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
 Run: `bun run test -- control-plane-app`
-Expected: PASS, 10 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1130,7 +1130,7 @@ por:
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
 Run: `bun run test -- control-plane-app`
-Expected: PASS, 15 tests.
+Expected: PASS, 14 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1324,7 +1324,7 @@ por:
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
 Run: `bun run test -- control-plane-app`
-Expected: PASS, 20 tests.
+Expected: PASS, 19 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1491,7 +1491,7 @@ por:
 - [ ] **Step 4: Correr el test y verificar que pasa**
 
 Run: `bun run test -- control-plane-app`
-Expected: PASS, 22 tests.
+Expected: PASS, 21 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -2185,7 +2185,7 @@ Expected: todo verde.
 
 ## Definición de terminado
 
-- [ ] `bun run test` verde: 11 tareas, 51 tests nuevos (7 events + 11 writer + 22 control-plane-app + 4 mock-app + 7 serve) sobre los 122 que ya existían — 173 en total
+- [ ] `bun run test` verde: 11 tareas, 50 tests nuevos (7 events + 11 writer + 21 control-plane-app + 4 mock-app + 7 serve) sobre los 122 que ya existían — 172 en total
 - [ ] `bun run check-types` y `bun run lint` sin errores
 - [ ] `GET /__laqi/api/endpoints`, `GET`/`PUT /__laqi/api/state`, `GET /__laqi/api/scenarios`, `GET /__laqi/api/status` responden correctamente montados junto al mock server
 - [ ] `POST`/`PUT`/`DELETE /__laqi/api/endpoints[/:id]` escriben de vuelta a los archivos y el cambio es servible **sin reiniciar el proceso**
