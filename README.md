@@ -15,7 +15,8 @@ packages/schema   — Zod schemas: config, endpoint, response, scenarios, state
 packages/core     — loading mocks from disk, route table, resolution, state store
 packages/server   — the Hono app that actually serves mock responses
 packages/editor   — the web control panel (React + Vite), served at /__laqi
-apps/cli          — the `laqi` CLI: serve, watch, migrate
+packages/mcp      — the MCP server, for coding agents
+apps/cli          — the `laqi` CLI: serve, watch, migrate, mcp
 apps/documentation — the docs site (Astro + Starlight)
 ```
 
@@ -178,6 +179,40 @@ server is on the roadmap.
 The SSE stream carries every request the mock server answers, including the
 ones that matched no route (`endpointId` is `null` on those, and they carry
 no resolution because nothing resolved them).
+
+## Using it from a coding agent (MCP)
+
+`laqi mcp` runs an MCP server over stdio, so an agent building a screen can
+create the endpoints it needs, flip responses, and activate scenarios without
+you opening a file.
+
+Point your agent at the project directory — the server operates on the mock
+files there, so it works whether or not `laqi` is currently running.
+
+```json
+{
+  "mcpServers": {
+    "laqi": {
+      "command": "bun",
+      "args": ["<path-to-this-repo>/apps/cli/src/index.ts", "mcp"],
+      "cwd": "<your-project>"
+    }
+  }
+}
+```
+
+In Claude Code that goes in `.mcp.json` at your project root; Cursor uses the
+same shape. Once the packaged binary exists, `"command": "npx", "args":
+["laqi", "mcp"]` replaces the two lines above.
+
+Tools: `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
+`reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
+`import_openapi`.
+
+`import_openapi` turns an OpenAPI 3.x document into mocks, generating example
+bodies from the schemas. It takes JSON (convert YAML first), never overwrites
+an existing endpoint unless you ask, and reports whatever it skipped and why
+rather than failing the whole import.
 
 ## Why that name?
 
