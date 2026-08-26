@@ -9,6 +9,7 @@
     "@hono/node-server": "^1.19.7",
     "@laqi/core": "workspace:*",
     "@laqi/editor": "workspace:*",
+    "@laqi/mcp": "workspace:*",
     "@laqi/schema": "workspace:*",
     "@laqi/server": "workspace:*",
     "chokidar": "^4.0.3",

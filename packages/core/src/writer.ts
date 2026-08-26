@@ -1,8 +1,27 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, resolve, sep } from 'node:path'
 import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
+
+/**
+ * Resuelve `file` dentro de `root` y se niega si el resultado se sale.
+ *
+ * `join(root, file)` solo no alcanza: `join(root, '../x.json')` sale del
+ * proyecto sin quejarse. Todo escritor pasa por acá, que es el punto donde
+ * el ADR-0006 pide acotar al servidor MCP — un agente con estas
+ * herramientas escribe archivos del proyecto y nunca debe salir de él.
+ */
+function resolveInside(root: string, file: string): { ok: true; path: string } | { ok: false; error: string } {
+  const base = resolve(root)
+  const target = resolve(base, file)
+
+  if (target !== base && !target.startsWith(base + sep)) {
+    return { ok: false, error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root` }
+  }
+
+  return { ok: true, path: target }
+}
 
 function readFileObject(fullPath: string): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
   if (!existsSync(fullPath)) return { ok: false, error: `file not found: ${fullPath}` }
@@ -36,7 +55,9 @@ export function updateEndpointInFile(params: {
   definition: EndpointDefinition
 }): WriteResult {
   const { root, file, id, definition } = params
-  const fullPath = join(root, file)
+  const inside = resolveInside(root, file)
+  if (!inside.ok) return inside
+  const fullPath = inside.path
 
   const validated = EndpointSchema.safeParse(definition)
   if (!validated.success) {
@@ -62,7 +83,9 @@ export function createEndpointInFile(params: {
   definition: EndpointDefinition
 }): WriteResult {
   const { root, file, id, definition } = params
-  const fullPath = join(root, file)
+  const inside = resolveInside(root, file)
+  if (!inside.ok) return inside
+  const fullPath = inside.path
 
   const validated = EndpointSchema.safeParse(definition)
   if (!validated.success) {
@@ -84,7 +107,9 @@ export function createEndpointInFile(params: {
 
 export function deleteEndpointFromFile(params: { root: string; file: string; id: string }): WriteResult {
   const { root, file, id } = params
-  const fullPath = join(root, file)
+  const inside = resolveInside(root, file)
+  if (!inside.ok) return inside
+  const fullPath = inside.path
 
   const read = readFileObject(fullPath)
   if (!read.ok) return read

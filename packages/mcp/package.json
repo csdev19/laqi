@@ -1,0 +1,14 @@
+{
+  "name": "@laqi/mcp",
+  "version": "2.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
+  "dependencies": {
+    "@laqi/core": "workspace:*",
+    "@laqi/schema": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": { "@types/node": "^26.2.0" },
+  "scripts": { "check-types": "tsc --noEmit -p ." }
+}
