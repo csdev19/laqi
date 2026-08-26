@@ -16,6 +16,15 @@ import { streamSSE } from 'hono/streaming'
  * tarea de este plan agrega los campos que sus rutas necesitan — este tipo
  * es el contrato completo recién al final de la Tarea 8.
  */
+/** Por qué falló una escritura, para elegir el status correcto. */
+export type WriteFailure = 'invalid' | 'conflict' | 'not-found'
+
+const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
+  invalid: 400,
+  conflict: 409,
+  'not-found': 404,
+}
+
 export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
   getState: () => LaqiState
@@ -35,12 +44,12 @@ export type ControlPlaneRuntime = {
     description?: string
     default: string
     responses: Record<string, unknown>
-  }) => { ok: true; id: string } | { ok: false; error: string }
+  }) => { ok: true; id: string } | { ok: false; error: string; code?: WriteFailure }
   updateEndpoint: (
     id: string,
     definition: { description?: string; default: string; responses: Record<string, unknown> },
-  ) => { ok: true } | { ok: false; error: string }
-  deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }
+  ) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
+  deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   subscribe: (listener: (event: LaqiEvent) => void) => () => void
 }
 
@@ -148,7 +157,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     })
 
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 409)
+      // 409 sólo cuando de verdad choca con algo. Un path mal formado que
+      // Project rechaza es un 400: no entra en conflicto con nada, y un
+      // cliente que trate 409 como "ya existe" se confundiría.
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'conflict'])
     }
 
     return c.json({ id: result.id }, 201)
@@ -178,7 +190,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
     const result = runtime.updateEndpoint(id, definition.data)
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
     }
 
     return c.json({ ok: true })
@@ -190,7 +202,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     const result = runtime.deleteEndpoint(id)
 
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
     }
 
     return c.body(null, 204)

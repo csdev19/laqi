@@ -1,6 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
-import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
+import {
+  EndpointSchema,
+  formatEndpointId,
+  parseEndpointKey,
+  type EndpointDefinition,
+} from '@laqi/schema'
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
 
@@ -72,6 +77,26 @@ function writeFileObject(fullPath: string, contents: Record<string, unknown>): v
   renameSync(tmpPath, fullPath)
 }
 
+/**
+ * La clave REAL del archivo que corresponde a este id.
+ *
+ * El loader normaliza (`"get  /users"` es el id `"GET /users"`), así que
+ * buscar la clave cruda fallaba: el endpoint se listaba y se servía, pero
+ * editarlo o borrarlo devolvía 404. Se compara por id normalizado y se
+ * devuelve la clave tal como está escrita, para no reformatear el archivo
+ * del usuario sin que lo haya pedido.
+ */
+function findKey(contents: Record<string, unknown>, id: string): string | undefined {
+  if (Object.hasOwn(contents, id)) return id
+
+  for (const key of Object.keys(contents)) {
+    const parsed = parseEndpointKey(key)
+    if (parsed.ok && formatEndpointId(parsed.value.method, parsed.value.path) === id) return key
+  }
+
+  return undefined
+}
+
 export function updateEndpointInFile(params: {
   root: string
   file: string
@@ -91,11 +116,12 @@ export function updateEndpointInFile(params: {
   const read = readFileObject(fullPath)
   if (!read.ok) return read
 
-  if (!Object.hasOwn(read.value, id)) {
+  const key = findKey(read.value, id)
+  if (key === undefined) {
     return { ok: false, error: `no endpoint ${JSON.stringify(id)} in ${file}` }
   }
 
-  read.value[id] = validated.data
+  read.value[key] = validated.data
   writeFileObject(fullPath, read.value)
   return { ok: true }
 }
@@ -120,7 +146,11 @@ export function createEndpointInFile(params: {
   const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
   if (!read.ok) return read
 
-  if (Object.hasOwn(read.value, id)) {
+  // Normalizado: escribir "GET /users" junto a un "get  /users" existente
+  // dejaría dos claves con el mismo id, y la tabla de rutas rechazaría las
+  // dos como colisión — matando la que ya andaba.
+  const clash = findKey(read.value, id)
+  if (clash !== undefined) {
     return { ok: false, error: `${JSON.stringify(id)} already exists in ${file}` }
   }
 
@@ -158,7 +188,8 @@ export function createEndpointsInFile(params: {
   if (!read.ok) return read
 
   for (const entry of validated) {
-    if (Object.hasOwn(read.value, entry.id)) {
+    // Normalizado, igual que createEndpointInFile: ver findKey.
+    if (findKey(read.value, entry.id) !== undefined) {
       return { ok: false, error: `${JSON.stringify(entry.id)} already exists in ${file}` }
     }
     read.value[entry.id] = entry.definition
@@ -177,11 +208,12 @@ export function deleteEndpointFromFile(params: { root: string; file: string; id:
   const read = readFileObject(fullPath)
   if (!read.ok) return read
 
-  if (!Object.hasOwn(read.value, id)) {
+  const key = findKey(read.value, id)
+  if (key === undefined) {
     return { ok: false, error: `no endpoint ${JSON.stringify(id)} in ${file}` }
   }
 
-  delete read.value[id]
+  delete read.value[key]
   writeFileObject(fullPath, read.value)
   return { ok: true }
 }

@@ -64,6 +64,18 @@ function stripUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
+/** `undefined` si no se pasó; `null` si es inválido (ya se reportó). */
+function parsePort(raw: string | undefined, flag: string): number | undefined | null {
+  if (raw === undefined) return undefined
+
+  const port = Number(raw)
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`✖ ${flag} must be a port number between 0 and 65535, got ${JSON.stringify(raw)}`)
+    return null
+  }
+  return port
+}
+
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
@@ -85,9 +97,19 @@ async function main(): Promise<void> {
     return
   }
 
+  // Los flags numéricos se validan ANTES de mezclarlos con el archivo. Sin
+  // esto, `--port abc` se volvía NaN, hacía fallar la validación del objeto
+  // mezclado, y loadConfig descartaba el laqi.config.json ENTERO — culpando
+  // al archivo, que estaba bien — y arrancaba con todos los defaults.
+  const port = parsePort(values.port, '--port')
+  if (port === null) {
+    process.exitCode = 1
+    return
+  }
+
   const root = process.cwd()
   const config = loadConfig(root, {
-    port: values.port === undefined ? undefined : Number(values.port),
+    port,
     host: values.host,
     dir: values.dir,
     file: values.file,
@@ -132,17 +154,12 @@ async function main(): Promise<void> {
     // lo que el developer puede arreglar solo. --port pasa por ConfigSchema;
     // --share-port no tenía nada, así que un valor no numérico llegaba como
     // NaN hasta server.listen() y salía como un stack pelado.
-    let sharePort = config.port + 1
-    if (values['share-port'] !== undefined) {
-      sharePort = Number(values['share-port'])
-      if (!Number.isInteger(sharePort) || sharePort < 0 || sharePort > 65535) {
-        console.error(
-          `✖ --share-port must be a port number between 0 and 65535, got ${JSON.stringify(values['share-port'])}`,
-        )
-        process.exitCode = 1
-        return
-      }
+    const parsedSharePort = parsePort(values['share-port'], '--share-port')
+    if (parsedSharePort === null) {
+      process.exitCode = 1
+      return
     }
+    const sharePort = parsedSharePort ?? config.port + 1
 
     // Se chequea ANTES de abrir puertos: fallar después de imprimir el
     // banner de arranque haría creer que algo quedó a medio levantar.
@@ -168,8 +185,16 @@ async function main(): Promise<void> {
     handle = await startServer({ root, config, share })
   } catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
+      // Con --share hay DOS listeners. Culpar siempre a config.port mandaba
+      // al developer a cambiar el puerto equivocado.
+      const shareBusy =
+        share !== undefined && !String(error.message).includes(`:${config.port}`)
+          ? share.port
+          : null
       console.error(
-        `✖ port ${config.port} is already in use — pick another with --port, or stop whatever else is using it`,
+        shareBusy !== null
+          ? `✖ port ${shareBusy} is already in use — pick another with --share-port, or stop whatever else is using it`
+          : `✖ port ${config.port} is already in use — pick another with --port, or stop whatever else is using it`,
       )
       process.exitCode = 1
       return

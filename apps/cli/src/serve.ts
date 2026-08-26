@@ -39,6 +39,22 @@ export type ServeHandle = {
   close: () => Promise<void>
 }
 
+/**
+ * Las direcciones que son sólo esta máquina. `::1` y sus formas escritas
+ * cuentan: es loopback IPv6, y dejarlo afuera apagaba el panel en silencio
+ * para quien arrancara con `--host ::1`.
+ */
+export function isLoopback(host: string): boolean {
+  const normalised = host.toLowerCase().replace(/^\[|\]$/g, '')
+  return (
+    normalised === 'localhost' ||
+    normalised === '::1' ||
+    normalised === '0:0:0:0:0:0:0:1' ||
+    // Todo 127.0.0.0/8 es loopback, no sólo 127.0.0.1.
+    /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalised)
+  )
+}
+
 export async function startServer(options: {
   root: string
   config: LaqiConfig
@@ -165,7 +181,7 @@ export async function startServer(options: {
     // testing de un plan anterior) montarlos acá los expondría a cualquiera
     // en la red local. Sin estos mounts, /__laqi/* simplemente cae al 404 del
     // mock app, como cualquier otra ruta no encontrada.
-    if (config.host === '127.0.0.1' || config.host === 'localhost') {
+    if (isLoopback(config.host)) {
       // El panel va PRIMERO: el control plane termina en un catch-all que
       // se comería /__laqi y /__laqi/assets/*.
       top.route('/', createEditorApp())
@@ -198,7 +214,8 @@ export async function startServer(options: {
   let publicPort: number | undefined
 
   if (share) {
-    publicServer = await new Promise<ServerType>((resolve, reject) => {
+    try {
+      publicServer = await new Promise<ServerType>((resolve, reject) => {
       const instance = serve(
         {
           fetch: (request: Request) => publicApp!.fetch(request),
@@ -211,7 +228,14 @@ export async function startServer(options: {
         () => resolve(instance),
       )
       instance.on('error', reject)
-    })
+      })
+    } catch (error) {
+      // El listener principal ya está arriba. Sin cerrarlo, el throw deja un
+      // socket huérfano que mantiene vivo el event loop: el CLI dice que
+      // falló, no termina nunca, y sigue sirviendo mocks igual.
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      throw error
+    }
 
     const publicAddress = publicServer.address()
     publicPort = typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port

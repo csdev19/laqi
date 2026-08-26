@@ -20,10 +20,25 @@ import {
   type Scenarios,
 } from '@laqi/schema'
 
-export type ProjectResult<T> = { ok: true; value: T } | { ok: false; error: string }
+/**
+ * Por qué falló, para que quien llame elija el status HTTP correcto.
+ *
+ * - `invalid`   la entrada está mal formada → 400
+ * - `conflict`  choca con algo que ya existe → 409
+ * - `not-found` no existe lo que se pidió tocar → 404
+ */
+export type ProjectFailure = 'invalid' | 'conflict' | 'not-found'
+
+export type ProjectResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string; code: ProjectFailure }
 
 const ok = <T>(value: T): ProjectResult<T> => ({ ok: true, value })
-const fail = <T>(error: string): ProjectResult<T> => ({ ok: false, error })
+const fail = <T>(error: string, code: ProjectFailure = 'invalid'): ProjectResult<T> => ({
+  ok: false,
+  error,
+  code,
+})
 
 export type EndpointView = {
   id: string
@@ -148,7 +163,7 @@ export class Project {
     // carpeta un id que ya existe en OTRO archivo se escribiría igual — y la
     // tabla de rutas rechazaría los dos lados, matando el que ya andaba.
     const existing = byId.get(id)
-    if (existing) return fail(`${JSON.stringify(id)} already exists in ${existing.file}`)
+    if (existing) return fail(`${JSON.stringify(id)} already exists in ${existing.file}`, 'conflict')
 
     const file = this.targetFile(source)
     const result = createEndpointInFile({
@@ -232,7 +247,7 @@ export class Project {
 
   updateEndpoint(id: string, definition: EndpointDefinition): ProjectResult<{ id: string; file: string }> {
     const existing = this.load().byId.get(id)
-    if (existing === undefined) return fail(this.unknownEndpoint(id))
+    if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     const result = updateEndpointInFile({ root: this.root, file: existing.file, id, definition })
     return result.ok ? ok({ id, file: existing.file }) : fail(result.error)
@@ -240,7 +255,7 @@ export class Project {
 
   deleteEndpoint(id: string): ProjectResult<{ id: string; file: string }> {
     const existing = this.load().byId.get(id)
-    if (existing === undefined) return fail(this.unknownEndpoint(id))
+    if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     const result = deleteEndpointFromFile({ root: this.root, file: existing.file, id })
     if (!result.ok) return fail(result.error)
@@ -261,7 +276,7 @@ export class Project {
   setResponse(id: string, response: string | null): ProjectResult<EndpointView> {
     const { byId, scenarios } = this.load()
     const endpoint = byId.get(id)
-    if (endpoint === undefined) return fail(this.unknownEndpoint(id))
+    if (endpoint === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     if (response !== null && !Object.hasOwn(endpoint.responses, response)) {
       return fail(

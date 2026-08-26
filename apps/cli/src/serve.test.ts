@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ConfigSchema } from '@laqi/schema'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { startServer, type ServeHandle } from './serve'
+import { isLoopback, startServer, type ServeHandle } from './serve'
 
 let root: string
 let handle: ServeHandle | undefined
@@ -475,5 +475,59 @@ describe('close() with a live SSE client', () => {
     const closed = local.close().then(() => 'closed' as const)
     const timeout = new Promise<'hung'>((r) => setTimeout(() => r('hung'), 3000))
     expect(await Promise.race([closed, timeout])).toBe('closed')
+  })
+})
+
+describe('the panel is mounted on every loopback address', () => {
+  it('mounts on ::1, not only 127.0.0.1 and localhost', async () => {
+    // `--host ::1` es loopback: no expone nada a la red. Dejarlo afuera
+    // apagaba el panel en silencio y parecía que estaba roto.
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config: ConfigSchema.parse({ port: 0, host: '::1' }) })
+
+    const res = await fetch(`http://[::1]:${handle.port}/__laqi/api/status`)
+    expect(res.status).toBe(200)
+  })
+
+  it('classifies the loopback range correctly', () => {
+    for (const host of ['127.0.0.1', '127.0.0.53', 'localhost', 'LOCALHOST', '::1', '[::1]']) {
+      expect(isLoopback(host), host).toBe(true)
+    }
+    for (const host of ['0.0.0.0', '192.168.1.10', '10.0.0.1', '::', 'example.com']) {
+      expect(isLoopback(host), host).toBe(false)
+    }
+  })
+})
+
+describe('when the share listener cannot bind', () => {
+  it('does not leave the main listener running behind a thrown error', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+
+    // Un puerto libre y CONOCIDO para el listener principal: si el arranque
+    // fallido lo deja abierto, el segundo intento choca contra sí mismo.
+    const probe = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
+    const mainPort = probe.port
+    await probe.close()
+
+    // Y un puerto ocupado para que falle el listener del túnel.
+    const blocker = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
+
+    try {
+      await expect(
+        startServer({
+          root,
+          config: ConfigSchema.parse({ port: mainPort }),
+          share: { port: blocker.port, token: null, origins: [] },
+        }),
+      ).rejects.toThrow()
+
+      // Si el principal quedó colgado, este arranque tira EADDRINUSE. El
+      // proceso real, además, nunca terminaría: el listener huérfano
+      // mantiene vivo el event loop después de decir que falló.
+      handle = await startServer({ root, config: ConfigSchema.parse({ port: mainPort }) })
+      expect((await fetch(`http://127.0.0.1:${mainPort}/x`)).status).toBe(200)
+    } finally {
+      await blocker.close()
+    }
   })
 })

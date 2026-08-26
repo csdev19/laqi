@@ -320,3 +320,70 @@ describe('rate limiter memory', () => {
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0)
   })
 })
+
+describe('an OPTIONS mock is not a way around the token', () => {
+  const optionsMock: LoadedEndpoint = {
+    id: 'OPTIONS /capabilities',
+    method: 'OPTIONS',
+    path: '/capabilities',
+    default: 'ok',
+    responses: { ok: { status: 200, body: { secret: 'internal' } } },
+    file: 'laqi/api.json',
+    line: 9,
+  }
+
+  function withOptionsMock() {
+    const { table } = buildRouteTable([...endpoints, optionsMock])
+    return { table, scenarios: {}, getState: () => ({ scenario: null, overrides: {} }) }
+  }
+
+  it('401s an OPTIONS mock requested without a token', async () => {
+    // Saltear el auth para todo OPTIONS filtraba el cuerpo entero por el
+    // túnel a cualquiera que encontrara la URL.
+    const app = createPublicApp({ mock: withOptionsMock(), token: TOKEN, origins: [] })
+    const res = await app.request('/capabilities', { method: 'OPTIONS' })
+
+    expect(res.status).toBe(401)
+    expect(await res.text()).not.toContain('internal')
+  })
+
+  it('serves the same OPTIONS mock when the token is there', async () => {
+    const app = createPublicApp({ mock: withOptionsMock(), token: TOKEN, origins: [] })
+    const res = await app.request('/capabilities', { method: 'OPTIONS', headers: auth })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ secret: 'internal' })
+  })
+
+  it('does not let a forged preflight header reach the OPTIONS mock', async () => {
+    const app = createPublicApp({
+      mock: withOptionsMock(),
+      token: TOKEN,
+      origins: ['https://app.example.com'],
+    })
+    const res = await app.request('/capabilities', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://app.example.com', 'Access-Control-Request-Method': 'GET' },
+    })
+
+    // Se contesta como preflight (204 sin cuerpo), nunca con el mock.
+    expect(res.status).toBe(204)
+    expect(await res.text()).toBe('')
+  })
+
+  it('still answers a real preflight without a token, as the browser needs', async () => {
+    const app = createPublicApp({
+      mock: withOptionsMock(),
+      token: TOKEN,
+      origins: ['https://app.example.com'],
+    })
+    const res = await app.request('/users', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://app.example.com', 'Access-Control-Request-Method': 'GET' },
+    })
+
+    expect(res.status).toBe(204)
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com')
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+  })
+})

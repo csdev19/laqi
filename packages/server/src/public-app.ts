@@ -80,14 +80,33 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
     await next()
   })
 
+  // Un preflight de CORS se contesta ACÁ y no se reenvía nunca al mock app.
+  //
+  // El navegador no manda Authorization en un preflight, así que no se le
+  // puede exigir token. Pero saltear el auth para todo OPTIONS filtraba
+  // cualquier mock declarado con método OPTIONS: `curl -X OPTIONS` sin
+  // token devolvía el cuerpo completo por el túnel. Contestando el
+  // preflight acá, lo que pasa al mock app es sólo OPTIONS que NO son
+  // preflight — y ésos sí pasan por el token, como cualquier otro método.
+  app.use('*', async (c, next) => {
+    if (c.req.method !== 'OPTIONS' || c.req.header('Access-Control-Request-Method') === undefined) {
+      return next()
+    }
+
+    const origin = c.req.header('Origin')
+    if (origin === undefined || !runtime.origins.includes(origin)) return c.body(null, 204)
+
+    return c.body(null, 204, {
+      ...corsHeaders(origin),
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Laqi-Response, X-Laqi-Scenario',
+      'Access-Control-Max-Age': '600',
+    })
+  })
+
   if (runtime.token !== null) {
     const expected = `Bearer ${runtime.token}`
     app.use('*', async (c, next) => {
-      // El preflight nunca lleva Authorization: el navegador no lo manda.
-      // Bloquearlo rompería CORS sin agregar seguridad — la request real
-      // que viene después sí pasa por acá.
-      if (c.req.method === 'OPTIONS') return next()
-
       const provided = c.req.header('Authorization') ?? ''
       if (!timingSafeEqual(provided, expected)) {
         return c.json(
