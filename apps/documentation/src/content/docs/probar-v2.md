@@ -259,6 +259,7 @@ reinicia:
 | --- | --- |
 | `GET /todos` → `error` | muestra su estado de error con botón de reintentar |
 | `GET /todos` → `empty` | muestra el estado vacío |
+| `GET /todos` → `one-page` | baja a tres items y el paginador desaparece |
 | `GET /todos` → `slow` | muestra el loading, sostenido 2.5s |
 | `GET /profile` → `unauthorized` | cierra sesión, como haría un 401 real |
 | escenario `backend-caido` | rompe todos los endpoints de golpe |

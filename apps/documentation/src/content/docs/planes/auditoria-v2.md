@@ -102,3 +102,100 @@ El SDK de MCP era dependencia runtime y arrastraba express, jose y ajv a
 tree-shaking tire el transport HTTP que no usamos: una instalación limpia pasó
 de **97 paquetes a 6**, y `laqi mcp` sigue andando — verificado desde el
 tarball bajo Node puro.
+
+---
+
+# Segunda ronda
+
+**Fecha:** 2026-08-26
+**Alcance:** todo lo que la primera ronda no cubrió — los propios arreglos de
+esa ronda (commits `0a0143f`, `bbb0108`, `de8254a`) y el ejemplo
+`examples/todo-app`, ninguno revisado por nadie.
+**Método:** cuatro ángulos en paralelo con un modelo barato, cada uno obligado
+a **reproducir** antes de reportar y a descartar lo que no pudiera demostrar.
+
+## Resultado
+
+**10 hallazgos, todos reales.** El ángulo de seguridad no encontró nada: los
+siete arreglos de la primera ronda aguantaron bajo pruebas en proceso.
+
+## Lo peor: dos regresiones de los arreglos de la primera ronda
+
+El ángulo «¿algún fix rompió otra cosa?» era el correcto, y encontró
+exactamente lo que temía.
+
+**1. El túnel se congelaba.** Arreglando «el buffer crece sin límite» se
+quitaron los listeners de `stdout`/`stderr` del proceso de cloudflared. Eso no
+sólo deja de acumular: **pausa el stream**. Node deja de vaciar el pipe, el
+pipe se llena, y cloudflared —que escribe a stderr de forma bloqueante— se
+traba para siempre en su próximo log. Un túnel de horas simplemente moría.
+
+Y hay una segunda lección: **los dos tests escritos junto a ese arreglo
+afirmaban `listenerCount === 0`**, o sea fijaban el bug en su lugar. Un test
+puede consagrar el error que acompaña.
+
+**2. El chequeo de duplicados se esquivaba con un espacio.** El arreglo
+normalizaba las claves *del archivo* pero seguía armando el id con el path
+crudo. `"/users "` pasaba los dos controles, quedaban dos claves que
+normalizan al mismo id, y la tabla de rutas rechazaba ambas — matando el
+endpoint que ya andaba. Justo el fallo que ese commit decía cerrar.
+
+**3. El puerto mal culpado.** Deducir qué listener falló leyendo el texto del
+error se equivoca en las dos direcciones: bajo Bun el mensaje de `EADDRINUSE`
+no trae `":puerto"`, así que con `--share` un puerto principal ocupado
+culpaba a `--share-port`; bajo Node, un puerto de túnel cuyos dígitos empiezan
+igual que el principal culpaba a `--port`. Ahora `startServer` marca en el
+propio error cuál falló.
+
+## Concurrencia y estado
+
+| Qué | Por qué importaba |
+|---|---|
+| Los contadores del rate limiter se reconstruían en cada hot-reload | Guardar **cualquier** archivo local le devolvía la cuota entera a un cliente limitado en el túnel: la única protección DoS de la superficie pública, reseteada por una tecla |
+| `writeFileObject` usaba un `.tmp` de nombre fijo | Esta release conecta **dos procesos** a los mismos archivos (el MCP y el control plane). Medido: de 80 endpoints creados en paralelo quedaban **48**, más un crash con `ENOENT` al renombrar un temporal que el otro proceso ya se había llevado. Ahora: temporales únicos y un lock de archivo con recuperación de locks viejos — 80/80 |
+
+## El ejemplo: el panel no mandaba
+
+El hallazgo más vergonzoso, y es un error de diseño, no un descuido.
+
+`examples/todo-app` pedía cada página con `X-Laqi-Response: page-N`. Esa es la
+capa de **mayor precedencia** de laqi: le gana a los overrides del panel y a
+los escenarios. Una app que la manda en cada request se pisa el panel en cada
+request — así que **la feature que el README anunciaba no funcionaba**:
+flipear `GET /todos` a `error`, `empty` o `slow`, o activar `backend-caido`,
+no llegaba nunca a la app.
+
+Peor: la verificación original se hizo con curl **sin** ese header, o sea
+probando un camino que la app no toma. Ver lo que uno quiere ver.
+
+El mock ahora devuelve la lista entera y la app la pagina del lado del
+cliente. Un backend real paginaría en el servidor; laqi ignora el query
+string, así que ésta es la forma honesta — y deja el panel al mando, que es
+todo el punto del ejemplo. El README explica por qué, para que no se
+reintroduzca.
+
+Con eso se fueron también dos consecuencias: pedir `page-3` (alcanzable tras
+crear dos todos) devolvía un 500 sin salida, porque es un nombre de respuesta
+que el mock nunca declaró.
+
+Además, en el mismo ejemplo:
+
+- Un todo creado mostraba el título **enlatado del mock** en vez de lo que el
+  usuario escribió. Del servidor sólo se toma la forma; el título sale de lo
+  tipeado, que es lo que un backend real devolvería.
+- Leer la cookie de sesión durante el render daba `null` en SSR y la sesión
+  real al hidratar: **mismatch de hidratación** en cada carga de alguien
+  logueado, y redirección a `/login` para quien sí tenía sesión. Ahora hay un
+  store con `useSyncExternalStore` —`null` en el servidor por
+  construcción— y un flag `ready` para que los guards esperen al montaje.
+- El manejo del 401 en el perfil hacía efectos **durante el render**
+  (escribir una cookie y navegar), que corre dos veces bajo StrictMode.
+
+## La lección de esta ronda
+
+La primera ronda dejó su hallazgo más caro en un paréntesis. Ésta dejó dos de
+sus tres peores en **arreglos hechos apurados sin revisar**, y uno de ellos
+con un test que consagraba el bug.
+
+Arreglar rápido y no revisar el arreglo tiene un costo medible: **2 de 10**
+hallazgos de esta ronda existen sólo porque la ronda anterior no se revisó.
