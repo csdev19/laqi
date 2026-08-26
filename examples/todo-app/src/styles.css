@@ -1,0 +1,101 @@
+/* Los mismos acentos del panel de laqi, para que el ejemplo se sienta parte
+   del producto sin copiar su densidad — esto es una app, no una herramienta. */
+:root {
+  --bg: #0b0a0f;
+  --panel: #14121d;
+  --line: #241f35;
+  --line2: #332a4a;
+  --fg: #eae7f2;
+  --dim: #8e88a8;
+  --dim2: #5c5678;
+  --vio: #7a00ff;
+  --viol: #a366ff;
+  --mint: #00ffc2;
+  --red: #ff0058;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 'Source Serif 4', Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+code { font-family: var(--mono); font-size: 0.87em; color: var(--viol); }
+a { color: var(--mint); }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; gap: 20px;
+  padding: 0 24px; height: 56px;
+  border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.brand { font-family: var(--mono); font-size: 14px; color: var(--fg); text-decoration: none; }
+.bolt { color: var(--mint); }
+.brand-sub { color: var(--dim2); }
+.nav { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.nav a { color: var(--dim); text-decoration: none; font-size: 14px; }
+.nav a:hover, .nav a.is-active { color: var(--fg); }
+
+.main { flex: 1; display: flex; justify-content: center; padding: 36px 24px; }
+
+.card {
+  width: 100%; max-width: 720px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 3px; padding: 26px 28px;
+}
+.card.narrow { max-width: 460px; }
+.card h1 { margin: 0 0 6px; font-size: 24px; font-weight: 400; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+
+.muted { color: var(--dim); font-size: 14px; }
+.error { color: var(--red); font-size: 14px; }
+.error-block { border: 1px solid rgba(255, 0, 88, 0.35); background: rgba(255,0,88,.07); border-radius: 3px; padding: 14px; margin: 14px 0; }
+
+form label { display: block; margin: 16px 0; }
+form label span { display: block; margin-bottom: 6px; font-size: 13px; color: var(--dim); }
+
+input[type='text'], input[type='email'], input[type='password'], .new-todo input {
+  width: 100%; background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line2); border-radius: 3px;
+  padding: 9px 11px; font: inherit; font-size: 14px;
+}
+input:focus { outline: none; border-color: var(--viol); }
+
+.btn {
+  border: 1px solid var(--line2); background: none; color: var(--dim);
+  border-radius: 3px; padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer;
+}
+.btn:hover:not(:disabled) { color: var(--fg); border-color: var(--dim); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--vio); border-color: var(--vio); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--viol); border-color: var(--viol); color: #fff; }
+.btn-quiet { border-color: transparent; }
+.btn-danger:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
+
+.new-todo { display: flex; gap: 10px; margin: 20px 0 14px; }
+.new-todo input { flex: 1; }
+
+.todos { list-style: none; margin: 0; padding: 0; }
+.todos li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 2px; border-bottom: 1px solid var(--line);
+}
+.todos li.is-done span { color: var(--dim2); text-decoration: line-through; }
+.todos label { display: flex; align-items: center; gap: 11px; flex: 1; margin: 0; cursor: pointer; }
+.todos input[type='checkbox'] { accent-color: var(--vio); width: 16px; height: 16px; }
+
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 22px; }
+
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 20px; margin: 20px 0; }
+.facts dt { color: var(--dim2); font-size: 13px; }
+.facts dd { margin: 0; font-family: var(--mono); font-size: 13px; }
+
+.footnote, .footnote-inline { color: var(--dim2); font-size: 13px; }
+.footnote { padding: 18px 24px; border-top: 1px solid var(--line); text-align: center; }
+.footnote-inline { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }

@@ -16,7 +16,7 @@ export default defineConfig({
       sidebar: [
         {
           label: 'Inicio',
-          items: [{ slug: 'index' }, { slug: 'nombre' }],
+          items: [{ slug: 'index' }, { slug: 'probar-v2' }, { slug: 'nombre' }],
         },
         {
           label: 'Contexto',

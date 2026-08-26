@@ -1,3 +1,4 @@
+import type { LaqiEvent } from '@laqi/core'
 import { formatResolvedHeader, resolveResponse, type LoadedEndpoint, type RouteTable } from '@laqi/core'
 import type { LaqiConfig, LaqiState, Scenarios } from '@laqi/schema'
 import { Hono } from 'hono'
@@ -10,6 +11,8 @@ export type MockRuntime = {
   /** Función, no valor: el estado cambia sin que cambie la tabla de rutas. */
   getState: () => LaqiState
   cors: LaqiConfig['cors']
+  /** Opcional: si está, se llama tras resolver cada respuesta (éxito o 500). */
+  onRequest?: (event: LaqiEvent) => void
 }
 
 export const RESPONSE_HEADER = 'X-Laqi-Response'
@@ -21,6 +24,7 @@ export function createMockApp(runtime: MockRuntime): Hono {
 
   const registerEndpoint = (endpoint: LoadedEndpoint) => {
     app.on(endpoint.method, endpoint.path, async (c) => {
+      const startedAt = Date.now()
       const resolution = resolveResponse({
         endpoint,
         state: runtime.getState(),
@@ -29,9 +33,25 @@ export function createMockApp(runtime: MockRuntime): Hono {
         headerScenario: c.req.header(SCENARIO_HEADER),
       })
 
+      const emit = (status: number) => {
+        runtime.onRequest?.({
+          type: 'request',
+          method: endpoint.method,
+          // El path pedido, no `endpoint.path`: el log muestra qué se llamó
+          // de verdad, si no cien requests a /users/1..100 se ven iguales.
+          path: new URL(c.req.url).pathname,
+          status,
+          ms: Date.now() - startedAt,
+          endpointId: endpoint.id,
+          resolvedName: resolution.name,
+          resolvedLayer: resolution.layer,
+        })
+      }
+
       // Un selector inexistente es un 500 explícito. Jamás una request colgada.
       if (!resolution.ok) {
         c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
+        emit(500)
         return c.json({ error: 'laqi', endpoint: endpoint.id, message: resolution.message }, 500)
       }
 
@@ -48,6 +68,7 @@ export function createMockApp(runtime: MockRuntime): Hono {
       // Se fija DESPUÉS de los headers del mock: uno declarado como
       // "X-Laqi-Resolved" nunca puede mentir sobre la capa que decidió.
       c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
+      emit(response.status)
 
       if (response.body === undefined) {
         return c.body(null, response.status as StatusCode)
@@ -82,19 +103,32 @@ export function createMockApp(runtime: MockRuntime): Hono {
   /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */
   const MAX_SUGGESTIONS = 20
 
-  app.all('*', (c) =>
-    c.json(
+  app.all('*', (c) => {
+    const path = new URL(c.req.url).pathname
+
+    // Sin `endpointId`/`resolved*` porque no hubo endpoint ni resolución.
+    // El panel branchea en `endpointId === null` para pintar la fila roja.
+    runtime.onRequest?.({
+      type: 'request',
+      method: c.req.method,
+      path,
+      status: 404,
+      ms: 0,
+      endpointId: null,
+    })
+
+    return c.json(
       {
         error: 'laqi',
         message: 'no matching route',
         method: c.req.method,
-        path: new URL(c.req.url).pathname,
+        path,
         available: runtime.table.endpoints.slice(0, MAX_SUGGESTIONS).map((e) => e.id),
         totalEndpoints: runtime.table.endpoints.length,
       },
       404,
-    ),
-  )
+    )
+  })
 
   return app
 }

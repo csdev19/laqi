@@ -34,6 +34,16 @@ export function parseEndpointKey(key: string): ParseKeyResult {
     return { ok: false, error: `path must start with "/" in ${JSON.stringify(key)}` }
   }
 
+  // Un `..` como segmento hace la ruta inalcanzable: clientes y servidores
+  // normalizan la URL antes de rutear, así que el mock nunca se serviría.
+  // Mejor un error explícito que un endpoint muerto en el archivo.
+  if (path.split('/').includes('..')) {
+    return {
+      ok: false,
+      error: `path segment ".." is never reachable — a request URL is normalised before routing (${JSON.stringify(key)})`,
+    }
+  }
+
   if (path === RESERVED_PREFIX || path.startsWith(`${RESERVED_PREFIX}/`)) {
     return {
       ok: false,
