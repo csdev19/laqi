@@ -3,7 +3,7 @@ import type { LaqiConfig } from '@laqi/schema'
 import { createMcpServer } from './server'
 
 export { importOpenapi, toLaqiPath, type ImportResult, type ImportedEndpoint } from './openapi'
-export { Project, type EndpointView, type ProjectResult } from './project'
+export { Project, type EndpointView, type ProjectResult } from '@laqi/core'
 export { createMcpServer } from './server'
 
 /**

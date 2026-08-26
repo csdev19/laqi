@@ -1,21 +1,8 @@
 // apps/cli/src/serve.ts
-import { join } from 'node:path'
+
 import { serve, type ServerType } from '@hono/node-server'
-import {
-  createEndpointInFile,
-  deleteEndpointFromFile,
-  EventBus,
-  StateStore,
-  updateEndpointInFile,
-  type WriteResult,
-} from '@laqi/core'
-import {
-  formatEndpointId,
-  isHttpMethod,
-  type EndpointDefinition,
-  type HttpMethod,
-  type LaqiConfig,
-} from '@laqi/schema'
+import { EventBus, Project, StateStore } from '@laqi/core'
+import type { EndpointDefinition, LaqiConfig } from '@laqi/schema'
 import {
   createControlPlaneApp,
   createMockApp,
@@ -52,6 +39,22 @@ export type ServeHandle = {
   close: () => Promise<void>
 }
 
+/**
+ * Las direcciones que son sólo esta máquina. `::1` y sus formas escritas
+ * cuentan: es loopback IPv6, y dejarlo afuera apagaba el panel en silencio
+ * para quien arrancara con `--host ::1`.
+ */
+export function isLoopback(host: string): boolean {
+  const normalised = host.toLowerCase().replace(/^\[|\]$/g, '')
+  return (
+    normalised === 'localhost' ||
+    normalised === '::1' ||
+    normalised === '0:0:0:0:0:0:0:1' ||
+    // Todo 127.0.0.0/8 es loopback, no sólo 127.0.0.1.
+    /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalised)
+  )
+}
+
 export async function startServer(options: {
   root: string
   config: LaqiConfig
@@ -61,8 +64,17 @@ export async function startServer(options: {
   let shareUrl: string | null = null
   const store = new StateStore(root)
   const bus = new EventBus()
+  const project = new Project(root, config)
+  // Fuera de buildPublicApp a propósito: la app se reconstruye en cada
+  // reload, y si los contadores se reconstruyeran con ella, guardar un
+  // archivo local le devolvería la cuota a un cliente limitado en el túnel.
+  const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
 
   let runtime = buildRuntime(root, config)
+  // Con --port 0 el puerto real lo asigna el SO. Se rellena cuando el
+  // listener está arriba; hasta entonces vale el configurado. Sin esto el
+  // panel muestra "127.0.0.1:0" y el curl que ofrece copiar no funciona.
+  let boundPort = config.port
   let app: Hono = buildApp()
   // Se reconstruye en cada reload igual que la local: el hot-reload tiene
   // que valer también para lo que sale por el túnel.
@@ -72,22 +84,22 @@ export async function startServer(options: {
     runtime = buildRuntime(root, config)
     app = buildApp()
     if (share) publicApp = buildPublicApp(share)
-    bus.emit({ type: 'endpoints-changed', endpointCount: runtime.table.endpoints.length })
-    for (const error of runtime.errors) {
-      bus.emit({
-        type: 'error',
-        file: error.file,
-        line: error.line,
-        col: error.col,
-        message: error.message,
-        excerpt: error.excerpt,
-      })
-    }
+    // Un solo evento por recarga. Antes se emitía un `endpoints-changed`
+    // MÁS un `error` por archivo roto, y el panel hace un refresh completo
+    // por evento: con tres archivos rotos, un guardado disparaba cuatro
+    // refreshes y dieciséis GETs. Los errores viajan adentro del evento; el
+    // panel igual los relee de /api/status, que es la fuente de verdad.
+    bus.emit({
+      type: 'endpoints-changed',
+      endpointCount: runtime.table.endpoints.length,
+      errorCount: runtime.errors.length,
+    })
     return runtime
   }
 
   function buildPublicApp(options: ShareOptions): Hono {
     return createPublicApp({
+      buckets: rateLimitBuckets,
       mock: {
         table: runtime.table,
         scenarios: runtime.scenarios,
@@ -97,10 +109,6 @@ export async function startServer(options: {
       token: options.token,
       origins: options.origins,
     })
-  }
-
-  function targetFileForNewEndpoint(): string {
-    return runtime.source === 'file' ? config.file : join(config.dir, 'api.json')
   }
 
   function buildApp(): Hono {
@@ -121,7 +129,7 @@ export async function startServer(options: {
       getStatus: () => ({
         watching: runtime.source === 'file' ? config.file : config.dir,
         endpointCount: runtime.table.endpoints.length,
-        address: `${config.host}:${config.port}`,
+        address: `${config.host}:${boundPort}`,
         errors: runtime.errors,
         share: share
           ? {
@@ -135,66 +143,38 @@ export async function startServer(options: {
             }
           : null,
       }),
+      // Las tres escrituras delegan en Project, que es la MISMA
+      // implementación que usa el servidor MCP. Antes había una copia acá
+      // que ya había divergido: le faltaba la validación de la clave (un
+      // POST con un path inválido escribía un endpoint muerto y devolvía
+      // 201) y la limpieza del override al borrar. Una sola implementación
+      // no puede driftear.
       createEndpoint: (input) => {
-        const method = input.method.toUpperCase()
-        if (!isHttpMethod(method)) return { ok: false, error: `unknown method ${JSON.stringify(input.method)}` }
-
-        const id = formatEndpointId(method as HttpMethod, input.path)
-
-        // createEndpointInFile sólo detecta un id duplicado DENTRO del
-        // archivo destino — en modo carpeta, todo endpoint nuevo va a
-        // laqi/api.json, así que un id que ya existe en OTRO archivo se
-        // escribiría igual, y buildRouteTable rechazaría ambos lados como
-        // colisión (correcto de su parte) dejando el endpoint preexistente
-        // muerto también. Hay que rechazar ACÁ, antes de escribir.
-        if (runtime.table.byId.has(id)) {
-          const existing = runtime.table.byId.get(id)!
-          return { ok: false, error: `${JSON.stringify(id)} already exists in ${existing.file}` }
-        }
-
-        const result: WriteResult = createEndpointInFile({
-          root,
-          file: targetFileForNewEndpoint(),
-          id,
-          // `responses` llega tipado como `Record<string, unknown>` desde el
-          // contrato de ControlPlaneRuntime (para no acoplar @laqi/server a
-          // @laqi/schema's EndpointDefinition), pero ya fue validado por
-          // EndpointSchema antes de llegar aquí (control-plane-app.ts) y se
-          // vuelve a validar dentro de createEndpointInFile — el cast sólo
-          // reconcilia los dos contratos de tipos, no evita la validación.
-          definition: {
-            description: input.description,
-            default: input.default,
-            responses: input.responses,
-          } as EndpointDefinition,
+        const result = project.createEndpoint({
+          method: input.method,
+          path: input.path,
+          description: input.description,
+          // Ya validado por EndpointSchema en control-plane-app.ts; el cast
+          // sólo reconcilia los dos contratos de tipos, y Project lo vuelve
+          // a validar antes de escribir.
+          default: input.default,
+          responses: input.responses as EndpointDefinition['responses'],
         })
-
         if (!result.ok) return result
         reload()
-        return { ok: true, id }
+        return { ok: true, id: result.value.id }
       },
       updateEndpoint: (id, definition) => {
-        const existing = runtime.table.byId.get(id)
-        if (!existing) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}` }
-
-        // Mismo reconciliado de tipos que en createEndpoint (ver comentario
-        // arriba): ya validado por EndpointSchema en control-plane-app.ts.
-        const result = updateEndpointInFile({
-          root,
-          file: existing.file,
-          id,
-          definition: definition as EndpointDefinition,
-        })
-        if (result.ok) reload()
-        return result
+        const result = project.updateEndpoint(id, definition as EndpointDefinition)
+        if (!result.ok) return result
+        reload()
+        return { ok: true }
       },
       deleteEndpoint: (id) => {
-        const existing = runtime.table.byId.get(id)
-        if (!existing) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}` }
-
-        const result = deleteEndpointFromFile({ root, file: existing.file, id })
-        if (result.ok) reload()
-        return result
+        const result = project.deleteEndpoint(id)
+        if (!result.ok) return result
+        reload()
+        return { ok: true }
       },
       subscribe: (listener) => bus.subscribe(listener),
     }
@@ -206,7 +186,7 @@ export async function startServer(options: {
     // testing de un plan anterior) montarlos acá los expondría a cualquiera
     // en la red local. Sin estos mounts, /__laqi/* simplemente cae al 404 del
     // mock app, como cualquier otra ruta no encontrada.
-    if (config.host === '127.0.0.1' || config.host === 'localhost') {
+    if (isLoopback(config.host)) {
       // El panel va PRIMERO: el control plane termina en un catch-all que
       // se comería /__laqi y /__laqi/assets/*.
       top.route('/', createEditorApp())
@@ -233,12 +213,14 @@ export async function startServer(options: {
 
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : config.port
+  boundPort = port
 
   let publicServer: ServerType | null = null
   let publicPort: number | undefined
 
   if (share) {
-    publicServer = await new Promise<ServerType>((resolve, reject) => {
+    try {
+      publicServer = await new Promise<ServerType>((resolve, reject) => {
       const instance = serve(
         {
           fetch: (request: Request) => publicApp!.fetch(request),
@@ -251,7 +233,18 @@ export async function startServer(options: {
         () => resolve(instance),
       )
       instance.on('error', reject)
-    })
+      })
+    } catch (error) {
+      // El listener principal ya está arriba. Sin cerrarlo, el throw deja un
+      // socket huérfano que mantiene vivo el event loop: el CLI dice que
+      // falló, no termina nunca, y sigue sirviendo mocks igual.
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      // Se marca acá qué listener falló. Deducirlo después leyendo el texto
+      // del error se equivocaba en las dos direcciones: bajo Bun el mensaje
+      // no trae ":puerto", y bajo Node un puerto que empieza con los mismos
+      // dígitos que el otro lo confundía.
+      throw Object.assign(error as Error, { laqiListener: 'share' as const })
+    }
 
     const publicAddress = publicServer.address()
     publicPort = typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port
@@ -268,12 +261,23 @@ export async function startServer(options: {
     },
     close: async () => {
       await Promise.all(
-        [server, publicServer].filter((instance) => instance !== null).map(
-          (instance) =>
-            new Promise<void>((resolve, reject) => {
-              instance.close((error) => (error ? reject(error) : resolve()))
-            }),
-        ),
+        [server, publicServer]
+          .filter((instance) => instance !== null)
+          .map(
+            (instance) =>
+              new Promise<void>((resolve, reject) => {
+                instance.close((error) => (error ? reject(error) : resolve()))
+                // http.Server#close deja de aceptar conexiones nuevas pero
+                // espera a que terminen las abiertas — y el stream de
+                // /__laqi/events no termina nunca por su cuenta: vive hasta
+                // que el cliente corta. Con el panel abierto en el
+                // navegador, close() no resolvía jamás. Cortar las
+                // conexiones vivas es lo que hace que termine.
+                // El tipo de @hono/node-server es una unión con Http2Server,
+                // que no lo declara. En la práctica es siempre un http.Server.
+                ;(instance as { closeAllConnections?: () => void }).closeAllConnections?.()
+              }),
+          ),
       )
     },
   }

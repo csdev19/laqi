@@ -69,19 +69,8 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
         // escrituras, así que hay que acumular en vez de mirar chunk a chunk.
         let buffered = ''
 
-        const finish = (action: () => void) => {
-          if (settled) return
-          settled = true
-          clearTimeout(timer)
-          action()
-        }
-
-        const timer = setTimeout(() => {
-          finish(() => {
-            child.kill()
-            reject(new Error(`cloudflared did not report a URL within ${URL_TIMEOUT_MS / 1000}s`))
-          })
-        }, URL_TIMEOUT_MS)
+        /** Vacía el pipe sin guardar nada. Ver el comentario en `finish`. */
+        const drain = () => {}
 
         const onChunk = (chunk: Buffer | string) => {
           buffered += String(chunk)
@@ -100,6 +89,34 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
             }),
           )
         }
+
+        const finish = (action: () => void) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          // Se deja de ACUMULAR, pero se sigue drenando.
+          //
+          // cloudflared loguea sin parar mientras el túnel vive, así que
+          // guardarlo todo hacía crecer `buffered` sin límite y re-correr el
+          // regex sobre una cadena cada vez más larga. Pero quitar los
+          // listeners y ya está pausa el stream: Node deja de vaciar el pipe,
+          // el pipe se llena, y cloudflared —que escribe a stderr de forma
+          // bloqueante— se traba para siempre en su próximo log. Verificado:
+          // el hijo se congelaba ~1.1MB después de resolver.
+          child.stdout?.off('data', onChunk)
+          child.stderr?.off('data', onChunk)
+          child.stdout?.on('data', drain)
+          child.stderr?.on('data', drain)
+          buffered = ''
+          action()
+        }
+
+        const timer = setTimeout(() => {
+          finish(() => {
+            child.kill()
+            reject(new Error(`cloudflared did not report a URL within ${URL_TIMEOUT_MS / 1000}s`))
+          })
+        }, URL_TIMEOUT_MS)
 
         // La URL sale por stderr, pero no en todas las versiones — mirar los dos.
         child.stdout?.on('data', onChunk)

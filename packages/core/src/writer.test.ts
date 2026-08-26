@@ -1,8 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createEndpointInFile, deleteEndpointFromFile, updateEndpointInFile } from './writer'
+import {
+  createEndpointInFile,
+  createEndpointsInFile,
+  deleteEndpointFromFile,
+  updateEndpointInFile,
+} from './writer'
 
 let sandbox: string
 let root: string
@@ -200,5 +205,143 @@ describe('containment', () => {
     })
     expect(result).toEqual({ ok: true })
     expect(existsSync(join(root, 'laqi/nested/deep.json'))).toBe(true)
+  })
+})
+
+describe('containment through symlinks', () => {
+  // `resolve()` es léxico: no mira el filesystem. Un symlink DENTRO del
+  // proyecto que apunta afuera lo esquiva. El ADR-0006 exige que el agente
+  // MCP quede acotado al directorio de mocks, y un symlink es algo que el
+  // propio agente puede crear, o que ya puede existir en el repo.
+  it('refuses to write through a symlink that leaves the project', () => {
+    const outside = join(sandbox, 'outside')
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'victim.json'), JSON.stringify({ note: 'outside' }), 'utf8')
+
+    mkdirSync(join(root, 'laqi'), { recursive: true })
+    symlinkSync(outside, join(root, 'laqi', 'escape'))
+
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/escape/victim.json',
+      id: 'GET /pwned',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+    expect(JSON.parse(readFileSync(join(outside, 'victim.json'), 'utf8'))).toEqual({ note: 'outside' })
+  })
+
+  it('refuses a symlinked directory that does not exist yet as a file target', () => {
+    const outside = join(sandbox, 'outside2')
+    mkdirSync(outside, { recursive: true })
+    mkdirSync(join(root, 'laqi'), { recursive: true })
+    symlinkSync(outside, join(root, 'laqi', 'link'))
+
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/link/brand-new.json',
+      id: 'GET /x',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(existsSync(join(outside, 'brand-new.json'))).toBe(false)
+  })
+
+  it('still allows a normal nested path, and a root that is itself a symlink', () => {
+    // En macOS /tmp es un symlink a /private/tmp: si se comparara el root
+    // sin resolver, TODO uso legítimo quedaría rechazado.
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/deep/nested.json',
+      id: 'GET /fine',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+    expect(result).toEqual({ ok: true })
+    expect(existsSync(join(root, 'laqi', 'deep', 'nested.json'))).toBe(true)
+  })
+})
+
+describe('non-canonical keys in the file', () => {
+  // El loader normaliza la clave ("get  /users" -> id "GET /users"), pero el
+  // writer buscaba la clave CRUDA. Resultado: el endpoint se lista y se
+  // sirve, pero editarlo o borrarlo desde el panel o el MCP daba 404.
+  const variants = ['get /users', 'GET  /users', 'Get /users']
+
+  it('updates an endpoint whose file key is not in canonical form', () => {
+    for (const key of variants) {
+      writeMock('laqi/api.json', { [key]: { default: 'ok', responses: { ok: { status: 200 } } } })
+
+      const result = updateEndpointInFile({
+        root,
+        file: 'laqi/api.json',
+        id: 'GET /users',
+        definition: { default: 'ok', responses: { ok: { status: 201 } } },
+      })
+
+      expect(result, key).toEqual({ ok: true })
+      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+      // Se reescribe bajo la MISMA clave que tenía el archivo: reescribirla
+      // en forma canónica sería reformatear el archivo del usuario sin que
+      // lo haya pedido.
+      expect(Object.keys(written), key).toEqual([key])
+    }
+  })
+
+  it('deletes an endpoint whose file key is not in canonical form', () => {
+    for (const key of variants) {
+      writeMock('laqi/api.json', {
+        [key]: { default: 'ok', responses: { ok: { status: 200 } } },
+        'POST /orders': { default: 'ok', responses: { ok: { status: 201 } } },
+      })
+
+      expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' }), key).toEqual({
+        ok: true,
+      })
+      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+      expect(Object.keys(written), key).toEqual(['POST /orders'])
+    }
+  })
+
+  it('refuses to create a duplicate that differs only in casing or spacing', () => {
+    writeMock('laqi/api.json', { 'get  /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /users',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    // Escribirlo dejaría DOS claves que resuelven al mismo id, y la tabla de
+    // rutas rechazaría las dos como colisión — matando la que ya andaba.
+    expect(result.ok).toBe(false)
+  })
+
+  it('leaves a key that is not a valid endpoint key alone', () => {
+    // Un archivo con basura no debe romper la búsqueda.
+    writeMock('laqi/api.json', {
+      'not an endpoint key at all': {},
+      'GET /users': { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' })).toEqual({ ok: true })
+    const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+    expect(Object.keys(written)).toEqual(['not an endpoint key at all'])
+  })
+})
+
+describe('the batch writer normalises too', () => {
+  it('refuses a batch entry that collides with a non-canonical existing key', () => {
+    writeMock('laqi/api.json', { 'get  /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+
+    const result = createEndpointsInFile({
+      root,
+      file: 'laqi/api.json',
+      entries: [{ id: 'GET /users', definition: { default: 'ok', responses: { ok: { status: 200 } } } }],
+    })
+
+    expect(result.ok).toBe(false)
   })
 })

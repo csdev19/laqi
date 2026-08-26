@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ConfigSchema } from '@laqi/schema'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { startServer, type ServeHandle } from './serve'
+import { isLoopback, startServer, type ServeHandle } from './serve'
 
 let root: string
 let handle: ServeHandle | undefined
@@ -397,5 +397,206 @@ describe('startServer with --share (H1)', () => {
     handle = undefined
 
     await expect(fetch(`http://127.0.0.1:${publicPort}/x`)).rejects.toThrow()
+  })
+})
+
+describe('the control plane and the MCP server share one implementation', () => {
+  // Antes eran dos copias y ya habían divergido. Estos tests fijan las dos
+  // reglas que a la copia del control plane le faltaban.
+  it('refuses a path the loader would reject, instead of writing a dead endpoint', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+    const before = readFileSync(join(root, 'laqi', 'api.json'), 'utf8')
+
+    for (const path of ['/my orders', '/../evil']) {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/endpoints`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'GET', path, default: 'ok', responses: { ok: { status: 200 } } }),
+      })
+      expect(res.status, path).not.toBe(201)
+    }
+
+    expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
+    // Y no aparece una banda de error: nunca se escribió nada roto.
+    const status = (await (await get('/__laqi/api/status')).json()) as { errors: unknown[] }
+    expect(status.errors).toEqual([])
+  })
+
+  it('drops the override when an endpoint is deleted through the panel', async () => {
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200 }, boom: { status: 500 } } },
+    })
+    handle = await startServer({ root, config })
+
+    await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/state`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario: null, overrides: { 'GET /users': 'boom' } }),
+    })
+
+    const deleted = await fetch(
+      `http://127.0.0.1:${handle.port}/__laqi/api/endpoints/${encodeURIComponent('GET /users')}`,
+      { method: 'DELETE' },
+    )
+    expect(deleted.status).toBe(204)
+
+    // Sin esto, recrear el endpoint más tarde lo revive sirviendo "boom".
+    const state = (await (await get('/__laqi/api/state')).json()) as {
+      overrides: Record<string, string>
+    }
+    expect(state.overrides).toEqual({})
+  })
+})
+
+describe('the address the panel shows', () => {
+  it('reports the port actually bound, not the configured one', async () => {
+    // config.port es 0 en todos estos tests: el SO asigna el real. Antes el
+    // panel mostraba "127.0.0.1:0" y el curl que ofrecía copiar fallaba.
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const status = (await (await get('/__laqi/api/status')).json()) as { address: string }
+    expect(status.address).toBe(`127.0.0.1:${handle.port}`)
+    expect(status.address).not.toContain(':0')
+  })
+})
+
+describe('close() with a live SSE client', () => {
+  it('resolves instead of hanging forever', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    const local = await startServer({ root, config })
+
+    // Una pestaña del panel abierta: el stream de /events no termina solo.
+    const res = await fetch(`http://127.0.0.1:${local.port}/__laqi/events`)
+    res.body!.getReader().read().catch(() => {})
+    await new Promise((r) => setTimeout(r, 100))
+
+    const closed = local.close().then(() => 'closed' as const)
+    const timeout = new Promise<'hung'>((r) => setTimeout(() => r('hung'), 3000))
+    expect(await Promise.race([closed, timeout])).toBe('closed')
+  })
+})
+
+describe('the panel is mounted on every loopback address', () => {
+  it('mounts on ::1, not only 127.0.0.1 and localhost', async () => {
+    // `--host ::1` es loopback: no expone nada a la red. Dejarlo afuera
+    // apagaba el panel en silencio y parecía que estaba roto.
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config: ConfigSchema.parse({ port: 0, host: '::1' }) })
+
+    const res = await fetch(`http://[::1]:${handle.port}/__laqi/api/status`)
+    expect(res.status).toBe(200)
+  })
+
+  it('classifies the loopback range correctly', () => {
+    for (const host of ['127.0.0.1', '127.0.0.53', 'localhost', 'LOCALHOST', '::1', '[::1]']) {
+      expect(isLoopback(host), host).toBe(true)
+    }
+    for (const host of ['0.0.0.0', '192.168.1.10', '10.0.0.1', '::', 'example.com']) {
+      expect(isLoopback(host), host).toBe(false)
+    }
+  })
+})
+
+describe('when the share listener cannot bind', () => {
+  it('does not leave the main listener running behind a thrown error', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+
+    // Un puerto libre y CONOCIDO para el listener principal: si el arranque
+    // fallido lo deja abierto, el segundo intento choca contra sí mismo.
+    const probe = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
+    const mainPort = probe.port
+    await probe.close()
+
+    // Y un puerto ocupado para que falle el listener del túnel.
+    const blocker = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
+
+    try {
+      await expect(
+        startServer({
+          root,
+          config: ConfigSchema.parse({ port: mainPort }),
+          share: { port: blocker.port, token: null, origins: [] },
+        }),
+      ).rejects.toThrow()
+
+      // Si el principal quedó colgado, este arranque tira EADDRINUSE. El
+      // proceso real, además, nunca terminaría: el listener huérfano
+      // mantiene vivo el event loop después de decir que falló.
+      handle = await startServer({ root, config: ConfigSchema.parse({ port: mainPort }) })
+      expect((await fetch(`http://127.0.0.1:${mainPort}/x`)).status).toBe(200)
+    } finally {
+      await blocker.close()
+    }
+  })
+})
+
+describe('the rate limiter survives a reload', () => {
+  it('does not hand a limited client its quota back when a file is saved', async () => {
+    writeMocks({ 'GET /ping': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({
+      root,
+      config,
+      share: { port: 0, token: null, origins: [] },
+    })
+
+    const url = `http://127.0.0.1:${handle.publicPort}/ping`
+    const headers = { 'CF-Connecting-IP': '203.0.113.9' }
+
+    let blocked = false
+    for (let i = 0; i < 400 && !blocked; i++) {
+      blocked = (await fetch(url, { headers })).status === 429
+    }
+    expect(blocked).toBe(true)
+
+    // Un guardado local no puede ser una forma de resetear el límite de
+    // alguien en internet.
+    handle.reload()
+    expect((await fetch(url, { headers })).status).toBe(429)
+  })
+})
+
+describe('which listener failed', () => {
+  it('marks a share-listener failure so the CLI blames the right port', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    const blocker = await startServer({ root, config })
+
+    try {
+      // El puerto del túnel está ocupado; el principal está libre.
+      const error = await startServer({
+        root,
+        config,
+        share: { port: blocker.port, token: null, origins: [] },
+      }).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      )
+
+      expect((error as { laqiListener?: string }).laqiListener).toBe('share')
+    } finally {
+      await blocker.close()
+    }
+  })
+
+  it('leaves a main-listener failure unmarked, so it blames --port', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    const blocker = await startServer({ root, config })
+
+    try {
+      const error = await startServer({
+        root,
+        // Ahora el ocupado es el principal.
+        config: ConfigSchema.parse({ port: blocker.port }),
+        share: { port: 0, token: null, origins: [] },
+      }).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      )
+
+      expect((error as { laqiListener?: string }).laqiListener).toBeUndefined()
+    } finally {
+      await blocker.close()
+    }
   })
 })

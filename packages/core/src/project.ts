@@ -1,15 +1,14 @@
 import { join } from 'node:path'
+import { loadMocks, type LoadedEndpoint, type LoadError } from './loader'
+import { resolveResponse } from './resolve'
+import { buildRouteTable } from './route-table'
+import { StateStore } from './state-store'
 import {
-  buildRouteTable,
   createEndpointInFile,
+  createEndpointsInFile,
   deleteEndpointFromFile,
-  loadMocks,
-  resolveResponse,
-  StateStore,
   updateEndpointInFile,
-  type LoadedEndpoint,
-  type LoadError,
-} from '@laqi/core'
+} from './writer'
 import {
   formatEndpointId,
   isHttpMethod,
@@ -21,10 +20,25 @@ import {
   type Scenarios,
 } from '@laqi/schema'
 
-export type ProjectResult<T> = { ok: true; value: T } | { ok: false; error: string }
+/**
+ * Por qué falló, para que quien llame elija el status HTTP correcto.
+ *
+ * - `invalid`   la entrada está mal formada → 400
+ * - `conflict`  choca con algo que ya existe → 409
+ * - `not-found` no existe lo que se pidió tocar → 404
+ */
+export type ProjectFailure = 'invalid' | 'conflict' | 'not-found'
+
+export type ProjectResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string; code: ProjectFailure }
 
 const ok = <T>(value: T): ProjectResult<T> => ({ ok: true, value })
-const fail = <T>(error: string): ProjectResult<T> => ({ ok: false, error })
+const fail = <T>(error: string, code: ProjectFailure = 'invalid'): ProjectResult<T> => ({
+  ok: false,
+  error,
+  code,
+})
 
 export type EndpointView = {
   id: string
@@ -139,9 +153,14 @@ export class Project {
     // path bien formado, segmentos alcanzables. Si no se hiciera acá, el
     // endpoint se escribiría y recién fallaría al recargar — el archivo del
     // usuario quedaría roto por una herramienta que dijo "ok".
-    const id = formatEndpointId(method as HttpMethod, input.path)
-    const parsed = parseEndpointKey(id)
+    // El id se arma con el path YA NORMALIZADO que devuelve parseEndpointKey,
+    // no con el crudo. Con el crudo, un path con espacios de más ("/users ")
+    // producía un id distinto que esquivaba tanto el chequeo de duplicados
+    // como el del writer, y quedaban dos claves que normalizan al mismo id —
+    // colisión en la tabla de rutas, y el endpoint que ya andaba muere.
+    const parsed = parseEndpointKey(formatEndpointId(method as HttpMethod, input.path))
     if (!parsed.ok) return fail(parsed.error)
+    const id = formatEndpointId(parsed.value.method, parsed.value.path)
 
     const { byId, source } = this.load()
 
@@ -149,7 +168,7 @@ export class Project {
     // carpeta un id que ya existe en OTRO archivo se escribiría igual — y la
     // tabla de rutas rechazaría los dos lados, matando el que ya andaba.
     const existing = byId.get(id)
-    if (existing) return fail(`${JSON.stringify(id)} already exists in ${existing.file}`)
+    if (existing) return fail(`${JSON.stringify(id)} already exists in ${existing.file}`, 'conflict')
 
     const file = this.targetFile(source)
     const result = createEndpointInFile({
@@ -166,9 +185,76 @@ export class Project {
     return result.ok ? ok({ id, file }) : fail(result.error)
   }
 
+  /**
+   * Crea muchos endpoints de una. Existe porque `import_openapi` llamaba a
+   * `createEndpoint` una vez por operación, y cada llamada recarga y
+   * re-parsea TODOS los archivos de mock y después reescribe el archivo
+   * destino entero — O(n^2) de disco, y una recarga del watcher por cada
+   * endpoint. Un spec de 150 operaciones hacía 150 de cada cosa.
+   *
+   * Se carga una vez, se valida todo, y se escribe una vez.
+   */
+  createEndpoints(
+    inputs: {
+      method: string
+      path: string
+      description?: string
+      default: string
+      responses: EndpointDefinition['responses']
+    }[],
+  ): ProjectResult<{ created: string[]; rejected: { id: string; error: string }[] }> {
+    const { byId, source } = this.load()
+    const file = this.targetFile(source)
+
+    const created: string[] = []
+    const rejected: { id: string; error: string }[] = []
+    const definitions: { id: string; definition: EndpointDefinition }[] = []
+    // Los ids nuevos también cuentan como ocupados: dos operaciones del
+    // mismo spec pueden colisionar entre sí, no sólo contra lo que ya había.
+    const taken = new Set(byId.keys())
+
+    for (const input of inputs) {
+      const method = input.method.toUpperCase()
+      if (!isHttpMethod(method)) {
+        rejected.push({
+          id: `${input.method} ${input.path}`,
+          error: `unknown HTTP method ${JSON.stringify(input.method)}`,
+        })
+        continue
+      }
+
+      // Mismo normalizado que createEndpoint: ver el comentario de arriba.
+      const raw = formatEndpointId(method as HttpMethod, input.path)
+      const parsed = parseEndpointKey(raw)
+      if (!parsed.ok) {
+        rejected.push({ id: raw, error: parsed.error })
+        continue
+      }
+      const id = formatEndpointId(parsed.value.method, parsed.value.path)
+      if (taken.has(id)) {
+        rejected.push({ id, error: `${JSON.stringify(id)} already exists in ${byId.get(id)?.file ?? file}` })
+        continue
+      }
+
+      taken.add(id)
+      definitions.push({
+        id,
+        definition: { description: input.description, default: input.default, responses: input.responses },
+      })
+      created.push(id)
+    }
+
+    if (definitions.length > 0) {
+      const result = createEndpointsInFile({ root: this.root, file, entries: definitions })
+      if (!result.ok) return fail(result.error)
+    }
+
+    return ok({ created, rejected })
+  }
+
   updateEndpoint(id: string, definition: EndpointDefinition): ProjectResult<{ id: string; file: string }> {
     const existing = this.load().byId.get(id)
-    if (existing === undefined) return fail(this.unknownEndpoint(id))
+    if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     const result = updateEndpointInFile({ root: this.root, file: existing.file, id, definition })
     return result.ok ? ok({ id, file: existing.file }) : fail(result.error)
@@ -176,7 +262,7 @@ export class Project {
 
   deleteEndpoint(id: string): ProjectResult<{ id: string; file: string }> {
     const existing = this.load().byId.get(id)
-    if (existing === undefined) return fail(this.unknownEndpoint(id))
+    if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     const result = deleteEndpointFromFile({ root: this.root, file: existing.file, id })
     if (!result.ok) return fail(result.error)
@@ -197,7 +283,7 @@ export class Project {
   setResponse(id: string, response: string | null): ProjectResult<EndpointView> {
     const { byId, scenarios } = this.load()
     const endpoint = byId.get(id)
-    if (endpoint === undefined) return fail(this.unknownEndpoint(id))
+    if (endpoint === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
     if (response !== null && !Object.hasOwn(endpoint.responses, response)) {
       return fail(

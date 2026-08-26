@@ -1,24 +1,54 @@
 {
   "name": "@laqi/cli",
   "version": "2.0.0",
+  "description": "Mock server for frontend development: declarative JSON mocks, a web panel, an MCP server, and a public URL.",
+  "license": "MIT",
   "type": "module",
   "bin": {
-    "laqi": "./src/index.ts"
+    "laqi": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "mock",
+    "mock-server",
+    "api",
+    "rest",
+    "frontend",
+    "testing",
+    "mcp",
+    "react-native"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csdev19/laqi.git"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.7",
+    "chokidar": "^4.0.3",
+    "hono": "4.12.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
     "@laqi/core": "workspace:*",
     "@laqi/editor": "workspace:*",
     "@laqi/mcp": "workspace:*",
     "@laqi/schema": "workspace:*",
     "@laqi/server": "workspace:*",
-    "chokidar": "^4.0.3",
-    "hono": "catalog:"
-  },
-  "devDependencies": {
-    "@types/node": "^26.2.0"
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@types/node": "^26.2.0",
+    "tsdown": "0.18.4"
   },
   "scripts": {
-    "check-types": "tsc --noEmit -p ."
+    "check-types": "tsc --noEmit -p .",
+    "build": "tsdown"
   }
 }

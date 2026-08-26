@@ -177,3 +177,31 @@ describe('start', () => {
     expect(children[0]!.killed).toBe(true)
   })
 })
+
+describe('the child process keeps draining', () => {
+  it('does not pause the pipes when it stops accumulating', async () => {
+    // Quitar los listeners y nada más pausa el stream: Node deja de vaciar el
+    // pipe, se llena, y cloudflared —que escribe a stderr de forma
+    // bloqueante— se traba para siempre en su próximo log.
+    const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
+    const starting = provider.start({ port: 8000 })
+    children[0]!.stderr.write(BANNER)
+    await starting
+
+    // Sigue habiendo alguien escuchando: el stream nunca queda pausado.
+    expect(children[0]!.stderr.listenerCount('data')).toBeGreaterThan(0)
+    expect(children[0]!.stdout.listenerCount('data')).toBeGreaterThan(0)
+  })
+
+  it('swallows the logs that arrive after the URL instead of buffering them', async () => {
+    const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
+    const starting = provider.start({ port: 8000 })
+    children[0]!.stderr.write(BANNER)
+    const tunnel = await starting
+
+    // Un túnel de horas: megabytes de heartbeats. No debe romper nada ni
+    // volver a resolver.
+    for (let i = 0; i < 500; i++) children[0]!.stderr.write(`heartbeat ${i}\n`)
+    expect(tunnel.url).toBe('https://shy-forest-1234.trycloudflare.com')
+  })
+})

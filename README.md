@@ -2,11 +2,18 @@
 
 ⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
 
-> **Status: v2, pre-release.** This README describes the code as it exists on
-> this branch today. The packaged `npx laqi` binary is **not available yet**
-> (it needs a `tsdown` build and a `bin` entry that runs under plain Node —
-> that's deferred to a later plan). Until then, run it with Bun straight from
-> source, as shown below.
+> **Status: v2, pre-release.** Everything below works on this branch. The
+> package is built but not published to npm yet, so `npx laqi` will only work
+> once it is — build it locally in the meantime, as shown below.
+
+**Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/probar-v2.md)
+covering everything: serving mocks, the four resolution layers, the web
+panel, driving it from a coding agent over MCP, and the public URL.
+
+**Want to see it used?** [`examples/todo-app`](examples/todo-app) is a
+TanStack Start frontend built against laqi — todo list with pagination and
+CRUD, a profile page, and a login flow. Run the two side by side and flip
+responses in the panel while the app is open.
 
 ## Monorepo layout
 
@@ -17,30 +24,37 @@ packages/server   — the Hono app that actually serves mock responses
 packages/editor   — the web control panel (React + Vite), served at /__laqi
 packages/mcp      — the MCP server, for coding agents
 apps/cli          — the `laqi` CLI: serve, watch, migrate, mcp
+examples/todo-app — a TanStack Start frontend built against laqi
 apps/documentation — the docs site (Astro + Starlight)
 ```
 
 ## Running it
 
-From inside a project that has mock files (see below), run:
+Once published, from inside a project that has mock files (see below):
 
 ```
-bun <path-to-this-repo>/apps/cli/src/index.ts
+npx laqi
 ```
 
-That starts a server on `http://127.0.0.1:8000` by default, serving whatever
+To run it from this repo, build once and use the binary it produces:
+
+```
+bun install
+bun run build
+node <path-to-this-repo>/apps/cli/dist/index.mjs
+```
+
+`bun run build` builds the panel first and bundles it into the CLI, so the
+binary is self-contained and runs on plain Node 20+ with no Bun involved.
+
+Either way that starts a server on `http://127.0.0.1:8000`, serving whatever
 is declared under `./laqi/` or `./laqi.json` in your current directory, and
-watches for changes to reload automatically.
+watches for changes to reload automatically. The web panel is at
+`http://127.0.0.1:8000/__laqi`.
 
-The web panel lives at `http://127.0.0.1:8000/__laqi`. It ships as a Vite
-build that is not committed, so build it once first:
-
-```
-bun run build --filter=@laqi/editor
-```
-
-Until you do, `/__laqi` answers with a page telling you exactly that — the
-mock server itself works either way.
+During development on laqi itself you can skip the build and run the source
+directly with `bun apps/cli/src/index.ts` — the panel then needs
+`bun run build --filter=@laqi/editor` once, and says so if you forget.
 
 Useful flags:
 
@@ -61,7 +75,7 @@ root, with the same keys (`port`, `host`, `dir`, `file`, plus `cors`,
 If you have an old `mock.config.json` / `mock-data/` project, run:
 
 ```
-bun <path-to-this-repo>/apps/cli/src/index.ts migrate --dry-run
+npx laqi migrate --dry-run
 ```
 
 to preview the converted `laqi.json`, or drop `--dry-run` to write it.
@@ -173,8 +187,8 @@ GET    /__laqi/events                 live SSE stream: request | endpoints-chang
 Every write goes through the same file it would if you'd hand-edited it,
 and reloads immediately — no restart, no waiting on the file watcher. This
 API has no authentication yet; it's withheld automatically unless `--host`
-is left at its loopback default. The web panel above consumes it; an MCP
-server is on the roadmap.
+is left at its loopback default. The web panel above consumes it, and so
+does the MCP server described below.
 
 The SSE stream carries every request the mock server answers, including the
 ones that matched no route (`endpointId` is `null` on those, and they carry
@@ -231,8 +245,8 @@ files there, so it works whether or not `laqi` is currently running.
 {
   "mcpServers": {
     "laqi": {
-      "command": "bun",
-      "args": ["<path-to-this-repo>/apps/cli/src/index.ts", "mcp"],
+      "command": "npx",
+      "args": ["laqi", "mcp"],
       "cwd": "<your-project>"
     }
   }
@@ -240,8 +254,8 @@ files there, so it works whether or not `laqi` is currently running.
 ```
 
 In Claude Code that goes in `.mcp.json` at your project root; Cursor uses the
-same shape. Once the packaged binary exists, `"command": "npx", "args":
-["laqi", "mcp"]` replaces the two lines above.
+same shape. Before laqi is on npm, point `command` at the built binary
+(`node`, with the path to `dist/index.mjs` and `mcp` as args).
 
 Tools: `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
 `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,

@@ -16,6 +16,15 @@ import { streamSSE } from 'hono/streaming'
  * tarea de este plan agrega los campos que sus rutas necesitan — este tipo
  * es el contrato completo recién al final de la Tarea 8.
  */
+/** Por qué falló una escritura, para elegir el status correcto. */
+export type WriteFailure = 'invalid' | 'conflict' | 'not-found'
+
+const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
+  invalid: 400,
+  conflict: 409,
+  'not-found': 404,
+}
+
 export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
   getState: () => LaqiState
@@ -35,12 +44,12 @@ export type ControlPlaneRuntime = {
     description?: string
     default: string
     responses: Record<string, unknown>
-  }) => { ok: true; id: string } | { ok: false; error: string }
+  }) => { ok: true; id: string } | { ok: false; error: string; code?: WriteFailure }
   updateEndpoint: (
     id: string,
     definition: { description?: string; default: string; responses: Record<string, unknown> },
-  ) => { ok: true } | { ok: false; error: string }
-  deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }
+  ) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
+  deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   subscribe: (listener: (event: LaqiEvent) => void) => () => void
 }
 
@@ -148,14 +157,21 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     })
 
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 409)
+      // 409 sólo cuando de verdad choca con algo. Un path mal formado que
+      // Project rechaza es un 400: no entra en conflicto con nada, y un
+      // cliente que trate 409 como "ya existe" se confundiría.
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'conflict'])
     }
 
     return c.json({ id: result.id }, 201)
   })
 
   app.put('/api/endpoints/:id', async (c) => {
-    const id = decodeURIComponent(c.req.param('id'))
+    // Sin decodeURIComponent: Hono ya decodifica el param. Decodificar otra
+    // vez rompe cualquier id con un '%' literal — encodeURIComponent lo
+    // manda como %25, Hono lo devuelve como '%', y el segundo decode tira
+    // URIError, o sea un 500 en vez de editar el endpoint.
+    const id = c.req.param('id')
 
     let raw: unknown
     try {
@@ -174,18 +190,19 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
     const result = runtime.updateEndpoint(id, definition.data)
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
     }
 
     return c.json({ ok: true })
   })
 
   app.delete('/api/endpoints/:id', (c) => {
-    const id = decodeURIComponent(c.req.param('id'))
+    // Ver el comentario del PUT: Hono ya decodificó.
+    const id = c.req.param('id')
     const result = runtime.deleteEndpoint(id)
 
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, 404)
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
     }
 
     return c.body(null, 204)
@@ -193,9 +210,12 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
   app.get('/events', (c) =>
     streamSSE(c, async (stream) => {
-      let closed = false
-      stream.onAbort(() => {
-        closed = true
+      // Sin busy-loop: el generador se queda esperando esta promesa, que
+      // resuelve en el momento exacto en que el cliente corta. Antes había
+      // un `while (!closed) await stream.sleep(30)`, que despertaba un timer
+      // 33 veces por segundo por conexión sólo para mirar un flag.
+      const disconnected = new Promise<void>((resolve) => {
+        stream.onAbort(() => resolve())
       })
 
       const unsubscribe = runtime.subscribe((event) => {
@@ -203,17 +223,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       })
 
       try {
-        // 30ms, no 1000ms: el loop existe sólo para mantener vivo el
-        // generador mientras la conexión sigue abierta; el intervalo es la
-        // latencia máxima antes de notar un abort y desuscribirse. Verificado
-        // durante la ejecución: a 1000ms, el test de desconexión (que sólo
-        // espera 150ms tras el cancel) fallaba de forma determinista aunque
-        // onAbort disparaba correctamente — el cleanup real ocurría, sólo
-        // que tarde.
-        // oxlint-disable-next-line no-unmodified-loop-condition -- `closed` is set from stream.onAbort()'s callback, not visible to this lint rule
-        while (!closed) {
-          await stream.sleep(30)
-        }
+        await disconnected
       } finally {
         unsubscribe()
       }

@@ -1,14 +1,23 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, normalize, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Hono, type Context } from 'hono'
 
 /**
- * Dónde quedó el build del panel. Se resuelve por el resolver de módulos y
- * no por una ruta relativa al archivo: así sigue funcionando cuando el CLI
- * se empaquete y no viva más en apps/cli/src (Plan 5).
+ * Dónde quedó el build del panel. Dos casos, en este orden:
+ *
+ * 1. **Empaquetado** (`npx laqi`): el panel viaja como `panel/` al lado del
+ *    bundle. `@laqi/editor` no se publica, así que resolverlo por módulo
+ *    fallaría — se busca primero acá.
+ * 2. **Monorepo** (corriendo desde el fuente): se resuelve
+ *    `@laqi/editor/package.json` por el resolver de módulos, que no depende
+ *    de dónde esté este archivo.
  */
 export function editorDistDir(): string | null {
+  const packaged = join(dirname(fileURLToPath(import.meta.url)), 'panel')
+  if (existsSync(join(packaged, 'index.html'))) return packaged
+
   try {
     const require = createRequire(import.meta.url)
     return join(dirname(require.resolve('@laqi/editor/package.json')), 'dist')
@@ -71,7 +80,17 @@ export function createEditorApp(distDir: string | null = editorDistDir()): Hono 
   app.get('/__laqi/', index)
   app.get('/__laqi/assets/*', (c) => {
     const path = new URL(c.req.url).pathname.slice('/__laqi/'.length)
-    return serveFile(c, decodeURIComponent(path))
+
+    let decoded: string
+    try {
+      decoded = decodeURIComponent(path)
+    } catch {
+      // `%` suelto o `%zz`: los bots y los escáneres de links los producen
+      // todo el tiempo. Es un 404, no un 500 con stack.
+      return c.text('not found', 404)
+    }
+
+    return serveFile(c, decoded)
   })
   app.get('/__laqi/favicon.svg', (c) => serveFile(c, 'favicon.svg'))
 

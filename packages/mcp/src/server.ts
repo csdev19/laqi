@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ResponseSchema, type EndpointDefinition, type LaqiConfig } from '@laqi/schema'
 import { z } from 'zod'
 import { importOpenapi } from './openapi'
-import { Project, type ProjectResult } from './project'
+import { Project, type ProjectResult } from '@laqi/core'
 
 const ResponsesShape = z
   .record(z.string(), ResponseSchema)
@@ -189,33 +189,38 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     },
     ({ document, overwrite }) => {
       const imported = importOpenapi(document)
-      const created: string[] = []
-      const updated: string[] = []
       const skipped = [...imported.skipped]
 
-      for (const endpoint of imported.endpoints) {
-        const result = project.createEndpoint({
+      // Una sola carga y una sola escritura para todo el spec. Antes era una
+      // llamada por operación, y cada una recargaba el proyecto entero.
+      const batch = project.createEndpoints(
+        imported.endpoints.map((endpoint) => ({
           method: endpoint.method,
           path: endpoint.path,
           description: endpoint.definition.description,
           default: endpoint.definition.default,
           responses: endpoint.definition.responses,
-        })
+        })),
+      )
+      if (!batch.ok) return { isError: true, content: [{ type: 'text' as const, text: batch.error }] }
 
-        if (result.ok) {
-          created.push(result.value.id)
+      const created = batch.value.created
+      const updated: string[] = []
+
+      const byId = new Map(
+        imported.endpoints.map((endpoint) => [`${endpoint.method} ${endpoint.path}`, endpoint.definition]),
+      )
+
+      for (const rejection of batch.value.rejected) {
+        const definition = byId.get(rejection.id)
+        if (!overwrite || definition === undefined) {
+          skipped.push({ where: rejection.id, reason: rejection.error })
           continue
         }
 
-        const id = `${endpoint.method} ${endpoint.path}`
-        if (!overwrite) {
-          skipped.push({ where: id, reason: result.error })
-          continue
-        }
-
-        const replaced = project.updateEndpoint(id, endpoint.definition)
-        if (replaced.ok) updated.push(id)
-        else skipped.push({ where: id, reason: replaced.error })
+        const replaced = project.updateEndpoint(rejection.id, definition)
+        if (replaced.ok) updated.push(rejection.id)
+        else skipped.push({ where: rejection.id, reason: replaced.error })
       }
 
       return text({ created, updated, skipped })

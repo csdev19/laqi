@@ -16,7 +16,12 @@ export type LaqiEvent =
       resolvedName?: string
       resolvedLayer?: string
     }
-  | { type: 'endpoints-changed'; endpointCount: number }
+  | {
+      type: 'endpoints-changed'
+      endpointCount: number
+      /** Cuántos archivos no cargaron. El detalle está en /api/status. */
+      errorCount?: number
+    }
   | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }
 
 /**

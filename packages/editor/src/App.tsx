@@ -40,6 +40,8 @@ export function App() {
 
   const filterRef = useRef<HTMLInputElement>(null)
 
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const refresh = useCallback(async () => {
     try {
       const [nextEndpoints, nextState, nextScenarios, nextStatus] = await Promise.all([
@@ -60,8 +62,19 @@ export function App() {
     }
   }, [])
 
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current !== null) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null
+      void refresh()
+    }, 40)
+  }, [refresh])
+
   useEffect(() => {
     void refresh()
+    return () => {
+      if (refreshTimer.current !== null) clearTimeout(refreshTimer.current)
+    }
   }, [refresh])
 
   useEvents(
@@ -69,15 +82,22 @@ export function App() {
       (event) => {
         if (event.type === 'request') {
           if (paused) return
-          seq.current += 1
-          setLog((previous) => appendLog(previous, toLogEntry(event, seq.current, new Date())))
+          // La entrada se arma ACÁ, no adentro del updater: EventSource
+          // despacha en un mismo tick todos los frames que llegaron juntos,
+          // y los updaters corren después — los dos leerían el mismo
+          // seq.current y producirían dos filas con la misma key de React.
+          const entry = toLogEntry(event, ++seq.current, new Date())
+          setLog((previous) => appendLog(previous, entry))
           return
         }
         // Tanto una recarga como un error de parseo cambian lo que hay que
-        // mostrar: la fuente de verdad sigue siendo el servidor, no el evento.
-        void refresh()
+        // mostrar: la fuente de verdad sigue siendo el servidor, no el
+        // evento. Se agrupa porque un solo guardado emite un
+        // `endpoints-changed` más un `error` por archivo roto, y cada uno
+        // dispararía cuatro GETs contra el control plane.
+        scheduleRefresh()
       },
-      [paused, refresh],
+      [paused, scheduleRefresh],
     ),
   )
 

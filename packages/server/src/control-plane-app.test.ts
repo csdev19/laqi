@@ -464,3 +464,23 @@ describe('GET /events (SSE)', () => {
     expect(unsubscribed).toBe(true)
   })
 })
+
+describe('ids that contain a percent sign', () => {
+  // Hono ya decodifica el param. Un decode extra tiraba URIError -> 500, y
+  // el endpoint quedaba inaccesible desde el panel para siempre.
+  it('does not 500 on a PUT whose id contains a literal %', async () => {
+    const res = await createControlPlaneApp(makeRuntime()).request(`/api/endpoints/${encodeURIComponent('GET /100%')}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ default: 'ok', responses: { ok: { status: 200 } } }),
+    })
+    expect(res.status).not.toBe(500)
+  })
+
+  it('does not 500 on a DELETE whose id contains a literal %', async () => {
+    const res = await createControlPlaneApp(makeRuntime()).request(`/api/endpoints/${encodeURIComponent('GET /100%')}`, {
+      method: 'DELETE',
+    })
+    expect(res.status).not.toBe(500)
+  })
+})
