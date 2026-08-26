@@ -37,11 +37,14 @@ export function createMockApp(runtime: MockRuntime): Hono {
         runtime.onRequest?.({
           type: 'request',
           method: endpoint.method,
-          path: endpoint.path,
+          // El path pedido, no `endpoint.path`: el log muestra qué se llamó
+          // de verdad, si no cien requests a /users/1..100 se ven iguales.
+          path: new URL(c.req.url).pathname,
           status,
+          ms: Date.now() - startedAt,
+          endpointId: endpoint.id,
           resolvedName: resolution.name,
           resolvedLayer: resolution.layer,
-          ms: Date.now() - startedAt,
         })
       }
 
@@ -100,19 +103,32 @@ export function createMockApp(runtime: MockRuntime): Hono {
   /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */
   const MAX_SUGGESTIONS = 20
 
-  app.all('*', (c) =>
-    c.json(
+  app.all('*', (c) => {
+    const path = new URL(c.req.url).pathname
+
+    // Sin `endpointId`/`resolved*` porque no hubo endpoint ni resolución.
+    // El panel branchea en `endpointId === null` para pintar la fila roja.
+    runtime.onRequest?.({
+      type: 'request',
+      method: c.req.method,
+      path,
+      status: 404,
+      ms: 0,
+      endpointId: null,
+    })
+
+    return c.json(
       {
         error: 'laqi',
         message: 'no matching route',
         method: c.req.method,
-        path: new URL(c.req.url).pathname,
+        path,
         available: runtime.table.endpoints.slice(0, MAX_SUGGESTIONS).map((e) => e.id),
         totalEndpoints: runtime.table.endpoints.length,
       },
       404,
-    ),
-  )
+    )
+  })
 
   return app
 }

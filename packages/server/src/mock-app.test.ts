@@ -156,6 +156,7 @@ describe('createMockApp', () => {
         status: 200,
         resolvedName: 'ok',
         resolvedLayer: 'default',
+        endpointId: 'GET /users',
       })
       expect(typeof event.ms).toBe('number')
       expect(event.ms).toBeGreaterThanOrEqual(0)
@@ -172,13 +173,60 @@ describe('createMockApp', () => {
       expect(onRequest.mock.calls[0]![0]).toMatchObject({ type: 'request', status: 500 })
     })
 
-    it('does not fire for a request that matches no endpoint at all', async () => {
+    it('reports the requested path, not the route pattern', async () => {
+      // El log del panel muestra qué se pidió de verdad. Con el patrón,
+      // cien requests a /users/1..100 se ven como cien filas idénticas.
+      const onRequest = vi.fn()
+      const app = makeApp(undefined, undefined, { onRequest })
+
+      await app.request('/users/42', { method: 'DELETE' })
+
+      expect(onRequest.mock.calls[0]![0]).toMatchObject({
+        path: '/users/42',
+        endpointId: 'DELETE /users/:id',
+      })
+    })
+
+    it('fires for a request that matches no endpoint, with a null endpointId', async () => {
+      // La fila no-route es la más importante del log ("¿por qué mi mock no
+      // contesta?"). Sin este evento el panel no puede dibujarla nunca.
       const onRequest = vi.fn()
       const app = makeApp(undefined, undefined, { onRequest })
 
       await app.request('/typo')
 
-      expect(onRequest).not.toHaveBeenCalled()
+      expect(onRequest).toHaveBeenCalledTimes(1)
+      expect(onRequest.mock.calls[0]![0]).toMatchObject({
+        type: 'request',
+        method: 'GET',
+        path: '/typo',
+        status: 404,
+        endpointId: null,
+      })
+    })
+
+    it('leaves resolution fields absent on a no-route event — nothing resolved it', async () => {
+      const onRequest = vi.fn()
+      const app = makeApp(undefined, undefined, { onRequest })
+
+      await app.request('/typo')
+
+      const event = onRequest.mock.calls[0]![0]
+      expect(event.resolvedName).toBeUndefined()
+      expect(event.resolvedLayer).toBeUndefined()
+    })
+
+    it('does not fire a no-route event for a query string on a real route', async () => {
+      const onRequest = vi.fn()
+      const app = makeApp(undefined, undefined, { onRequest })
+
+      await app.request('/users?page=2')
+
+      expect(onRequest).toHaveBeenCalledTimes(1)
+      expect(onRequest.mock.calls[0]![0]).toMatchObject({
+        path: '/users',
+        endpointId: 'GET /users',
+      })
     })
 
     it('is optional — omitting it does not throw', async () => {

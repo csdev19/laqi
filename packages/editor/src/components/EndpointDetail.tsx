@@ -1,0 +1,347 @@
+import { useEffect, useMemo, useState } from 'react'
+import type { EndpointDefinition } from '../api'
+import { checkJson } from '../highlight'
+import { statusClass } from '../log'
+import { liveResponse } from '../resolve'
+import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
+import { JsonEditor, ValidityReadout } from './JsonEditor'
+
+type Draft = {
+  description: string
+  default: string
+  responses: Record<string, MockResponse>
+  /** El cuerpo se edita como texto: JSON a medio escribir no es parseable. */
+  bodies: Record<string, string>
+}
+
+function toDraft(endpoint: Endpoint): Draft {
+  const bodies: Record<string, string> = {}
+  for (const [name, response] of Object.entries(endpoint.responses)) {
+    bodies[name] = response.body === undefined ? '' : JSON.stringify(response.body, null, 2)
+  }
+  return {
+    description: endpoint.description ?? '',
+    default: endpoint.default,
+    responses: structuredClone(endpoint.responses),
+    bodies,
+  }
+}
+
+export function EndpointDetail(props: {
+  endpoint: Endpoint
+  state: LaqiState
+  scenarios: Scenarios
+  address: string
+  saveError: string | null
+  onBack: () => void
+  onFlip: (endpoint: Endpoint, response: string) => void
+  onSave: (id: string, definition: EndpointDefinition) => void
+  onDelete: (id: string) => void
+}) {
+  const { endpoint, state, scenarios } = props
+  const [draft, setDraft] = useState<Draft>(() => toDraft(endpoint))
+  const [selected, setSelected] = useState<string>(endpoint.default)
+
+  // El watcher puede recargar el endpoint bajo los pies (alguien editó el
+  // archivo a mano). Rearmar el draft desde la definición nueva.
+  useEffect(() => {
+    setDraft(toDraft(endpoint))
+    setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
+  }, [endpoint])
+
+  const live = liveResponse({ endpoint, state, scenarios })
+  const names = Object.keys(draft.responses)
+  const current = draft.responses[selected]
+  const bodySource = draft.bodies[selected] ?? ''
+
+  const dirty = useMemo(() => !sameDefinition(draft, endpoint), [draft, endpoint])
+
+  const patch = (name: string, change: Partial<MockResponse>) => {
+    setDraft((previous) => ({
+      ...previous,
+      responses: { ...previous.responses, [name]: { ...previous.responses[name]!, ...change } },
+    }))
+  }
+
+  const save = () => {
+    const responses: Record<string, MockResponse> = {}
+    for (const [name, response] of Object.entries(draft.responses)) {
+      const source = draft.bodies[name] ?? ''
+      const trimmed = source.trim()
+      responses[name] = trimmed === ''
+        ? omitBody(response)
+        : { ...response, body: JSON.parse(trimmed) as unknown }
+    }
+    props.onSave(endpoint.id, {
+      description: draft.description.trim() || undefined,
+      default: draft.default,
+      responses,
+    })
+  }
+
+  const everyBodyValid = names.every((name) => {
+    const source = (draft.bodies[name] ?? '').trim()
+    return source === '' || checkJson(source).valid
+  })
+
+  return (
+    <div className="detail">
+      <div className="detail-header">
+        <button type="button" className="btn" onClick={props.onBack}>
+          ← Endpoints (esc)
+        </button>
+        <span className={`row-method method-${endpoint.method}`}>{endpoint.method}</span>
+        <span className="detail-path">{endpoint.path}</span>
+        {endpoint.description ? (
+          <span className="detail-description">{endpoint.description}</span>
+        ) : null}
+        <span className={`live-pill layer-${live.layer}`}>
+          {live.name} · {live.layer}
+        </span>
+
+        <div className="header-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={!dirty || !everyBodyValid}
+            onClick={save}
+          >
+            {dirty ? 'Save to file' : 'Saved'}
+          </button>
+          <button type="button" className="btn btn-danger" onClick={() => props.onDelete(endpoint.id)}>
+            Delete endpoint
+          </button>
+        </div>
+      </div>
+
+      {props.saveError ? <div className="band band-error">{props.saveError}</div> : null}
+
+      <div className="detail-columns">
+        <div className="detail-responses">
+          {names.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={name === selected ? 'response-item is-selected' : 'response-item'}
+              onClick={() => setSelected(name)}
+            >
+              <span
+                className={name === live.name ? `response-marker layer-${live.layer}` : 'response-marker'}
+                aria-hidden="true"
+              />
+              <span className="response-name">{name}</span>
+              <span className={`chip-status status-${statusClass(draft.responses[name]!.status)}`}>
+                {draft.responses[name]!.status}
+              </span>
+            </button>
+          ))}
+
+          <button
+            type="button"
+            className="add-response"
+            onClick={() => {
+              const name = uniqueName(names)
+              setDraft((previous) => ({
+                ...previous,
+                responses: { ...previous.responses, [name]: { status: 200 } },
+                bodies: { ...previous.bodies, [name]: '{}' },
+              }))
+              setSelected(name)
+            }}
+          >
+            + Add response
+          </button>
+        </div>
+
+        <div className="detail-body">
+          <div className="editor-toolbar">
+            <ValidityReadout source={bodySource || 'null'} />
+            <div className="header-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={live.name === selected}
+                onClick={() => props.onFlip(endpoint, selected)}
+              >
+                {live.name === selected ? 'Live now' : 'Set live'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const next = window.prompt('Rename response', selected)
+                  if (!next || next === selected || next in draft.responses) return
+                  setDraft((previous) => renameResponse(previous, selected, next))
+                  setSelected(next)
+                }}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={names.length <= 1}
+                onClick={() => {
+                  setDraft((previous) => deleteResponse(previous, selected))
+                  setSelected(names.find((name) => name !== selected) ?? '')
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
+          <JsonEditor
+            value={bodySource}
+            onChange={(value) =>
+              setDraft((previous) => ({ ...previous, bodies: { ...previous.bodies, [selected]: value } }))
+            }
+          />
+        </div>
+
+        <div className="detail-meta">
+          {current ? (
+            <>
+              <div className="meta-field">
+                <label className="micro" htmlFor="meta-status">
+                  status
+                </label>
+                <input
+                  id="meta-status"
+                  className="meta-input"
+                  inputMode="numeric"
+                  value={String(current.status)}
+                  onChange={(event) =>
+                    patch(selected, { status: Number(event.target.value) || current.status })
+                  }
+                />
+              </div>
+
+              <div className="meta-field">
+                <label className="micro" htmlFor="meta-delay">
+                  delay (ms)
+                </label>
+                <input
+                  id="meta-delay"
+                  className="meta-input"
+                  inputMode="numeric"
+                  value={String(current.delay ?? 0)}
+                  onChange={(event) => {
+                    const delay = Number(event.target.value) || 0
+                    patch(selected, delay === 0 ? { delay: undefined } : { delay })
+                  }}
+                />
+              </div>
+
+              <div className="meta-field">
+                <label className="micro" htmlFor="meta-description">
+                  endpoint description
+                </label>
+                <input
+                  id="meta-description"
+                  className="meta-input"
+                  value={draft.description}
+                  onChange={(event) =>
+                    setDraft((previous) => ({ ...previous, description: event.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="meta-field">
+                <span className="micro">curl</span>
+                {/* Enseña la capa header mostrándola, que es como se prueba
+                    una respuesta sin tocar la app. */}
+                <pre className="meta-curl">{curlFor(endpoint, selected, props.address)}</pre>
+              </div>
+
+              <div className="meta-field">
+                <span className="micro">declared in</span>
+                <div className="meta-file">
+                  {endpoint.file}:{endpoint.line}
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function curlFor(endpoint: Endpoint, response: string, address: string): string {
+  const method = endpoint.method === 'GET' ? '' : `-X ${endpoint.method} `
+  return `curl ${method}-H 'X-Laqi-Response: ${response}' http://${address}${endpoint.path}`
+}
+
+function uniqueName(existing: string[]): string {
+  let index = 1
+  let name = 'new'
+  while (existing.includes(name)) name = `new-${++index}`
+  return name
+}
+
+function renameResponse(draft: Draft, from: string, to: string): Draft {
+  const responses: Record<string, MockResponse> = {}
+  const bodies: Record<string, string> = {}
+  // Reconstruir en orden preserva la posición en la lista; un delete+set la
+  // mandaría al final cada vez que renombrás.
+  for (const [name, response] of Object.entries(draft.responses)) {
+    const key = name === from ? to : name
+    responses[key] = response
+    bodies[key] = draft.bodies[name] ?? ''
+  }
+  return {
+    ...draft,
+    responses,
+    bodies,
+    default: draft.default === from ? to : draft.default,
+  }
+}
+
+function deleteResponse(draft: Draft, name: string): Draft {
+  const responses = { ...draft.responses }
+  const bodies = { ...draft.bodies }
+  delete responses[name]
+  delete bodies[name]
+  const remaining = Object.keys(responses)
+  return {
+    ...draft,
+    responses,
+    bodies,
+    // `default` tiene que nombrar una respuesta que exista o el archivo
+    // queda inválido y el endpoint deja de servirse.
+    default: draft.default === name ? (remaining[0] ?? '') : draft.default,
+  }
+}
+
+function omitBody(response: MockResponse): MockResponse {
+  const { body: _body, ...rest } = response
+  return rest
+}
+
+function sameDefinition(draft: Draft, endpoint: Endpoint): boolean {
+  const rebuilt: Record<string, unknown> = {}
+  for (const [name, response] of Object.entries(draft.responses)) {
+    const source = (draft.bodies[name] ?? '').trim()
+    let body: unknown
+    try {
+      body = source === '' ? undefined : JSON.parse(source)
+    } catch {
+      // Un cuerpo a medio escribir cuenta como cambio: es exactamente lo
+      // que el developer está haciendo en ese momento.
+      return false
+    }
+    rebuilt[name] = { ...omitBody(response), ...(body === undefined ? {} : { body }) }
+  }
+
+  const original: Record<string, unknown> = {}
+  for (const [name, response] of Object.entries(endpoint.responses)) {
+    original[name] = { ...omitBody(response), ...(response.body === undefined ? {} : { body: response.body }) }
+  }
+
+  return (
+    JSON.stringify(rebuilt) === JSON.stringify(original) &&
+    draft.default === endpoint.default &&
+    draft.description.trim() === (endpoint.description ?? '')
+  )
+}

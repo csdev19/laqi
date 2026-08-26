@@ -14,7 +14,9 @@
 packages/schema   — Zod schemas: config, endpoint, response, scenarios, state
 packages/core     — loading mocks from disk, route table, resolution, state store
 packages/server   — the Hono app that actually serves mock responses
+packages/editor   — the web control panel (React + Vite), served at /__laqi
 apps/cli          — the `laqi` CLI: serve, watch, migrate
+apps/documentation — the docs site (Astro + Starlight)
 ```
 
 ## Running it
@@ -28,6 +30,16 @@ bun <path-to-this-repo>/apps/cli/src/index.ts
 That starts a server on `http://127.0.0.1:8000` by default, serving whatever
 is declared under `./laqi/` or `./laqi.json` in your current directory, and
 watches for changes to reload automatically.
+
+The web panel lives at `http://127.0.0.1:8000/__laqi`. It ships as a Vite
+build that is not committed, so build it once first:
+
+```
+bun run build --filter=@laqi/editor
+```
+
+Until you do, `/__laqi` answers with a page telling you exactly that — the
+mock server itself works either way.
 
 Useful flags:
 
@@ -115,6 +127,31 @@ four layers, in this order — the first one that applies wins:
 Every response carries an `X-Laqi-Resolved: <name> (<layer>)` header so you
 can always see which layer decided it.
 
+## The control panel
+
+`/__laqi` is a local web panel over the same API described below. It is the
+fastest way to do the frequent thing — flip which response an endpoint serves —
+without touching a file or restarting anything.
+
+- **One click per flip.** Every response is a visible chip on its endpoint's
+  row; clicking one makes it live. Clicking the file's own default again
+  removes the override rather than writing an identical one.
+- **The list says what you changed.** Rows overridden by you tint magenta,
+  rows moved by a scenario tint violet, and each row names the layer that
+  decided it — the same four words the `X-Laqi-Resolved` header uses.
+- **A live request log** sits beside the list, never behind a tab. Requests
+  that matched no route get the loudest row in the pane, because "why is my
+  mock not answering?" is the most common confusion. Clicking a row jumps to
+  the endpoint that served it.
+- **`⌘K`** reaches any endpoint/response pair by name: `orders boom` flips
+  `POST /orders` to its `boom` response without touching the mouse.
+- **Endpoint detail** edits the definition itself — status, delay, body,
+  response names — and writes it back to the file it came from. It also hands
+  you a ready-made `curl` carrying `X-Laqi-Response`.
+
+The panel is served only when laqi is listening on loopback. With
+`--host 0.0.0.0` neither the panel nor the API is mounted.
+
 ## Control plane API
 
 Alongside the mocks, `laqi` serves a small HTTP + SSE API under `/__laqi`,
@@ -135,14 +172,18 @@ GET    /__laqi/events                 live SSE stream: request | endpoints-chang
 Every write goes through the same file it would if you'd hand-edited it,
 and reloads immediately — no restart, no waiting on the file watcher. This
 API has no authentication yet; it's withheld automatically unless `--host`
-is left at its loopback default. A web panel and an MCP server consuming
-this API are on the roadmap.
+is left at its loopback default. The web panel above consumes it; an MCP
+server is on the roadmap.
+
+The SSE stream carries every request the mock server answers, including the
+ones that matched no route (`endpointId` is `null` on those, and they carry
+no resolution because nothing resolved them).
 
 ## Why that name?
 
 The name is composed of 2 Quechua words [llul**LA**](https://es.glosbe.com/quz/es/llulla) (meaning false) and [chas**Q**u**I**](https://es.glosbe.com/qu/es/chaski) (referring to a messenger) that together I give the meaning of "false-messenger" (l**L**ull**A** + chas**Q**u**I** = **LAQI**) for being a server that returns simulated or false information. Also that in English sounds like the word **"lucky"** 😃😃.
 
-On spanish [here](documentacion/name.md)
+On spanish [here](apps/documentation/src/content/docs/nombre.md)
 
 ## Contributors
 
