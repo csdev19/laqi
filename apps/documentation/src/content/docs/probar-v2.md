@@ -239,7 +239,34 @@ Esa URL sirve para un teléfono físico con React Native, Expo Go sobre datos
 móviles, o un compañero en otra red. El panel se sigue usando en tu
 `localhost` y los flips se reflejan al instante en la URL pública.
 
-## 7. Migrar un proyecto de v1
+## 7. Un frontend de verdad contra el mock
+
+Todo lo anterior fue curl y el panel. Para ver laqi haciendo su trabajo real,
+está [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app):
+una app TanStack Start con lista de todos paginada, CRUD, perfil y login.
+
+Dos terminales, desde `examples/todo-app`:
+
+```bash
+bun run mock   # laqi + su panel
+bun run dev    # el frontend
+```
+
+Abrí el panel al lado de la app y flipeá respuestas mientras la usás. Nada se
+reinicia:
+
+| Flipeá esto | Y la app… |
+| --- | --- |
+| `GET /todos` → `error` | muestra su estado de error con botón de reintentar |
+| `GET /todos` → `empty` | muestra el estado vacío |
+| `GET /todos` → `slow` | muestra el loading, sostenido 2.5s |
+| `GET /profile` → `unauthorized` | cierra sesión, como haría un 401 real |
+| escenario `backend-caido` | rompe todos los endpoints de golpe |
+
+Ésos son justamente los estados que cuesta alcanzar contra un backend real, y
+acá están a un click.
+
+## 8. Migrar un proyecto de v1
 
 Si tenés un proyecto viejo con `mock.config.json` / `mock-data/`:
 

@@ -10,6 +10,11 @@
 covering everything: serving mocks, the four resolution layers, the web
 panel, driving it from a coding agent over MCP, and the public URL.
 
+**Want to see it used?** [`examples/todo-app`](examples/todo-app) is a
+TanStack Start frontend built against laqi — todo list with pagination and
+CRUD, a profile page, and a login flow. Run the two side by side and flip
+responses in the panel while the app is open.
+
 ## Monorepo layout
 
 ```
@@ -19,6 +24,7 @@ packages/server   — the Hono app that actually serves mock responses
 packages/editor   — the web control panel (React + Vite), served at /__laqi
 packages/mcp      — the MCP server, for coding agents
 apps/cli          — the `laqi` CLI: serve, watch, migrate, mcp
+examples/todo-app — a TanStack Start frontend built against laqi
 apps/documentation — the docs site (Astro + Starlight)
 ```
 
