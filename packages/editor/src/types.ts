@@ -33,11 +33,21 @@ export type LoadError = {
   excerpt?: string
 }
 
+export type Share = {
+  /** `null` mientras el túnel todavía está levantando. */
+  url: string | null
+  token: string | null
+  /** La garantía del hallazgo H1, en palabras, para mostrarla en la banda. */
+  exposed: string
+}
+
 export type Status = {
   watching: string
   endpointCount: number
   address: string
   errors: LoadError[]
+  /** Ausente o `null` cuando --share no está activo. */
+  share?: Share | null
 }
 
 /** Una entrada del log, que es un evento `request` más un id de render. */

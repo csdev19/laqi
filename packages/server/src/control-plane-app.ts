@@ -21,7 +21,14 @@ export type ControlPlaneRuntime = {
   getState: () => LaqiState
   setState: (state: LaqiState) => void
   getScenarios: () => Scenarios
-  getStatus: () => { watching: string; endpointCount: number; address: string; errors: LoadError[] }
+  getStatus: () => {
+    watching: string
+    endpointCount: number
+    address: string
+    errors: LoadError[]
+    /** `null` cuando --share no está activo. */
+    share?: { url: string | null; token: string | null; exposed: string } | null
+  }
   createEndpoint: (input: {
     method: HttpMethod
     path: string

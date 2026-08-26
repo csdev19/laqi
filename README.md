@@ -180,6 +180,44 @@ The SSE stream carries every request the mock server answers, including the
 ones that matched no route (`endpointId` is `null` on those, and they carry
 no resolution because nothing resolved them).
 
+## Sharing it publicly
+
+`localhost` is not reachable from a physical phone, from Expo Go on mobile
+data, or from a teammate on another network — which is the problem that
+started this rewrite. `laqi --share` opens a public URL to your mocks:
+
+```
+laqi --share
+```
+
+It needs [`cloudflared`](https://github.com/cloudflare/cloudflared) on your
+PATH (`brew install cloudflared`; no account, no login). laqi prints the URL,
+a bearer token, and a ready-to-paste `curl`.
+
+**What goes through the tunnel is only the mocks.** The panel and the control
+plane live on a second, local-only listener — they are not protected behind
+the tunnel, they are not on it at all, and every `/__laqi` path answers 404
+through the public URL. Someone having your mock URL can never mean they can
+rewrite your mock files.
+
+The rest of what shared mode turns on:
+
+- **A bearer token is required.** Every request without
+  `Authorization: Bearer <token>` gets 401. `--share --public` turns that off
+  and says loudly that it did.
+- **CORS is never `*`.** Only origins declared in `laqi.config.json` as
+  `"cors": ["https://your.app"]` are allowed. With the default config no
+  browser origin is allowed at all — `curl` and React Native do not send
+  `Origin`, so they are unaffected.
+- **Rate limiting**, per caller and overall.
+
+```
+  --share              open a public URL to the mocks
+  --public             with --share: no token. Anyone with the URL can read
+                       your mocks.
+  --share-port <n>     local port the tunnel points at (default: port + 1)
+```
+
 ## Using it from a coding agent (MCP)
 
 `laqi mcp` runs an MCP server over stdio, so an agent building a screen can

@@ -16,34 +16,62 @@ import {
   type HttpMethod,
   type LaqiConfig,
 } from '@laqi/schema'
-import { createControlPlaneApp, createMockApp, type ControlPlaneRuntime } from '@laqi/server'
+import {
+  createControlPlaneApp,
+  createMockApp,
+  createPublicApp,
+  type ControlPlaneRuntime,
+} from '@laqi/server'
 import { Hono } from 'hono'
 import { createEditorApp } from './editor-assets'
 import { buildRuntime, type Runtime } from './runtime'
 
+/**
+ * Lo que hace falta para levantar la superficie pública. Es un SEGUNDO
+ * listener, no una ruta del primero: el control plane no se monta ahí, así
+ * que el túnel no puede alcanzarlo ni equivocándose. Ésa es la resolución
+ * estructural del hallazgo H1.
+ */
+export type ShareOptions = {
+  port: number
+  /** `null` sólo con --public, y ya se advirtió. */
+  token: string | null
+  origins: string[]
+}
+
 export type ServeHandle = {
   port: number
   host: string
+  /** El puerto local al que apunta el túnel, si --share está activo. */
+  publicPort?: number
   /** Reconstruye la app Hono. El proceso y el socket NO se tocan. */
   reload: () => Runtime
   current: () => Runtime
+  /** Lo que el panel muestra en la banda magenta. */
+  setShareUrl: (url: string | null) => void
   close: () => Promise<void>
 }
 
 export async function startServer(options: {
   root: string
   config: LaqiConfig
+  share?: ShareOptions
 }): Promise<ServeHandle> {
-  const { root, config } = options
+  const { root, config, share } = options
+  let shareUrl: string | null = null
   const store = new StateStore(root)
   const bus = new EventBus()
 
   let runtime = buildRuntime(root, config)
   let app: Hono = buildApp()
+  // Se reconstruye en cada reload igual que la local: el hot-reload tiene
+  // que valer también para lo que sale por el túnel.
+  let publicApp: Hono | null = share ? buildPublicApp(share) : null
 
   function reload(): Runtime {
     runtime = buildRuntime(root, config)
     app = buildApp()
+    if (share) publicApp = buildPublicApp(share)
     bus.emit({ type: 'endpoints-changed', endpointCount: runtime.table.endpoints.length })
     for (const error of runtime.errors) {
       bus.emit({
@@ -56,6 +84,19 @@ export async function startServer(options: {
       })
     }
     return runtime
+  }
+
+  function buildPublicApp(options: ShareOptions): Hono {
+    return createPublicApp({
+      mock: {
+        table: runtime.table,
+        scenarios: runtime.scenarios,
+        getState: () => store.read(),
+        onRequest: (event) => bus.emit(event),
+      },
+      token: options.token,
+      origins: options.origins,
+    })
   }
 
   function targetFileForNewEndpoint(): string {
@@ -82,6 +123,17 @@ export async function startServer(options: {
         endpointCount: runtime.table.endpoints.length,
         address: `${config.host}:${config.port}`,
         errors: runtime.errors,
+        share: share
+          ? {
+              url: shareUrl,
+              // El token viaja al panel a propósito: es local-only y es
+              // donde el developer lo va a copiar.
+              token: share.token,
+              // Lo que el hallazgo H1 pide hacer visible: la garantía deja
+              // de ser invisible y pasa a estar escrita en la banda.
+              exposed: 'mocks only — the panel and the control plane are not exposed',
+            }
+          : null,
       }),
       createEndpoint: (input) => {
         const method = input.method.toUpperCase()
@@ -182,14 +234,47 @@ export async function startServer(options: {
   const address = server.address()
   const port = typeof address === 'object' && address ? address.port : config.port
 
+  let publicServer: ServerType | null = null
+  let publicPort: number | undefined
+
+  if (share) {
+    publicServer = await new Promise<ServerType>((resolve, reject) => {
+      const instance = serve(
+        {
+          fetch: (request: Request) => publicApp!.fetch(request),
+          port: share.port,
+          // Loopback también: cloudflared corre en esta máquina y se conecta
+          // localmente. Bindear a 0.0.0.0 expondría la superficie pública a
+          // la LAN además del túnel, sin que nadie lo haya pedido.
+          hostname: '127.0.0.1',
+        },
+        () => resolve(instance),
+      )
+      instance.on('error', reject)
+    })
+
+    const publicAddress = publicServer.address()
+    publicPort = typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port
+  }
+
   return {
     port,
     host: config.host,
+    publicPort,
     current: () => runtime,
     reload,
-    close: () =>
-      new Promise((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()))
-      }),
+    setShareUrl: (url) => {
+      shareUrl = url
+    },
+    close: async () => {
+      await Promise.all(
+        [server, publicServer].filter((instance) => instance !== null).map(
+          (instance) =>
+            new Promise<void>((resolve, reject) => {
+              instance.close((error) => (error ? reject(error) : resolve()))
+            }),
+        ),
+      )
+    },
   }
 }
