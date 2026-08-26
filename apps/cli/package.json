@@ -1,5 +1,5 @@
 {
-  "name": "@laqi/cli",
+  "name": "laqi",
   "version": "2.0.0",
   "description": "Mock server for frontend development: declarative JSON mocks, a web panel, an MCP server, and a public URL.",
   "license": "MIT",

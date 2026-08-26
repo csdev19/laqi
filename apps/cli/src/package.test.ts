@@ -8,6 +8,19 @@ function readJson(...parts: string[]): Record<string, unknown> {
   return JSON.parse(readFileSync(join(ROOT, ...parts), 'utf8')) as Record<string, unknown>
 }
 
+/** Todo workspace del monorepo, para el test de publicabilidad. */
+const WORKSPACES: string[][] = [
+  ['apps', 'cli', 'package.json'],
+  ['apps', 'documentation', 'package.json'],
+  ['packages', 'config', 'package.json'],
+  ['packages', 'core', 'package.json'],
+  ['packages', 'editor', 'package.json'],
+  ['packages', 'mcp', 'package.json'],
+  ['packages', 'schema', 'package.json'],
+  ['packages', 'server', 'package.json'],
+  ['examples', 'todo-app', 'package.json'],
+]
+
 const cli = readJson('apps', 'cli', 'package.json')
 const root = readJson('package.json')
 
@@ -73,5 +86,29 @@ describe('install weight', () => {
       'hono',
       'zod',
     ])
+  })
+})
+
+describe('what gets published', () => {
+  it('publishes as "laqi" — the package that already exists on npm', () => {
+    // laqi 1.2.1 ya está en npm y es del mismo dueño. Esto es su 2.0.0, no
+    // un paquete nuevo: por eso `npx laqi` funciona y por eso existe
+    // `laqi migrate` para convertir los proyectos de v1.
+    expect(cli.name).toBe('laqi')
+    expect(cli.bin).toEqual({ laqi: './dist/index.mjs' })
+  })
+
+  it('keeps every internal package unpublishable', () => {
+    // Van bundleados dentro del binario. Sin `private`, un `npm publish`
+    // desde su carpeta intentaría crear el scope @laqi, que no existe.
+    for (const workspace of ['core', 'mcp', 'schema', 'server', 'editor', 'config']) {
+      const pkg = readJson('packages', workspace, 'package.json')
+      expect(pkg.private, `packages/${workspace} must be private`).toBe(true)
+    }
+  })
+
+  it('is the only workspace that is publishable', () => {
+    const publishable = WORKSPACES.filter((path) => readJson(...path).private !== true)
+    expect(publishable).toEqual([['apps', 'cli', 'package.json']])
   })
 })
