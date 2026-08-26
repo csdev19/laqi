@@ -185,15 +185,13 @@ async function main(): Promise<void> {
     handle = await startServer({ root, config, share })
   } catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-      // Con --share hay DOS listeners. Culpar siempre a config.port mandaba
-      // al developer a cambiar el puerto equivocado.
-      const shareBusy =
-        share !== undefined && !String(error.message).includes(`:${config.port}`)
-          ? share.port
-          : null
+      // Con --share hay DOS listeners. Cuál falló lo marca startServer en el
+      // propio error; leerlo del texto del mensaje se equivocaba en las dos
+      // direcciones, y encima cambia entre Bun y Node.
+      const failed = (error as { laqiListener?: 'share' }).laqiListener
       console.error(
-        shareBusy !== null
-          ? `✖ port ${shareBusy} is already in use — pick another with --share-port, or stop whatever else is using it`
+        failed === 'share' && share !== undefined
+          ? `✖ port ${share.port} is already in use — pick another with --share-port, or stop whatever else is using it`
           : `✖ port ${config.port} is already in use — pick another with --port, or stop whatever else is using it`,
       )
       process.exitCode = 1

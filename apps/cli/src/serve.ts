@@ -65,6 +65,10 @@ export async function startServer(options: {
   const store = new StateStore(root)
   const bus = new EventBus()
   const project = new Project(root, config)
+  // Fuera de buildPublicApp a propósito: la app se reconstruye en cada
+  // reload, y si los contadores se reconstruyeran con ella, guardar un
+  // archivo local le devolvería la cuota a un cliente limitado en el túnel.
+  const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
 
   let runtime = buildRuntime(root, config)
   // Con --port 0 el puerto real lo asigna el SO. Se rellena cuando el
@@ -95,6 +99,7 @@ export async function startServer(options: {
 
   function buildPublicApp(options: ShareOptions): Hono {
     return createPublicApp({
+      buckets: rateLimitBuckets,
       mock: {
         table: runtime.table,
         scenarios: runtime.scenarios,
@@ -234,7 +239,11 @@ export async function startServer(options: {
       // socket huérfano que mantiene vivo el event loop: el CLI dice que
       // falló, no termina nunca, y sigue sirviendo mocks igual.
       await new Promise<void>((resolve) => server.close(() => resolve()))
-      throw error
+      // Se marca acá qué listener falló. Deducirlo después leyendo el texto
+      // del error se equivocaba en las dos direcciones: bajo Bun el mensaje
+      // no trae ":puerto", y bajo Node un puerto que empieza con los mismos
+      // dígitos que el otro lo confundía.
+      throw Object.assign(error as Error, { laqiListener: 'share' as const })
     }
 
     const publicAddress = publicServer.address()

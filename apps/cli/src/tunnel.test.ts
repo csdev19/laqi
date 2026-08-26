@@ -178,27 +178,30 @@ describe('start', () => {
   })
 })
 
-describe('after the URL is found', () => {
-  it('stops listening, so a long-lived tunnel does not accumulate its own logs', async () => {
+describe('the child process keeps draining', () => {
+  it('does not pause the pipes when it stops accumulating', async () => {
+    // Quitar los listeners y nada más pausa el stream: Node deja de vaciar el
+    // pipe, se llena, y cloudflared —que escribe a stderr de forma
+    // bloqueante— se traba para siempre en su próximo log.
     const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
     const starting = provider.start({ port: 8000 })
     children[0]!.stderr.write(BANNER)
     await starting
 
-    // cloudflared loguea sin parar mientras el túnel vive. Si los listeners
-    // siguieran puestos, cada línea se acumularía y el regex se re-correría
-    // sobre una cadena cada vez más larga.
-    expect(children[0]!.stderr.listenerCount('data')).toBe(0)
-    expect(children[0]!.stdout.listenerCount('data')).toBe(0)
+    // Sigue habiendo alguien escuchando: el stream nunca queda pausado.
+    expect(children[0]!.stderr.listenerCount('data')).toBeGreaterThan(0)
+    expect(children[0]!.stdout.listenerCount('data')).toBeGreaterThan(0)
   })
 
-  it('detaches on the failure paths too', async () => {
+  it('swallows the logs that arrive after the URL instead of buffering them', async () => {
     const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
     const starting = provider.start({ port: 8000 })
-    const rejects = expect(starting).rejects.toThrow()
-    children[0]!.emit('exit', 1)
-    await rejects
+    children[0]!.stderr.write(BANNER)
+    const tunnel = await starting
 
-    expect(children[0]!.stderr.listenerCount('data')).toBe(0)
+    // Un túnel de horas: megabytes de heartbeats. No debe romper nada ni
+    // volver a resolver.
+    for (let i = 0; i < 500; i++) children[0]!.stderr.write(`heartbeat ${i}\n`)
+    expect(tunnel.url).toBe('https://shy-forest-1234.trycloudflare.com')
   })
 })

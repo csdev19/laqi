@@ -153,9 +153,14 @@ export class Project {
     // path bien formado, segmentos alcanzables. Si no se hiciera acá, el
     // endpoint se escribiría y recién fallaría al recargar — el archivo del
     // usuario quedaría roto por una herramienta que dijo "ok".
-    const id = formatEndpointId(method as HttpMethod, input.path)
-    const parsed = parseEndpointKey(id)
+    // El id se arma con el path YA NORMALIZADO que devuelve parseEndpointKey,
+    // no con el crudo. Con el crudo, un path con espacios de más ("/users ")
+    // producía un id distinto que esquivaba tanto el chequeo de duplicados
+    // como el del writer, y quedaban dos claves que normalizan al mismo id —
+    // colisión en la tabla de rutas, y el endpoint que ya andaba muere.
+    const parsed = parseEndpointKey(formatEndpointId(method as HttpMethod, input.path))
     if (!parsed.ok) return fail(parsed.error)
+    const id = formatEndpointId(parsed.value.method, parsed.value.path)
 
     const { byId, source } = this.load()
 
@@ -218,12 +223,14 @@ export class Project {
         continue
       }
 
-      const id = formatEndpointId(method as HttpMethod, input.path)
-      const parsed = parseEndpointKey(id)
+      // Mismo normalizado que createEndpoint: ver el comentario de arriba.
+      const raw = formatEndpointId(method as HttpMethod, input.path)
+      const parsed = parseEndpointKey(raw)
       if (!parsed.ok) {
-        rejected.push({ id, error: parsed.error })
+        rejected.push({ id: raw, error: parsed.error })
         continue
       }
+      const id = formatEndpointId(parsed.value.method, parsed.value.path)
       if (taken.has(id)) {
         rejected.push({ id, error: `${JSON.stringify(id)} already exists in ${byId.get(id)?.file ?? file}` })
         continue

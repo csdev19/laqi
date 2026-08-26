@@ -69,6 +69,9 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
         // escrituras, así que hay que acumular en vez de mirar chunk a chunk.
         let buffered = ''
 
+        /** Vacía el pipe sin guardar nada. Ver el comentario en `finish`. */
+        const drain = () => {}
+
         const onChunk = (chunk: Buffer | string) => {
           buffered += String(chunk)
           const match = TRYCLOUDFLARE.exec(buffered)
@@ -91,12 +94,19 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
           if (settled) return
           settled = true
           clearTimeout(timer)
-          // Soltar los listeners y el buffer. cloudflared loguea de forma
-          // continua mientras el túnel vive (registros de conexión,
-          // heartbeats), así que sin esto `buffered` crece sin límite y el
-          // regex se re-corre sobre una cadena cada vez más larga.
+          // Se deja de ACUMULAR, pero se sigue drenando.
+          //
+          // cloudflared loguea sin parar mientras el túnel vive, así que
+          // guardarlo todo hacía crecer `buffered` sin límite y re-correr el
+          // regex sobre una cadena cada vez más larga. Pero quitar los
+          // listeners y ya está pausa el stream: Node deja de vaciar el pipe,
+          // el pipe se llena, y cloudflared —que escribe a stderr de forma
+          // bloqueante— se traba para siempre en su próximo log. Verificado:
+          // el hijo se congelaba ~1.1MB después de resolver.
           child.stdout?.off('data', onChunk)
           child.stderr?.off('data', onChunk)
+          child.stdout?.on('data', drain)
+          child.stderr?.on('data', drain)
           buffered = ''
           action()
         }

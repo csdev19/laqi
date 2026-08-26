@@ -358,3 +358,57 @@ describe('createEndpoints (batched)', () => {
     expect(readMocks()).toEqual(batched)
   })
 })
+
+describe('the incoming path is normalised too, not just the file keys', () => {
+  // El chequeo de duplicados normalizaba las claves DEL ARCHIVO pero armaba
+  // el id con el path crudo. Un espacio de más lo esquivaba, quedaban dos
+  // claves con el mismo id, y la tabla de rutas mataba las dos.
+  it('refuses a duplicate whose path only differs in whitespace', () => {
+    for (const path of ['/users ', ' /users', '/users  ']) {
+      const result = project.createEndpoint({
+        method: 'GET',
+        path,
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      })
+      expect(result.ok, JSON.stringify(path)).toBe(false)
+    }
+  })
+
+  it('leaves the project loadable — no self-inflicted route collision', () => {
+    project.createEndpoint({
+      method: 'GET',
+      path: '/users ',
+      default: 'ok',
+      responses: { ok: { status: 200 } },
+    })
+
+    const listed = unwrap(project.listEndpoints())
+    expect(listed.errors).toEqual([])
+    expect(listed.endpoints.map((e) => e.id)).toContain('GET /users')
+  })
+
+  it('normalises the id it reports back when a create succeeds', () => {
+    const created = unwrap(
+      project.createEndpoint({
+        method: 'get',
+        path: '/health ',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
+    )
+    expect(created.id).toBe('GET /health')
+    expect(Object.keys(readMocks())).toContain('GET /health')
+  })
+
+  it('catches the same thing in a batch', () => {
+    const result = unwrap(
+      project.createEndpoints([
+        { method: 'GET', path: '/dup', default: 'ok', responses: { ok: { status: 200 } } },
+        { method: 'GET', path: '/dup ', default: 'ok', responses: { ok: { status: 200 } } },
+      ]),
+    )
+    expect(result.created).toEqual(['GET /dup'])
+    expect(result.rejected).toHaveLength(1)
+  })
+})

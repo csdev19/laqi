@@ -531,3 +531,72 @@ describe('when the share listener cannot bind', () => {
     }
   })
 })
+
+describe('the rate limiter survives a reload', () => {
+  it('does not hand a limited client its quota back when a file is saved', async () => {
+    writeMocks({ 'GET /ping': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({
+      root,
+      config,
+      share: { port: 0, token: null, origins: [] },
+    })
+
+    const url = `http://127.0.0.1:${handle.publicPort}/ping`
+    const headers = { 'CF-Connecting-IP': '203.0.113.9' }
+
+    let blocked = false
+    for (let i = 0; i < 400 && !blocked; i++) {
+      blocked = (await fetch(url, { headers })).status === 429
+    }
+    expect(blocked).toBe(true)
+
+    // Un guardado local no puede ser una forma de resetear el límite de
+    // alguien en internet.
+    handle.reload()
+    expect((await fetch(url, { headers })).status).toBe(429)
+  })
+})
+
+describe('which listener failed', () => {
+  it('marks a share-listener failure so the CLI blames the right port', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    const blocker = await startServer({ root, config })
+
+    try {
+      // El puerto del túnel está ocupado; el principal está libre.
+      const error = await startServer({
+        root,
+        config,
+        share: { port: blocker.port, token: null, origins: [] },
+      }).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      )
+
+      expect((error as { laqiListener?: string }).laqiListener).toBe('share')
+    } finally {
+      await blocker.close()
+    }
+  })
+
+  it('leaves a main-listener failure unmarked, so it blames --port', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    const blocker = await startServer({ root, config })
+
+    try {
+      const error = await startServer({
+        root,
+        // Ahora el ocupado es el principal.
+        config: ConfigSchema.parse({ port: blocker.port }),
+        share: { port: 0, token: null, origins: [] },
+      }).then(
+        () => null,
+        (thrown: unknown) => thrown,
+      )
+
+      expect((error as { laqiListener?: string }).laqiListener).toBeUndefined()
+    } finally {
+      await blocker.close()
+    }
+  })
+})

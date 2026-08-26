@@ -22,6 +22,13 @@ export type PublicRuntime = {
   /** Orígenes permitidos. Nunca `*` en modo compartido. */
   origins: string[]
   rateLimit?: { windowMs: number; max: number; globalMax: number }
+  /**
+   * Los contadores del rate limiter. Se puede pasar desde afuera para que
+   * SOBREVIVAN a un reload: `apps/cli` reconstruye esta app en cada cambio
+   * de archivo, y con un Map nuevo cada vez, guardar un mock le devolvía la
+   * cuota entera a quien estuviera siendo limitado.
+   */
+  buckets?: Map<string, { count: number; resetAt: number }>
   /** Inyectable para los tests; por defecto el reloj real. */
   now?: () => number
 }
@@ -57,7 +64,7 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
       : {}
   const now = runtime.now ?? (() => Date.now())
   const limit = runtime.rateLimit ?? DEFAULT_RATE_LIMIT
-  const buckets = new Map<string, { count: number; resetAt: number }>()
+  const buckets = runtime.buckets ?? new Map<string, { count: number; resetAt: number }>()
 
   // 404 y no 403: un 403 confirmaría que el control plane existe detrás.
   // Va PRIMERO, antes de CORS y del auth, para que ni siquiera un token
