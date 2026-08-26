@@ -8,7 +8,8 @@ v2.0.0 se implementa en seis planes (el 2 se partió en dos para que cada uno
 cierre con su propio PR). Cada uno produce software que funciona y se puede
 testear por sí solo, y se ejecuta en orden.
 
-**Los seis están ejecutados.**
+**Los seis están ejecutados**, y el conjunto pasó una
+[auditoría adversarial](/planes/auditoria-v2/): 16 hallazgos, todos cerrados.
 
 | #   | Plan                                                                         | Entrega                                                                                                                                                                                                               | Estado                                                         |
 | --- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
