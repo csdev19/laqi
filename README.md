@@ -6,6 +6,10 @@
 > package is built but not published to npm yet, so `npx laqi` will only work
 > once it is — build it locally in the meantime, as shown below.
 
+**Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/probar-v2.md)
+covering everything: serving mocks, the four resolution layers, the web
+panel, driving it from a coding agent over MCP, and the public URL.
+
 ## Monorepo layout
 
 ```
