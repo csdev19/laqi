@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -200,5 +200,60 @@ describe('containment', () => {
     })
     expect(result).toEqual({ ok: true })
     expect(existsSync(join(root, 'laqi/nested/deep.json'))).toBe(true)
+  })
+})
+
+describe('containment through symlinks', () => {
+  // `resolve()` es léxico: no mira el filesystem. Un symlink DENTRO del
+  // proyecto que apunta afuera lo esquiva. El ADR-0006 exige que el agente
+  // MCP quede acotado al directorio de mocks, y un symlink es algo que el
+  // propio agente puede crear, o que ya puede existir en el repo.
+  it('refuses to write through a symlink that leaves the project', () => {
+    const outside = join(sandbox, 'outside')
+    mkdirSync(outside, { recursive: true })
+    writeFileSync(join(outside, 'victim.json'), JSON.stringify({ note: 'outside' }), 'utf8')
+
+    mkdirSync(join(root, 'laqi'), { recursive: true })
+    symlinkSync(outside, join(root, 'laqi', 'escape'))
+
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/escape/victim.json',
+      id: 'GET /pwned',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+    expect(JSON.parse(readFileSync(join(outside, 'victim.json'), 'utf8'))).toEqual({ note: 'outside' })
+  })
+
+  it('refuses a symlinked directory that does not exist yet as a file target', () => {
+    const outside = join(sandbox, 'outside2')
+    mkdirSync(outside, { recursive: true })
+    mkdirSync(join(root, 'laqi'), { recursive: true })
+    symlinkSync(outside, join(root, 'laqi', 'link'))
+
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/link/brand-new.json',
+      id: 'GET /x',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(existsSync(join(outside, 'brand-new.json'))).toBe(false)
+  })
+
+  it('still allows a normal nested path, and a root that is itself a symlink', () => {
+    // En macOS /tmp es un symlink a /private/tmp: si se comparara el root
+    // sin resolver, TODO uso legítimo quedaría rechazado.
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/deep/nested.json',
+      id: 'GET /fine',
+      definition: { default: 'ok', responses: { ok: { status: 200 } } },
+    })
+    expect(result).toEqual({ ok: true })
+    expect(existsSync(join(root, 'laqi', 'deep', 'nested.json'))).toBe(true)
   })
 })

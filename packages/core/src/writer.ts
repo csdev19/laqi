@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
 import { EndpointSchema, type EndpointDefinition } from '@laqi/schema'
 
@@ -13,14 +13,38 @@ export type WriteResult = { ok: true } | { ok: false; error: string }
  * herramientas escribe archivos del proyecto y nunca debe salir de él.
  */
 function resolveInside(root: string, file: string): { ok: true; path: string } | { ok: false; error: string } {
-  const base = resolve(root)
+  const refuse = { ok: false as const, error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root` }
+
+  // realpath, no resolve: `resolve` es puramente léxico y no mira el disco,
+  // así que un symlink DENTRO del proyecto apuntando afuera lo esquiva —
+  // verificado, escribía fuera de la raíz sin quejarse. El root también se
+  // resuelve porque él mismo puede ser un symlink (en macOS /tmp lo es).
+  const base = realOrSelf(resolve(root))
   const target = resolve(base, file)
 
-  if (target !== base && !target.startsWith(base + sep)) {
-    return { ok: false, error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root` }
+  // El archivo puede no existir todavía, y su carpeta tampoco. Se resuelve
+  // el ancestro más profundo que SÍ existe: es el que puede ser un symlink.
+  let existing = dirname(target)
+  while (!existsSync(existing) && dirname(existing) !== existing) {
+    existing = dirname(existing)
   }
 
+  const realExisting = realOrSelf(existing)
+  if (realExisting !== base && !realExisting.startsWith(base + sep)) return refuse
+
+  // El archivo mismo puede ser un symlink aunque su carpeta esté adentro.
+  const realTarget = existsSync(target) ? realOrSelf(target) : target
+  if (realTarget !== base && !realTarget.startsWith(base + sep)) return refuse
+
   return { ok: true, path: target }
+}
+
+function realOrSelf(path: string): string {
+  try {
+    return realpathSync(path)
+  } catch {
+    return path
+  }
 }
 
 function readFileObject(fullPath: string): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
