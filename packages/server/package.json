@@ -1,12 +1,18 @@
 {
   "name": "@laqi/server",
   "version": "2.0.0",
+  "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
     "@laqi/core": "workspace:*",
     "@laqi/schema": "workspace:*",
     "hono": "catalog:"
   },
-  "scripts": { "check-types": "tsc --noEmit -p ." }
+  "scripts": {
+    "check-types": "tsc --noEmit -p ."
+  }
 }

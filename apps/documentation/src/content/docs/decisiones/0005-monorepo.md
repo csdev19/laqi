@@ -23,7 +23,8 @@ Astro + Starlight para la documentación.
 ```
 laqi/
 ├── apps/
-│   ├── cli/            @laqi/cli — el binario `laqi`. Esto es lo que va a npm.
+│   ├── cli/            `laqi` — el binario. Es el paquete que ya está en npm
+│   │                   (v1.2.1); v2 es su major, no un paquete nuevo.
 │   ├── documentation/  Astro + Starlight, igual que rakoi
 │   └── relay/          Cloudflare Worker — la URL pública propia (fase 2)
 └── packages/
