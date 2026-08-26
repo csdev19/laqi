@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -90,13 +90,29 @@ describe('editorDistDir', () => {
 })
 
 describe('editorDistDir — packaged layout', () => {
-  it('prefers a panel/ directory next to the bundle when one exists', () => {
-    // No se puede mover este módulo, así que se verifica la regla que
-    // implementa: un index.html presente gana sobre la resolución por módulo.
-    // El caso monorepo ya está cubierto arriba; éste documenta el orden.
-    const dir = editorDistDir()
-    expect(dir).toBeTruthy()
-    expect(existsSync(join(dir!, 'index.html'))).toBe(true)
+  // Antes este test hacía `existsSync(editorDistDir()/index.html)`, lo que
+  // exigía que el panel estuviera CONSTRUIDO: en un clone fresco (bun
+  // install && bun run test, o sea CI) la suite salía roja con el árbol
+  // sano. La regla se verifica inyectando el directorio base.
+  it('prefers a panel/ directory next to the bundle when one is there', () => {
+    const bundleDir = join(dist, 'fake-bundle')
+    mkdirSync(join(bundleDir, 'panel'), { recursive: true })
+    writeFileSync(join(bundleDir, 'panel', 'index.html'), '<!doctype html>')
+
+    expect(editorDistDir(bundleDir)).toBe(join(bundleDir, 'panel'))
+  })
+
+  it('ignores a panel/ directory that has no index.html', () => {
+    const bundleDir = join(dist, 'empty-bundle')
+    mkdirSync(join(bundleDir, 'panel'), { recursive: true })
+
+    expect(editorDistDir(bundleDir)).not.toBe(join(bundleDir, 'panel'))
+  })
+
+  it('falls back to the monorepo package when there is no bundled panel', () => {
+    // Sin comprobar que exista: en un clone fresco todavía no está.
+    const dir = editorDistDir(join(dist, 'nothing-here'))
+    expect(dir).toContain(join('packages', 'editor', 'dist'))
   })
 })
 

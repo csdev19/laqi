@@ -14,8 +14,8 @@ import { Hono, type Context } from 'hono'
  *    `@laqi/editor/package.json` por el resolver de módulos, que no depende
  *    de dónde esté este archivo.
  */
-export function editorDistDir(): string | null {
-  const packaged = join(dirname(fileURLToPath(import.meta.url)), 'panel')
+export function editorDistDir(baseDir = dirname(fileURLToPath(import.meta.url))): string | null {
+  const packaged = join(baseDir, 'panel')
   if (existsSync(join(packaged, 'index.html'))) return packaged
 
   try {
