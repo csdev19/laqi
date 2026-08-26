@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Navigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { api, ApiError, type Todo, type TodoPage } from '../lib/api'
-import { readSession } from '../lib/auth'
+import { api, ApiError, type Todo, type TodoList } from '../lib/api'
+import { useSession } from '../lib/auth'
 
-export const Route = createFileRoute('/todos')({ component: Todos })
+export const Route = createFileRoute('/todos')({ component: TodosRoute })
 
-function Todos() {
-  if (typeof document === 'undefined') return null
-  if (!readSession()) return <Navigate to="/login" replace />
+const PAGE_SIZE = 4
+
+function TodosRoute() {
+  const { session, ready } = useSession()
+  if (!ready) return null
+  if (!session) return <Navigate to="/login" replace />
   return <TodoList />
 }
 
@@ -17,8 +20,8 @@ function TodoList() {
   const [page, setPage] = useState(1)
   const [title, setTitle] = useState('')
 
-  const key = ['todos', page] as const
-  const todos = useQuery({ queryKey: key, queryFn: () => api.todos(page) })
+  const key = ['todos'] as const
+  const todos = useQuery({ queryKey: key, queryFn: () => api.todos() })
 
   /**
    * Updates optimistas, y no por lujo: laqi devuelve respuestas enlatadas y
@@ -27,29 +30,28 @@ function TodoList() {
    * estado — y el día que exista el backend, este código no cambia. Ése es
    * el punto de desarrollar contra un mock.
    */
-  const patchPage = (change: (previous: TodoPage) => TodoPage) => {
-    queryClient.setQueryData<TodoPage>(key, (previous) => (previous ? change(previous) : previous))
+  const patch = (change: (previous: TodoList) => TodoList) => {
+    queryClient.setQueryData<TodoList>(key, (previous) => (previous ? change(previous) : previous))
   }
 
   const create = useMutation({
     mutationFn: (value: string) => api.createTodo(value),
-    onSuccess: (created) => {
-      // laqi siempre devuelve el mismo id; se le da uno local para que React
-      // no vea claves repetidas al crear varios.
-      patchPage((previous) => ({
-        ...previous,
-        total: previous.total + 1,
-        items: [{ ...created, id: Date.now() }, ...previous.items],
+    onSuccess: (created, value) => {
+      // El título sale de lo que escribió el usuario, no de `created.title`:
+      // el mock siempre devuelve el mismo texto enlatado, y un backend real
+      // devolvería el que mandaste. Del server sólo se toma la forma.
+      patch((previous) => ({
+        items: [{ ...created, id: Date.now(), title: value }, ...previous.items],
       }))
       setTitle('')
+      setPage(1)
     },
   })
 
   const toggle = useMutation({
     mutationFn: (todo: Todo) => api.updateTodo({ ...todo, done: !todo.done }),
     onMutate: (todo) => {
-      patchPage((previous) => ({
-        ...previous,
+      patch((previous) => ({
         items: previous.items.map((item) =>
           item.id === todo.id ? { ...item, done: !item.done } : item,
         ),
@@ -61,25 +63,25 @@ function TodoList() {
   const remove = useMutation({
     mutationFn: (todo: Todo) => api.deleteTodo(todo.id),
     onMutate: (todo) => {
-      patchPage((previous) => ({
-        ...previous,
-        total: previous.total - 1,
-        items: previous.items.filter((item) => item.id !== todo.id),
-      }))
+      patch((previous) => ({ items: previous.items.filter((item) => item.id !== todo.id) }))
     },
     onError: () => void queryClient.invalidateQueries({ queryKey: key }),
   })
 
-  const data = todos.data
-  const lastPage = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+  const all = todos.data?.items ?? []
+  const lastPage = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
+  // Crear o borrar cambia cuántas páginas hay: sin esto se puede quedar
+  // mirando una página que ya no existe.
+  const current = Math.min(page, lastPage)
+  const visible = all.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
 
   return (
     <div className="card">
       <div className="card-head">
         <h1>Todos</h1>
-        {data ? (
+        {todos.data ? (
           <span className="muted">
-            {data.total} total · page {data.page} of {lastPage}
+            {all.length} total · page {current} of {lastPage}
           </span>
         ) : null}
       </div>
@@ -119,12 +121,14 @@ function TodoList() {
         </div>
       ) : null}
 
-      {data && data.items.length === 0 ? (
-        <p className="muted">Nothing here yet — this is the <code>empty</code> response.</p>
+      {todos.data && all.length === 0 ? (
+        <p className="muted">
+          Nothing here yet — this is the <code>empty</code> response.
+        </p>
       ) : null}
 
       <ul className="todos">
-        {data?.items.map((todo) => (
+        {visible.map((todo) => (
           <li key={todo.id} className={todo.done ? 'is-done' : undefined}>
             <label>
               <input type="checkbox" checked={todo.done} onChange={() => toggle.mutate(todo)} />
@@ -142,30 +146,32 @@ function TodoList() {
         ))}
       </ul>
 
-      <div className="pager">
-        <button
-          type="button"
-          className="btn"
-          disabled={page <= 1 || todos.isFetching}
-          onClick={() => setPage((current) => current - 1)}
-        >
-          ← Previous
-        </button>
-        <span className="muted">page {page}</span>
-        <button
-          type="button"
-          className="btn"
-          disabled={page >= lastPage || todos.isFetching}
-          onClick={() => setPage((current) => current + 1)}
-        >
-          Next →
-        </button>
-      </div>
+      {all.length > 0 ? (
+        <div className="pager">
+          <button
+            type="button"
+            className="btn"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+          >
+            ← Previous
+          </button>
+          <span className="muted">page {current}</span>
+          <button
+            type="button"
+            className="btn"
+            disabled={current >= lastPage}
+            onClick={() => setPage(current + 1)}
+          >
+            Next →
+          </button>
+        </div>
+      ) : null}
 
       <p className="footnote-inline">
-        laqi ignores the query string, so the page is requested with{' '}
-        <code>X-Laqi-Response: page-{page}</code> — real pagination against a server with
-        no logic.
+        The mock returns the whole list and this app slices it. A real backend would
+        paginate server-side — laqi ignores the query string, and asking for a page with{' '}
+        <code>X-Laqi-Response</code> would outrank the panel and break the flips below.
       </p>
     </div>
   )

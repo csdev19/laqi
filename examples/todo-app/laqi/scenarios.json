@@ -5,7 +5,14 @@
     "PUT /todos/:id": "error",
     "DELETE /todos/:id": "error"
   },
-  "usuario-nuevo": { "GET /todos": "empty" },
-  "sesion-expirada": { "GET /profile": "unauthorized" },
-  "red-lenta": { "GET /todos": "slow", "POST /auth/login": "slow" }
+  "usuario-nuevo": {
+    "GET /todos": "empty"
+  },
+  "sesion-expirada": {
+    "GET /profile": "unauthorized"
+  },
+  "red-lenta": {
+    "GET /todos": "slow",
+    "POST /auth/login": "slow"
+  }
 }

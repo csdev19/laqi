@@ -1,3 +1,5 @@
+import { useEffect, useState, useSyncExternalStore } from 'react'
+
 /**
  * El "auth" de este ejemplo es un MECANISMO DEL FRONTEND, no seguridad.
  *
@@ -17,14 +19,10 @@ export type User = { id: number; name: string; email: string }
 export type Session = { token: string; user: User }
 
 export function readSession(): Session | null {
-  // En SSR no hay document. La app se hidrata y el guard corre en el cliente.
+  // En SSR no hay document.
   if (typeof document === 'undefined') return null
 
-  const raw = document.cookie
-    .split('; ')
-    .find((part) => part.startsWith(`${COOKIE}=`))
-    ?.slice(COOKIE.length + 1)
-
+  const raw = rawCookie()
   if (!raw) return null
 
   try {
@@ -38,8 +36,67 @@ export function readSession(): Session | null {
 export function writeSession(session: Session): void {
   const value = encodeURIComponent(JSON.stringify(session))
   document.cookie = `${COOKIE}=${value}; path=/; max-age=${MAX_AGE_SECONDS}; SameSite=Lax`
+  emit()
 }
 
 export function clearSession(): void {
   document.cookie = `${COOKIE}=; path=/; max-age=0; SameSite=Lax`
+  emit()
+}
+
+function rawCookie(): string | undefined {
+  return document.cookie
+    .split('; ')
+    .find((part) => part.startsWith(`${COOKIE}=`))
+    ?.slice(COOKIE.length + 1)
+}
+
+/* ── El store, para que React no se entere tarde ───────────────────────── */
+
+const listeners = new Set<() => void>()
+
+function emit(): void {
+  for (const listener of listeners) listener()
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+// useSyncExternalStore vuelve a llamar a getSnapshot en cada render y compara
+// por identidad: devolver un objeto nuevo cada vez sería un loop infinito. Se
+// cachea contra el string crudo de la cookie, que es lo que de verdad cambia.
+let cachedRaw: string | undefined
+let cachedSession: Session | null = null
+
+function getSnapshot(): Session | null {
+  const raw = rawCookie()
+  if (raw !== cachedRaw) {
+    cachedRaw = raw
+    cachedSession = readSession()
+  }
+  return cachedSession
+}
+
+/** En el servidor nunca hay sesión: es lo que hace que la hidratación cierre. */
+function getServerSnapshot(): Session | null {
+  return null
+}
+
+/**
+ * `ready` es lo que evita el rebote: durante SSR y el primer render del
+ * cliente la sesión es `null` por construcción, así que un guard que decidiera
+ * ahí mandaría a /login a alguien que sí tiene sesión. Los guards esperan a
+ * `ready`, que sólo se enciende después de montar.
+ */
+export function useSession(): { session: Session | null; ready: boolean } {
+  const session = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    setReady(true)
+  }, [])
+
+  return { session, ready }
 }

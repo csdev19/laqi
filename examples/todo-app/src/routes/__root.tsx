@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useRouter } from '@tanstack/react-router'
-import { clearSession, readSession } from '../lib/auth'
+import { clearSession, useSession } from '../lib/auth'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -31,7 +31,11 @@ function RootDocument() {
 
 function Shell() {
   const router = useRouter()
-  const session = readSession()
+  // useSession y no readSession(): leer la cookie durante el render daba
+  // `null` en SSR y la sesión real al hidratar, o sea un mismatch en cada
+  // carga de alguien logueado. El store devuelve null en el servidor a
+  // propósito y avisa después de montar.
+  const { session } = useSession()
 
   return (
     <div className="app">

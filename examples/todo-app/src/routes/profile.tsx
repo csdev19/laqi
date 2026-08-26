@@ -1,28 +1,33 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Navigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, Navigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import { api, ApiError } from '../lib/api'
-import { clearSession, readSession } from '../lib/auth'
+import { clearSession, useSession } from '../lib/auth'
 
 export const Route = createFileRoute('/profile')({ component: ProfileRoute })
 
 function ProfileRoute() {
-  if (typeof document === 'undefined') return null
-  if (!readSession()) return <Navigate to="/login" replace />
+  const { session, ready } = useSession()
+  if (!ready) return null
+  if (!session) return <Navigate to="/login" replace />
   return <Profile />
 }
 
 function Profile() {
-  const router = useRouter()
   const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.profile() })
+  const expired = profile.error instanceof ApiError && profile.error.status === 401
 
-  // El 401 es la respuesta `unauthorized` del mock. Un frontend real cierra
-  // sesión acá, y eso es exactamente lo que conviene poder ensayar: flipeá
-  // GET /profile a `unauthorized` en el panel y mirá el flujo completo.
-  if (profile.error instanceof ApiError && profile.error.status === 401) {
-    clearSession()
-    void router.navigate({ to: '/login' })
-    return null
-  }
+  // El 401 es la respuesta `unauthorized` del mock, y un frontend real cierra
+  // sesión ahí. Va en un efecto, no en el render: clearSession escribe una
+  // cookie, y hacer eso durante el render corre dos veces bajo StrictMode y
+  // rompe la pureza que React espera.
+  useEffect(() => {
+    if (expired) clearSession()
+  }, [expired])
+
+  // La redirección la hace <Navigate>, que es la primitiva del router para
+  // esto; el efecto de arriba ya limpió la sesión.
+  if (expired) return <Navigate to="/login" replace />
 
   if (profile.isPending) return <p className="muted">Loading…</p>
   if (profile.error) return <p className="error">Could not load the profile</p>

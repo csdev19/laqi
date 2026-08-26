@@ -36,6 +36,7 @@ responses while the app is running. Nothing restarts.
 | --- | --- |
 | `GET /todos` → `error` | shows its error state with a retry button |
 | `GET /todos` → `empty` | shows the empty state |
+| `GET /todos` → `one-page` | drops to three items, and the pager disappears |
 | `GET /todos` → `slow` | shows the loading state, held for 2.5s |
 | `GET /profile` → `unauthorized` | signs you out, the way a real 401 would |
 | `POST /auth/login` → `invalid` | shows "Wrong email or password" |
@@ -47,18 +48,25 @@ backend, and they are one click away here.
 
 ## Three things this example is really demonstrating
 
-**Pagination against a server with no logic.** laqi ignores the query string,
-so `?page=2` would match the same mock as `?page=1`. The app asks for a page
-with `X-Laqi-Response: page-2` — laqi's header layer, which picks a named
-response for one request without changing anyone's state. Real pagination, no
-backend.
+**Pagination, and why it is client-side here.** A real backend paginates
+server-side. laqi ignores the query string, so `?page=2` returns exactly what
+`?page=1` returns — the mock hands over the whole list and this app slices it.
+
+The tempting alternative is to ask for each page with `X-Laqi-Response: page-2`.
+Do not: that header is laqi's **highest-precedence layer**, above panel
+overrides and scenarios. An app that sends it on every request overrides the
+panel on every request — the table above stops working entirely, which is a
+much worse trade than paginating in the client. That header is for you, from
+curl, when you want one response without changing anyone's state. It is not for
+the app to occupy.
 
 **Optimistic updates, because they are the honest design.** laqi returns canned
 responses and stores nothing: `POST /todos` answers a fixed "created" every
-time. So the app is written the way it would be against a real backend — the
-TanStack Query cache holds the state, the server confirms. When the real
-backend arrives, this code does not change. That is the whole point of building
-against a mock.
+time — including a fixed title. So the app is written the way it would be
+against a real backend: the TanStack Query cache holds the state, the server
+confirms the shape, and the title comes from what you typed rather than from
+the canned body. When the real backend arrives, this code does not change. That
+is the whole point of building against a mock.
 
 **Auth as a frontend mechanism, not security.** A mock cannot verify a token;
 it has no conditional logic. `POST /auth/login` returns 200 with a canned token

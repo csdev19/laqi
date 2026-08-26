@@ -1,27 +1,39 @@
 {
   "POST /auth/login": {
-    "description": "Sign in. The token is canned — laqi never verifies anything.",
+    "description": "Sign in. The token is canned \u2014 laqi never verifies anything.",
     "default": "ok",
     "responses": {
       "ok": {
         "status": 200,
         "body": {
           "token": "laqi-demo-token-6f4a91c2",
-          "user": { "id": 1, "name": "Ada Lovelace", "email": "ada@example.com" }
+          "user": {
+            "id": 1,
+            "name": "Ada Lovelace",
+            "email": "ada@example.com"
+          }
         }
       },
-      "invalid": { "status": 401, "body": { "message": "Wrong email or password" } },
+      "invalid": {
+        "status": 401,
+        "body": {
+          "message": "Wrong email or password"
+        }
+      },
       "slow": {
         "status": 200,
         "delay": 2000,
         "body": {
           "token": "laqi-demo-token-6f4a91c2",
-          "user": { "id": 1, "name": "Ada Lovelace", "email": "ada@example.com" }
+          "user": {
+            "id": 1,
+            "name": "Ada Lovelace",
+            "email": "ada@example.com"
+          }
         }
       }
     }
   },
-
   "POST /auth/signup": {
     "description": "Create an account",
     "default": "created",
@@ -30,13 +42,21 @@
         "status": 201,
         "body": {
           "token": "laqi-demo-token-6f4a91c2",
-          "user": { "id": 1, "name": "Ada Lovelace", "email": "ada@example.com" }
+          "user": {
+            "id": 1,
+            "name": "Ada Lovelace",
+            "email": "ada@example.com"
+          }
         }
       },
-      "taken": { "status": 409, "body": { "message": "That email is already registered" } }
+      "taken": {
+        "status": 409,
+        "body": {
+          "message": "That email is already registered"
+        }
+      }
     }
   },
-
   "GET /profile": {
     "description": "The signed-in user",
     "default": "ok",
@@ -51,83 +71,210 @@
           "todoCount": 7
         }
       },
-      "unauthorized": { "status": 401, "body": { "message": "Your session expired" } }
+      "unauthorized": {
+        "status": 401,
+        "body": {
+          "message": "Your session expired"
+        }
+      }
     }
   },
-
   "GET /todos": {
-    "description": "Paginated list. The app asks for a page with X-Laqi-Response.",
-    "default": "page-1",
+    "description": "The whole list. The app paginates it client-side \u2014 see the README.",
+    "default": "ok",
     "responses": {
-      "page-1": {
+      "ok": {
         "status": 200,
         "body": {
-          "page": 1,
-          "pageSize": 4,
-          "total": 7,
           "items": [
-            { "id": 1, "title": "Read the laqi README", "done": true },
-            { "id": 2, "title": "Flip a response from the panel", "done": true },
-            { "id": 3, "title": "Try the command palette", "done": false },
-            { "id": 4, "title": "Break a mock file on purpose", "done": false }
+            {
+              "id": 1,
+              "title": "Read the laqi README",
+              "done": true
+            },
+            {
+              "id": 2,
+              "title": "Flip a response from the panel",
+              "done": true
+            },
+            {
+              "id": 3,
+              "title": "Try the command palette",
+              "done": false
+            },
+            {
+              "id": 4,
+              "title": "Break a mock file on purpose",
+              "done": false
+            },
+            {
+              "id": 5,
+              "title": "Share the mock with --share",
+              "done": false
+            },
+            {
+              "id": 6,
+              "title": "Ask an agent to add an endpoint",
+              "done": false
+            },
+            {
+              "id": 7,
+              "title": "Point a phone at the public URL",
+              "done": false
+            }
           ]
         }
       },
-      "page-2": {
+      "empty": {
         "status": 200,
         "body": {
-          "page": 2,
-          "pageSize": 4,
-          "total": 7,
+          "items": []
+        }
+      },
+      "one-page": {
+        "status": 200,
+        "body": {
           "items": [
-            { "id": 5, "title": "Share the mock with --share", "done": false },
-            { "id": 6, "title": "Ask an agent to add an endpoint", "done": false },
-            { "id": 7, "title": "Point a phone at the public URL", "done": false }
+            {
+              "id": 1,
+              "title": "Read the laqi README",
+              "done": true
+            },
+            {
+              "id": 2,
+              "title": "Flip a response from the panel",
+              "done": true
+            },
+            {
+              "id": 3,
+              "title": "Try the command palette",
+              "done": false
+            }
           ]
         }
       },
-      "empty": { "status": 200, "body": { "page": 1, "pageSize": 4, "total": 0, "items": [] } },
       "slow": {
         "status": 200,
         "delay": 2500,
         "body": {
-          "page": 1,
-          "pageSize": 4,
-          "total": 7,
-          "items": [{ "id": 1, "title": "Read the laqi README", "done": true }]
+          "items": [
+            {
+              "id": 1,
+              "title": "Read the laqi README",
+              "done": true
+            },
+            {
+              "id": 2,
+              "title": "Flip a response from the panel",
+              "done": true
+            },
+            {
+              "id": 3,
+              "title": "Try the command palette",
+              "done": false
+            },
+            {
+              "id": 4,
+              "title": "Break a mock file on purpose",
+              "done": false
+            },
+            {
+              "id": 5,
+              "title": "Share the mock with --share",
+              "done": false
+            },
+            {
+              "id": 6,
+              "title": "Ask an agent to add an endpoint",
+              "done": false
+            },
+            {
+              "id": 7,
+              "title": "Point a phone at the public URL",
+              "done": false
+            }
+          ]
         }
       },
-      "error": { "status": 500, "body": { "message": "The todo service is having a bad day" } }
+      "error": {
+        "status": 500,
+        "body": {
+          "message": "The todo service is having a bad day"
+        }
+      }
     }
   },
-
   "POST /todos": {
     "description": "Create a todo",
     "default": "created",
     "responses": {
-      "created": { "status": 201, "body": { "id": 99, "title": "A brand new todo", "done": false } },
-      "invalid": { "status": 422, "body": { "message": "A todo needs a title" } },
-      "error": { "status": 500, "body": { "message": "Could not save the todo" } }
+      "created": {
+        "status": 201,
+        "body": {
+          "id": 99,
+          "title": "A brand new todo",
+          "done": false
+        }
+      },
+      "invalid": {
+        "status": 422,
+        "body": {
+          "message": "A todo needs a title"
+        }
+      },
+      "error": {
+        "status": 500,
+        "body": {
+          "message": "Could not save the todo"
+        }
+      }
     }
   },
-
   "PUT /todos/:id": {
     "description": "Update a todo",
     "default": "updated",
     "responses": {
-      "updated": { "status": 200, "body": { "id": 1, "title": "Read the laqi README", "done": true } },
-      "not-found": { "status": 404, "body": { "message": "No todo with that id" } },
-      "error": { "status": 500, "body": { "message": "Could not update the todo" } }
+      "updated": {
+        "status": 200,
+        "body": {
+          "id": 1,
+          "title": "Read the laqi README",
+          "done": true
+        }
+      },
+      "not-found": {
+        "status": 404,
+        "body": {
+          "message": "No todo with that id"
+        }
+      },
+      "error": {
+        "status": 500,
+        "body": {
+          "message": "Could not update the todo"
+        }
+      }
     }
   },
-
   "DELETE /todos/:id": {
     "description": "Delete a todo",
     "default": "deleted",
     "responses": {
-      "deleted": { "status": 204 },
-      "not-found": { "status": 404, "body": { "message": "No todo with that id" } },
-      "error": { "status": 500, "body": { "message": "Could not delete the todo" } }
+      "deleted": {
+        "status": 204
+      },
+      "not-found": {
+        "status": 404,
+        "body": {
+          "message": "No todo with that id"
+        }
+      },
+      "error": {
+        "status": 500,
+        "body": {
+          "message": "Could not delete the todo"
+        }
+      }
     }
   }
 }

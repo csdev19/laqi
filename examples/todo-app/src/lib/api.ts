@@ -20,7 +20,7 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; laqiResponse?: string } = {},
+  options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const session = readSession()
 
@@ -29,9 +29,13 @@ async function request<T>(
   // La forma de producción: el token viaja en cada request. laqi lo ignora,
   // pero el día que haya backend real esto ya está puesto.
   if (session) headers.Authorization = `Bearer ${session.token}`
-  // La capa `header` de laqi: pedir una respuesta concreta sin cambiarle el
-  // estado a nadie. Es lo que hace posible paginar contra un mock.
-  if (options.laqiResponse) headers['X-Laqi-Response'] = options.laqiResponse
+
+  // Deliberadamente NO se manda `X-Laqi-Response`. Es la capa de mayor
+  // precedencia de laqi: le gana a los overrides del panel y a los
+  // escenarios. Si la app la usara para pedir cosas de rutina, se estaría
+  // pisando a sí misma los flips del panel — que es justo lo que uno quiere
+  // poder hacer mientras la app corre. Esa capa es para vos desde curl, no
+  // para que la app la ocupe.
 
   const response = await fetch(`${BASE}${path}`, {
     method: options.method ?? 'GET',
@@ -55,7 +59,7 @@ async function request<T>(
 }
 
 export type Todo = { id: number; title: string; done: boolean }
-export type TodoPage = { page: number; pageSize: number; total: number; items: Todo[] }
+export type TodoList = { items: Todo[] }
 export type Profile = User & { joinedAt: string; todoCount: number }
 
 export const api = {
@@ -68,11 +72,14 @@ export const api = {
   profile: () => request<Profile>('/profile'),
 
   /**
-   * laqi ignora el query string, así que `?page=2` matchearía el mismo mock
-   * que `?page=1`. Se pide la página por `X-Laqi-Response` — paginación real
-   * contra un servidor que no tiene lógica.
+   * La lista entera. La app la pagina del lado del cliente.
+   *
+   * Un backend real paginaría en el servidor, pero laqi ignora el query
+   * string: `?page=2` devolvería exactamente lo mismo que `?page=1`. La
+   * alternativa era pedir cada página con `X-Laqi-Response: page-2`, y eso
+   * rompe algo peor — ver el comentario en `request`.
    */
-  todos: (page: number) => request<TodoPage>(`/todos?page=${page}`, { laqiResponse: `page-${page}` }),
+  todos: () => request<TodoList>('/todos'),
 
   createTodo: (title: string) => request<Todo>('/todos', { method: 'POST', body: { title, done: false } }),
 
