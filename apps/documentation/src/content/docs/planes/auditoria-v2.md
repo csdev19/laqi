@@ -1,201 +1,201 @@
 ---
-title: Auditoría de v2
+title: v2 audit
 ---
 
-# Auditoría de v2
+# v2 audit
 
-**Fecha:** 2026-08-25
-**Alcance:** `main...laqi-v2-packaging` — los planes 2a, 2b, 3, 4 y 5 juntos
-(~7.4k líneas de fuente en `apps/cli` y `packages/{core,schema,server,mcp,editor}`).
-**Método:** revisión adversarial multi-agente, con verificación por reproducción
-antes de arreglar nada.
+**Date:** 2026-08-25
+**Scope:** `main...laqi-v2-packaging` — plans 2a, 2b, 3, 4 and 5 together
+(~7.4k lines of source across `apps/cli` and
+`packages/{core,schema,server,mcp,editor}`).
+**Method:** adversarial multi-agent review, with every finding reproduced
+before anything was fixed.
 
-Los planes 1 y 2a ya habían pasado por revisores independientes durante su
-ejecución. Los otros cuatro se ejecutaron sin esa segunda mirada, y esta
-auditoría es la que la aporta.
+Plans 1 and 2a had already been through independent reviewers during their
+execution. The other four ran without that second pair of eyes, and this audit
+is what supplies it.
 
-## Resultado
+## Result
 
-**15 hallazgos filed, todos reales, todos cerrados.** Más un decimosexto que
-no estaba en la lista (ver abajo). 436 tests.
+**15 findings filed, all real, all closed.** Plus a sixteenth that was not on
+the list (below). 436 tests.
 
-### El hallazgo estructural, que era la causa de otros dos
+### The structural finding, which caused two others
 
-El CRUD del control plane era **una segunda copia** de la clase `Project` del
-servidor MCP — misma regla de archivo destino, mismo chequeo de id duplicado,
-comentarios casi idénticos. Y ya habían divergido:
+The control plane's CRUD was **a second copy** of the MCP server's `Project`
+class — same target-file rule, same duplicate-id check, near-identical
+comments. And the two had already drifted:
 
-- `POST /api/endpoints` no corría `parseEndpointKey`. Un path como `/my orders`
-  o `/../evil` se escribía en el archivo del usuario y devolvía **201**; en la
-  recarga inmediata el loader lo rechazaba. El panel decía "creado" y acto
-  seguido mostraba la banda roja, sobre una entrada muerta que había que
-  borrar a mano.
-- `DELETE` no limpiaba el override en `.laqi/state.json`. Recrear el mismo id
-  más tarde lo revivía sirviendo la respuesta vieja, en silencio.
+- `POST /api/endpoints` never ran `parseEndpointKey`. A path like `/my orders`
+  or `/../evil` was written to the user's file and answered **201**; on the
+  immediate reload the loader rejected it. The panel said "created" and then
+  showed a red error band over a dead entry the user had to remove by hand.
+- `DELETE` did not clear the override in `.laqi/state.json`. Recreating the
+  same id later silently revived it serving the old response.
 
-`Project` se movió a `@laqi/core` y las dos superficies lo usan. Una sola
-implementación no puede driftear.
+`Project` moved to `@laqi/core` and both surfaces use it. One implementation
+cannot drift.
 
-### Corrección
+### Correctness
 
-| Qué | Por qué importaba |
+| What | Why it mattered |
 |---|---|
-| Doble `decodeURIComponent` en el control plane | Hono ya decodifica: un path con `%` literal tiraba `URIError` → 500, y el endpoint quedaba ineditable e imborrable desde el panel |
-| El `cors()` de la app pública se comía los mocks `OPTIONS` | `mock-app.ts` registra los mocks OPTIONS antes de su propio cors justo para que sean alcanzables; el de la app pública lo deshacía. 200 en local, **204 vacío por el túnel** |
-| `seq` leído adentro del updater de React | Los eventos que llegan en un mismo flush salían con la misma key |
-| El draft del detalle se reseteaba por identidad de objeto | `refresh()` devuelve objetos nuevos siempre: cualquier recarga ajena borraba lo que estabas tipeando |
-| `getStatus` reportaba `config.port` | Con `--port 0` el panel mostraba `127.0.0.1:0` y ofrecía copiar un `curl` que falla |
+| Double `decodeURIComponent` in the control plane | Hono already decodes: a path with a literal `%` threw `URIError` → 500, and the endpoint became uneditable and undeletable from the panel |
+| The public app's `cors()` swallowed `OPTIONS` mocks | `mock-app.ts` registers OPTIONS mocks before its own cors precisely so they are reachable; the public app's undid that. 200 locally, **an empty 204 through the tunnel** |
+| `seq` read inside the React updater | Events arriving in one flush all came out with the same key |
+| The detail draft reset on object identity | `refresh()` always returns fresh objects: any unrelated reload wiped what you were typing |
+| `getStatus` reported `config.port` | With `--port 0` the panel showed `127.0.0.1:0` and offered a `curl` that fails |
 
-### Robustez de la superficie que da a internet
+### Robustness of the internet-facing surface
 
-| Qué | Por qué importaba |
+| What | Why it mattered |
 |---|---|
-| El Map del rate limiter no se purgaba nunca | La clave sale de un header que el atacante controla: rotarlo agregaba una entrada permanente por request, ~1.7M por día hasta matar el proceso |
-| La salida de cloudflared se acumulaba para siempre | Un túnel de horas guardaba cada byte logueado y re-corría el regex sobre una cadena creciente |
-| `close()` colgaba con un cliente SSE conectado | `http.Server#close` espera a las conexiones abiertas, y `/events` no termina solo. Con el panel abierto, no resolvía jamás |
-| Escapes `%` malformados en los assets | `%` o `%zz` — tráfico de bots rutinario — salían como 500 con stack en vez de 404 |
-| `--share-port` sin validar | `Number('abc')` llegaba como `NaN` a `server.listen()` y salía como stack pelado |
+| The rate limiter's Map was never swept | The key comes from an attacker-controlled header: rotating it added a permanent entry per request, ~1.7M a day until the process died |
+| cloudflared's output accumulated forever | A tunnel left running for hours kept every logged byte and re-ran the regex over a growing string |
+| `close()` hung with an SSE client connected | `http.Server#close` waits for open connections, and `/events` never ends on its own. With the panel open it never resolved |
+| Malformed `%` escapes in the assets | `%` or `%zz` — routine bot traffic — came out as a 500 with a stack instead of a 404 |
+| `--share-port` was not validated | `Number('abc')` reached `server.listen()` as `NaN` and escaped as a bare stack trace |
 
-### Eficiencia
+### Efficiency
 
-- `import_openapi` llamaba a `createEndpoint` por operación, y cada llamada
-  recargaba y re-parseaba **todos** los archivos de mock y reescribía el
-  destino entero — O(n²) de disco y una recarga del watcher por endpoint. Un
-  spec de 150 operaciones hacía 150 de cada cosa. Ahora carga y escribe una vez.
-- `reload()` emitía un `endpoints-changed` **más un `error` por archivo roto**,
-  y el panel hace un refresh completo por evento: con tres archivos rotos, un
-  guardado disparaba cuatro refreshes y dieciséis GETs. Un solo evento, y el
-  panel los agrupa.
-- El keep-alive del SSE era un `while (!closed) await stream.sleep(30)`, un
-  timer 33 veces por segundo **por conexión** sólo para mirar un flag. Ahora
-  espera `stream.onAbort` directo.
+- `import_openapi` called `createEndpoint` once per operation, and each call
+  reloaded and re-parsed **every** mock file then rewrote the whole target —
+  quadratic disk I/O, plus one watcher reload per endpoint. A 150-operation
+  spec did 150 of each. It now loads once and writes once.
+- `reload()` emitted one `endpoints-changed` **plus one `error` per broken
+  file**, and the panel does a full refresh per event: with three broken files,
+  one save fired four refreshes and sixteen GETs. One event now, and the panel
+  coalesces them.
+- The SSE keep-alive was a `while (!closed) await stream.sleep(30)` — a timer
+  waking 33 times a second **per connection** just to check a flag. It now
+  awaits `stream.onAbort` directly.
 
-## El hallazgo 16, que estaba en un paréntesis
+## Finding 16, which was inside a parenthesis
 
-La sección de *non-findings* del review despachaba la guarda de contención de
-`writer.ts` así:
+The review's *non-findings* section dismissed `writer.ts`'s containment guard
+like this:
 
 > `resolveInside` correctly rejects escapes **(symlinks aside)**
 
-Ese paréntesis era un agujero real. `resolve()` es puramente léxico y nunca
-toca el disco, así que un symlink **dentro** del proyecto apuntando afuera
-pasaba de largo:
+That parenthesis was a real hole. `resolve()` is purely lexical and never
+touches the disk, so a symlink **inside** the project pointing outside walked
+straight through:
 
 ```
 laqi/escape -> /tmp/outside    →    write result: {"ok": true}
 ```
 
-Es exactamente lo que el [ADR-0006](/decisiones/0006-servidor-mcp/) prohíbe: el
-agente tiene que quedar acotado al directorio de mocks, y crear un symlink es
-algo que el propio agente puede hacer. La guarda ahora resuelve rutas reales —
-el root incluido, porque él mismo puede ser un symlink (en macOS `/tmp` lo es,
-y compararlo sin resolver rechazaría todo uso legítimo).
+That is exactly what [ADR-0006](/decisiones/0006-servidor-mcp/) forbids: the
+agent must stay confined to the mocks directory, and creating a symlink is
+something the agent itself can do. The guard now resolves real paths — the root
+included, because the root can be a symlink too (on macOS `/tmp` is one, and
+comparing it unresolved would reject every legitimate write).
 
-**La lección:** lo más caro de la auditoría estaba en un paréntesis, dentro de
-una sección titulada "cosas que revisé y descarté". Leer sólo la lista de
-hallazgos habría dejado el agujero abierto.
+**The lesson:** the most expensive thing in the audit was inside a parenthesis,
+in a section headed "things I checked and cleared". Reading only the findings
+list would have left the hole open.
 
-## Una nota de peso, no de corrección
+## A note about weight, not correctness
 
-El SDK de MCP era dependencia runtime y arrastraba express, jose y ajv a
-**toda** instalación, aunque nunca corras `laqi mcp`. Bundlearlo deja que el
-tree-shaking tire el transport HTTP que no usamos: una instalación limpia pasó
-de **97 paquetes a 6**, y `laqi mcp` sigue andando — verificado desde el
-tarball bajo Node puro.
+The MCP SDK was a runtime dependency and dragged express, jose and ajv into
+**every** install, even if you never run `laqi mcp`. Bundling it lets
+tree-shaking drop the HTTP transport we do not use: a clean `npm install` went
+from **97 packages to 6**, and `laqi mcp` still works — verified from the
+tarball on plain Node.
 
 ---
 
-# Segunda ronda
+# Second round
 
-**Fecha:** 2026-08-26
-**Alcance:** todo lo que la primera ronda no cubrió — los propios arreglos de
-esa ronda (commits `0a0143f`, `bbb0108`, `de8254a`) y el ejemplo
-`examples/todo-app`, ninguno revisado por nadie.
-**Método:** cuatro ángulos en paralelo con un modelo barato, cada uno obligado
-a **reproducir** antes de reportar y a descartar lo que no pudiera demostrar.
+**Date:** 2026-08-26
+**Scope:** everything the first round did not cover — that round's own fixes
+(commits `0a0143f`, `bbb0108`, `de8254a`) and the `examples/todo-app` example.
+None of it had been reviewed by anyone.
+**Method:** four parallel angles on a cheap model, each required to
+**reproduce** before reporting and to discard anything it could not demonstrate.
 
-## Resultado
+## Result
 
-**10 hallazgos, todos reales.** El ángulo de seguridad no encontró nada: los
-siete arreglos de la primera ronda aguantaron bajo pruebas en proceso.
+**10 findings, all real.** The security angle found nothing: the first round's
+seven fixes held up under in-process proofs.
 
-## Lo peor: dos regresiones de los arreglos de la primera ronda
+## The worst part: two regressions from the first round's fixes
 
-El ángulo «¿algún fix rompió otra cosa?» era el correcto, y encontró
-exactamente lo que temía.
+The "did a fix break something else?" angle was the right one, and it found
+exactly what it was pointed at.
 
-**1. El túnel se congelaba.** Arreglando «el buffer crece sin límite» se
-quitaron los listeners de `stdout`/`stderr` del proceso de cloudflared. Eso no
-sólo deja de acumular: **pausa el stream**. Node deja de vaciar el pipe, el
-pipe se llena, y cloudflared —que escribe a stderr de forma bloqueante— se
-traba para siempre en su próximo log. Un túnel de horas simplemente moría.
+**1. The tunnel wedged.** Fixing "the buffer grows without bound" removed the
+`stdout`/`stderr` listeners from cloudflared's process. That does not only stop
+accumulating: it **pauses the stream**. Node stops draining the pipe, the pipe
+fills, and cloudflared — which writes to stderr synchronously — blocks forever
+on its next log line. A tunnel left running for hours simply died.
 
-Y hay una segunda lección: **los dos tests escritos junto a ese arreglo
-afirmaban `listenerCount === 0`**, o sea fijaban el bug en su lugar. Un test
-puede consagrar el error que acompaña.
+And there is a second lesson: **the two tests written alongside that fix
+asserted `listenerCount === 0`**, pinning the bug in place. A test can enshrine
+the very mistake it ships with.
 
-**2. El chequeo de duplicados se esquivaba con un espacio.** El arreglo
-normalizaba las claves *del archivo* pero seguía armando el id con el path
-crudo. `"/users "` pasaba los dos controles, quedaban dos claves que
-normalizan al mismo id, y la tabla de rutas rechazaba ambas — matando el
-endpoint que ya andaba. Justo el fallo que ese commit decía cerrar.
+**2. The duplicate check was bypassed by a space.** The fix normalised the keys
+*in the file* but still built the id from the raw path. `"/users "` passed both
+checks, leaving two keys that normalise to the same id, and the route table
+rejected both — killing the endpoint that already worked. Precisely the failure
+that commit claimed to close.
 
-**3. El puerto mal culpado.** Deducir qué listener falló leyendo el texto del
-error se equivoca en las dos direcciones: bajo Bun el mensaje de `EADDRINUSE`
-no trae `":puerto"`, así que con `--share` un puerto principal ocupado
-culpaba a `--share-port`; bajo Node, un puerto de túnel cuyos dígitos empiezan
-igual que el principal culpaba a `--port`. Ahora `startServer` marca en el
-propio error cuál falló.
+**3. The wrong port blamed.** Deciding which listener failed by reading the
+error text is wrong in both directions: under Bun the `EADDRINUSE` message has
+no `":port"` in it, so with `--share` a busy main port blamed `--share-port`;
+under Node, a tunnel port whose digits start like the main port's blamed
+`--port`. `startServer` now marks which listener failed on the error itself.
 
-## Concurrencia y estado
+## Concurrency and state
 
-| Qué | Por qué importaba |
+| What | Why it mattered |
 |---|---|
-| Los contadores del rate limiter se reconstruían en cada hot-reload | Guardar **cualquier** archivo local le devolvía la cuota entera a un cliente limitado en el túnel: la única protección DoS de la superficie pública, reseteada por una tecla |
-| `writeFileObject` usaba un `.tmp` de nombre fijo | Esta release conecta **dos procesos** a los mismos archivos (el MCP y el control plane). Medido: de 80 endpoints creados en paralelo quedaban **48**, más un crash con `ENOENT` al renombrar un temporal que el otro proceso ya se había llevado. Ahora: temporales únicos y un lock de archivo con recuperación de locks viejos — 80/80 |
+| The rate limiter's counters were rebuilt on every hot reload | Saving **any** local file handed a rate-limited tunnel client its full quota back: the public surface's only DoS protection, reset by a keystroke |
+| `writeFileObject` used a fixed `.tmp` name | This release wires **two processes** onto the same files (the MCP server and the control plane). Measured: 80 concurrent creates left **48**, plus a crash with `ENOENT` when one renamed a temp file the other had already taken. Now: unique temp names and a file lock with stale-lock recovery — 80/80 |
 
-## El ejemplo: el panel no mandaba
+## The example: the panel was not in control
 
-El hallazgo más vergonzoso, y es un error de diseño, no un descuido.
+The most embarrassing finding, and it is a design error rather than an
+oversight.
 
-`examples/todo-app` pedía cada página con `X-Laqi-Response: page-N`. Esa es la
-capa de **mayor precedencia** de laqi: le gana a los overrides del panel y a
-los escenarios. Una app que la manda en cada request se pisa el panel en cada
-request — así que **la feature que el README anunciaba no funcionaba**:
-flipear `GET /todos` a `error`, `empty` o `slow`, o activar `backend-caido`,
-no llegaba nunca a la app.
+`examples/todo-app` requested each page with `X-Laqi-Response: page-N`. That is
+laqi's **highest-precedence** layer: it beats panel overrides and scenarios. An
+app that sends it on every request overrides the panel on every request — so
+**the feature the README advertised did not work**: flipping `GET /todos` to
+`error`, `empty` or `slow`, or activating `backend-caido`, never reached the
+app.
 
-Peor: la verificación original se hizo con curl **sin** ese header, o sea
-probando un camino que la app no toma. Ver lo que uno quiere ver.
+Worse: the original verification was done with curl **without** that header —
+testing a path the app never takes. Seeing what you want to see.
 
-El mock ahora devuelve la lista entera y la app la pagina del lado del
-cliente. Un backend real paginaría en el servidor; laqi ignora el query
-string, así que ésta es la forma honesta — y deja el panel al mando, que es
-todo el punto del ejemplo. El README explica por qué, para que no se
-reintroduzca.
+The mock now returns the whole list and the app paginates client-side. A real
+backend would paginate server-side; laqi ignores the query string, so this is
+the honest shape — and it leaves the panel authoritative, which is the whole
+point of the example. The README explains why, so it does not get reintroduced.
 
-Con eso se fueron también dos consecuencias: pedir `page-3` (alcanzable tras
-crear dos todos) devolvía un 500 sin salida, porque es un nombre de respuesta
-que el mock nunca declaró.
+Two consequences went with it: requesting `page-3` (reachable after creating
+two todos) returned a 500 with no way back, because it is a response name the
+mock never declared.
 
-Además, en el mismo ejemplo:
+Also in the same example:
 
-- Un todo creado mostraba el título **enlatado del mock** en vez de lo que el
-  usuario escribió. Del servidor sólo se toma la forma; el título sale de lo
-  tipeado, que es lo que un backend real devolvería.
-- Leer la cookie de sesión durante el render daba `null` en SSR y la sesión
-  real al hidratar: **mismatch de hidratación** en cada carga de alguien
-  logueado, y redirección a `/login` para quien sí tenía sesión. Ahora hay un
-  store con `useSyncExternalStore` —`null` en el servidor por
-  construcción— y un flag `ready` para que los guards esperen al montaje.
-- El manejo del 401 en el perfil hacía efectos **durante el render**
-  (escribir una cookie y navegar), que corre dos veces bajo StrictMode.
+- A created todo showed the mock's **canned title** instead of what the user
+  typed. Only the shape comes from the server; the title comes from what was
+  typed, which is what a real backend would return.
+- Reading the session cookie during render returned `null` under SSR and the
+  real session after hydration: a **hydration mismatch** on every load for a
+  signed-in user, and a redirect to `/login` for people who were signed in.
+  There is a `useSyncExternalStore`-backed store now — `null` on the server by
+  construction — plus a `ready` flag so guards wait for mount.
+- The profile's 401 handling performed side effects **during render** (writing
+  a cookie and navigating), which runs twice under StrictMode.
 
-## La lección de esta ronda
+## The lesson from this round
 
-La primera ronda dejó su hallazgo más caro en un paréntesis. Ésta dejó dos de
-sus tres peores en **arreglos hechos apurados sin revisar**, y uno de ellos
-con un test que consagraba el bug.
+The first round left its most expensive finding inside a parenthesis. This one
+left two of its three worst in **fixes made quickly and never reviewed**, one
+of them with a test that enshrined the bug.
 
-Arreglar rápido y no revisar el arreglo tiene un costo medible: **2 de 10**
-hallazgos de esta ronda existen sólo porque la ronda anterior no se revisó.
+Fixing fast and not reviewing the fix has a measurable cost: **2 of the 10**
+findings in this round exist only because the previous round was never
+reviewed.
