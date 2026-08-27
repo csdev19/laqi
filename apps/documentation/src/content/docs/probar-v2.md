@@ -1,21 +1,20 @@
 ---
-title: Probar laqi v2
+title: Try laqi v2
 ---
 
-# Probar laqi v2
+# Try laqi v2
 
-Un recorrido de punta a punta, en unos 15 minutos, por todo lo que v2 sabe
-hacer: servir mocks, las cuatro capas de resolución, el panel web, la API,
-el servidor MCP y la URL pública. Cada paso muestra el comando exacto y lo
-que deberías ver.
+An end-to-end walkthrough, about 15 minutes, through everything v2 does:
+serving mocks, the four resolution layers, the web panel, the API, the MCP
+server and the public URL. Every step shows the exact command and what you
+should see.
 
-Necesitás **Node 20+**. Bun sólo hace falta para construir desde el repo
-(paso 0); el binario resultante corre en Node puro.
+You need **Node 20+**. Bun is only needed to build from the repo (step 0); the
+resulting binary runs on plain Node.
 
-## 0. Construir el binario
+## 0. Build the binary
 
-Mientras el paquete no esté publicado en npm, se construye una vez desde el
-repo:
+Until the package is published to npm, build it once from the repo:
 
 ```bash
 git clone git@github.com:csdev19/laqi.git
@@ -24,25 +23,25 @@ bun install
 bun run build
 ```
 
-Eso deja el CLI autocontenido en `apps/cli/dist/index.mjs` — con el panel web
-adentro. Para no escribir la ruta completa en cada paso:
+That leaves a self-contained CLI at `apps/cli/dist/index.mjs` — with the web
+panel inside it. So you don't have to type the full path in every step:
 
 ```bash
 alias laqi="node $(pwd)/apps/cli/dist/index.mjs"
 ```
 
-> Cuando el paquete esté en npm, todo lo que sigue funciona igual con
-> `npx laqi` y sin este paso.
+> Once the package is on npm, everything below works the same with `npx laqi`
+> and without this step.
 
-## 1. Un proyecto con mocks
+## 1. A project with mocks
 
-En cualquier carpeta vacía (fuera del repo de laqi):
+In any empty folder (outside the laqi repo):
 
 ```bash
 mkdir demo && cd demo && mkdir laqi
 ```
 
-`laqi/api.json` — las claves son `"METHOD /path"`:
+`laqi/api.json` — the keys are `"METHOD /path"`:
 
 ```json
 {
@@ -72,16 +71,16 @@ mkdir demo && cd demo && mkdir laqi
 }
 ```
 
-`laqi/scenarios.json` — un escenario mueve varios endpoints de una:
+`laqi/scenarios.json` — one scenario moves several endpoints at once:
 
 ```json
 {
-  "todo-roto": { "GET /users": "boom", "POST /orders": "error" },
-  "usuario-nuevo": { "GET /users": "empty" }
+  "everything-broken": { "GET /users": "boom", "POST /orders": "error" },
+  "new-user": { "GET /users": "empty" }
 }
 ```
 
-## 2. Arrancar y pedir
+## 2. Start it and make a request
 
 ```bash
 laqi
@@ -92,38 +91,38 @@ laqi
    watching ./laqi/  ·  3 endpoints
 ```
 
-Desde otra terminal:
+From another terminal:
 
 ```bash
 curl -i http://127.0.0.1:8000/users
 ```
 
-Mirá el header **`X-Laqi-Resolved: ok (default)`**: cada respuesta dice qué
-se sirvió y **qué capa lo decidió**. Ese header es el hilo conductor de todo
-lo que sigue.
+Look at the **`X-Laqi-Resolved: ok (default)`** header: every response says
+what was served and **which layer decided it**. That header is the thread
+running through everything below.
 
 ```bash
-curl http://127.0.0.1:8000/users/42        # :id es dinámico
+curl http://127.0.0.1:8000/users/42        # :id is dynamic
 curl -X POST http://127.0.0.1:8000/orders  # 201
-curl http://127.0.0.1:8000/typo            # 404 con la lista de rutas reales
+curl http://127.0.0.1:8000/typo            # 404, listing the routes that do exist
 ```
 
-## 3. Las cuatro capas, una por una
+## 3. The four layers, one at a time
 
-De mayor a menor precedencia: `header` → `state` → `scenario` → `default`.
+Highest to lowest precedence: `header` → `state` → `scenario` → `default`.
 
-**Capa `header`** — por request, no persiste nada. Así probás una respuesta
-sin cambiarle el estado a nadie:
+**The `header` layer** — per request, persists nothing. This is how you try a
+response without changing anyone's state:
 
 ```bash
 curl -i -H 'X-Laqi-Response: boom' http://127.0.0.1:8000/users
 # 500 · X-Laqi-Resolved: boom (header)
 curl -i http://127.0.0.1:8000/users
-# 200 de nuevo: no quedó nada activado
+# 200 again: nothing was left switched on
 ```
 
-**Capa `state`** — un override persistente por endpoint (lo que escribe el
-panel):
+**The `state` layer** — a persistent per-endpoint override (this is what the
+panel writes):
 
 ```bash
 curl -X PUT http://127.0.0.1:8000/__laqi/api/state \
@@ -133,156 +132,156 @@ curl -i http://127.0.0.1:8000/users
 # 500 · X-Laqi-Resolved: boom (state)
 ```
 
-Quedó en `.laqi/state.json` — archivo de máquina, gitignored. Tus mocks en
-`laqi/` no se tocaron.
+That went into `.laqi/state.json` — a machine file, gitignored. Your mocks in
+`laqi/` were not touched.
 
-**Capa `scenario`**:
+**The `scenario` layer**:
 
 ```bash
 curl -X PUT http://127.0.0.1:8000/__laqi/api/state \
   -H 'Content-Type: application/json' \
-  -d '{"scenario":"usuario-nuevo","overrides":{}}'
+  -d '{"scenario":"new-user","overrides":{}}'
 curl -i http://127.0.0.1:8000/users
 # 200 [] · X-Laqi-Resolved: empty (scenario)
 ```
 
-Y la regla clave: **un override le gana al escenario activo**. Con
-`usuario-nuevo` activo, agregá `"overrides":{"GET /users":"boom"}` y `/users`
-sirve `boom (state)` mientras el resto del escenario sigue vigente.
+And the key rule: **a per-endpoint override beats the active scenario**. With
+`new-user` active, add `"overrides":{"GET /users":"boom"}` and `/users` serves
+`boom (state)` while the rest of the scenario stays in effect.
 
-Volver a fojas cero:
+Back to a clean slate:
 
 ```bash
 curl -X PUT http://127.0.0.1:8000/__laqi/api/state \
   -H 'Content-Type: application/json' -d '{"scenario":null,"overrides":{}}'
 ```
 
-## 4. El panel
+## 4. The panel
 
-Abrí **http://127.0.0.1:8000/__laqi** en el navegador. Todo lo del paso 3,
-sin curl:
+Open **http://127.0.0.1:8000/__laqi** in a browser. Everything from step 3,
+without curl:
 
-- **Un click en un chip** pone esa respuesta en vivo. La fila se tiñe de
-  magenta y dice `state`. Clickeá el chip que es el default del archivo y el
-  override se borra en vez de escribirse uno idéntico.
-- **Los chips de escenarios** arriba: activá `todo-roto` y mirá cuántas filas
-  se tiñen de violeta.
-- **El log de la derecha** muestra cada request en vivo — dispará los curl
-  del paso 2 y miralos aterrizar. Un path que no existe sale en rojo con
-  `no matching route`. Click en una fila salta al endpoint que la sirvió.
-- **`⌘K`** (o `Ctrl+K`): tipeá `orders error` y ↵ — flipeó `POST /orders`
-  sin tocar el mouse.
-- **Click en un path** abre el detalle: editá el body, el status o el delay
-  y guardá — se escribe de vuelta a `laqi/api.json`. Ahí mismo hay un `curl`
-  listo con `X-Laqi-Response` para copiar.
-- **Hot-reload**: editá `laqi/api.json` a mano en tu editor y mirá el panel
-  actualizarse solo, sin reiniciar nada.
+- **One click on a chip** makes that response live. The row tints magenta and
+  reads `state`. Click the chip that is the file's own default and the
+  override is removed rather than rewritten as an identical one.
+- **The scenario chips** at the top: activate `everything-broken` and watch
+  how many rows tint violet.
+- **The log on the right** shows every request live — fire the curls from
+  step 2 and watch them land. A path that does not exist shows in red with
+  `no matching route`. Clicking a row jumps to the endpoint that served it.
+- **`⌘K`** (or `Ctrl+K`): type `orders error` and ↵ — that flipped
+  `POST /orders` without touching the mouse.
+- **Click a path** to open the detail view: edit the body, the status or the
+  delay and save — it is written back to `laqi/api.json`. There is also a
+  ready-made `curl` with `X-Laqi-Response` to copy.
+- **Hot-reload**: edit `laqi/api.json` by hand in your editor and watch the
+  panel update on its own, with nothing restarting.
 
-## 5. El mismo control, desde un agente (MCP)
+## 5. The same control, from a coding agent (MCP)
 
-En el directorio `demo`, creá `.mcp.json` (Claude Code; Cursor usa la misma
-forma):
+In the `demo` directory, create `.mcp.json` (Claude Code; Cursor uses the same
+shape):
 
 ```json
 {
   "mcpServers": {
     "laqi": {
       "command": "node",
-      "args": ["<ruta-al-repo-de-laqi>/apps/cli/dist/index.mjs", "mcp"]
+      "args": ["<path-to-the-laqi-repo>/apps/cli/dist/index.mjs", "mcp"]
     }
   }
 }
 ```
 
-Abrí Claude Code en `demo` y pedile cosas como:
+Open Claude Code in `demo` and ask it for things like:
 
-> "haz que `/orders` devuelva el error con 2 segundos de latencia"
-> "crea un endpoint `GET /profile` que devuelva un usuario de ejemplo"
-> "activa el escenario todo-roto"
-> "importa este spec de OpenAPI como mocks"
+> "make `/orders` return the error with two seconds of latency"
+> "create a `GET /profile` endpoint returning an example user"
+> "activate the everything-broken scenario"
+> "import this OpenAPI spec as mocks"
 
-Las nueve herramientas (`list_endpoints`, `set_response`, `set_scenario`,
-`create_endpoint`, `import_openapi`, …) escriben los mismos archivos que el
-panel — podés dejar el panel abierto y ver los cambios del agente aparecer en
-vivo. Funciona incluso con laqi apagado: los mocks quedan listos para cuando
-lo prendas.
+The nine tools (`list_endpoints`, `set_response`, `set_scenario`,
+`create_endpoint`, `import_openapi`, …) write the same files the panel does —
+you can leave the panel open and watch the agent's changes appear live. It
+works even with laqi stopped: the mocks are ready for when you start it.
 
-## 6. URL pública
+## 6. Public URL
 
-Necesita [`cloudflared`](https://github.com/cloudflare/cloudflared) en el
-PATH (`brew install cloudflared` — sin cuenta ni login):
+Needs [`cloudflared`](https://github.com/cloudflare/cloudflared) on your PATH
+(`brew install cloudflared` — no account, no login):
 
 ```bash
 laqi --share
 ```
 
 ```
-🌐 EXPOSED TO THE INTERNET  https://<algo>.trycloudflare.com
+🌐 EXPOSED TO THE INTERNET  https://<something>.trycloudflare.com
    mocks only — the panel and the control plane stay on 127.0.0.1:8000
 
    token  3f9a…
-   curl -H 'Authorization: Bearer 3f9a…' https://<algo>.trycloudflare.com/
+   curl -H 'Authorization: Bearer 3f9a…' https://<something>.trycloudflare.com/
 ```
 
-Tres cosas para verificar vos mismo:
+Three things worth checking yourself:
 
 ```bash
-# 1. Los mocks salen, con el token:
-curl -H 'Authorization: Bearer <token>' https://<algo>.trycloudflare.com/users
-# 2. Sin token: 401.
-curl https://<algo>.trycloudflare.com/users
-# 3. El panel NO existe en la URL pública — 404, aun con token:
-curl -H 'Authorization: Bearer <token>' https://<algo>.trycloudflare.com/__laqi/api/status
+# 1. The mocks come through, with the token:
+curl -H 'Authorization: Bearer <token>' https://<something>.trycloudflare.com/users
+# 2. Without a token: 401.
+curl https://<something>.trycloudflare.com/users
+# 3. The panel does NOT exist on the public URL — 404, even with the token:
+curl -H 'Authorization: Bearer <token>' https://<something>.trycloudflare.com/__laqi/api/status
 ```
 
-Esa URL sirve para un teléfono físico con React Native, Expo Go sobre datos
-móviles, o un compañero en otra red. El panel se sigue usando en tu
-`localhost` y los flips se reflejan al instante en la URL pública.
+That URL is what you give a physical phone running React Native, Expo Go on
+mobile data, or a teammate on another network. You keep using the panel on
+your own `localhost`, and flips show up on the public URL immediately.
 
-## 7. Un frontend de verdad contra el mock
+## 7. A real frontend against the mock
 
-Todo lo anterior fue curl y el panel. Para ver laqi haciendo su trabajo real,
-está [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app):
-una app TanStack Start con lista de todos paginada, CRUD, perfil y login.
+Everything above was curl and the panel. To see laqi doing its actual job,
+there is [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app):
+a TanStack Start app with a paginated todo list, CRUD, a profile page and a
+login flow.
 
-Dos terminales, desde `examples/todo-app`:
+Two terminals, from `examples/todo-app`:
 
 ```bash
-bun run mock   # laqi + su panel
-bun run dev    # el frontend
+bun run mock   # laqi and its panel
+bun run dev    # the frontend
 ```
 
-Abrí el panel al lado de la app y flipeá respuestas mientras la usás. Nada se
-reinicia:
+Open the panel next to the app and flip responses while you use it. Nothing
+restarts:
 
-| Flipeá esto | Y la app… |
+| Flip this | And the app… |
 | --- | --- |
-| `GET /todos` → `error` | muestra su estado de error con botón de reintentar |
-| `GET /todos` → `empty` | muestra el estado vacío |
-| `GET /todos` → `one-page` | baja a tres items y el paginador desaparece |
-| `GET /todos` → `slow` | muestra el loading, sostenido 2.5s |
-| `GET /profile` → `unauthorized` | cierra sesión, como haría un 401 real |
-| escenario `backend-caido` | rompe todos los endpoints de golpe |
+| `GET /todos` → `error` | shows its error state with a retry button |
+| `GET /todos` → `empty` | shows the empty state |
+| `GET /todos` → `one-page` | drops to three items and the pager disappears |
+| `GET /todos` → `slow` | shows the loading state, held for 2.5s |
+| `GET /profile` → `unauthorized` | signs you out, the way a real 401 would |
+| scenario `backend-caido` | breaks every endpoint at once |
 
-Ésos son justamente los estados que cuesta alcanzar contra un backend real, y
-acá están a un click.
+Those are exactly the states that are painful to reach against a real backend,
+and here they are one click away.
 
-## 8. Migrar un proyecto de v1
+## 8. Migrating a v1 project
 
-Si tenés un proyecto viejo con `mock.config.json` / `mock-data/`:
+If you have an old project with `mock.config.json` / `mock-data/`:
 
 ```bash
-laqi migrate --dry-run   # muestra el laqi.json resultante sin escribir
-laqi migrate             # lo escribe
+laqi migrate --dry-run   # prints the resulting laqi.json without writing
+laqi migrate             # writes it
 ```
 
-## Si algo no anda
+## If something does not work
 
-- **`/__laqi` muestra "not built yet"** → corriste desde el fuente sin
-  construir el panel: `bun run build --filter=@laqi/editor` (el binario de
-  `dist/` no tiene este problema).
-- **Un archivo de mocks roto** no tumba el servidor: el resto se sigue
-  sirviendo, y el panel muestra la banda roja con archivo, línea y causa.
-- **`--share` pide cloudflared** → el mensaje de error trae el comando de
-  instalación por plataforma.
-- **El puerto está ocupado** → `laqi --port 8001`.
+- **`/__laqi` shows "not built yet"** → you ran from source without building
+  the panel: `bun run build --filter=@laqi/editor` (the `dist/` binary does
+  not have this problem).
+- **A broken mock file** does not take the server down: the rest keeps being
+  served, and the panel shows a red band with the file, line and cause.
+- **`--share` asks for cloudflared** → the error message carries the install
+  command for each platform.
+- **The port is in use** → `laqi --port 8001`.

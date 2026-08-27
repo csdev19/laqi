@@ -1,63 +1,63 @@
 ---
-title: Planes de implementación
+title: Implementation plans
 ---
 
-# Planes de implementación
+# Implementation plans
 
-v2.0.0 se implementa en seis planes (el 2 se partió en dos para que cada uno
-cierre con su propio PR). Cada uno produce software que funciona y se puede
-testear por sí solo, y se ejecuta en orden.
+v2.0.0 was built in six plans (plan 2 was split in two so each could close with
+its own PR). Each one produces working software that can be tested on its own,
+and they run in order.
 
-**Los seis están ejecutados**, y el conjunto pasó una
-[auditoría adversarial](/planes/auditoria-v2/) en dos rondas: 26 hallazgos,
-todos cerrados.
+**All six are done**, and the result went through an
+[adversarial audit](/planes/auditoria-v2/) in two rounds: 26 findings, all
+closed.
 
-| #   | Plan                                                                         | Entrega                                                                                                                                                                                                               | Estado                                                         |
-| --- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 1   | [Fundación y servidor de mocks](/planes/2026-08-24-01-fundacion-y-servidor/) | `laqi` corre y sirve mocks desde `laqi.json` o `laqi/`, con validación, hot-reload y las cuatro capas de resolución. Más `laqi migrate`. **13 tareas, ~95 tests.** Auditado: [auditoría](/planes/auditoria-plan-01/). | **Mergeado** — [PR #1](https://github.com/csdev19/laqi/pull/1) |
-| 2a  | [Control plane](/planes/2026-08-24-02a-control-plane/)                      | `/__laqi/api/*` (CRUD de endpoints, estado, escenarios, status), SSE de requests en vivo, sobre `packages/server`. La separación estructural que el Plan 4 necesita para excluir `/__laqi` del túnel (H1) — el bloqueo en sí es responsabilidad de ese plan. **11 tareas, 50 tests nuevos.** | **Listo para mergear** — [PR #3](https://github.com/csdev19/laqi/pull/3) |
-| 2b  | [Editor web](/planes/2026-08-25-02b-editor-web/)                            | `packages/editor` (React + Vite), servido en `/__laqi`, consumiendo el contrato de 2a. Cierra dos huecos del evento de request de 2a (no-route sin evento, path como patrón). **37 tests del panel.** | **Ejecutado** |
-| 3   | [Servidor MCP](/planes/2026-08-25-03-servidor-mcp/)                         | `packages/mcp` y `laqi mcp`: nueve herramientas sobre stdio, incluido `import_openapi`. Cierra tres agujeros de validación de escritura que el ADR-0006 advertía. **62 tests, 14 sobre stdio real.** | **Ejecutado** |
-| 4   | [URL pública](/planes/2026-08-25-04-url-publica/)                           | `laqi --share` con cloudflared. H1 cerrado por arquitectura: un segundo listener que sólo monta mocks es el que ve el túnel. Token, CORS restringido, rate limiting. **Verificado en vivo.** | **Ejecutado** |
-| 5   | [Documentación y empaquetado](/planes/2026-08-25-05-empaquetado/)           | Build con tsdown: un paquete con el panel adentro, verificado desde un tarball real sobre Node limpio, con bun fuera del PATH. Cierra la fuga de SSE que venía diferida. | **Ejecutado** |
+| #   | Plan | Delivers | Status |
+| --- | ---- | -------- | ------ |
+| 1   | [Foundation and mock server](/planes/2026-08-24-01-fundacion-y-servidor/) | `laqi` runs and serves mocks from `laqi.json` or `laqi/`, with validation, hot-reload and the four resolution layers. Plus `laqi migrate`. **13 tasks, ~95 tests.** Audited: [audit](/planes/auditoria-plan-01/). | **Merged** — [PR #1](https://github.com/csdev19/laqi/pull/1) |
+| 2a  | [Control plane](/planes/2026-08-24-02a-control-plane/) | `/__laqi/api/*` (endpoint CRUD, state, scenarios, status) and a live SSE request stream, on `packages/server`. The structural separation Plan 4 needs in order to keep `/__laqi` off the tunnel (H1) — the blocking itself is that plan's job. **11 tasks, 50 new tests.** | **Merged** — [PR #3](https://github.com/csdev19/laqi/pull/3) |
+| 2b  | [Web editor](/planes/2026-08-25-02b-editor-web/) | `packages/editor` (React + Vite), served at `/__laqi`, consuming 2a's contract. Closes two gaps in 2a's request event (no-route emitted nothing, the path was the route pattern). **37 panel tests.** | **Merged** — [PR #4](https://github.com/csdev19/laqi/pull/4) |
+| 3   | [MCP server](/planes/2026-08-25-03-servidor-mcp/) | `packages/mcp` and `laqi mcp`: nine tools over stdio, including `import_openapi`. Closes three write-validation holes ADR-0006 warned about. **62 tests, 14 over real stdio.** | **Merged** — [PR #5](https://github.com/csdev19/laqi/pull/5) |
+| 4   | [Public URL](/planes/2026-08-25-04-url-publica/) | `laqi --share` via cloudflared. H1 closed by architecture: a second listener that mounts only the mocks is what the tunnel sees. Bearer token, restricted CORS, rate limiting. **Verified live.** | **Merged** — [PR #6](https://github.com/csdev19/laqi/pull/6) |
+| 5   | [Docs and packaging](/planes/2026-08-25-05-empaquetado/) | A tsdown build: one package with the panel inside it, verified from a real tarball on plain Node with bun off the PATH. Closes the SSE leak that had been deferred. | **Merged** — [PR #7](https://github.com/csdev19/laqi/pull/7) |
 
-## Por qué en este orden
+## Why this order
 
-El plan 1 es el único que no depende de nada y del que dependen todos los demás:
-el control plane, el MCP y el túnel operan sobre la tabla de rutas y el store de
-estado que construye `packages/core`.
+Plan 1 is the only one that depends on nothing, and everything else depends on
+it: the control plane, the MCP server and the tunnel all operate on the route
+table and the state store that `packages/core` builds.
 
-Además el plan 1 ya es **un producto usable**: un mock server correcto, con los
-doce defectos de v1 arreglados y el formato nuevo. Si algo se detiene después,
-lo que quedó sirve.
+Plan 1 is also **a usable product on its own**: a correct mock server, with
+v1's twelve defects fixed and the new format. If everything stopped after it,
+what remained would still be worth having.
 
-Cada plan se escribe cuando el anterior está ejecutado, no antes — así el
-siguiente se apoya en código real en vez de en suposiciones.
+Each plan was written once the previous one had been executed, never before —
+so each one builds on real code rather than on assumptions.
 
-## Contexto que todos los planes asumen
+## Context every plan assumes
 
-- [ADRs 0001–0008](../decisiones/) — las decisiones estructurales
-- [Conceptos](../conceptos/) — los tres escritores y la resolución de estado
-- [Diseño del control panel](../diseno/) — sobre todo [design](/diseno/design/)
-  (contratos de API) y [state-model](/diseno/state-model/)
-- [Revisión del diseño](/diseno/revision-vs-decisiones/) — los 13 hallazgos,
-  repartidos entre los planes que corresponden
+- [ADRs 0001–0008](../decisiones/) — the structural decisions
+- [Concepts](../conceptos/) — the three writers and state resolution
+- [Control panel design](../diseno/) — above all [design](/diseno/design/)
+  (API contracts) and [state-model](/diseno/state-model/)
+- [Design review](/diseno/revision-vs-decisiones/) — the 13 findings, split
+  across the plans they belong to
 
-## Cobertura de los doce defectos de v1
+## Coverage of v1's twelve defects
 
-Los doce del [análisis](/analisis-v1/) quedan cerrados en el Plan 1, salvo uno:
+All twelve from the [analysis](/analisis-v1/) are closed in Plan 1, except one:
 
-| Defecto                                | Dónde                                                  |
-| -------------------------------------- | ------------------------------------------------------ |
-| A — fuga de estado entre requests      | Tarea 10 (`structuredClone`, con test de regresión)    |
-| B — `return` en vez de `continue`      | Tareas 4 y 6 (validación por clave)                    |
-| C — request colgada                    | Tareas 9 y 10 (todo camino termina en respuesta)       |
-| D — colisión entre archivos            | Tarea 7                                                |
-| E — `(generate:uid)` sin implementar   | **Fuera del Plan 1** — templating en un plan posterior |
-| F — watcher con ruta hardcodeada       | Tarea 12 (sale de la config)                           |
-| G — sólo escuchaba `change`            | Tarea 12 (`add`/`change`/`unlink`, con tests)          |
-| H — reinicios concurrentes, EADDRINUSE | Tarea 12 (debounce + hot-swap, con test)               |
-| I — status codes como string           | Tareas 2 y 13                                          |
-| J — `yargs` declarado y sin usar       | Tarea 12 (`node:util.parseArgs`, cero dependencias)    |
-| K — `nodemon` en `dependencies`        | Tarea 1                                                |
-| L — cero tests                         | Todo el plan (TDD obligatorio)                         |
+| Defect | Where |
+| ------ | ----- |
+| A — state leaking between requests | Task 10 (`structuredClone`, with a regression test) |
+| B — `return` where `continue` belonged | Tasks 4 and 6 (per-key validation) |
+| C — hung request | Tasks 9 and 10 (every path ends in a response) |
+| D — collision between files | Task 7 |
+| E — `(generate:uid)` never implemented | **Outside Plan 1** — templating in a later plan |
+| F — watcher with a hardcoded path | Task 12 (comes from the config) |
+| G — only listened for `change` | Task 12 (`add`/`change`/`unlink`, with tests) |
+| H — concurrent restarts, EADDRINUSE | Task 12 (debounce + hot-swap, with a test) |
+| I — status codes as strings | Tasks 2 and 13 |
+| J — `yargs` declared and unused | Task 12 (`node:util.parseArgs`, zero dependencies) |
+| K — `nodemon` in `dependencies` | Task 1 |
+| L — no tests at all | The whole plan (TDD throughout) |
