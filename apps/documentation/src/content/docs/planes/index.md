@@ -10,7 +10,8 @@ and they run in order.
 
 **All six are done**, and the result went through an
 [adversarial audit](/planes/auditoria-v2/) in two rounds: 26 findings, all
-closed.
+closed. A further plan, built on top of the finished v2.0.0, is below the
+table.
 
 | #   | Plan | Delivers | Status |
 | --- | ---- | -------- | ------ |
@@ -20,6 +21,12 @@ closed.
 | 3   | [MCP server](/planes/2026-08-25-03-servidor-mcp/) | `packages/mcp` and `laqi mcp`: nine tools over stdio, including `import_openapi`. Closes three write-validation holes ADR-0006 warned about. **62 tests, 14 over real stdio.** | **Merged** — [PR #5](https://github.com/csdev19/laqi/pull/5) |
 | 4   | [Public URL](/planes/2026-08-25-04-url-publica/) | `laqi --share` via cloudflared. H1 closed by architecture: a second listener that mounts only the mocks is what the tunnel sees. Bearer token, restricted CORS, rate limiting. **Verified live.** | **Merged** — [PR #6](https://github.com/csdev19/laqi/pull/6) |
 | 5   | [Docs and packaging](/planes/2026-08-25-05-empaquetado/) | A tsdown build: one package with the panel inside it, verified from a real tarball on plain Node with bun off the PATH. Closes the SSE leak that had been deferred. | **Merged** — [PR #7](https://github.com/csdev19/laqi/pull/7) |
+
+A sixth plan, past v2.0.0 itself, adds the data-generation layer on top:
+
+| #   | Plan | Delivers | Status |
+| --- | ---- | -------- | ------ |
+| 6   | [Data generators](/planes/2026-08-27-06-data-generators/) | Types in 27 languages derived from live response data, and seeded mock data generated from a pasted TypeScript model — both from the panel, the control-plane API and MCP tools. | **In review** — no PR yet |
 
 ## Why this order
 
