@@ -101,4 +101,50 @@ describe('parseTypes', () => {
     expect(next.shape).toEqual({ kind: 'unknown' })
     expect(result.warnings.some((w) => w.includes('circular'))).toBe(true)
   })
+
+  // --- Fix round 1 -----------------------------------------------------
+
+  it('keeps the real type on a T | null union instead of collapsing to null', async () => {
+    const result = await parseTypes(
+      'export interface WithNull { a: string | null; b: number | null }',
+      'WithNull',
+    )
+    if (!result.ok) throw new Error(result.error)
+    expect(field(result.shape as never, 'a').shape).toEqual(primitive('string'))
+    expect(field(result.shape as never, 'b').shape).toEqual(primitive('number'))
+  })
+
+  it('treats a tuple as an array of its widened element type, not an object full of prototype members', async () => {
+    const result = await parseTypes('export interface Box { pair: [string, number] }', 'Box')
+    if (!result.ok) throw new Error(result.error)
+    const pair = field(result.shape as never, 'pair')
+    expect(pair.shape).toEqual({ kind: 'array', items: { kind: 'unknown' } })
+    expect(result.warnings.length).toBeLessThan(5)
+  })
+
+  it('keeps a single boolean literal as a literal value', async () => {
+    const result = await parseTypes('export interface Flag { active: true }', 'Flag')
+    if (!result.ok) throw new Error(result.error)
+    expect(field(result.shape as never, 'active').shape).toEqual({
+      kind: 'literals',
+      values: [true],
+    })
+  })
+
+  it('keeps plain boolean as primitive boolean, not a two-member literal union', async () => {
+    const result = await parseTypes('export interface Flag { active: boolean }', 'Flag')
+    if (!result.ok) throw new Error(result.error)
+    expect(field(result.shape as never, 'active').shape).toEqual(primitive('boolean'))
+  })
+
+  it('warns when named properties coexist with a string index signature that gets dropped', async () => {
+    const result = await parseTypes(
+      'export interface Loose { id: number; [key: string]: unknown }',
+      'Loose',
+    )
+    if (!result.ok) throw new Error(result.error)
+    const shape = result.shape as Shape & { kind: 'object' }
+    expect(shape.fields.map((f) => f.name)).toEqual(['id'])
+    expect(result.warnings.some((w) => w.includes('Loose') && w.includes('index'))).toBe(true)
+  })
 })

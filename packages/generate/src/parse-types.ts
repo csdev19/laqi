@@ -1,3 +1,4 @@
+import { mergeShapes } from './infer'
 import { primitive, type Shape, type ShapeField } from './shape'
 
 export type ParsedModel =
@@ -46,7 +47,9 @@ export async function parseTypes(source: string, typeName?: string): Promise<Par
   const file = program.getSourceFile(VIRTUAL_FILE)
   if (!file) return { ok: false, error: 'could not parse the pasted source' }
 
-  type Declaration = import('typescript').InterfaceDeclaration | import('typescript').TypeAliasDeclaration
+  type Declaration =
+    | import('typescript').InterfaceDeclaration
+    | import('typescript').TypeAliasDeclaration
   const declarations: Declaration[] = []
   for (const statement of file.statements) {
     if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) {
@@ -81,25 +84,47 @@ export async function parseTypes(source: string, typeName?: string): Promise<Par
     }
 
     if (type.flags & ts.TypeFlags.Any || type.flags & ts.TypeFlags.Unknown) {
-      warnings.push(`${path}: unresolvable type (likely an import that is not present) — generated as unknown`)
+      warnings.push(
+        `${path}: unresolvable type (likely an import that is not present) — generated as unknown`,
+      )
       return { kind: 'unknown' }
     }
     if (type.flags & ts.TypeFlags.Null) return primitive('null')
-    if (type.flags & ts.TypeFlags.BooleanLike) return primitive('boolean')
+    // The plain `boolean` type is internally the union `true | false`, but it
+    // carries this specific flag (distinct from the `BooleanLiteral` flag a
+    // lone `true`/`false` carries) so it can be recognised before the union
+    // branch below would otherwise shred it into a two-member literal union.
+    if (type.flags & ts.TypeFlags.Boolean) return primitive('boolean')
 
-    // Literals and unions come BEFORE the broad string/number flags:
-    // a string literal also carries StringLike.
+    // Literals and unions come BEFORE the broad string/number flags: a
+    // string literal also carries StringLike, a boolean literal also
+    // carries BooleanLike.
     if (type.isStringLiteral()) return { kind: 'literals', values: [type.value] }
     if (type.isNumberLiteral()) return { kind: 'literals', values: [type.value] }
+    if (type.flags & ts.TypeFlags.BooleanLiteral) {
+      return { kind: 'literals', values: [checker.typeToString(type) === 'true'] }
+    }
     if (type.isUnion()) {
-      const members = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined))
+      // `undefined` is how optional properties are modelled; `null` defers
+      // to the other side the same way `mergeShapes` treats it (there is
+      // nothing to generate from a null). The checker does not preserve
+      // source order once these are stripped.
+      const members = type.types.filter(
+        (t) => !(t.flags & ts.TypeFlags.Undefined) && !(t.flags & ts.TypeFlags.Null),
+      )
+      if (members.length === 0) return primitive('null')
       if (members.length === 1) return toShape(members[0]!, path, depth)
-      const literals: (string | number)[] = []
+      const literals: (string | number | boolean)[] = []
       for (const member of members) {
         if (member.isStringLiteral() || member.isNumberLiteral()) literals.push(member.value)
+        else if (member.flags & ts.TypeFlags.BooleanLiteral)
+          literals.push(checker.typeToString(member) === 'true')
       }
       if (literals.length === members.length) return { kind: 'literals', values: literals }
-      warnings.push(`${path}: non-literal union — simplified to its first member`)
+      warnings.push(
+        `${path}: mixed union — narrowed to ${checker.typeToString(members[0]!)} ` +
+          `(the checker does not preserve source order, so this is not necessarily the first member as written)`,
+      )
       return toShape(members[0]!, path, depth)
     }
 
@@ -107,9 +132,25 @@ export async function parseTypes(source: string, typeName?: string): Promise<Par
     if (type.flags & ts.TypeFlags.NumberLike) return primitive('number')
     if (type.symbol?.name === 'Date') return primitive('date')
 
+    // Tuples must be checked before the object branch: a tuple type also
+    // exposes `Array.prototype` members through `getProperties()`, which
+    // would otherwise be enumerated as object fields.
+    if (checker.isTupleType(type)) {
+      const elements = checker.getTypeArguments(type as import('typescript').TypeReference)
+      if (elements.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
+      warnings.push(`${path}: tuple type approximated as an array of its widened element type`)
+      const itemShapes = elements.map((element, index) =>
+        toShape(element, `${path}[${index}]`, depth + 1),
+      )
+      return { kind: 'array', items: itemShapes.reduce((a, b) => mergeShapes(a, b)) }
+    }
+
     if (checker.isArrayType(type)) {
       const [items] = checker.getTypeArguments(type as import('typescript').TypeReference)
-      return { kind: 'array', items: items ? toShape(items, `${path}[]`, depth + 1) : { kind: 'unknown' } }
+      return {
+        kind: 'array',
+        items: items ? toShape(items, `${path}[]`, depth + 1) : { kind: 'unknown' },
+      }
     }
 
     if (type.getCallSignatures().length > 0) {
@@ -122,13 +163,22 @@ export async function parseTypes(source: string, typeName?: string): Promise<Par
     if (stringIndex && properties.length === 0) {
       return { kind: 'record', values: toShape(stringIndex, `${path}{}`, depth + 1) }
     }
+    if (stringIndex && properties.length > 0) {
+      warnings.push(
+        `${path}: has both named properties and a string index signature — the index signature is not represented`,
+      )
+    }
 
     if (properties.length > 0 || type.flags & ts.TypeFlags.Object) {
       seen.add(type)
       const fields: ShapeField[] = properties.map((prop) => {
         const propType = checker.getTypeOfSymbolAtLocation(prop, file!)
         const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0
-        return { name: prop.name, shape: toShape(propType, `${path}.${prop.name}`, depth + 1), optional }
+        return {
+          name: prop.name,
+          shape: toShape(propType, `${path}.${prop.name}`, depth + 1),
+          optional,
+        }
       })
       seen.delete(type)
       return { kind: 'object', fields }
