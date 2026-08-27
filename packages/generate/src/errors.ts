@@ -9,3 +9,8 @@ export class ParseError extends Data.TaggedError('ParseError')<{
 export class GenerateError extends Data.TaggedError('GenerateError')<{
   readonly message: string
 }> {}
+
+/** Printing types failed — unknown language or quicktype itself failed. */
+export class PrintError extends Data.TaggedError('PrintError')<{
+  readonly message: string
+}> {}
