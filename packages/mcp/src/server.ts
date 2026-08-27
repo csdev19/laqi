@@ -23,6 +23,19 @@ function text(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] }
 }
 
+/**
+ * @laqi/generate's Effect-based facades (printTypes, generate) reject
+ * through Effect's FiberFailure, whose `name`/`toString()` carry a
+ * "(FiberFailure) SomeError" prefix — internal plumbing, not something a
+ * user should see. `.message` itself is already clean (Effect puts only the
+ * tagged error's own message there), so reading through it IS the
+ * unwrapping. One place for both get_types and generate_data to catch
+ * through, so neither has to know about FiberFailure on its own.
+ */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export function createMcpServer(options: { root: string; config: LaqiConfig }): McpServer {
   const project = new Project(options.root, options.config)
 
@@ -252,7 +265,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         })
         return { content: [{ type: 'text' as const, text: printed.code }] }
       } catch (error) {
-        return { isError: true, content: [{ type: 'text' as const, text: String(error) }] }
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
     },
   )
@@ -276,19 +289,29 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       const { generate, inferShape, parseTypes } = await import('@laqi/generate')
       const genOptions = { arrayLength, seed }
 
-      if (model !== undefined) {
-        const parsed = await parseTypes(model, typeName)
-        if (!parsed.ok) return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
-        const preview = await generate(parsed.shape, genOptions)
-        return text({ preview, warnings: parsed.warnings })
+      // Same shape as get_types just above: a malformed model or an
+      // unrepresentable shape (a depth-guard trip in inferShape, a
+      // generation-budget overrun in generate()) is a tool-input problem,
+      // not a crash. The MCP SDK does catch an escaped exception on its
+      // own, but only with a generic message — this keeps the reported
+      // error explicit and consistent with get_types.
+      try {
+        if (model !== undefined) {
+          const parsed = await parseTypes(model, typeName)
+          if (!parsed.ok) return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
+          const preview = await generate(parsed.shape, genOptions)
+          return text({ preview, warnings: parsed.warnings })
+        }
+        if (from !== undefined) {
+          const body = project.getResponseBody(from.endpointId, from.response)
+          if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+          const preview = await generate(inferShape(body.value ?? null), genOptions)
+          return text({ preview, warnings: [] })
+        }
+        return { isError: true, content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }] }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
-      if (from !== undefined) {
-        const body = project.getResponseBody(from.endpointId, from.response)
-        if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
-        const preview = await generate(inferShape(body.value ?? null), genOptions)
-        return text({ preview, warnings: [] })
-      }
-      return { isError: true, content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }] }
     },
   )
 

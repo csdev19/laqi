@@ -243,4 +243,43 @@ describe('laqi mcp over stdio', () => {
     })
     expect(result.isError).toBe(false)
   }, 30_000)
+
+  // Finding 5 (MCP twin): generate_data had no try/catch around its calls
+  // into @laqi/generate, unlike get_types right above it — a failure there
+  // escaped as an unhandled rejection instead of a clean tool error.
+
+  it('generate_data reports a genuine generation failure as a tool error, not a crash', async () => {
+    // string[][][][] at arrayLength 50 (the tool's max) blows the
+    // generation budget (50^4 = 6,250,000 leaf values) — reachable through
+    // the public tool.
+    const result = await call('generate_data', {
+      model: 'export interface Big { a: string[][][][] }',
+      arrayLength: 50,
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toMatch(/more than 100000 values/)
+  }, 30_000)
+
+  it('generate_data reports pathologically nested from: data as a tool error, not a crash', async () => {
+    let deep: unknown = 'leaf'
+    for (let i = 0; i < 2_000; i++) deep = { child: deep }
+    writeMocks({
+      'GET /deep': { default: 'ok', responses: { ok: { status: 200, body: deep } } },
+    })
+
+    const result = await call('generate_data', { from: { endpointId: 'GET /deep', response: 'ok' } })
+    expect(result.isError).toBe(true)
+    expect(result.text).toMatch(/nesting|depth/i)
+  }, 30_000)
+
+  // Finding 9 (Low): get_types leaked Effect's FiberFailure wrapper into
+  // user-visible text — the equivalent HTTP route already reads clean
+  // through error.message.
+
+  it('get_types reports an unknown language cleanly, without the Effect wrapper', async () => {
+    const result = await call('get_types', { endpointId: 'GET /users', lang: 'not-a-real-lang' })
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('unknown language')
+    expect(result.text).not.toContain('FiberFailure')
+  }, 30_000)
 })

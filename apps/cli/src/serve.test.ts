@@ -662,4 +662,49 @@ describe('generation through a live server', () => {
     expect(typeof preview[0]!.id).toBe('number')
     expect(typeof preview[0]!.name).toBe('string')
   }, 30_000)
+
+  // Finding 5: generateData had no try/catch around its calls into
+  // @laqi/generate, unlike its twin getTypes — any failure there escaped
+  // the callback and fell through to Hono's default handler as a bare
+  // 500 with no body. Both branches now mirror getTypes.
+
+  it('400s the from: branch with a real message on pathologically nested data, instead of a bare 500', async () => {
+    // Deep enough to clear the depth guard's MAX_DEPTH (500) with room to
+    // spare, but shallow enough that building/serialising the fixture
+    // itself (JSON.stringify in writeMocks) doesn't hit its own stack limit.
+    let deep: unknown = 'leaf'
+    for (let i = 0; i < 2_000; i++) deep = { child: deep }
+    writeMocks({ 'GET /deep': { default: 'ok', responses: { ok: { status: 200, body: deep } } } })
+    handle = await startServer({ root, config })
+
+    const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: { endpointId: 'GET /deep', response: 'ok' } }),
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toMatch(/nesting|depth/i)
+  }, 30_000)
+
+  it('400s the model branch with a real message on a genuine generation failure, instead of a bare 500', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    // string[][][] at arrayLength 100 blows the generation budget
+    // (100^3 = 1,000,000 leaf values) — a genuine @laqi/generate failure
+    // reachable through the public API, same amplification case as
+    // finding 2 in packages/generate.
+    const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'export interface Big { a: string[][][] }',
+        arrayLength: 100,
+      }),
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toMatch(/more than 100000 values/)
+  }, 30_000)
 })

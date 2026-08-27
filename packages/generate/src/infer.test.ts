@@ -75,6 +75,24 @@ describe('inferShape', () => {
   // still be total: a `tuple` can reach it from a hand-built Shape (e.g.
   // one that started life via parseTypes) being merged against JSON-derived
   // data, and it must not crash.
+  describe('depth guard', () => {
+    it('throws a clean, explained error on pathological nesting instead of blowing the stack', () => {
+      let value: unknown = 'leaf'
+      for (let i = 0; i < 50_000; i++) value = { child: value }
+
+      let caught: unknown
+      try {
+        inferShape(value)
+      } catch (error) {
+        caught = error
+      }
+
+      expect(caught).toBeInstanceOf(Error)
+      expect(caught).not.toBeInstanceOf(RangeError)
+      expect((caught as Error).message).toMatch(/nesting|depth/i)
+    })
+  })
+
   describe('mergeShapes with a tuple', () => {
     it('is total: never throws when one or both sides are a tuple', () => {
       const tuple = { kind: 'tuple' as const, items: [primitive('string'), primitive('number')] }

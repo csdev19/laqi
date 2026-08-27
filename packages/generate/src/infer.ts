@@ -4,10 +4,35 @@ import { primitive, type Shape, type ShapeField } from './shape'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/
 
 /**
+ * Recursion ceiling for `inferShape`, mirroring `parse-types.ts`'s own
+ * `MAX_DEPTH`. 500 is far past any realistic API response body (even a
+ * heavily nested GraphQL payload rarely passes a few dozen levels) but well
+ * short of the several-thousand-level nesting that actually overflows the
+ * call stack — so this only ever fires on pathological/malicious input.
+ *
+ * Unlike `parse-types.ts`'s `toShape`, `inferShape` is a plain synchronous
+ * function with no warnings side-channel to degrade into — so hitting the
+ * ceiling throws rather than returning `unknown` with a pushed warning.
+ * Every call site is already behind a try/catch (directly, or via a
+ * `printTypes`/`generate` call further down the same try), so the throw
+ * lands as a clean, user-facing message instead of a raw stack overflow.
+ */
+const MAX_DEPTH = 500
+
+class InferDepthError extends Error {
+  constructor() {
+    super(`inferShape: nesting deeper than ${MAX_DEPTH} levels — refusing to infer (not a realistic API response)`)
+    this.name = 'InferDepthError'
+  }
+}
+
+/**
  * JSON → Shape. Small on purpose: this powers "give me the type of this
  * response" and "regenerate from the shape the data already has".
  */
-export function inferShape(value: unknown): Shape {
+export function inferShape(value: unknown, depth = 0): Shape {
+  if (depth > MAX_DEPTH) throw new InferDepthError()
+
   if (value === null) return primitive('null')
 
   switch (typeof value) {
@@ -31,11 +56,11 @@ export function inferShape(value: unknown): Shape {
     // ever. Tuple shapes only ever come from parseTypes reading an actual
     // TS tuple type.
     if (value.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
-    return { kind: 'array', items: value.map(inferShape).reduce(mergeShapes) }
+    return { kind: 'array', items: value.map((item) => inferShape(item, depth + 1)).reduce(mergeShapes) }
   }
 
   const fields: ShapeField[] = Object.entries(value as Record<string, unknown>).map(
-    ([name, field]) => ({ name, shape: inferShape(field), optional: false }),
+    ([name, field]) => ({ name, shape: inferShape(field, depth + 1), optional: false }),
   )
   return { kind: 'object', fields }
 }
