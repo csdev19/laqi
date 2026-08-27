@@ -1,0 +1,14 @@
+{
+  "name": "@laqi/generate",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
+  "dependencies": {
+    "@faker-js/faker": "^10.6.0",
+    "quicktype-core": "^26.0.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": { "@types/node": "^26.2.0" },
+  "scripts": { "check-types": "tsc --noEmit -p ." }
+}
