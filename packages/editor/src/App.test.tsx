@@ -30,6 +30,9 @@ vi.mock('./api', async () => {
       createEndpoint,
       updateEndpoint,
       deleteEndpoint,
+      getLanguages: () => Promise.resolve([{ name: 'typescript', displayName: 'TypeScript' }]),
+      getTypes: () => Promise.resolve({ code: '', language: 'typescript' }),
+      generateData: () => Promise.resolve({ preview: null, warnings: [] }),
     },
   }
 })

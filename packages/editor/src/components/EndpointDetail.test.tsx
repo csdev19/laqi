@@ -1,8 +1,27 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Endpoint } from '../types'
 import { EndpointDetail } from './EndpointDetail'
+
+const { getLanguages, getTypes, generateData } = vi.hoisted(() => ({
+  getLanguages: vi.fn(),
+  getTypes: vi.fn(),
+  generateData: vi.fn(),
+}))
+
+vi.mock('../api', () => ({
+  api: { getLanguages, getTypes, generateData },
+}))
+
+beforeEach(() => {
+  getLanguages.mockResolvedValue([
+    { name: 'typescript', displayName: 'TypeScript' },
+    { name: 'typescript-zod', displayName: 'TypeScript + Zod' },
+  ])
+  getTypes.mockResolvedValue({ code: 'export interface Users { id: number }', language: 'typescript' })
+  generateData.mockResolvedValue({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+})
 
 function endpoint(overrides: Partial<Endpoint> = {}): Endpoint {
   return {
@@ -36,7 +55,10 @@ function renderDetail(value: Endpoint) {
 
 const body = () => screen.getByLabelText('response body') as HTMLTextAreaElement
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 describe('the draft survives an unrelated reload', () => {
   it('keeps what you were typing when the endpoint object is replaced but unchanged', () => {
@@ -79,5 +101,26 @@ describe('the draft survives an unrelated reload', () => {
     rerender(endpoint({ id: 'GET /orders', path: '/orders', responses: { ok: { status: 200, body: {} } }, default: 'ok' }))
 
     await waitFor(() => expect(body().value).not.toContain('mine'))
+  })
+})
+
+describe('generated types and data', () => {
+  it('copies the types for the selected language', async () => {
+    renderDetail(endpoint())
+    const writeText = vi.fn()
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+
+    fireEvent.click(await screen.findByRole('button', { name: /copy types/i }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('interface')))
+  })
+
+  it('regenerate fills the body draft with the preview and lets Save do the writing', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    await waitFor(() => expect(body().value).toContain('"Fresh"'))
+    // No write happened: regenerate only edits the draft. Saving is the
+    // existing Save button — zero new write paths, verbatim from the spec.
+    expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { EndpointDefinition } from '../api'
+import { api, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
 import { liveResponse } from '../resolve'
@@ -41,6 +41,16 @@ export function EndpointDetail(props: {
   const { endpoint, state, scenarios } = props
   const [draft, setDraft] = useState<Draft>(() => toDraft(endpoint))
   const [selected, setSelected] = useState<string>(endpoint.default)
+  const [typesLang, setTypesLang] = useState('typescript')
+  const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
+    { name: 'typescript', displayName: 'TypeScript' },
+  ])
+
+  // Sin esta lista el panel sigue andando con el default de TypeScript: no
+  // vale la pena bloquear la pantalla por un fetch que puede fallar.
+  useEffect(() => {
+    api.getLanguages().then(setLanguages).catch(() => {})
+  }, [])
 
   // El watcher puede recargar el endpoint bajo los pies (alguien editó el
   // archivo a mano). Rearmar el draft desde la definición nueva.
@@ -176,6 +186,23 @@ export function EndpointDetail(props: {
                 type="button"
                 className="btn"
                 onClick={() => {
+                  void api
+                    .generateData({ from: { endpointId: endpoint.id, response: selected } })
+                    .then(({ preview }) =>
+                      setDraft((previous) => ({
+                        ...previous,
+                        bodies: { ...previous.bodies, [selected]: JSON.stringify(preview, null, 2) },
+                      })),
+                    )
+                    .catch(() => {})
+                }}
+              >
+                Regenerate
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
                   const next = window.prompt('Rename response', selected)
                   if (!next || next === selected || next in draft.responses) return
                   setDraft((previous) => renameResponse(previous, selected, next))
@@ -259,6 +286,35 @@ export function EndpointDetail(props: {
                 {/* Enseña la capa header mostrándola, que es como se prueba
                     una respuesta sin tocar la app. */}
                 <pre className="meta-curl">{curlFor(endpoint, selected, props.address)}</pre>
+              </div>
+
+              <div className="meta-field">
+                <span className="micro">types</span>
+                <div className="detail-actions">
+                  <select
+                    className="meta-input"
+                    aria-label="types language"
+                    value={typesLang}
+                    onChange={(event) => setTypesLang(event.target.value)}
+                  >
+                    {languages.map((language) => (
+                      <option key={language.name} value={language.name}>
+                        {language.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      void api
+                        .getTypes(endpoint.id, { response: selected, lang: typesLang })
+                        .then(({ code }) => navigator.clipboard?.writeText(code))
+                    }}
+                  >
+                    Copy types
+                  </button>
+                </div>
               </div>
 
               <div className="meta-field">

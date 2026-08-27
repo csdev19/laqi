@@ -108,6 +108,30 @@ describe('api errors', () => {
   })
 })
 
+describe('generate reads/writes', () => {
+  it('fetches types with response and lang in the query', async () => {
+    const calls = mockFetch(() => json({ code: 'interface X {}', language: 'typescript-zod' }))
+    await api.getTypes('GET /users', { response: 'ok', lang: 'typescript-zod' })
+    expect(calls[0]?.url).toBe('/__laqi/api/endpoints/GET%20%2Fusers/types?response=ok&lang=typescript-zod')
+  })
+
+  it('omits absent query params from the types URL', async () => {
+    const calls = mockFetch(() => json({ code: '', language: 'typescript' }))
+    await api.getTypes('GET /users', {})
+    expect(calls[0]?.url).toBe('/__laqi/api/endpoints/GET%20%2Fusers/types')
+  })
+
+  it('POSTs generate/data with the body verbatim', async () => {
+    const calls = mockFetch(() => json({ preview: [], warnings: [] }))
+    await api.generateData({ from: { endpointId: 'GET /users', response: 'ok' }, seed: 7 })
+    expect(calls[0]?.init?.method).toBe('POST')
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
+      from: { endpointId: 'GET /users', response: 'ok' },
+      seed: 7,
+    })
+  })
+})
+
 describe('EVENTS_URL', () => {
   it('points at the SSE route under the same prefix', () => {
     expect(EVENTS_URL).toBe('/__laqi/events')
