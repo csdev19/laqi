@@ -60,8 +60,8 @@ describe('the published package', () => {
     expect(cli.bin).toEqual({ laqi: './dist/index.mjs' })
   })
 
-  it('ships only what the binary needs', () => {
-    expect(cli.files).toEqual(['dist', 'README.md'])
+  it('ships only what the binary needs, plus the licence', () => {
+    expect(cli.files).toEqual(['dist', 'README.md', 'LICENSE.md'])
   })
 
   it('declares the Node floor the build targets', () => {
@@ -110,5 +110,36 @@ describe('what gets published', () => {
   it('is the only workspace that is publishable', () => {
     const publishable = WORKSPACES.filter((path) => readJson(...path).private !== true)
     expect(publishable).toEqual([['apps', 'cli', 'package.json']])
+  })
+})
+
+describe('the licence', () => {
+  const licence = readFileSync(join(ROOT, 'LICENSE.md'), 'utf8')
+
+  it('agrees with what package.json declares', () => {
+    // Antes divergían: LICENSE.md decía ISC y package.json MIT, así que el
+    // paquete publicaba metadata que contradecía su propio archivo.
+    expect(cli.license).toBe('MIT')
+    expect(licence).toContain('MIT License')
+  })
+
+  it('is a real MIT text, not just a title', () => {
+    // Las dos cláusulas que hacen a MIT lo que es: el permiso amplio y la
+    // condición de conservar el aviso.
+    expect(licence).toContain('Permission is hereby granted, free of charge')
+    expect(licence).toContain(
+      'The above copyright notice and this permission notice shall be included in all copies',
+    )
+    expect(licence).toContain('WITHOUT WARRANTY OF ANY KIND')
+  })
+
+  it('keeps the copyright holder', () => {
+    expect(licence).toMatch(/Copyright \(c\) \d{4} Cristian Sotomayor/)
+  })
+
+  it('ships inside the published package', () => {
+    // MIT exige que el aviso esté en toda copia. Sin esto el tarball no
+    // llevaba ninguna licencia, y el paquete pedía crédito sin decir de quién.
+    expect(cli.files).toContain('LICENSE.md')
   })
 })
