@@ -138,8 +138,8 @@ describe('generated types and data', () => {
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
     await waitFor(() => expect(generateData).toHaveBeenCalled())
 
-    // El watcher recarga con datos nuevos mientras la promesa de Regenerate
-    // sigue pendiente: la recarga tiene que ganar.
+    // The watcher reloads with fresh data while the Regenerate promise is
+    // still pending: the reload has to win.
     const reloaded = endpoint({
       responses: { ok: { status: 200, body: { theirs: 2 } }, boom: { status: 500 } },
     })

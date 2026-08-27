@@ -49,12 +49,12 @@ export function EndpointDetail(props: {
   const [actionError, setActionError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
 
-  // Cada vez que el fingerprint cambia (ver más abajo) esto se incrementa.
-  // Regenerate captura el valor vigente al arrancar y lo compara al
-  // resolver: si ya no coincide, la recarga ganó de por medio y la
-  // respuesta tardía se descarta en vez de pisar el draft fresco. No
-  // depende de que el componente se desmonte — la recarga rerenderea la
-  // misma instancia.
+  // This bumps every time the fingerprint changes (see below). Regenerate
+  // captures the current value when it starts and compares it on resolve:
+  // if they no longer match, a reload won in the meantime and the late
+  // response is discarded rather than overwriting the fresh draft. It does
+  // not depend on the component unmounting — a reload rerenders the same
+  // instance.
   const epochRef = useRef(0)
 
   // Without this list the panel keeps working with the TypeScript default:
@@ -207,9 +207,9 @@ export function EndpointDetail(props: {
                   void api
                     .generateData({ from: { endpointId: endpoint.id, response: selected } })
                     .then(({ preview, warnings: generationWarnings }) => {
-                      // Descartar si el endpoint se recargó mientras la
-                      // llamada estaba en vuelo: la recarga ya rearmó el
-                      // draft y esta respuesta ya no le pertenece.
+                      // Discard if the endpoint reloaded while the call was
+                      // in flight: the reload already rebuilt the draft and
+                      // this response no longer belongs to it.
                       if (epochRef.current !== epoch) return
                       setDraft((previous) => ({
                         ...previous,

@@ -164,9 +164,9 @@ export function App() {
       setWarnings([])
       try {
         const { preview, warnings: generationWarnings } = await api.generateData({ model: input.model })
-        // `create()` cierra el CreateEndpointRow y abre el detalle del
-        // endpoint nuevo — el estado de warnings vive acá, no ahí, para
-        // que sobreviva esa transición en vez de desmontarse con la fila.
+        // `create()` closes the CreateEndpointRow and opens the new
+        // endpoint's detail — the warnings state lives here, not there, so
+        // it survives that transition instead of unmounting with the row.
         setWarnings(generationWarnings)
         await create({
           method: input.method,

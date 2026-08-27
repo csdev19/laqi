@@ -26,7 +26,7 @@ A sixth plan, past v2.0.0 itself, adds the data-generation layer on top:
 
 | #   | Plan | Delivers | Status |
 | --- | ---- | -------- | ------ |
-| 6   | [Data generators](/planes/2026-08-27-06-data-generators/) | Types in 27 languages derived from live response data, and seeded mock data generated from a pasted TypeScript model — both from the panel, the control-plane API and MCP tools. | **In review** — no PR yet |
+| 6   | [Data generators](/planes/2026-08-27-06-data-generators/) | Types in 27 languages derived from live response data, and seeded mock data generated from a pasted TypeScript model — both from the panel, the control-plane API and MCP tools. Audited: [audit and backlog](/planes/auditoria-plan-06/) — 11 findings, the five High ones fixed. | **In review** — [PR #16](https://github.com/csdev19/laqi/pull/16) |
 
 ## Why this order
 
