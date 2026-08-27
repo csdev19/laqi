@@ -46,8 +46,8 @@ export function EndpointDetail(props: {
     { name: 'typescript', displayName: 'TypeScript' },
   ])
 
-  // Sin esta lista el panel sigue andando con el default de TypeScript: no
-  // vale la pena bloquear la pantalla por un fetch que puede fallar.
+  // Without this list the panel keeps working with the TypeScript default:
+  // not worth blocking the screen on a fetch that can fail.
   useEffect(() => {
     api.getLanguages().then(setLanguages).catch(() => {})
   }, [])

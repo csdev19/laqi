@@ -30,13 +30,13 @@ export type GenerateRequest =
   | { model: string; typeName?: string; arrayLength?: number; seed?: number }
   | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
 
-// Dos schemas separados en vez de un z.union: un union emite un único
-// invalid_union con el mensaje genérico "Invalid input" en el nivel de
-// arriba, y el detalle por rama (qué campo falta, qué tipo tenía) queda
-// enterrado en errores anidados que `issues.map(i => i.message)` nunca
-// alcanza. Parseando contra la rama correcta una vez que ya sabemos cuál
-// es (por la clave discriminante `model`/`from`) los issues salen planos
-// y con el path correcto.
+// Two separate schemas instead of a z.union: a union emits a single
+// invalid_union with the generic "Invalid input" message at the top level,
+// and the per-branch detail (which field is missing, what type it had)
+// stays buried in nested errors that `issues.map(i => i.message)` never
+// reaches. Parsing against the right branch once we already know which one
+// it is (via the `model`/`from` discriminant key) yields flat issues with
+// the correct path.
 const ModelVariantSchema = z.object({
   model: z.string().min(1),
   typeName: z.string().optional(),
@@ -50,7 +50,7 @@ const FromVariantSchema = z.object({
   seed: z.number().int().optional(),
 })
 
-/** Sólo para armar un mensaje legible con el path del campo que falló. */
+/** Only builds a readable message carrying the path of the failed field. */
 function issuesToMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
   return issues.map((i) => [i.path.join('.'), i.message].filter(Boolean).join(': ')).join('; ')
 }
@@ -271,7 +271,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   app.get('/api/generate/languages', async (c) => c.json(await runtime.getLanguages()))
 
   app.get('/api/endpoints/:id/types', async (c) => {
-    const id = c.req.param('id') // Hono ya lo decodificó — sin decode extra.
+    const id = c.req.param('id') // Hono already decoded the param — no extra decode.
     const result = await runtime.getTypes(id, {
       response: c.req.query('response'),
       lang: c.req.query('lang'),
@@ -290,13 +290,13 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
     }
 
-    // Decidimos la rama por la clave discriminante ANTES de parsear, y
-    // validamos sólo contra el schema de esa rama. Si le pasáramos las dos
-    // a un z.union, el único issue que sale es el invalid_union genérico
-    // ("Invalid input") — el detalle específico de la rama (qué campo
-    // falta, qué tipo tenía) queda enterrado adentro y nunca llega al
-    // usuario. `model` presente (con cualquier tipo) gana sobre `from`,
-    // igual que antes.
+    // We pick the branch by the discriminant key BEFORE parsing, and
+    // validate only against that branch's schema. If we handed both to a
+    // z.union, the only issue that comes out is the generic invalid_union
+    // ("Invalid input") — the branch-specific detail (which field is
+    // missing, what type it had) stays buried inside and never reaches the
+    // user. A present `model` (of any type) wins over `from`, same as
+    // before.
     const body = raw as Record<string, unknown>
     const hasModel = typeof body === 'object' && body !== null && 'model' in body
     const hasFrom = typeof body === 'object' && body !== null && 'from' in body
