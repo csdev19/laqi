@@ -1,16 +1,6 @@
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  realpathSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
+import { withFileLock, writeFileAtomic } from './atomic-file'
 import {
   EndpointSchema,
   formatEndpointId,
@@ -78,98 +68,13 @@ function readFileObject(fullPath: string): { ok: true; value: Record<string, unk
 }
 
 function writeFileObject(fullPath: string, contents: Record<string, unknown>): void {
-  mkdirSync(dirname(fullPath), { recursive: true })
-  // Mismo patrón que state-store.ts: escribe a un temporal y renombra
-  // encima — chokidar está mirando fullPath activamente, y un rename en el
-  // mismo filesystem es atómico, así que un lector nunca ve un archivo a
-  // medio escribir.
-  //
-  // El nombre del temporal es único por escritura. Con uno fijo, dos
-  // procesos escribiendo el mismo archivo —y ahora hay dos: `laqi mcp` y el
-  // control plane del CLI, los dos sobre Project— se pisaban el temporal y
-  // uno reventaba con ENOENT al renombrar algo que el otro ya se había
-  // llevado.
-  const tmpPath = `${fullPath}.${process.pid.toString(36)}.${(tmpCounter++).toString(36)}.tmp`
-  try {
-    writeFileSync(tmpPath, `${JSON.stringify(contents, null, 2)}\n`, 'utf8')
-    renameSync(tmpPath, fullPath)
-  } catch (error) {
-    // No dejar basura si falla a mitad de camino.
-    try {
-      rmSync(tmpPath, { force: true })
-    } catch {
-      // Si tampoco se puede borrar, el error original es el que importa.
-    }
-    throw error
-  }
+  writeFileAtomic(fullPath, `${JSON.stringify(contents, null, 2)}\n`)
 }
 
-let tmpCounter = 0
-
-/**
- * Serializa el ciclo leer-modificar-escribir contra otros PROCESOS.
- *
- * Dentro de un proceso no hace falta: todo esto es síncrono. Pero esta
- * versión conecta dos escritores independientes al mismo archivo (el
- * servidor MCP y el control plane del CLI), y sin esto dos `create`
- * simultáneos leen el mismo estado y el segundo pisa al primero — medido:
- * de 80 endpoints creados quedaban 48.
- *
- * Es un lock de archivo con `wx`, que falla si ya existe. Un lock viejo
- * (proceso muerto a mitad) se descarta por antigüedad en vez de colgar a
- * todo el mundo para siempre.
- */
-function withFileLock<T>(fullPath: string, work: () => T): T {
-  const lockPath = `${fullPath}.lock`
-  const deadline = Date.now() + LOCK_TIMEOUT_MS
-  let handle: number | undefined
-
-  while (handle === undefined) {
-    try {
-      mkdirSync(dirname(lockPath), { recursive: true })
-      handle = openSync(lockPath, 'wx')
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-
-      if (isStale(lockPath)) {
-        rmSync(lockPath, { force: true })
-        continue
-      }
-
-      if (Date.now() > deadline) {
-        // Seguir sin el lock es peor que fallar: se perderían escrituras en
-        // silencio, que es justo lo que esto viene a evitar.
-        throw new Error(`timed out waiting for the lock on ${fullPath}`, { cause: error })
-      }
-
-      sleepBriefly()
-    }
-  }
-
-  try {
-    return work()
-  } finally {
-    closeSync(handle)
-    rmSync(lockPath, { force: true })
-  }
-}
-
-const LOCK_TIMEOUT_MS = 5_000
-const LOCK_STALE_MS = 10_000
-
-function isStale(lockPath: string): boolean {
-  try {
-    return Date.now() - statSync(lockPath).mtimeMs > LOCK_STALE_MS
-  } catch {
-    // Desapareció mientras mirábamos: que el próximo intento lo tome.
-    return false
-  }
-}
-
-/** Espera sin async: todo el camino de escritura es síncrono a propósito. */
-function sleepBriefly(): void {
-  const buffer = new Int32Array(new SharedArrayBuffer(4))
-  Atomics.wait(buffer, 0, 0, 5)
+/** Adapta el resultado del lock al `WriteResult` que expone este módulo. */
+function locked(fullPath: string, work: () => WriteResult): WriteResult {
+  const outcome = withFileLock(fullPath, work)
+  return outcome.ok ? outcome.value : { ok: false, error: outcome.error }
 }
 
 /**
@@ -210,7 +115,7 @@ export function updateEndpointInFile(params: {
 
   // Leer, comprobar y escribir bajo el lock: entre el read y el write puede
   // haber otro proceso haciendo lo mismo sobre el mismo archivo.
-  return withFileLock(fullPath, () => {
+  return locked(fullPath, () => {
     const read = readFileObject(fullPath)
     if (!read.ok) return read
 
@@ -241,7 +146,7 @@ export function createEndpointInFile(params: {
     return { ok: false, error: validated.error.issues.map((i) => i.message).join('; ') }
   }
 
-  return withFileLock(fullPath, () => {
+  return locked(fullPath, () => {
     // El archivo puede no existir todavía (primer endpoint creado desde el panel).
     const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
     if (!read.ok) return read
@@ -285,7 +190,7 @@ export function createEndpointsInFile(params: {
     validated.push({ id: entry.id, definition: parsed.data })
   }
 
-  return withFileLock(fullPath, () => {
+  return locked(fullPath, () => {
     const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
     if (!read.ok) return read
 
@@ -308,7 +213,7 @@ export function deleteEndpointFromFile(params: { root: string; file: string; id:
   if (!inside.ok) return inside
   const fullPath = inside.path
 
-  return withFileLock(fullPath, () => {
+  return locked(fullPath, () => {
     const read = readFileObject(fullPath)
     if (!read.ok) return read
 
