@@ -1,3 +1,5 @@
+import { Effect } from 'effect'
+import { GenerateError } from './errors'
 import type { PrimitiveType, Shape } from './shape'
 
 /** Fixed reference date: with a seed, output must be byte-reproducible. */
@@ -73,7 +75,8 @@ const STRING_RULES: FieldRule[] = [
   },
   {
     name: 'person',
-    when: (n) => ['name', 'firstname', 'lastname', 'fullname', 'displayname'].includes(normalize(n)),
+    when: (n) =>
+      ['name', 'firstname', 'lastname', 'fullname', 'displayname'].includes(normalize(n)),
     use: (faker) => faker.person.fullName(),
   },
   {
@@ -144,7 +147,11 @@ const STRING_RULES: FieldRule[] = [
  * normalized field name, so `id` and `_id` are treated as the same field and
  * share one sequence.
  */
-function numberRules(counters: Map<string, number>, fieldName: string, type: 'number' | 'integer'): FieldRule[] {
+function numberRules(
+  counters: Map<string, number>,
+  fieldName: string,
+  type: 'number' | 'integer',
+): FieldRule[] {
   return [
     {
       name: 'id',
@@ -180,7 +187,9 @@ function numberRules(counters: Map<string, number>, fieldName: string, type: 'nu
       name: 'number',
       when: () => true,
       use: (faker) =>
-        type === 'integer' ? faker.number.int({ min: 0, max: 1000 }) : faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
+        type === 'integer'
+          ? faker.number.int({ min: 0, max: 1000 })
+          : faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
     },
   ]
 }
@@ -203,53 +212,71 @@ export function ruleFor(fieldName: string, type: 'string' | 'number' | 'integer'
  * date, `price` gets a decimal. `id` fields are sequential per field name
  * per generate() call so lists look stable.
  */
+export const generateEffect = (
+  shape: Shape,
+  options: { seed?: number; arrayLength?: number } = {},
+): Effect.Effect<unknown, GenerateError> =>
+  Effect.gen(function* () {
+    const { Faker, en } = yield* Effect.tryPromise({
+      try: () => import('@faker-js/faker'),
+      catch: (e) => new GenerateError({ message: String(e) }),
+    })
+    const faker = new Faker({ locale: [en] })
+    if (options.seed !== undefined) {
+      faker.seed(options.seed)
+      faker.setDefaultRefDate(REF_DATE)
+    }
+
+    const clampedArrayLength = Math.max(
+      1,
+      Math.min(options.arrayLength ?? DEFAULT_ARRAY_LENGTH, 1000),
+    )
+    const idCounters = new Map<string, number>()
+
+    function valueFor(shape: Shape, fieldName: string): unknown {
+      switch (shape.kind) {
+        case 'object':
+          return Object.fromEntries(shape.fields.map((f) => [f.name, valueFor(f.shape, f.name)]))
+        case 'array':
+          return Array.from({ length: clampedArrayLength }, () => valueFor(shape.items, fieldName))
+        case 'record':
+          return Object.fromEntries(
+            Array.from({ length: 2 }, () => [faker.lorem.word(), valueFor(shape.values, '')]),
+          )
+        case 'literals':
+          return faker.helpers.arrayElement(shape.values)
+        case 'unknown':
+          return null
+        case 'primitive':
+          return primitiveFor(shape.type, fieldName)
+      }
+    }
+
+    function primitiveFor(type: PrimitiveType, fieldName: string): unknown {
+      if (type === 'null') return null
+      if (type === 'boolean') return faker.datatype.boolean()
+      if (type === 'date') return faker.date.recent({ days: 90 }).toISOString()
+
+      if (type === 'integer' || type === 'number') {
+        const rules = numberRules(idCounters, fieldName, type)
+        const rule = rules.find((r) => r.when(fieldName))!
+        return rule.use(faker)
+      }
+
+      const rule = STRING_RULES.find((r) => r.when(fieldName))!
+      return rule.use(faker)
+    }
+
+    return valueFor(shape, '')
+  })
+
+/**
+ * Promise facade preserving today's exact contract: resolves with plain
+ * JSON-serialisable data, rejects on failure (e.g. faker failing to load).
+ */
 export async function generate(
   shape: Shape,
   options: { seed?: number; arrayLength?: number } = {},
 ): Promise<unknown> {
-  const { Faker, en } = await import('@faker-js/faker')
-  const faker = new Faker({ locale: [en] })
-  if (options.seed !== undefined) {
-    faker.seed(options.seed)
-    faker.setDefaultRefDate(REF_DATE)
-  }
-
-  const clampedArrayLength = Math.max(1, Math.min(options.arrayLength ?? DEFAULT_ARRAY_LENGTH, 1000))
-  const idCounters = new Map<string, number>()
-
-  function valueFor(shape: Shape, fieldName: string): unknown {
-    switch (shape.kind) {
-      case 'object':
-        return Object.fromEntries(shape.fields.map((f) => [f.name, valueFor(f.shape, f.name)]))
-      case 'array':
-        return Array.from({ length: clampedArrayLength }, () => valueFor(shape.items, fieldName))
-      case 'record':
-        return Object.fromEntries(
-          Array.from({ length: 2 }, () => [faker.lorem.word(), valueFor(shape.values, '')]),
-        )
-      case 'literals':
-        return faker.helpers.arrayElement(shape.values)
-      case 'unknown':
-        return null
-      case 'primitive':
-        return primitiveFor(shape.type, fieldName)
-    }
-  }
-
-  function primitiveFor(type: PrimitiveType, fieldName: string): unknown {
-    if (type === 'null') return null
-    if (type === 'boolean') return faker.datatype.boolean()
-    if (type === 'date') return faker.date.recent({ days: 90 }).toISOString()
-
-    if (type === 'integer' || type === 'number') {
-      const rules = numberRules(idCounters, fieldName, type)
-      const rule = rules.find((r) => r.when(fieldName))!
-      return rule.use(faker)
-    }
-
-    const rule = STRING_RULES.find((r) => r.when(fieldName))!
-    return rule.use(faker)
-  }
-
-  return valueFor(shape, '')
+  return Effect.runPromise(generateEffect(shape, options))
 }

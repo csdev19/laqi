@@ -6,6 +6,7 @@
   "exports": { ".": "./src/index.ts", "./package.json": "./package.json" },
   "dependencies": {
     "@faker-js/faker": "^10.6.0",
+    "effect": "^3.22.1",
     "quicktype-core": "^26.0.0",
     "typescript": "^5.9.3"
   },
