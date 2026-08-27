@@ -15,6 +15,7 @@ const WORKSPACES: string[][] = [
   ['packages', 'config', 'package.json'],
   ['packages', 'core', 'package.json'],
   ['packages', 'editor', 'package.json'],
+  ['packages', 'generate', 'package.json'],
   ['packages', 'mcp', 'package.json'],
   ['packages', 'schema', 'package.json'],
   ['packages', 'server', 'package.json'],
@@ -81,9 +82,13 @@ describe('install weight', () => {
 
   it('keeps the runtime dependency list small on purpose', () => {
     expect(Object.keys(dependencies).sort()).toEqual([
+      '@faker-js/faker',
       '@hono/node-server',
       'chokidar',
+      'effect',
       'hono',
+      'quicktype-core',
+      'typescript',
       'zod',
     ])
   })
@@ -101,7 +106,7 @@ describe('what gets published', () => {
   it('keeps every internal package unpublishable', () => {
     // Van bundleados dentro del binario. Sin `private`, un `npm publish`
     // desde su carpeta intentaría crear el scope @laqi, que no existe.
-    for (const workspace of ['core', 'mcp', 'schema', 'server', 'editor', 'config']) {
+    for (const workspace of ['core', 'mcp', 'schema', 'server', 'editor', 'config', 'generate']) {
       const pkg = readJson('packages', workspace, 'package.json')
       expect(pkg.private, `packages/${workspace} must be private`).toBe(true)
     }

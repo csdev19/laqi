@@ -177,12 +177,62 @@ export async function startServer(options: {
         return { ok: true }
       },
       subscribe: (listener) => bus.subscribe(listener),
-      // Placeholders — la implementación real (contra @laqi/generate) llega
-      // en la Tarea 7. Esto sólo mantiene el contrato de ControlPlaneRuntime
-      // completo mientras tanto.
-      getLanguages: async () => [],
-      getTypes: async () => ({ ok: false, error: 'not implemented yet', code: 'not-found' }),
-      generateData: async () => ({ ok: false, error: 'not implemented yet', code: 'invalid' }),
+      getLanguages: async () => {
+        const { supportedLanguages } = await import('@laqi/generate')
+        return supportedLanguages()
+      },
+      getTypes: async (id, typesOptions) => {
+        const endpoint = runtime.table.byId.get(id)
+        if (!endpoint) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}`, code: 'not-found' }
+
+        const responseName = typesOptions.response ?? endpoint.default
+        const response = endpoint.responses[responseName]
+        if (!response) {
+          return {
+            ok: false,
+            error: `${JSON.stringify(responseName)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+            code: 'not-found',
+          }
+        }
+
+        const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+        try {
+          // Types are a VIEW of the live data — never persisted, never stale.
+          const shape = inferShape(response.body ?? null)
+          const printed = await printTypes(shape, { typeName: typeNameFor(id), lang: typesOptions.lang })
+          return { ok: true, ...printed }
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error), code: 'invalid' }
+        }
+      },
+      generateData: async (input) => {
+        const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+        const generateOptions = { seed: input.seed, arrayLength: input.arrayLength }
+
+        if ('model' in input) {
+          const parsed = await parseTypes(input.model, input.typeName)
+          if (!parsed.ok) return { ok: false, error: parsed.error, code: 'invalid' }
+          const preview = await generate(parsed.shape, generateOptions)
+          return { ok: true, preview, warnings: parsed.warnings }
+        }
+
+        const endpoint = runtime.table.byId.get(input.from.endpointId)
+        if (!endpoint) {
+          return { ok: false, error: `no endpoint with id ${JSON.stringify(input.from.endpointId)}`, code: 'not-found' }
+        }
+        const response = endpoint.responses[input.from.response]
+        if (!response) {
+          return {
+            ok: false,
+            error: `${JSON.stringify(input.from.response)} is not declared on ${input.from.endpointId}`,
+            code: 'not-found',
+          }
+        }
+        // Regenerate re-infers from the data the response already has: the
+        // original pasted model is never needed again, so it is never stored.
+        const preview = await generate(inferShape(response.body ?? null), generateOptions)
+        return { ok: true, preview, warnings: [] }
+      },
     }
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 

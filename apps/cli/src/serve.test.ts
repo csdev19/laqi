@@ -600,3 +600,66 @@ describe('which listener failed', () => {
     }
   })
 })
+
+describe('generation through a live server', () => {
+  it('derives types from the live response body', async () => {
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } } },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await get(`/__laqi/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok`)
+    expect(res.status).toBe(200)
+    const { code, language } = (await res.json()) as { code: string; language: string }
+    expect(language).toBe('typescript')
+    expect(code).toContain('id')
+    expect(code).toContain('name')
+  }, 30_000)
+
+  it('404s types for an endpoint or response that does not exist', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+    expect((await get('/__laqi/api/endpoints/GET%20%2Fnope/types')).status).toBe(404)
+    expect((await get('/__laqi/api/endpoints/GET%20%2Fx/types?response=ghost')).status).toBe(404)
+  })
+
+  it('generates a preview from a pasted model, and the same seed repeats it', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const body = JSON.stringify({
+      model: 'export interface Todo { id: number; title: string; done: boolean }',
+      seed: 42,
+    })
+    const once = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+    })
+    expect(once.status).toBe(200)
+    const first = (await once.json()) as { preview: Record<string, unknown>; warnings: string[] }
+    expect(typeof first.preview.id).toBe('number')
+    expect(typeof first.preview.title).toBe('string')
+
+    const twice = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+    })
+    expect(((await twice.json()) as { preview: unknown }).preview).toEqual(first.preview)
+  }, 30_000)
+
+  it('regenerates from live data via from:, without any model', async () => {
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } } },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: { endpointId: 'GET /users', response: 'ok' }, seed: 7, arrayLength: 2 }),
+    })
+    expect(res.status).toBe(200)
+    const { preview } = (await res.json()) as { preview: Record<string, unknown>[] }
+    expect(preview).toHaveLength(2)
+    expect(typeof preview[0]!.id).toBe('number')
+    expect(typeof preview[0]!.name).toBe('string')
+  }, 30_000)
+})
