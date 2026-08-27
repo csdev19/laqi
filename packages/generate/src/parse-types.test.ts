@@ -114,12 +114,82 @@ describe('parseTypes', () => {
     expect(field(result.shape as never, 'b').shape).toEqual(primitive('number'))
   })
 
-  it('treats a tuple as an array of its widened element type, not an object full of prototype members', async () => {
+  it('treats a tuple as a tuple shape preserving each element type and arity, not an object full of prototype members', async () => {
     const result = await parseTypes('export interface Box { pair: [string, number] }', 'Box')
     if (!result.ok) throw new Error(result.error)
     const pair = field(result.shape as never, 'pair')
-    expect(pair.shape).toEqual({ kind: 'array', items: { kind: 'unknown' } })
+    expect(pair.shape).toEqual({
+      kind: 'tuple',
+      items: [primitive('string'), primitive('number')],
+    })
     expect(result.warnings.length).toBeLessThan(5)
+  })
+
+  // --- Finding 1: heterogeneous tuples lose all data --------------------
+
+  it('preserves a heterogeneous tuple as a top-level type', async () => {
+    const result = await parseTypes('export type Pair = [string, number]', 'Pair')
+    if (!result.ok) throw new Error(result.error)
+    expect(result.shape).toEqual({
+      kind: 'tuple',
+      items: [primitive('string'), primitive('number')],
+    })
+  })
+
+  it('preserves a homogeneous tuple\'s arity instead of collapsing to a variable-length array', async () => {
+    const result = await parseTypes('export type Pair = [number, number]', 'Pair')
+    if (!result.ok) throw new Error(result.error)
+    expect(result.shape).toEqual({
+      kind: 'tuple',
+      items: [primitive('number'), primitive('number')],
+    })
+  })
+
+  it('preserves a tuple nested inside an object', async () => {
+    const result = await parseTypes(
+      'export interface Row { id: number; cells: [string, boolean] }',
+      'Row',
+    )
+    if (!result.ok) throw new Error(result.error)
+    const cells = field(result.shape as never, 'cells')
+    expect(cells.shape).toEqual({
+      kind: 'tuple',
+      items: [primitive('string'), primitive('boolean')],
+    })
+  })
+
+  it('preserves a tuple of literal types', async () => {
+    const result = await parseTypes(
+      "export type Coord = ['x' | 'y', 1 | 2]",
+      'Coord',
+    )
+    if (!result.ok) throw new Error(result.error)
+    // The checker does not preserve union member source order (documented
+    // above at the mixed-union branch), so compare each position's values
+    // as a set rather than pinning an order.
+    expect(result.shape.kind).toBe('tuple')
+    const shape = result.shape as Shape & { kind: 'tuple' }
+    expect(shape.items).toHaveLength(2)
+    expect(shape.items[0]!.kind).toBe('literals')
+    expect(shape.items[1]!.kind).toBe('literals')
+    expect(new Set((shape.items[0] as Shape & { kind: 'literals' }).values)).toEqual(
+      new Set(['x', 'y']),
+    )
+    expect(new Set((shape.items[1] as Shape & { kind: 'literals' }).values)).toEqual(
+      new Set([1, 2]),
+    )
+  })
+
+  it('keeps an empty tuple as an array of unknown', async () => {
+    const result = await parseTypes('export type Empty = []', 'Empty')
+    if (!result.ok) throw new Error(result.error)
+    expect(result.shape).toEqual({ kind: 'array', items: { kind: 'unknown' } })
+  })
+
+  it('does not warn that a tuple was approximated as an array — it is no longer an approximation', async () => {
+    const result = await parseTypes('export type Pair = [string, number]', 'Pair')
+    if (!result.ok) throw new Error(result.error)
+    expect(result.warnings.some((w) => w.includes('approximated'))).toBe(false)
   })
 
   it('keeps a single boolean literal as a literal value', async () => {

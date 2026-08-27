@@ -34,4 +34,28 @@ describe('shapeToJsonSchema', () => {
     expect(shapeToJsonSchema(primitive('null'))).toEqual({ type: 'null' })
     expect(shapeToJsonSchema({ kind: 'unknown' })).toEqual({})
   })
+
+  it('maps a tuple to the 2020-12 prefixItems form, closed against extra items', () => {
+    const shape: Shape = { kind: 'tuple', items: [primitive('string'), primitive('number')] }
+    expect(shapeToJsonSchema(shape)).toEqual({
+      type: 'array',
+      prefixItems: [{ type: 'string' }, { type: 'number' }],
+      items: false,
+      minItems: 2,
+      maxItems: 2,
+    })
+  })
+
+  it('maps an empty tuple the same way an empty-tuple Shape ever appears — as an array of unknown', () => {
+    // parseTypes never emits `{kind:'tuple', items:[]}` (it emits
+    // `{kind:'array', items:{kind:'unknown'}}` for `[]`), but the mapping
+    // must still be sane if one is ever constructed by hand.
+    expect(shapeToJsonSchema({ kind: 'tuple', items: [] })).toEqual({
+      type: 'array',
+      prefixItems: [],
+      items: false,
+      minItems: 0,
+      maxItems: 0,
+    })
+  })
 })

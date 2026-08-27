@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inferShape } from './infer'
+import { inferShape, mergeShapes } from './infer'
 import { primitive } from './shape'
 
 describe('inferShape', () => {
@@ -67,6 +67,28 @@ describe('inferShape', () => {
     expect(shape).toEqual({
       kind: 'array',
       items: { kind: 'object', fields: [{ name: 'v', shape: { kind: 'unknown' }, optional: false }] },
+    })
+  })
+
+  // inferShape reads JSON, where a tuple is indistinguishable from an array
+  // — it never produces a `tuple` shape on its own. But mergeShapes must
+  // still be total: a `tuple` can reach it from a hand-built Shape (e.g.
+  // one that started life via parseTypes) being merged against JSON-derived
+  // data, and it must not crash.
+  describe('mergeShapes with a tuple', () => {
+    it('is total: never throws when one or both sides are a tuple', () => {
+      const tuple = { kind: 'tuple' as const, items: [primitive('string'), primitive('number')] }
+      expect(() => mergeShapes(tuple, primitive('string'))).not.toThrow()
+      expect(() => mergeShapes(primitive('string'), tuple)).not.toThrow()
+      expect(() => mergeShapes(tuple, { kind: 'array', items: primitive('string') })).not.toThrow()
+      expect(() => mergeShapes(tuple, tuple)).not.toThrow()
+      expect(() => mergeShapes(tuple, { kind: 'unknown' })).not.toThrow()
+    })
+
+    it('defers to unknown deferring rules: unknown widens to the tuple', () => {
+      const tuple = { kind: 'tuple' as const, items: [primitive('string'), primitive('number')] }
+      expect(mergeShapes(tuple, { kind: 'unknown' })).toEqual(tuple)
+      expect(mergeShapes({ kind: 'unknown' }, tuple)).toEqual(tuple)
     })
   })
 })

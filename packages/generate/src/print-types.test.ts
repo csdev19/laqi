@@ -36,6 +36,20 @@ describe('printTypes', () => {
     await expect(printTypes(user, { typeName: 'User', lang: 'cobol' })).rejects.toThrow(/cobol/)
   })
 
+  it('degrades a tuple to a union-typed array instead of crashing or losing the field (quicktype has no per-position tuple rendering — see the comment on printTypesEffect)', async () => {
+    const boxed: Shape = {
+      kind: 'object',
+      fields: [{ name: 'pair', shape: { kind: 'tuple', items: [primitive('string'), primitive('number')] }, optional: false }],
+    }
+    const { code } = await printTypes(boxed, { typeName: 'Box' })
+    expect(code).toContain('export interface Box')
+    expect(code).toMatch(/pair/)
+    // Not a crash, not an empty/omitted field — some array-ish, union-ish
+    // rendering of both element types is present.
+    expect(code).toMatch(/number/)
+    expect(code).toMatch(/string/)
+  })
+
   it('smoke-emits every advertised language', async () => {
     // Deep assertions only for TS and Zod; the rest must at least emit
     // non-empty code without throwing.

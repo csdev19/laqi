@@ -15,6 +15,21 @@ export function shapeToJsonSchema(shape: Shape): Record<string, unknown> {
       }
     case 'array':
       return { type: 'array', items: shapeToJsonSchema(shape.items) }
+    case 'tuple':
+      // 2020-12 tuple form: `prefixItems` gives each position its own
+      // schema, `items: false` closes the tuple against extra elements
+      // (the JSON Schema draft this file otherwise uses has no separate
+      // "tuple type" keyword — this is how a fixed-arity array is
+      // expressed in it), and min/maxItems pin the arity redundantly for
+      // any consumer that only understands the older `items: [...]` tuple
+      // form and ignores `prefixItems`.
+      return {
+        type: 'array',
+        prefixItems: shape.items.map(shapeToJsonSchema),
+        items: false,
+        minItems: shape.items.length,
+        maxItems: shape.items.length,
+      }
     case 'record':
       return { type: 'object', additionalProperties: shapeToJsonSchema(shape.values) }
     case 'literals':

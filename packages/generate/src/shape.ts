@@ -9,6 +9,7 @@ export type ShapeField = { name: string; shape: Shape; optional: boolean }
 export type Shape =
   | { kind: 'object'; fields: ShapeField[] }
   | { kind: 'array'; items: Shape }
+  | { kind: 'tuple'; items: Shape[] }
   | { kind: 'record'; values: Shape }
   | { kind: 'literals'; values: (string | number | boolean)[] }
   | { kind: 'primitive'; type: PrimitiveType }

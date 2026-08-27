@@ -10,6 +10,25 @@ import type { Shape } from './shape'
  *
  * Dynamic import: quicktype-core is heavy and startup must not pay for it
  * when printing is never used.
+ *
+ * Tuple handling (spike-verified against quicktype-core 26, both the
+ * 2020-12 `prefixItems`/`items:false` form this bridge emits and the older
+ * `items: [...]` tuple form): quicktype does NOT render a fixed-arity,
+ * per-position tuple type in any target language. It reads `[string,
+ * number]` as "an array of at least 2 items, each `string | number`" and
+ * renders e.g. TypeScript's `[number | string, number | string,
+ * ...(number | string)[]]`, Python's `list[float | str]`, Go's a struct
+ * with two optional pointer fields — never two distinct positional types.
+ * `items: false` (meant to close the tuple against extra elements) is
+ * silently ignored rather than erroring.
+ *
+ * This is an acceptable degradation for the TYPES path only, per the
+ * controller ruling: a union-typed array still type-checks against the
+ * real data and is honest about "there's more than one shape of element
+ * here" even though it loses per-position precision and arity. It must
+ * NEVER be allowed to leak into the DATA path — `generate()` computes
+ * tuples directly from the Shape IR (exact length, exact per-position
+ * type) and never routes through this JSON Schema bridge at all.
  */
 export const printTypesEffect = (
   shape: Shape,

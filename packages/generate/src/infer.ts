@@ -24,6 +24,12 @@ export function inferShape(value: unknown): Shape {
   }
 
   if (Array.isArray(value)) {
+    // A JSON array is indistinguishable from a tuple once you're just
+    // looking at data — `[1, "a"]` could be either. We deliberately never
+    // infer `tuple` here: guessing arity from one sample would be wrong as
+    // often as right, so this stays `array` with widened items, same as
+    // ever. Tuple shapes only ever come from parseTypes reading an actual
+    // TS tuple type.
     if (value.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
     return { kind: 'array', items: value.map(inferShape).reduce(mergeShapes) }
   }
@@ -58,6 +64,18 @@ export function mergeShapes(a: Shape, b: Shape): Shape {
 
   if (a.kind === 'array' && b.kind === 'array') {
     return { kind: 'array', items: mergeShapes(a.items, b.items) }
+  }
+
+  // inferShape (JSON → Shape) never produces `tuple` — a tuple is
+  // indistinguishable from an array once it's just JSON data, so this
+  // branch only exists to keep mergeShapes total against a hand-built
+  // Shape (e.g. one that started life via parseTypes) reaching here by some
+  // other path. There is no principled way to widen a fixed-arity tuple
+  // against a variable-length array or a different shape kind, so this
+  // deliberately falls through to the `unknown` default below rather than
+  // guessing — same policy as two disagreeing primitives.
+  if (a.kind === 'tuple' || b.kind === 'tuple') {
+    return { kind: 'unknown' }
   }
 
   if (a.kind === 'object' && b.kind === 'object') {

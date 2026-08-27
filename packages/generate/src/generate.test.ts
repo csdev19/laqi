@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generate, ruleFor } from './generate'
+import { generate, MAX_GENERATED_VALUES, ruleFor } from './generate'
 import { primitive, type Shape } from './shape'
 
 const user: Shape = {
@@ -148,6 +148,109 @@ describe('generate', () => {
     expect((await generate(shape, { seed: 1, arrayLength: -5 })) as unknown[]).toHaveLength(1)
     expect((await generate(shape, { seed: 1, arrayLength: 1001 })) as unknown[]).toHaveLength(1000)
     expect((await generate(shape, { seed: 1, arrayLength: 500 })) as unknown[]).toHaveLength(500)
+  })
+
+  // --- Finding 2: NaN escapes the arrayLength clamp -----------------------
+
+  it('clamps non-finite arrayLength to the default instead of leaking through Math.min/max as NaN (which Array.from silently reads as length 0)', async () => {
+    const shape = { kind: 'array' as const, items: primitive('integer') }
+    expect((await generate(shape, { seed: 1, arrayLength: NaN })) as unknown[]).toHaveLength(3)
+    expect((await generate(shape, { seed: 1, arrayLength: Infinity })) as unknown[]).toHaveLength(3)
+    expect((await generate(shape, { seed: 1, arrayLength: -Infinity })) as unknown[]).toHaveLength(3)
+  })
+
+  // --- Finding 2: arrayLength^depth amplification (single-request DoS) ---
+
+  describe('the generation budget', () => {
+    it('fails with a GenerateError naming both levers when a model would generate too many values', async () => {
+      // string[][][] at arrayLength 100 → 100^3 = 1,000,000 leaf values.
+      const shape: Shape = {
+        kind: 'array',
+        items: { kind: 'array', items: { kind: 'array', items: primitive('string') } },
+      }
+      await expect(generate(shape, { seed: 1, arrayLength: 100 })).rejects.toThrow(
+        /more than 100000 values.*arrayLength.*nesting depth/is,
+      )
+    })
+
+    it('still succeeds for a legitimate large-but-sane request', async () => {
+      // 1000 items × ~20 fields is the documented legitimate ceiling.
+      const fields = Array.from({ length: 20 }, (_, i) => ({
+        name: `f${i}`,
+        shape: primitive('string' as const),
+        optional: false,
+      }))
+      const shape: Shape = {
+        kind: 'array',
+        items: { kind: 'object', fields },
+      }
+      const value = (await generate(shape, { seed: 1, arrayLength: 1000 })) as unknown[]
+      expect(value).toHaveLength(1000)
+    })
+
+    it('does not truncate silently — it is all-or-nothing', async () => {
+      const shape: Shape = {
+        kind: 'array',
+        items: { kind: 'array', items: { kind: 'array', items: primitive('string') } },
+      }
+      await expect(generate(shape, { seed: 1, arrayLength: 100 })).rejects.toBeDefined()
+    })
+
+    it('is per-call — two sequential calls each get a full budget', async () => {
+      const shape: Shape = { kind: 'array', items: primitive('string') }
+      const a = await generate(shape, { seed: 1, arrayLength: 900 })
+      const b = await generate(shape, { seed: 2, arrayLength: 900 })
+      expect((a as unknown[]).length).toBe(900)
+      expect((b as unknown[]).length).toBe(900)
+    })
+
+    it('exports the budget constant at 100_000', () => {
+      expect(MAX_GENERATED_VALUES).toBe(100_000)
+    })
+  })
+
+  // --- Finding 1: heterogeneous tuples lose all data ---------------------
+
+  it('generates exactly one value per tuple position, in order, ignoring arrayLength', async () => {
+    const shape: Shape = { kind: 'tuple', items: [primitive('string'), primitive('integer')] }
+    const value = (await generate(shape, { seed: 1, arrayLength: 100 })) as unknown[]
+    expect(value).toHaveLength(2)
+    expect(typeof value[0]).toBe('string')
+    expect(typeof value[1]).toBe('number')
+    expect(Number.isInteger(value[1])).toBe(true)
+  })
+
+  it('preserves arity for a homogeneous tuple — arrayLength must not apply', async () => {
+    const shape: Shape = {
+      kind: 'tuple',
+      items: [primitive('number'), primitive('number')],
+    }
+    const value = (await generate(shape, { seed: 1, arrayLength: 100 })) as unknown[]
+    expect(value).toHaveLength(2)
+  })
+
+  it('generates a tuple nested in an object with exact per-position types', async () => {
+    const shape: Shape = {
+      kind: 'object',
+      fields: [
+        { name: 'id', shape: primitive('integer'), optional: false },
+        {
+          name: 'cells',
+          shape: { kind: 'tuple', items: [primitive('string'), primitive('boolean')] },
+          optional: false,
+        },
+      ],
+    }
+    const value = (await generate(shape, { seed: 1 })) as Record<string, unknown>
+    const cells = value.cells as unknown[]
+    expect(cells).toHaveLength(2)
+    expect(typeof cells[0]).toBe('string')
+    expect(typeof cells[1]).toBe('boolean')
+  })
+
+  it('generates an empty array for a zero-length tuple shape', async () => {
+    const value = (await generate({ kind: 'tuple', items: [] }, { seed: 1 })) as unknown[]
+    expect(value).toEqual([])
   })
 
   it('setDefaultRefDate is only applied when seed is given', async () => {

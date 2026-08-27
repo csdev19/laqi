@@ -1,6 +1,5 @@
 import { Effect } from 'effect'
 import { ParseError } from './errors'
-import { mergeShapes } from './infer'
 import { primitive, type Shape, type ShapeField } from './shape'
 
 export type ParsedModel =
@@ -149,11 +148,12 @@ export const parseTypesEffect = (
       if (checker.isTupleType(type)) {
         const elements = checker.getTypeArguments(type as import('typescript').TypeReference)
         if (elements.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
-        warnings.push(`${path}: tuple type approximated as an array of its widened element type`)
+        // A real tuple, not an approximation: each position keeps its own
+        // type and the arity is preserved (see Shape's `tuple` kind).
         const itemShapes = elements.map((element, index) =>
           toShape(element, `${path}[${index}]`, depth + 1),
         )
-        return { kind: 'array', items: itemShapes.reduce((a, b) => mergeShapes(a, b)) }
+        return { kind: 'tuple', items: itemShapes }
       }
 
       if (checker.isArrayType(type)) {

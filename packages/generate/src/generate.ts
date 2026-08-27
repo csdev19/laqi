@@ -6,6 +6,25 @@ import type { PrimitiveType, Shape } from './shape'
 const REF_DATE = '2026-01-01T00:00:00.000Z'
 const DEFAULT_ARRAY_LENGTH = 3
 
+/**
+ * A hard ceiling on the total number of values a single `generate()` call
+ * may produce. Nested arrays amplify multiplicatively — `arrayLength ^
+ * depth` — so a small, legal-looking model (`string[][][]` at
+ * `arrayLength: 100`) can otherwise blow up to `100^3 = 1,000,000` leaf
+ * values from 20 bytes of input, blocking the (single-threaded) server for
+ * seconds on one request. 100_000 is generous for legitimate use (e.g.
+ * 1000 items × 20 fields = 20k) and fatal to the amplification case.
+ */
+export const MAX_GENERATED_VALUES = 100_000
+
+/**
+ * Thrown internally (never exported) from inside the synchronous, plain-JS
+ * `valueFor`/`primitiveFor` recursion when the per-call budget is
+ * exhausted. Caught once, at the `Effect.try` boundary below, and turned
+ * into a proper `GenerateError` — Effect never sees a bare throw.
+ */
+class BudgetExceededError extends Error {}
+
 type Faker = import('@faker-js/faker').Faker
 
 /**
@@ -227,18 +246,49 @@ export const generateEffect = (
       faker.setDefaultRefDate(REF_DATE)
     }
 
-    const clampedArrayLength = Math.max(
-      1,
-      Math.min(options.arrayLength ?? DEFAULT_ARRAY_LENGTH, 1000),
-    )
+    // `Math.max`/`Math.min` propagate a NaN input straight through (any
+    // arithmetic comparison touching NaN is neither the min nor the max),
+    // so a NaN arrayLength used to escape the 1..1000 clamp as NaN itself,
+    // and `Array.from({length: NaN})` silently reads that as length 0 — an
+    // empty array with no error. Guard `Number.isFinite` first so any
+    // non-finite input (NaN, ±Infinity) falls back to the default instead
+    // of reaching the arithmetic at all.
+    const requestedArrayLength = options.arrayLength
+    const clampedArrayLength = Number.isFinite(requestedArrayLength)
+      ? Math.max(1, Math.min(requestedArrayLength as number, 1000))
+      : DEFAULT_ARRAY_LENGTH
     const idCounters = new Map<string, number>()
 
+    // Per-call budget (a local, not a module-level global) so concurrent
+    // requests can never interfere with each other's counters — same
+    // pattern as `idCounters` above. Every value `valueFor` produces,
+    // container or leaf, counts against it; exceeding it aborts the whole
+    // generation rather than silently truncating (silent truncation would
+    // hand the caller wrong data with no signal).
+    let produced = 0
+    function bump(): void {
+      produced++
+      if (produced > MAX_GENERATED_VALUES) {
+        throw new BudgetExceededError(
+          `this model would generate more than ${MAX_GENERATED_VALUES} values; ` +
+            `reduce arrayLength or the nesting depth`,
+        )
+      }
+    }
+
     function valueFor(shape: Shape, fieldName: string): unknown {
+      bump()
       switch (shape.kind) {
         case 'object':
           return Object.fromEntries(shape.fields.map((f) => [f.name, valueFor(f.shape, f.name)]))
         case 'array':
           return Array.from({ length: clampedArrayLength }, () => valueFor(shape.items, fieldName))
+        case 'tuple':
+          // Exactly one value per element shape, in order — arrayLength
+          // does not apply here, arity comes from the tuple itself. This
+          // is the whole point of the `tuple` kind: unlike `array`, a
+          // tuple's length is fixed data, not a generation parameter.
+          return shape.items.map((item) => valueFor(item, fieldName))
         case 'record':
           return Object.fromEntries(
             Array.from({ length: 2 }, () => [faker.lorem.word(), valueFor(shape.values, '')]),
@@ -267,7 +317,13 @@ export const generateEffect = (
       return rule.use(faker)
     }
 
-    return valueFor(shape, '')
+    return yield* Effect.try({
+      try: () => valueFor(shape, ''),
+      catch: (e) =>
+        e instanceof BudgetExceededError
+          ? new GenerateError({ message: e.message })
+          : new GenerateError({ message: String(e) }),
+    })
   })
 
 /**
