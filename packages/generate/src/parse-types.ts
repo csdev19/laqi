@@ -1,0 +1,144 @@
+import { primitive, type Shape, type ShapeField } from './shape'
+
+export type ParsedModel =
+  | { ok: true; shape: Shape; typeName: string; warnings: string[] }
+  | { ok: false; error: string }
+
+const VIRTUAL_FILE = '__laqi_pasted__.ts'
+const MAX_DEPTH = 10
+
+/**
+ * Pasted TS source → Shape, using the real TypeScript checker.
+ *
+ * The real compiler and not a hand-rolled parser, on purpose: real-world
+ * models arrive dirty — `extends`, `Pick<...> & {...}`, imports from
+ * libraries that are not present here. The checker flattens all of that
+ * (spike-verified), and an unresolvable import degrades the property to
+ * `any`, which we surface as `unknown` plus a warning instead of failing.
+ *
+ * Dynamic import: the compiler is 23 MB and startup must not pay for it.
+ */
+export async function parseTypes(source: string, typeName?: string): Promise<ParsedModel> {
+  const ts = (await import('typescript')).default
+
+  const options: import('typescript').CompilerOptions = {
+    strict: true,
+    skipLibCheck: true,
+    target: ts.ScriptTarget.ES2022,
+  }
+
+  // An in-memory host: serves the pasted source for one virtual filename
+  // and delegates lib resolution to the real filesystem, so `Date` and
+  // friends resolve instead of collapsing to `any`.
+  const host = ts.createCompilerHost(options)
+  const readFile = host.readFile.bind(host)
+  const fileExists = host.fileExists.bind(host)
+  const getSourceFile = host.getSourceFile.bind(host)
+  host.readFile = (name) => (name === VIRTUAL_FILE ? source : readFile(name))
+  host.fileExists = (name) => name === VIRTUAL_FILE || fileExists(name)
+  host.getSourceFile = (name, lang, onError, create) =>
+    name === VIRTUAL_FILE
+      ? ts.createSourceFile(VIRTUAL_FILE, source, lang, true)
+      : getSourceFile(name, lang, onError, create)
+
+  const program = ts.createProgram([VIRTUAL_FILE], options, host)
+  const checker = program.getTypeChecker()
+  const file = program.getSourceFile(VIRTUAL_FILE)
+  if (!file) return { ok: false, error: 'could not parse the pasted source' }
+
+  type Declaration = import('typescript').InterfaceDeclaration | import('typescript').TypeAliasDeclaration
+  const declarations: Declaration[] = []
+  for (const statement of file.statements) {
+    if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) {
+      declarations.push(statement)
+    }
+  }
+  if (declarations.length === 0) {
+    return { ok: false, error: 'no interface or type alias found in the pasted source' }
+  }
+
+  const isExported = (d: Declaration) =>
+    d.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword) ?? false
+  const target = typeName
+    ? declarations.find((d) => d.name.text === typeName)
+    : (declarations.find(isExported) ?? declarations[0])
+  if (!target) {
+    const known = declarations.map((d) => d.name.text).join(', ')
+    return { ok: false, error: `no type named ${JSON.stringify(typeName)} — found: ${known}` }
+  }
+
+  const warnings: string[] = []
+  const seen = new Set<import('typescript').Type>()
+
+  function toShape(type: import('typescript').Type, path: string, depth: number): Shape {
+    if (depth > MAX_DEPTH) {
+      warnings.push(`${path}: nesting deeper than ${MAX_DEPTH} levels — cut off as unknown`)
+      return { kind: 'unknown' }
+    }
+    if (seen.has(type)) {
+      warnings.push(`${path}: circular reference — generated as unknown`)
+      return { kind: 'unknown' }
+    }
+
+    if (type.flags & ts.TypeFlags.Any || type.flags & ts.TypeFlags.Unknown) {
+      warnings.push(`${path}: unresolvable type (likely an import that is not present) — generated as unknown`)
+      return { kind: 'unknown' }
+    }
+    if (type.flags & ts.TypeFlags.Null) return primitive('null')
+    if (type.flags & ts.TypeFlags.BooleanLike) return primitive('boolean')
+
+    // Literals and unions come BEFORE the broad string/number flags:
+    // a string literal also carries StringLike.
+    if (type.isStringLiteral()) return { kind: 'literals', values: [type.value] }
+    if (type.isNumberLiteral()) return { kind: 'literals', values: [type.value] }
+    if (type.isUnion()) {
+      const members = type.types.filter((t) => !(t.flags & ts.TypeFlags.Undefined))
+      if (members.length === 1) return toShape(members[0]!, path, depth)
+      const literals: (string | number)[] = []
+      for (const member of members) {
+        if (member.isStringLiteral() || member.isNumberLiteral()) literals.push(member.value)
+      }
+      if (literals.length === members.length) return { kind: 'literals', values: literals }
+      warnings.push(`${path}: non-literal union — simplified to its first member`)
+      return toShape(members[0]!, path, depth)
+    }
+
+    if (type.flags & ts.TypeFlags.StringLike) return primitive('string')
+    if (type.flags & ts.TypeFlags.NumberLike) return primitive('number')
+    if (type.symbol?.name === 'Date') return primitive('date')
+
+    if (checker.isArrayType(type)) {
+      const [items] = checker.getTypeArguments(type as import('typescript').TypeReference)
+      return { kind: 'array', items: items ? toShape(items, `${path}[]`, depth + 1) : { kind: 'unknown' } }
+    }
+
+    if (type.getCallSignatures().length > 0) {
+      warnings.push(`${path}: functions cannot be generated — unknown`)
+      return { kind: 'unknown' }
+    }
+
+    const stringIndex = type.getStringIndexType()
+    const properties = type.getProperties()
+    if (stringIndex && properties.length === 0) {
+      return { kind: 'record', values: toShape(stringIndex, `${path}{}`, depth + 1) }
+    }
+
+    if (properties.length > 0 || type.flags & ts.TypeFlags.Object) {
+      seen.add(type)
+      const fields: ShapeField[] = properties.map((prop) => {
+        const propType = checker.getTypeOfSymbolAtLocation(prop, file!)
+        const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0
+        return { name: prop.name, shape: toShape(propType, `${path}.${prop.name}`, depth + 1), optional }
+      })
+      seen.delete(type)
+      return { kind: 'object', fields }
+    }
+
+    warnings.push(`${path}: unsupported construct (${checker.typeToString(type)}) — unknown`)
+    return { kind: 'unknown' }
+  }
+
+  const rootType = checker.getTypeAtLocation(target.name)
+  const shape = toShape(rootType, target.name.text, 0)
+  return { ok: true, shape, typeName: target.name.text, warnings }
+}
