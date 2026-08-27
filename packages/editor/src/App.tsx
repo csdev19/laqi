@@ -142,7 +142,9 @@ export function App() {
           method: input.method,
           path: input.path,
           default: input.responseName,
-          responses: { [input.responseName]: { status: input.status, body: {} } },
+          responses: {
+            [input.responseName]: { status: input.status, body: input.body ?? {} },
+          },
         })
         setCreating(false)
         await refresh()
@@ -152,6 +154,25 @@ export function App() {
       }
     },
     [refresh],
+  )
+
+  const createFromModel = useCallback(
+    async (input: { method: string; path: string; model: string }) => {
+      setCreateError(null)
+      try {
+        const { preview } = await api.generateData({ model: input.model })
+        await create({
+          method: input.method,
+          path: input.path,
+          responseName: 'ok',
+          status: 200,
+          body: preview,
+        })
+      } catch (error) {
+        setCreateError(error instanceof ApiError ? error.message : String(error))
+      }
+    },
+    [create],
   )
 
   const save = useCallback(
@@ -299,6 +320,7 @@ export function App() {
                 <CreateEndpointRow
                   error={createError}
                   onCreate={(input) => void create(input)}
+                  onCreateFromModel={(input) => void createFromModel(input)}
                   onCancel={() => setCreating(false)}
                 />
               ) : null}

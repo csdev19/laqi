@@ -666,6 +666,12 @@ button {
   width: 66px;
 }
 
+.create-model {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .form-error {
   flex-basis: 100%;
   color: var(--red);
