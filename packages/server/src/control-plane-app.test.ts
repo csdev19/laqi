@@ -27,6 +27,9 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     updateEndpoint: () => ({ ok: true }),
     deleteEndpoint: () => ({ ok: true }),
     subscribe: () => () => {},
+    getLanguages: async () => [],
+    getTypes: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    generateData: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
     ...overrides,
   }
 }
@@ -482,5 +485,68 @@ describe('ids that contain a percent sign', () => {
       method: 'DELETE',
     })
     expect(res.status).not.toBe(500)
+  })
+})
+
+describe('generation routes', () => {
+  it('GET /api/generate/languages returns the list', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({ getLanguages: async () => [{ name: 'typescript', displayName: 'TypeScript' }] }),
+    )
+    const res = await app.request('/api/generate/languages')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual([{ name: 'typescript', displayName: 'TypeScript' }])
+  })
+
+  it('GET /api/endpoints/:id/types passes response and lang through, URL-decoded', async () => {
+    const getTypes = vi.fn(async () => ({ ok: true as const, code: 'export interface X {}', language: 'typescript' }))
+    const app = createControlPlaneApp(makeRuntime({ getTypes }))
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok&lang=typescript-zod`)
+    expect(res.status).toBe(200)
+    expect(getTypes).toHaveBeenCalledWith('GET /users', { response: 'ok', lang: 'typescript-zod' })
+  })
+
+  it('maps a not-found types failure to 404', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({ getTypes: async () => ({ ok: false as const, error: 'no endpoint', code: 'not-found' as const }) }),
+    )
+    expect((await app.request('/api/endpoints/GET%20%2Fnope/types')).status).toBe(404)
+  })
+
+  it('POST /api/generate/data forwards the body and returns the preview', async () => {
+    const generateData = vi.fn(async () => ({ ok: true as const, preview: [{ id: 1 }], warnings: ['w'] }))
+    const app = createControlPlaneApp(makeRuntime({ generateData }))
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'export interface X { id: number }', seed: 7 }),
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: ['w'] })
+    expect(generateData).toHaveBeenCalledWith({ model: 'export interface X { id: number }', seed: 7 })
+  })
+
+  it('rejects a body that is neither model nor from as 400, without calling the runtime', async () => {
+    const generateData = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ generateData }))
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nothing: true }),
+    })
+    expect(res.status).toBe(400)
+    expect(generateData).not.toHaveBeenCalled()
+  })
+
+  it('maps an invalid model failure to 400', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({ generateData: async () => ({ ok: false as const, error: 'no type found', code: 'invalid' as const }) }),
+    )
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'const x = 1' }),
+    })
+    expect(res.status).toBe(400)
   })
 })

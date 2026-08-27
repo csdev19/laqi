@@ -10,6 +10,7 @@ import {
 } from '@laqi/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
+import { z } from 'zod'
 
 /**
  * Todo lo que el control plane necesita del proceso que lo hospeda. Cada
@@ -24,6 +25,24 @@ const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
   conflict: 409,
   'not-found': 404,
 }
+
+export type GenerateRequest =
+  | { model: string; typeName?: string; arrayLength?: number; seed?: number }
+  | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
+
+const GenerateBodySchema = z.union([
+  z.object({
+    model: z.string().min(1),
+    typeName: z.string().optional(),
+    arrayLength: z.number().int().optional(),
+    seed: z.number().int().optional(),
+  }),
+  z.object({
+    from: z.object({ endpointId: z.string(), response: z.string() }),
+    arrayLength: z.number().int().optional(),
+    seed: z.number().int().optional(),
+  }),
+])
 
 export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
@@ -51,6 +70,14 @@ export type ControlPlaneRuntime = {
   ) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   subscribe: (listener: (event: LaqiEvent) => void) => () => void
+  getLanguages: () => Promise<{ name: string; displayName: string }[]>
+  getTypes: (
+    id: string,
+    options: { response?: string; lang?: string },
+  ) => Promise<{ ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }>
+  generateData: (
+    input: GenerateRequest,
+  ) => Promise<{ ok: true; preview: unknown; warnings: string[] } | { ok: false; error: string; code: WriteFailure }>
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -229,6 +256,45 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       }
     }),
   )
+
+  app.get('/api/generate/languages', async (c) => c.json(await runtime.getLanguages()))
+
+  app.get('/api/endpoints/:id/types', async (c) => {
+    const id = c.req.param('id') // Hono ya lo decodificó — sin decode extra.
+    const result = await runtime.getTypes(id, {
+      response: c.req.query('response'),
+      lang: c.req.query('lang'),
+    })
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
+    }
+    return c.json({ code: result.code, language: result.language })
+  })
+
+  app.post('/api/generate/data', async (c) => {
+    let raw: unknown
+    try {
+      raw = await c.req.json()
+    } catch {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = GenerateBodySchema.safeParse(raw)
+    if (!parsed.success) {
+      const body = raw as Record<string, unknown>
+      const message =
+        typeof body !== 'object' || body === null || (!('model' in body) && !('from' in body))
+          ? 'body needs either "model" (TS source) or "from" ({endpointId, response})'
+          : parsed.error.issues.map((i) => i.message).join('; ')
+      return c.json({ error: 'laqi-control-plane', message }, 400)
+    }
+
+    const result = await runtime.generateData(parsed.data)
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
+    }
+    return c.json({ preview: result.preview, warnings: result.warnings })
+  })
 
   // Punto de inserción para futuras rutas: van ACÁ, antes de este
   // catch-all — nunca después.

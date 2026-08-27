@@ -177,6 +177,12 @@ export async function startServer(options: {
         return { ok: true }
       },
       subscribe: (listener) => bus.subscribe(listener),
+      // Placeholders — la implementación real (contra @laqi/generate) llega
+      // en la Tarea 7. Esto sólo mantiene el contrato de ControlPlaneRuntime
+      // completo mientras tanto.
+      getLanguages: async () => [],
+      getTypes: async () => ({ ok: false, error: 'not implemented yet', code: 'not-found' }),
+      generateData: async () => ({ ok: false, error: 'not implemented yet', code: 'invalid' }),
     }
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 
