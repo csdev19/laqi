@@ -1,40 +1,207 @@
-import type { Shape } from './shape'
+import type { PrimitiveType, Shape } from './shape'
 
 /** Fixed reference date: with a seed, output must be byte-reproducible. */
 const REF_DATE = '2026-01-01T00:00:00.000Z'
 const DEFAULT_ARRAY_LENGTH = 3
 
+type Faker = import('@faker-js/faker').Faker
+
 /**
- * Helper: check if name ends with 'id' or '_id' at word boundary.
- * Matches: id, userId, user_id, orderId, order_id
- * Excludes: paid, valid, void, rapid, etc.
+ * One entry in a field-name → fake-value dispatch table. `when` decides
+ * whether a field name matches this rule (it receives the ORIGINAL field
+ * name, before any lowercasing, so camelCase/snake_case boundaries are still
+ * visible); `use` produces the value once matched. Order in the owning array
+ * is precedence: the first matching rule wins.
  */
-function isIdField(name: string): boolean {
-  return name === 'id' || name === '_id' || /([A-Z_][a-z]*_)?id$/.test(name)
+export type FieldRule = {
+  name: string
+  when: (fieldName: string) => boolean
+  use: (faker: Faker) => unknown
+}
+
+/** Splits a field name into lowercase words across camelCase and snake/kebab-case boundaries. */
+function words(fieldName: string): string[] {
+  return fieldName
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map((w) => w.toLowerCase())
 }
 
 /**
- * Helper: check if name is a date-related field (high priority).
- * Should be checked before email/name/city checks.
+ * True when some word of the field name starts with one of the given
+ * prefixes. Word-based (not raw substring) so `timestamp` matches `time`
+ * while `candidate` does not match `date` — "date" is buried mid-word there,
+ * not a word of its own.
  */
-function isDateField(name: string): boolean {
-  return name.endsWith('at') || name.includes('date') || name.includes('time')
+function hasWordStartingWith(fieldName: string, ...prefixes: string[]): boolean {
+  const fieldWords = words(fieldName)
+  return fieldWords.some((word) => prefixes.some((prefix) => word.startsWith(prefix)))
+}
+
+/** Field name collapsed to one lowercase token, separators stripped — for exact-name rules. */
+function normalize(fieldName: string): string {
+  return fieldName.toLowerCase().replace(/[_\-\s]/g, '')
 }
 
 /**
- * Helper: check if name is a person name field.
- * Matches: name, firstName, lastName, fullName, displayName
- * Excludes: filename, username, etc.
+ * String field rules, in precedence order. Date-ness runs first so fields
+ * like `emailVerifiedAt` produce a date rather than an email; username and
+ * filename run before the generic person-name rule so `userName`/`fileName`
+ * (which contain the word "name") aren't mistaken for a person's name.
  */
-function isPersonNameField(name: string): boolean {
-  return name === 'name' || name.includes('firstname') || name.includes('lastname') || name.includes('fullname') || name.includes('displayname')
+const STRING_RULES: FieldRule[] = [
+  {
+    name: 'date',
+    when: (n) => n.endsWith('_at') || n.endsWith('At') || hasWordStartingWith(n, 'date', 'time'),
+    use: (faker) => faker.date.recent({ days: 90 }).toISOString(),
+  },
+  {
+    name: 'email',
+    when: (n) => hasWordStartingWith(n, 'email'),
+    use: (faker) => faker.internet.email(),
+  },
+  {
+    name: 'username',
+    when: (n) => normalize(n) === 'username',
+    use: (faker) => faker.internet.username(),
+  },
+  {
+    name: 'filename',
+    when: (n) => normalize(n) === 'filename',
+    use: (faker) => `${faker.lorem.slug()}.txt`,
+  },
+  {
+    name: 'person',
+    when: (n) => ['name', 'firstname', 'lastname', 'fullname', 'displayname'].includes(normalize(n)),
+    use: (faker) => faker.person.fullName(),
+  },
+  {
+    name: 'phone',
+    when: (n) => hasWordStartingWith(n, 'phone'),
+    use: (faker) => faker.phone.number(),
+  },
+  {
+    name: 'avatar',
+    when: (n) => hasWordStartingWith(n, 'avatar', 'image', 'photo'),
+    use: (faker) => faker.image.url(),
+  },
+  {
+    name: 'url',
+    when: (n) => hasWordStartingWith(n, 'url', 'link'),
+    use: (faker) => faker.internet.url(),
+  },
+  {
+    name: 'city',
+    when: (n) => hasWordStartingWith(n, 'city'),
+    use: (faker) => faker.location.city(),
+  },
+  {
+    name: 'address',
+    when: (n) => hasWordStartingWith(n, 'street', 'address'),
+    use: (faker) => faker.location.streetAddress(),
+  },
+  {
+    name: 'country',
+    when: (n) => hasWordStartingWith(n, 'country'),
+    use: (faker) => faker.location.country(),
+  },
+  {
+    name: 'zip',
+    when: (n) => hasWordStartingWith(n, 'zip', 'postal'),
+    use: (faker) => faker.location.zipCode(),
+  },
+  {
+    name: 'uuid',
+    when: (n) => hasWordStartingWith(n, 'uuid', 'guid'),
+    use: (faker) => faker.string.uuid(),
+  },
+  {
+    name: 'description',
+    when: (n) => hasWordStartingWith(n, 'description', 'bio', 'summary'),
+    use: (faker) => faker.lorem.sentence(),
+  },
+  {
+    name: 'title',
+    when: (n) => hasWordStartingWith(n, 'title'),
+    use: (faker) => faker.lorem.words(3),
+  },
+  {
+    name: 'fallback',
+    when: () => true,
+    use: (faker) => faker.lorem.words(2),
+  },
+]
+
+/**
+ * Number/integer field rules, in precedence order. `id` and `fk` are tested
+ * against the field's ORIGINAL casing: `/[a-z0-9]Id$/` (no `i` flag) matches
+ * `userId`/`orderId` but not `paid`/`valid`/`void`/`rapid`/`identifier` —
+ * those end in a lowercase "id", not a capital-I "Id" boundary.
+ *
+ * `counters` tracks per-field sequential ids across the whole generate()
+ * call (so repeated `id` fields in an array stay 1, 2, 3, …); the key is the
+ * normalized field name, so `id` and `_id` are treated as the same field and
+ * share one sequence.
+ */
+function numberRules(counters: Map<string, number>, fieldName: string, type: 'number' | 'integer'): FieldRule[] {
+  return [
+    {
+      name: 'id',
+      when: (n) => /^_?id$/i.test(n),
+      use: () => {
+        const key = normalize(fieldName)
+        const current = counters.get(key) ?? 1
+        counters.set(key, current + 1)
+        return current
+      },
+    },
+    {
+      name: 'fk',
+      when: (n) => /_id$/i.test(n) || /[a-z0-9]Id$/.test(n),
+      use: (faker) => faker.number.int({ min: 1, max: 1000 }),
+    },
+    {
+      name: 'price',
+      when: (n) => hasWordStartingWith(n, 'price', 'total', 'amount', 'cost'),
+      use: (faker) => Number(faker.commerce.price()),
+    },
+    {
+      name: 'age',
+      when: (n) => hasWordStartingWith(n, 'age'),
+      use: (faker) => faker.number.int({ min: 18, max: 80 }),
+    },
+    {
+      name: 'quantity',
+      when: (n) => hasWordStartingWith(n, 'count', 'quantity'),
+      use: (faker) => faker.number.int({ min: 0, max: 100 }),
+    },
+    {
+      name: 'number',
+      when: () => true,
+      use: (faker) =>
+        type === 'integer' ? faker.number.int({ min: 0, max: 1000 }) : faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }),
+    },
+  ]
 }
 
 /**
- * Shape → data. faker (seeded) provides the values; a small field-name
- * dictionary makes them look real — `email` fields get emails, `createdAt`
- * gets an ISO date, `price` gets a decimal. `id` fields are sequential per
- * field per generate() call so lists look stable.
+ * Classifies a field name against the string/number/integer rule tables
+ * without generating a value. Returns the winning rule's stable `name`.
+ * Used by tests to interrogate classification directly; `'boolean' |
+ * 'null' | 'date'` shape types have no rules and aren't accepted here.
+ */
+export function ruleFor(fieldName: string, type: 'string' | 'number' | 'integer'): string {
+  const rules = type === 'string' ? STRING_RULES : numberRules(new Map(), fieldName, type)
+  const rule = rules.find((r) => r.when(fieldName))
+  return rule?.name ?? 'fallback'
+}
+
+/**
+ * Shape → data. faker (seeded) provides the values; the rule tables above
+ * make them look real — `email` fields get emails, `createdAt` gets an ISO
+ * date, `price` gets a decimal. `id` fields are sequential per field name
+ * per generate() call so lists look stable.
  */
 export async function generate(
   shape: Shape,
@@ -69,51 +236,19 @@ export async function generate(
     }
   }
 
-  function primitiveFor(type: string, fieldName: string): unknown {
-    const name = fieldName.toLowerCase()
-
+  function primitiveFor(type: PrimitiveType, fieldName: string): unknown {
     if (type === 'null') return null
     if (type === 'boolean') return faker.datatype.boolean()
     if (type === 'date') return faker.date.recent({ days: 90 }).toISOString()
 
     if (type === 'integer' || type === 'number') {
-      // Exact id/_id: sequential with per-field counter
-      if (name === 'id' || name === '_id') {
-        const counter = idCounters.get(name) ?? 1
-        idCounters.set(name, counter + 1)
-        return counter
-      }
-      // Foreign key patterns (*Id, *_id): plausible random values, not sequential
-      if (isIdField(name)) {
-        return faker.number.int({ min: 1, max: 1000 })
-      }
-      if (name.includes('price') || name.includes('total') || name.includes('amount') || name.includes('cost')) {
-        return Number(faker.commerce.price())
-      }
-      if (name.includes('age')) return faker.number.int({ min: 18, max: 80 })
-      if (name.includes('count') || name.includes('quantity')) {
-        return faker.number.int({ min: 0, max: 100 })
-      }
-      return type === 'integer' ? faker.number.int({ min: 0, max: 1000 }) : faker.number.float({ min: 0, max: 1000, fractionDigits: 2 })
+      const rules = numberRules(idCounters, fieldName, type)
+      const rule = rules.find((r) => r.when(fieldName))!
+      return rule.use(faker)
     }
 
-    // string: check date-ness FIRST (before email/name/city)
-    if (isDateField(name)) return faker.date.recent({ days: 90 }).toISOString()
-    if (name.includes('email')) return faker.internet.email()
-    if (isPersonNameField(name)) return faker.person.fullName()
-    if (name.includes('username') || name.includes('user_name')) return faker.internet.username()
-    if (name.includes('filename') || name.includes('file_name')) return `${faker.lorem.slug()}.txt`
-    if (name.includes('phone')) return faker.phone.number()
-    if (name.includes('avatar') || name.includes('image') || name.includes('photo')) return faker.image.url()
-    if (name.includes('url') || name.includes('link')) return faker.internet.url()
-    if (name.includes('city')) return faker.location.city()
-    if (name.includes('street') || name.includes('address')) return faker.location.streetAddress()
-    if (name.includes('country')) return faker.location.country()
-    if (name.includes('zip') || name.includes('postal')) return faker.location.zipCode()
-    if (name.includes('uuid') || name.includes('guid')) return faker.string.uuid()
-    if (name.includes('description') || name.includes('bio') || name.includes('summary')) return faker.lorem.sentence()
-    if (name.includes('title')) return faker.lorem.words(3)
-    return faker.lorem.words(2)
+    const rule = STRING_RULES.find((r) => r.when(fieldName))!
+    return rule.use(faker)
   }
 
   return valueFor(shape, '')
