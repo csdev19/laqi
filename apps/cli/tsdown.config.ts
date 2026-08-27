@@ -38,7 +38,11 @@ export default defineConfig({
       const target = join(here, 'dist', 'panel')
       mkdirSync(target, { recursive: true })
       cpSync(editorDist, target, { recursive: true })
+      // README y LICENSE viajan DENTRO del paquete publicado. La licencia
+      // no es opcional: MIT exige que el aviso de copyright esté en toda
+      // copia del software, y sin esto el tarball no llevaba ninguno.
       copyFileSync(join(here, '..', '..', 'README.md'), join(here, 'README.md'))
+      copyFileSync(join(here, '..', '..', 'LICENSE.md'), join(here, 'LICENSE.md'))
     },
   },
 })
