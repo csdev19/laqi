@@ -1687,3 +1687,45 @@ never stored (types come from the data, not from a saved schema).
 - Tasks 1–5 are pure `packages/generate` work with no cross-task file overlap after Task 1; Tasks 6–7 touch server+cli; 8 touches mcp+core; 9–10 touch the editor; 11 is packaging+docs. Execute in order — later tasks import earlier ones.
 - The quicktype smoke loop (Task 5) and the live-server generation tests (Task 7) are the slow ones; they carry explicit timeouts.
 - After the final task: full-branch review, then `superpowers:finishing-a-development-branch`.
+
+---
+
+## Mid-execution amendments (2026-08-27)
+
+Decided with the project owner during execution; the ledger carries the full
+reasoning. These amendments override the task texts above where they conflict.
+
+**1. The field-name heuristics are a declarative rules table (amends Task 4).**
+`primitiveFor`'s if-chain becomes two ordered arrays of
+`{ name, when, use }` rules (strings and numbers), where array order IS the
+precedence. The module exports `ruleFor(fieldName, type)` so tests interrogate
+the classifier directly, table-against-table: each rule carries `accepts` and
+`rejects` name lists. Reason: two real bugs came from invisible precedence
+(`emailVerifiedAt` → email) and from a branch a vacuous test never reached
+(`paid` classified as id).
+
+**2. Effect is adopted inside `packages/generate` (new Task 4.5, before
+Task 5).** The owner chose to run the Effect experiment here. Containment
+rules:
+- Effect-native programs internally: `Data.TaggedError` classes
+  (`ParseError`, `GenerateError`, `PrintError`); fallible/async operations are
+  `Effect.Effect<A, E>`. Pure total functions (`inferShape`,
+  `shapeToJsonSchema`, the rules table) STAY pure — that is idiomatic Effect,
+  not avoidance.
+- The package ALSO exports Promise facades with today's exact names and
+  signatures (`parseTypes`, `generate`, and Task 5's `printTypes` return the
+  same unions the earlier tasks defined), built with `runPromise` at the
+  module edge. Effect types never leak into `ControlPlaneRuntime`, MCP tools
+  or the panel; tasks 6–11 consume the facades unchanged.
+- `effect` joins the dependencies of `packages/generate` and of the published
+  package (Task 7's pinned list in `package.test.ts` gains `'effect'`).
+- Task 11's lazy-load guard applies to the ENTRY chunk only: `@laqi/generate`
+  is bundled into a dynamically-imported chunk, so a static `from "effect"`
+  inside that chunk is correct and must not trip the guard.
+- Verified by spike under bun: `TaggedError` + `catchTag` + `runPromise` and
+  the facade pattern behave as designed.
+
+**3. Task 6's body validation uses a zod schema**, not hand-rolled `typeof`
+checks — matching the `StateSchema`/`EndpointSchema` pattern already in
+`control-plane-app.ts`. The `model`-or-`from` union is expressed with
+`z.union` and the 400 message comes from the schema's issues.
