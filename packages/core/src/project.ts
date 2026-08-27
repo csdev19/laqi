@@ -333,6 +333,22 @@ export class Project {
     return ok({ cleared })
   }
 
+  /** The raw body of one response — what the generators derive shapes from. */
+  getResponseBody(id: string, responseName?: string): ProjectResult<unknown> {
+    const endpoint = this.load().byId.get(id)
+    if (endpoint === undefined) return fail(this.unknownEndpoint(id), 'not-found')
+
+    const name = responseName ?? endpoint.default
+    const response = endpoint.responses[name]
+    if (response === undefined) {
+      return fail(
+        `${JSON.stringify(name)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+        'not-found',
+      )
+    }
+    return ok(response.body)
+  }
+
   private unknownEndpoint(id: string): string {
     const ids = this.load().endpoints.map((e) => e.id)
     const hint = ids.length === 0 ? 'no endpoints are loaded' : `known ids: ${ids.slice(0, 12).join(', ')}`

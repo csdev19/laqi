@@ -30,7 +30,13 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 beforeEach(async () => {
   root = mkdtempSync(join(tmpdir(), 'laqi-stdio-'))
   writeMocks({
-    'GET /users': { default: 'ok', responses: { ok: { status: 200 }, boom: { status: 500 } } },
+    'GET /users': {
+      default: 'ok',
+      responses: {
+        ok: { status: 200, body: [{ id: 1, name: 'Ada' }] },
+        boom: { status: 500 },
+      },
+    },
   })
   writeMocks({ offline: { 'GET /users': 'boom' } }, 'laqi/scenarios.json')
 
@@ -51,7 +57,9 @@ describe('laqi mcp over stdio', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'create_endpoint',
       'delete_endpoint',
+      'generate_data',
       'get_state',
+      'get_types',
       'import_openapi',
       'list_endpoints',
       'reset_state',
@@ -209,4 +217,30 @@ describe('laqi mcp over stdio', () => {
     expect((await call('reset_state')).json()).toEqual({ cleared: 2 })
     expect((await call('get_state')).json()).toMatchObject({ scenario: null, overrides: {} })
   })
+
+  it('get_types derives a TypeScript interface from the live data', async () => {
+    const result = await call('get_types', { endpointId: 'GET /users' })
+    expect(result.isError).toBe(false)
+    expect(result.text).toContain('interface')
+  }, 30_000)
+
+  it('generate_data returns a preview and never writes anything', async () => {
+    const before = readFileSync(join(root, 'laqi', 'api.json'), 'utf8')
+    const result = await call('generate_data', {
+      model: 'export interface Todo { id: number; title: string }',
+      seed: 42,
+    })
+    expect(result.isError).toBe(false)
+    const { preview } = result.json() as { preview: Record<string, unknown> }
+    expect(typeof preview.id).toBe('number')
+    // Pure tool: the mock file is byte-identical afterwards.
+    expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
+  }, 30_000)
+
+  it('generate_data with from: regenerates from an existing response', async () => {
+    const result = await call('generate_data', {
+      from: { endpointId: 'GET /users', response: 'ok' }, seed: 7,
+    })
+    expect(result.isError).toBe(false)
+  }, 30_000)
 })
