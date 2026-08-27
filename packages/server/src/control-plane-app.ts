@@ -30,19 +30,30 @@ export type GenerateRequest =
   | { model: string; typeName?: string; arrayLength?: number; seed?: number }
   | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
 
-const GenerateBodySchema = z.union([
-  z.object({
-    model: z.string().min(1),
-    typeName: z.string().optional(),
-    arrayLength: z.number().int().optional(),
-    seed: z.number().int().optional(),
-  }),
-  z.object({
-    from: z.object({ endpointId: z.string(), response: z.string() }),
-    arrayLength: z.number().int().optional(),
-    seed: z.number().int().optional(),
-  }),
-])
+// Dos schemas separados en vez de un z.union: un union emite un único
+// invalid_union con el mensaje genérico "Invalid input" en el nivel de
+// arriba, y el detalle por rama (qué campo falta, qué tipo tenía) queda
+// enterrado en errores anidados que `issues.map(i => i.message)` nunca
+// alcanza. Parseando contra la rama correcta una vez que ya sabemos cuál
+// es (por la clave discriminante `model`/`from`) los issues salen planos
+// y con el path correcto.
+const ModelVariantSchema = z.object({
+  model: z.string().min(1),
+  typeName: z.string().optional(),
+  arrayLength: z.number().int().optional(),
+  seed: z.number().int().optional(),
+})
+
+const FromVariantSchema = z.object({
+  from: z.object({ endpointId: z.string(), response: z.string() }),
+  arrayLength: z.number().int().optional(),
+  seed: z.number().int().optional(),
+})
+
+/** Sólo para armar un mensaje legible con el path del campo que falló. */
+function issuesToMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
+  return issues.map((i) => [i.path.join('.'), i.message].filter(Boolean).join(': ')).join('; ')
+}
 
 export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
@@ -279,14 +290,27 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
     }
 
-    const parsed = GenerateBodySchema.safeParse(raw)
+    // Decidimos la rama por la clave discriminante ANTES de parsear, y
+    // validamos sólo contra el schema de esa rama. Si le pasáramos las dos
+    // a un z.union, el único issue que sale es el invalid_union genérico
+    // ("Invalid input") — el detalle específico de la rama (qué campo
+    // falta, qué tipo tenía) queda enterrado adentro y nunca llega al
+    // usuario. `model` presente (con cualquier tipo) gana sobre `from`,
+    // igual que antes.
+    const body = raw as Record<string, unknown>
+    const hasModel = typeof body === 'object' && body !== null && 'model' in body
+    const hasFrom = typeof body === 'object' && body !== null && 'from' in body
+
+    if (!hasModel && !hasFrom) {
+      return c.json(
+        { error: 'laqi-control-plane', message: 'body needs either "model" (TS source) or "from" ({endpointId, response})' },
+        400,
+      )
+    }
+
+    const parsed = hasModel ? ModelVariantSchema.safeParse(raw) : FromVariantSchema.safeParse(raw)
     if (!parsed.success) {
-      const body = raw as Record<string, unknown>
-      const message =
-        typeof body !== 'object' || body === null || (!('model' in body) && !('from' in body))
-          ? 'body needs either "model" (TS source) or "from" ({endpointId, response})'
-          : parsed.error.issues.map((i) => i.message).join('; ')
-      return c.json({ error: 'laqi-control-plane', message }, 400)
+      return c.json({ error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) }, 400)
     }
 
     const result = await runtime.generateData(parsed.data)

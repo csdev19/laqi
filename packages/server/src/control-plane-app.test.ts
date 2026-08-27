@@ -549,4 +549,32 @@ describe('generation routes', () => {
     })
     expect(res.status).toBe(400)
   })
+
+  it('names the missing field when a "from" body is missing "response"', async () => {
+    const generateData = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ generateData }))
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: { endpointId: 'x' } }),
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toMatch(/response/)
+    expect(generateData).not.toHaveBeenCalled()
+  })
+
+  it('names the field when "seed" has the wrong type', async () => {
+    const generateData = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ generateData }))
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'x', seed: '42' }),
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toMatch(/seed/)
+    expect(generateData).not.toHaveBeenCalled()
+  })
 })
