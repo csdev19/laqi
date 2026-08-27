@@ -123,4 +123,71 @@ describe('generated types and data', () => {
     // existing Save button — zero new write paths, verbatim from the spec.
     expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(false)
   })
+
+  it('discards a Regenerate response that resolves after the endpoint reloaded underneath it', async () => {
+    let resolveGenerate!: (value: { preview: unknown; warnings: string[] }) => void
+    generateData.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveGenerate = resolve
+        }),
+    )
+    const original = endpoint()
+    const { rerender } = renderDetail(original)
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    await waitFor(() => expect(generateData).toHaveBeenCalled())
+
+    // El watcher recarga con datos nuevos mientras la promesa de Regenerate
+    // sigue pendiente: la recarga tiene que ganar.
+    const reloaded = endpoint({
+      responses: { ok: { status: 200, body: { theirs: 2 } }, boom: { status: 500 } },
+    })
+    rerender(reloaded)
+    await waitFor(() => expect(body().value).toContain('theirs'))
+
+    resolveGenerate({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(body().value).toContain('theirs')
+    expect(body().value).not.toContain('Fresh')
+  })
+
+  it('shows an error when Regenerate fails, instead of dying silently', async () => {
+    generateData.mockRejectedValueOnce(new Error('the generator crashed'))
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    expect(await screen.findByText(/the generator crashed/)).toBeTruthy()
+  })
+
+  it('shows an error when Copy types fails, instead of an unhandled rejection', async () => {
+    getTypes.mockRejectedValueOnce(new Error('types generation crashed'))
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /copy types/i }))
+
+    expect(await screen.findByText(/types generation crashed/)).toBeTruthy()
+  })
+
+  it('renders generation warnings from Regenerate', async () => {
+    generateData.mockResolvedValueOnce({
+      preview: { id: 99, name: 'Fresh' },
+      warnings: ['dropped an index signature on Users'],
+    })
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
+  })
+
+  it('shows no warning region when Regenerate returns no warnings', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    await waitFor(() => expect(body().value).toContain('"Fresh"'))
+    expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
+  })
 })

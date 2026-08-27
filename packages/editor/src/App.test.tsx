@@ -292,6 +292,42 @@ describe('creating an endpoint', () => {
     )
   })
 
+  it('shows generation warnings after creating from a model', async () => {
+    generateData.mockResolvedValue({
+      preview: [{ id: 1, title: 'Generated' }],
+      warnings: ['dropped an index signature on Todo'],
+    })
+    createEndpoint.mockResolvedValue({ id: 'GET /todos' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Todo { id: number; title: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
+  })
+
+  it('shows no warning region when generation returns no warnings', async () => {
+    generateData.mockResolvedValue({ preview: [{ id: 1, title: 'Generated' }], warnings: [] })
+    createEndpoint.mockResolvedValue({ id: 'GET /todos' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Todo { id: number; title: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
+  })
+
   it('shows the generation error inline and does not create', async () => {
     generateData.mockRejectedValue(new Error('no interface or type alias found'))
     await renderApp()

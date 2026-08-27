@@ -10,6 +10,7 @@ import { Header } from './components/Header'
 import { RequestLog } from './components/RequestLog'
 import { ScenarioStrip } from './components/ScenarioStrip'
 import { ShareBand } from './components/ShareBand'
+import { WarningBand } from './components/WarningBand'
 import { useEvents } from './hooks/useEvents'
 import { appendLog, toLogEntry } from './log'
 import { isDirty, overriddenCount, overridesAfterChipClick } from './resolve'
@@ -37,6 +38,7 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
 
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -159,8 +161,13 @@ export function App() {
   const createFromModel = useCallback(
     async (input: { method: string; path: string; model: string }) => {
       setCreateError(null)
+      setWarnings([])
       try {
-        const { preview } = await api.generateData({ model: input.model })
+        const { preview, warnings: generationWarnings } = await api.generateData({ model: input.model })
+        // `create()` cierra el CreateEndpointRow y abre el detalle del
+        // endpoint nuevo — el estado de warnings vive acá, no ahí, para
+        // que sobreviva esa transición en vez de desmontarse con la fila.
+        setWarnings(generationWarnings)
         await create({
           method: input.method,
           path: input.path,
@@ -269,6 +276,8 @@ export function App() {
       {status?.share ? <ShareBand share={status.share} /> : null}
 
       {errors.length > 0 ? <ErrorBand errors={errors} onReload={() => void refresh()} /> : null}
+
+      <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
 
       <div className="panes">
         <main className="pane-endpoints">

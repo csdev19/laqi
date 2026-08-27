@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
+import { WarningBand } from './WarningBand'
 
 type Draft = {
   description: string
@@ -45,6 +46,16 @@ export function EndpointDetail(props: {
   const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
     { name: 'typescript', displayName: 'TypeScript' },
   ])
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+
+  // Cada vez que el fingerprint cambia (ver más abajo) esto se incrementa.
+  // Regenerate captura el valor vigente al arrancar y lo compara al
+  // resolver: si ya no coincide, la recarga ganó de por medio y la
+  // respuesta tardía se descarta en vez de pisar el draft fresco. No
+  // depende de que el componente se desmonte — la recarga rerenderea la
+  // misma instancia.
+  const epochRef = useRef(0)
 
   // Without this list the panel keeps working with the TypeScript default:
   // not worth blocking the screen on a fetch that can fail.
@@ -61,6 +72,7 @@ export function EndpointDetail(props: {
   // otra pestaña guardando) borraba lo que estabas tipeando.
   const fingerprint = JSON.stringify([endpoint.id, endpoint.description, endpoint.default, endpoint.responses])
   useEffect(() => {
+    epochRef.current += 1
     setDraft(toDraft(endpoint))
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` a propósito no está: ver arriba
@@ -131,7 +143,10 @@ export function EndpointDetail(props: {
         </div>
       </div>
 
-      {props.saveError ? <div className="band band-error">{props.saveError}</div> : null}
+      {props.saveError || actionError ? (
+        <div className="band band-error">{props.saveError ?? actionError}</div>
+      ) : null}
+      <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
 
       <div className="detail-columns">
         <div className="detail-responses">
@@ -186,15 +201,26 @@ export function EndpointDetail(props: {
                 type="button"
                 className="btn"
                 onClick={() => {
+                  const epoch = epochRef.current
+                  setActionError(null)
+                  setWarnings([])
                   void api
                     .generateData({ from: { endpointId: endpoint.id, response: selected } })
-                    .then(({ preview }) =>
+                    .then(({ preview, warnings: generationWarnings }) => {
+                      // Descartar si el endpoint se recargó mientras la
+                      // llamada estaba en vuelo: la recarga ya rearmó el
+                      // draft y esta respuesta ya no le pertenece.
+                      if (epochRef.current !== epoch) return
                       setDraft((previous) => ({
                         ...previous,
                         bodies: { ...previous.bodies, [selected]: JSON.stringify(preview, null, 2) },
-                      })),
-                    )
-                    .catch(() => {})
+                      }))
+                      setWarnings(generationWarnings)
+                    })
+                    .catch((error: unknown) => {
+                      if (epochRef.current !== epoch) return
+                      setActionError(error instanceof Error ? error.message : String(error))
+                    })
                 }}
               >
                 Regenerate
@@ -307,9 +333,13 @@ export function EndpointDetail(props: {
                     type="button"
                     className="btn"
                     onClick={() => {
+                      setActionError(null)
                       void api
                         .getTypes(endpoint.id, { response: selected, lang: typesLang })
                         .then(({ code }) => navigator.clipboard?.writeText(code))
+                        .catch((error: unknown) =>
+                          setActionError(error instanceof Error ? error.message : String(error)),
+                        )
                     }}
                   >
                     Copy types
