@@ -199,6 +199,37 @@ closure that spans eight packages. Commit discipline stops being cosmetic:
 a mistyped `feat!` moves the public version line. And the beta must stay on
 `X.0.0-beta` — leaving that shape is a one-way door into a final release.
 
-**Not covered here.** There is still no PR validation CI; step 6 of the
-playbook (keeping release PRs out of the heavy matrix) only becomes relevant
-once one exists. `apps/documentation` is not deployed.
+**Not covered here.** `apps/documentation` is not deployed.
+
+## Addendum — the validation gate
+
+A third workflow, `validate.yml`, runs on pull requests into `main`: build,
+`check-types`, the test suite, `oxlint`, and `oxfmt --check`. Per step 6 of
+the playbook it skips branches named `release-please--*`, so a mechanical
+version bump does not pay for the full matrix.
+
+Two things had to be settled first, both discovered by running the tools.
+
+**The repository's own `check` script cannot gate anything.** It is
+`bun run lint && bun run format`, and `format` is `oxfmt --write .`. It
+rewrites files instead of verifying them, so it can never fail — which is
+why the repository had drifted to **71 of 186 files unformatted** without
+anyone noticing. CI therefore calls a new `check:ci`
+(`oxlint && oxfmt --check .`); `check` and `format` keep their existing
+mutating behaviour so local habits are untouched.
+
+The drift is cleared by a one-time `style:` commit running `oxfmt --write .`
+across the repository, landed before the gate is switched on. The
+alternative — checking only the files a PR touches — was rejected: it leaves
+the repository permanently half-formatted and makes the gate's meaning
+depend on the diff.
+
+`oxfmt` formats **Markdown as well** (11 of the 186 files it processes), so
+the documentation is covered by the same check; no separate prose formatter
+is needed.
+
+**`oxlint` exits 0 on warnings.** Only the `correctness` category is set to
+`error` in `.oxlintrc.json`, so the twelve current warnings
+(`no-array-sort`, `no-shadow`, `consistent-function-scoping`) are visible in
+the log without blocking. `--deny-warnings` is deliberately not used yet: it
+would require clearing those twelve first. Reconsider once they are gone.
