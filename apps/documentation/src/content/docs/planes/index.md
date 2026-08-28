@@ -24,10 +24,10 @@ table. Plans from 7 onward are post-v2.0.0 work.
 
 Further plans, past v2.0.0 itself, build on top of it:
 
-| #   | Plan                                                                   | Delivers                                                                                                                                                                                                                                                                               | Status                                                             |
-| --- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 6   | [Data generators](/planes/2026-08-27-06-data-generators/)               | Types in 27 languages derived from live response data, and seeded mock data generated from a pasted TypeScript model — both from the panel, the control-plane API and MCP tools. Audited: [audit and backlog](/planes/auditoria-plan-06/) — 11 findings, the five High ones fixed. | **In review** — [PR #16](https://github.com/csdev19/laqi/pull/16) |
-| 7   | [Release and publishing](/planes/2026-08-28-07-release-y-publicacion/)  | release-please with a single version line, a tag-triggered npm publish on the `beta` dist-tag, and a PR gate for format, lint, types and tests. Decided in [ADR-0010](/decisiones/0010-release-y-npm/).                                                                              | **Planned**                                                        |
+| #   | Plan                                                                   | Delivers                                                                                                                                                                                                                                                                           | Status                                                            |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 6   | [Data generators](/planes/2026-08-27-06-data-generators/)              | Types in 27 languages derived from live response data, and seeded mock data generated from a pasted TypeScript model — both from the panel, the control-plane API and MCP tools. Audited: [audit and backlog](/planes/auditoria-plan-06/) — 11 findings, the five High ones fixed. | **In review** — [PR #16](https://github.com/csdev19/laqi/pull/16) |
+| 7   | [Release and publishing](/planes/2026-08-28-07-release-y-publicacion/) | release-please with a single version line, a tag-triggered npm publish on the `beta` dist-tag, and a PR gate for format, lint, types and tests. Decided in [ADR-0010](/decisiones/0010-release-y-npm/).                                                                            | **Planned**                                                       |
 
 ## Why this order
 
@@ -56,7 +56,7 @@ so each one builds on real code rather than on assumptions.
 All twelve from the [analysis](/analisis-v1/) are closed in Plan 1, except one:
 
 | Defect                                 | Where                                               |
-| --------------------------------------- | ----------------------------------------------------- |
+| -------------------------------------- | --------------------------------------------------- |
 | A — state leaking between requests     | Task 10 (`structuredClone`, with a regression test) |
 | B — `return` where `continue` belonged | Tasks 4 and 6 (per-key validation)                  |
 | C — hung request                       | Tasks 9 and 10 (every path ends in a response)      |

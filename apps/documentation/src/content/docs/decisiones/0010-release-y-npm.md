@@ -129,6 +129,14 @@ the fallback: if `Release-As` is honoured the first release is exactly
 `2.0.0-beta.0`; if it is not, `feat!` from `1.2.1` lands on `2.0.0-beta` —
 the same stable shape either way.
 
+`bootstrap-sha` is deliberately three commits behind `main`. Set to the
+current HEAD, the first beta's changelog would carry only the release
+adoption itself; set to `8354e21`, it also carries the data-generators
+`feat` that landed in between, which is the substance of what the first
+beta actually contains. The playbook's "use main HEAD" rule exists to stop
+the bot dragging years of pre-convention history into the first changelog;
+three commits is not that.
+
 Cutting the final `2.0.0` later is a deliberate act: flip `prerelease` to
 `false` (the strip branch above then yields `2.0.0`) or land a
 `Release-As: 2.0.0`.
@@ -213,7 +221,7 @@ Two things had to be settled first, both discovered by running the tools.
 **The repository's own `check` script cannot gate anything.** It is
 `bun run lint && bun run format`, and `format` is `oxfmt --write .`. It
 rewrites files instead of verifying them, so it can never fail — which is
-why the repository had drifted to **71 of 186 files unformatted** without
+why the repository had drifted to **83 of 205 files unformatted** without
 anyone noticing. CI therefore calls a new `check:ci`
 (`oxlint && oxfmt --check .`); `check` and `format` keep their existing
 mutating behaviour so local habits are untouched.
@@ -224,7 +232,7 @@ alternative — checking only the files a PR touches — was rejected: it leaves
 the repository permanently half-formatted and makes the gate's meaning
 depend on the diff.
 
-`oxfmt` formats **Markdown as well** (11 of the 186 files it processes), so
+`oxfmt` formats **Markdown as well** (11 of the 205 files it processes), so
 the documentation is covered by the same check; no separate prose formatter
 is needed.
 
@@ -233,3 +241,14 @@ is needed.
 (`no-array-sort`, `no-shadow`, `consistent-function-scoping`) are visible in
 the log without blocking. `--deny-warnings` is deliberately not used yet: it
 would require clearing those twelve first. Reconsider once they are gone.
+
+oxfmt reads only the `.gitignore` in the directory it is invoked from — its
+`--ignore-path` help says "in the current directory". This repository has
+five nested `.gitignore` files, and `apps/documentation/.gitignore`
+excludes `.astro/` while `examples/todo-app/.gitignore` excludes
+`.tanstack/`; the root excluded neither. The formatter therefore walked
+Astro's and TanStack's generated output, rewrote it, and the gate went red
+again after the next build. Both directories are now listed in the ROOT
+`.gitignore` with a comment saying why the apparent duplication is
+load-bearing. A gate that fails on generated files is a gate the team
+deletes.

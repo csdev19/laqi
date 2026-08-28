@@ -27,12 +27,12 @@ title: "laqi v2 — Plan 7: Release automation and publishing"
 
 ## Verified before writing this plan (do not re-litigate)
 
-- `oxfmt --check` reports **71 of 186 files** unformatted on `main` (83 of 205 on `laqi-v2-data-generators`). Pre-existing; neither branch caused it.
-- `oxfmt` formats **Markdown** (11 of the 186 files it processes), so the docs need no separate prose formatter. It honours `.gitignore`, so `dist/` is untouched.
+- `oxfmt --check` reports **83 of 205 files** unformatted on `main` — `laqi-v2-data-generators`, the branch that carried this figure before, has since merged. oxfmt only consults the root `.gitignore`, so `.astro/` and `.tanstack/` must be listed there or the gate goes red again the moment something builds.
+- `oxfmt` formats **Markdown** (11 of the 205 files it processes), so the docs need no separate prose formatter. It honours `.gitignore`, so `dist/` is untouched.
 - `oxlint` exits **0** on the twelve current warnings. Only `correctness` is `error`.
 - `npm pack` on `apps/cli` produces **9 files** including `dist/panel/`, with `bin: {"laqi": "./dist/index.mjs"}`. The published `package.json` carries `@laqi/*` as literal `workspace:*` in `devDependencies`; this is inert (consumers never install a dependency's devDependencies) and is **out of scope**.
 - The repository has **zero git tags**, so seeding the manifest cannot collide.
-- `bootstrap-sha` is `8354e21ec809df759756326dfd49706f34be6059` — `main` at adoption time.
+- `bootstrap-sha` is `8354e21ec809df759756326dfd49706f34be6059`, deliberately three commits behind the current `main` — see ADR-0010 for why.
 
 ## File Structure
 
@@ -59,7 +59,7 @@ Mechanical and reviewable as such. Must merge before PR C.
 
 **Files:**
 
-- Modify: 71 files across the repository (whatever `oxfmt` rewrites)
+- Modify: 77 files across the repository (whatever `oxfmt` rewrites; the count of files with issues, 83, includes generated files that are not tracked)
 
 **Interfaces:**
 
@@ -76,7 +76,7 @@ git checkout -b style/format-repo
 - [ ] **Step 2: Confirm the gate is red before the change**
 
 Run: `bunx oxfmt --check .`
-Expected: exits non-zero, `Format issues found in above 71 files`
+Expected: exits non-zero, `Format issues found in above 83 files`
 
 - [ ] **Step 3: Record the pre-change test baseline**
 
@@ -94,7 +94,34 @@ bunx oxfmt --write .
 Run: `bunx oxfmt --check .`
 Expected: exits 0, no files listed
 
-- [ ] **Step 6: Confirm nothing broke**
+- [ ] **Step 6: Make the gate survive a build**
+
+oxfmt only reads the `.gitignore` in the directory it is invoked from.
+`apps/documentation/.gitignore` already excludes `.astro/` and
+`examples/todo-app/.gitignore` already excludes `.tanstack/`, but the root
+`.gitignore` — the one oxfmt actually consults when run from the repository
+root — excludes neither. Add both, with a comment explaining why the
+apparent duplication is load-bearing:
+
+```
+# oxfmt only reads the .gitignore in the directory it runs from, so these
+# duplicate the nested apps/documentation and examples/todo-app ignores —
+# without them a build regenerates files the gate then flags as unformatted.
+.astro/
+.tanstack/
+```
+
+Then prove it against a real build, not just the source tree:
+
+```bash
+bun run build
+bunx oxfmt --check .
+```
+
+Expected: exits 0 even after the build has regenerated Astro's and
+TanStack's output.
+
+- [ ] **Step 7: Confirm nothing broke**
 
 ```bash
 bun run test
@@ -104,21 +131,21 @@ bun run build
 
 Expected: the same passing count as Step 3, types clean, build clean. Formatting must be behaviour-preserving; a changed count means investigate, do not proceed.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
 git commit -m "style: format the repository with oxfmt
 
 The \`check\` script runs \`oxfmt --write\`, so it rewrote files instead of
-verifying them and could never fail. The repository had drifted to 71 of 186
+verifying them and could never fail. The repository had drifted to 83 of 205
 files unformatted. This is the one-time catch-up; ADR-0010 adds a
 non-mutating \`check:ci\` and a CI gate so it cannot drift again.
 
 No behaviour change."
 ```
 
-- [ ] **Step 8: Open PR A and merge it**
+- [ ] **Step 9: Open PR A and merge it**
 
 ```bash
 gh pr create --title "style: format the repository with oxfmt" --body "Mechanical. \`oxfmt --write .\` over the repository, no behaviour change. Precondition for the format gate in ADR-0010."
@@ -680,7 +707,7 @@ git commit -m "ci: gate pull requests on format, lint, types and tests
 
 CI cannot call \`check\`: it runs \`oxfmt --write\`, so it rewrites files
 instead of verifying them and can never fail — which is how the repository
-reached 71 of 186 files unformatted unnoticed. \`check:ci\` verifies.
+reached 83 of 205 files unformatted unnoticed. \`check:ci\` verifies.
 
 Release PRs are skipped: they touch only package.json and CHANGELOG.md."
 ```
