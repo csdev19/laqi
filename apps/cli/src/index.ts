@@ -94,7 +94,7 @@ function parsePort(raw: string | undefined, flag: string): number | undefined | 
 
 async function main(): Promise<void> {
   const startedAt = Date.now()
-  const { values, positionals } = parseArgs({
+  const argsConfig = {
     allowPositionals: true,
     options: {
       port: { type: 'string' },
@@ -107,7 +107,29 @@ async function main(): Promise<void> {
       'dry-run': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
     },
-  })
+  } as const
+
+  // parseArgs throws — a raw TypeError — on an unknown flag. Left uncaught,
+  // that fell through to main().catch() below and read as `laqi crashed`
+  // with Node's error text as the cause, exit 1. A bad flag is something the
+  // user can fix from the message alone; it gets its own fatal report and
+  // the exit code the spec assigns it, same as an unknown command below.
+  let parsedArgs: ReturnType<typeof parseArgs<typeof argsConfig>>
+  try {
+    parsedArgs = parseArgs(argsConfig)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const flag = /'(--?[^']+)'/.exec(message)?.[1]
+    reportFatal({
+      headline: 'unrecognised flag or argument',
+      cause: flag !== undefined ? `laqi does not recognise the ${flag} flag.` : message,
+      remedy: ['laqi --help'],
+      outcome: 'nothing was started · exit 5',
+    })
+    process.exitCode = 5
+    return
+  }
+  const { values, positionals } = parsedArgs
 
   if (values.help) {
     console.log(USAGE)
