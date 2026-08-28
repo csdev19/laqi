@@ -81,6 +81,37 @@ describe('PUT /api/state', () => {
     expect(await res.json()).toEqual({ scenario: null, overrides: { 'GET /users': 'boom' } })
   })
 
+  // KNOWN DEFECT — marked `.fails` so it documents the bug without reddening
+  // CI, and turns red the day someone fixes it without noticing this test.
+  //
+  // `Project.setScenario` (packages/core/src/project.ts) rejects an unknown
+  // scenario and lists the available ones. MCP's `set_scenario` goes through
+  // it (packages/mcp/src/server.ts:120). `PUT /api/state` does not: it only
+  // parses against StateSchema, where `scenario` is `z.string().nullable()`,
+  // so any string is accepted and then resolves to nothing at request time.
+  //
+  // Same operation, same store — validated through one writer, unvalidated
+  // through the other. A typo'd name over curl or a scripted client leaves you
+  // believing a scenario is active while every endpoint serves its default.
+  it.fails('rejects a scenario name that is not declared', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(
+      makeRuntime({
+        setState,
+        getScenarios: () => ({ 'checkout-broken': { 'GET /users': 'boom' } }),
+      }),
+    )
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: 'no-such-scenario', overrides: {} }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(setState).not.toHaveBeenCalled()
+  })
+
   it('fills in defaults for a partial body', async () => {
     const setState = vi.fn()
     const app = createControlPlaneApp(makeRuntime({ setState }))
