@@ -22,7 +22,10 @@ describe('renderGoodbye', () => {
 
     expect(out).toContain('up 41m')
     expect(out).toContain('3 requests · 1 unmatched')
-    expect(out).toContain('1 time')
+    // toContain('1 time') would also pass on '1 times' — this counts flips,
+    // which is singular here, and the plural is exercised by 'written 2
+    // times' three lines down.
+    expect(out).toMatch(/\b1 time\b/)
     expect(out).toContain('laqi/api.json')
     expect(out).toContain('written 2 times')
   })
