@@ -174,26 +174,74 @@ accessibility requirement, met by the same mechanism.
 - **No box drawing.** Stated in the mockups and worth keeping as a rule.
 - **English everywhere**, including the Quechua farewell's gloss (ADR-0009).
 
+## Shortcuts
+
+Four keys, and the argument for each is what it saves you from doing instead.
+
+| Key | Does                                                                                                                                               | Instead of                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `o` | Opens the panel in your browser. If a laqi tab is already open, focuses it rather than opening a second.                                           | Selecting a URL out of the terminal and pasting it.                            |
+| `s` | Toggles the public URL on and off. Press again to close.                                                                                           | Stopping laqi and restarting it with `--share`.                                |
+| `c` | Clears the request stream and reprints the four header lines, so the next request you fire is the only thing on screen. Does not touch the server. | Scrolling back to find where you started, or `clear` losing the addresses too. |
+| `q` | Ordered shutdown: closes the tunnel, flushes pending writes, prints the summary. Identical to `^C`.                                                | `^C` and hoping the tunnel closed.                                             |
+
+**Deliberately not keys:** changing a response, activating a scenario, editing
+a body. Two places to change state is one place too many — the panel commands,
+the terminal reports. A key that flips a response would race the panel a human
+has open beside it, and neither surface would be trustworthy.
+
+`r` (forced reload) and `?` (reprint the addresses) were considered and are
+out of scope for v2.
+
+## What already exists, and what does not
+
+Checked against the code rather than assumed:
+
+**Already built.** `--share` runs a cloudflared tunnel with a bearer token —
+the bare URL returns 401. The panel is excluded from the tunnel _by
+architecture_, not by a filter: sharing starts a second listener that mounts
+only the mocks, with an explicit `/__laqi/*` 404 as defence in depth
+(ADR-0007). Requests already stream over SSE to the panel.
+
+**Not built.** A request stream in the terminal — `apps/cli/src/serve.ts`
+prints nothing per request. Raw-mode key handling. The QR. Marking a request
+`via public`. Any counter at all.
+
+That list reorders the work: **`c clear` has nothing to clear until the
+terminal streams requests**, so the stream is a prerequisite for the keys, not
+a companion to them.
+
+## Sequencing
+
+1. **The render layer and the three screens** — palette, layout, report,
+   start / failures / goodbye, plus the counters the goodbye summary needs.
+   Shippable on its own and it is the visible win. The keys line is not
+   printed yet, because printing `press o panel` while no key is bound would
+   be a lie.
+2. **The request stream and the four keys** — raw mode, its own tail of cases
+   (no TTY, under `npm run`, signals, restoring the terminal on exit), and the
+   stream `c` acts on.
+3. **Share polish** — the QR for the phone case, and `via public` on streamed
+   requests with the user-agent family.
+
 ## Open questions
 
-1. **The keys line implies interactivity that does not exist.** `o panel · s
-share · c clear · q quit` needs raw-mode stdin. That conflicts with
-   non-TTY runs, and `s share` starts a cloudflared tunnel — an outward-facing
-   action behind a single keypress with no confirmation. Options: ship the
-   keys without `s`; require a confirm for `s`; or ship start/failures/goodbye
-   first and treat interactivity as its own piece. **Recommended: the last
-   one.** It is a different kind of risk from everything else here, and the
-   rest of the design does not depend on it.
+1. **~~The keys line~~ — decided.** All four shortcuts ship, with the
+   rationale above. They land in stage 2 rather than stage 1 because `c`
+   needs a request stream that does not exist yet. `s` toggles a tunnel that
+   is already built and already token-protected, so it is not the outward-facing
+   risk it first looked like — pressing it exposes the mocks, never the panel.
 
-2. **Where does the version string come from?** The mockup shows `laqi 2.0.1`.
-   Reading it from `package.json` at runtime works from source but not from
-   the bundle, where `package.json` is not adjacent to `dist/index.mjs`.
-   Likely answer: tsdown injects it at build time — needs verifying against
-   the current build.
+2. **~~Where does the version string come from?~~ — resolved.** In the
+   published tarball `package.json` sits at `package/` and the bundle at
+   `package/dist/`, so `../package.json` resolves from both source and bundle.
+   Injecting at build time via tsdown is still preferred: it removes a disk
+   read from the path whose whole job is to report how fast startup was.
 
-3. **`up 41m` and the request counters need state that does not exist.** The
-   server counts nothing today. Cheap to add, but it is a real addition to the
-   request path and should be measured, not assumed free.
+3. **`up 41m` and the request counters need state that does not exist** —
+   confirmed against the code: nothing counts anything. An integer increment is
+   cheap, but it is new code on the request path and gets measured, not assumed
+   free.
 
 4. **Does `q quit` mean the summary prints on a clean quit as well as `^C`?**
    The mockup shows `^C`. Assume both, unless there is a reason not to.
