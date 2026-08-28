@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { displayWidth } from './layout'
 import { formatDuration, goodbyeScreen, startScreen } from './screens'
+
+/** Not exported from the package on purpose — tests strip escapes locally. */
+function strip(text: string): string {
+  // eslint-disable-next-line no-control-regex -- matching the ESC byte paint() emits is the point
+  return text.replace(/\x1b\[[0-9;]*m/g, '')
+}
 
 const start = {
   version: '2.0.1',
@@ -50,6 +57,19 @@ describe('startScreen', () => {
     const testStr = '\u001b['
     expect(startScreen(start, 'none', 72)).not.toContain(testStr)
   })
+
+  // The header is `paint()`ed before `rule()` measures it. Level 'none'
+  // never exercises that path -- `paint()` is a no-op there -- so the rule
+  // can be silently broken on every real terminal while this suite stayed
+  // green.
+  for (const level of ['truecolor', 'ansi256'] as const) {
+    it(`renders the rule at exactly the requested width at ${level}`, () => {
+      const out = startScreen(start, level, 72)
+      expect(out).toContain('\u2500')
+      const header = strip(out).split('\n')[1] ?? ''
+      expect(displayWidth(header)).toBe(72)
+    })
+  }
 })
 
 describe('goodbyeScreen', () => {
@@ -76,4 +96,15 @@ describe('goodbyeScreen', () => {
     const out = goodbyeScreen({ ...goodbye, filesWritten: [] }, 'none', 72)
     expect(out).not.toContain('files')
   })
+
+  // Same guard as startScreen's: level 'none' never exercises the painted
+  // path rule() actually measures in real use.
+  for (const level of ['truecolor', 'ansi256'] as const) {
+    it(`renders the rule at exactly the requested width at ${level}`, () => {
+      const out = goodbyeScreen(goodbye, level, 72)
+      expect(out).toContain('\u2500')
+      const header = strip(out).split('\n')[1] ?? ''
+      expect(displayWidth(header)).toBe(72)
+    })
+  }
 })
