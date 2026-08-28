@@ -23,7 +23,8 @@ The repository state at the time of this decision:
 - **No CI of any kind.** There is no `.github/` directory.
 - **No git tags.** Zero. Nothing to collide with.
 - **Conventional Commits already in use** on `main`, with squash merges.
-- `apps/cli/package.json` says `2.0.0`, a number that was never released.
+- `apps/cli/package.json` says `2.0.0-beta.0`, a number that was never
+  released.
 
 Publishing by hand from a laptop is how the version in `package.json` and the
 version actually on the registry drift apart. `release-automation.md` in
@@ -53,6 +54,19 @@ publish to npm from a tag-triggered workflow.**
       "prerelease-type": "beta",
       "extra-files": [
         { "type": "json", "path": "apps/cli/package.json", "jsonpath": "$.version" }
+      ],
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "refactor", "section": "Code Refactoring" },
+        { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+        { "type": "docs", "section": "Documentation", "hidden": true },
+        { "type": "style", "section": "Styles", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "build", "section": "Build System", "hidden": true },
+        { "type": "ci", "section": "Continuous Integration", "hidden": true }
       ]
     }
   }
@@ -164,6 +178,15 @@ The workflow also **verifies that `apps/cli/package.json` matches the tag**
 before publishing, and carries a `dry_run` input (default `true` on
 `workflow_dispatch`) so the pipeline can be proven end to end — install,
 build, tarball contents — without publishing anything.
+
+That version-mismatch guard is also why `apps/cli/package.json` is
+pre-stamped `2.0.0-beta.0` on `main` ahead of the first release, rather than
+left at whatever plain number preceded this ADR. A hand-pushed `v2.0.0` tag —
+bypassing release-please entirely — fails the guard for free: the tag says
+`2.0.0`, the committed `package.json` still says `2.0.0-beta.0`, they
+disagree, and the publish step refuses. The guard has nothing to check
+against until the file itself carries the version release-please is meant to
+own.
 
 The manual dispatch path may never publish `latest`, only `beta`. A tag
 carries the deliberateness release-please put into it — `prerelease: false`
