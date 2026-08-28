@@ -21,7 +21,8 @@ const CONFIG_FILE = 'laqi.config.json'
 const USAGE = `
 laqi — mock server for frontend development
 
-  laqi                 serve the mocks in ./laqi/ or ./laqi.json
+  laqi start           serve the mocks in ./laqi/ or ./laqi.json
+  laqi                 same as laqi start — the short form for npx laqi
   laqi init            scaffold ./laqi/ with a mock API — see laqi init --help
   laqi mcp             run the MCP server over stdio, for coding agents
   laqi migrate         convert v1 mock files to the v2 format
@@ -185,7 +186,14 @@ async function main(): Promise<void> {
     return
   }
 
-  if (positionals[0] !== undefined) {
+  // `start` is an alias for the default (no positional) serve mode, not a
+  // fourth branch: `init`, `mcp` and `migrate` are named verbs, and a CLI
+  // with three named subcommands plus one unnamed default reads as
+  // inconsistent — `laqi init` then plain `laqi` is a jolt. `start`
+  // completes the set and matches what the design docs already show. The
+  // short form stays for `npx laqi`, so both fall through to the same serve
+  // path below rather than one delegating to the other.
+  if (positionals[0] !== undefined && positionals[0] !== 'start') {
     reportFatal({
       headline: `unknown command ${JSON.stringify(positionals[0])}`,
       cause: `laqi does not recognise ${JSON.stringify(positionals[0])} as a command.`,
@@ -202,7 +210,7 @@ async function main(): Promise<void> {
     reportFatal({
       headline: '--public only means something with --share',
       cause: '--public drops the bearer token, and there is nothing to share without --share.',
-      remedy: ['laqi --share --public'],
+      remedy: ['laqi start --share --public'],
       outcome: 'nothing was started · exit 5',
     })
     process.exitCode = 5
@@ -264,7 +272,7 @@ async function main(): Promise<void> {
       reportFatal({
         headline: 'laqi could not start',
         cause: `Port ${busyPort} is already in use.`,
-        remedy: [`laqi --port ${busyPort + 1}`, `kill $(lsof -ti :${busyPort})`],
+        remedy: [`laqi start --port ${busyPort + 1}`, `kill $(lsof -ti :${busyPort})`],
         outcome: 'nothing was started · exit 3',
       })
       process.exitCode = 3

@@ -11,7 +11,7 @@ const baseInfo = {
       detail: 'offline · logged-out · empty-state',
     },
   ],
-  next: 'laqi',
+  next: 'laqi start',
   afterCommand: 'point your app at http://127.0.0.1:8000',
 }
 
@@ -33,14 +33,14 @@ describe('renderInitSummary', () => {
         ...baseInfo,
         changes: [
           ...baseInfo.changes,
-          { marker: '~' as const, path: 'package.json', detail: 'scripts.mock = "laqi"' },
+          { marker: '~' as const, path: 'package.json', detail: 'scripts.mock = "laqi start"' },
         ],
       },
       'none',
       80,
     )
     expect(withScript).toContain('~ package.json')
-    expect(withScript).toContain('scripts.mock = "laqi"')
+    expect(withScript).toContain('scripts.mock = "laqi start"')
   })
 
   it('shows the next and then lines', () => {

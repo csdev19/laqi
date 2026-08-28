@@ -321,4 +321,4 @@ laqi migrate             # writes it
   served, and the panel shows a red band with the file, line and cause.
 - **`--share` asks for cloudflared** → the error message carries the install
   command for each platform.
-- **The port is in use** → `laqi --port 8001`.
+- **The port is in use** → `laqi start --port 8001`.

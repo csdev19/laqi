@@ -45,7 +45,7 @@ Options:
   --from <kind>          example | empty | openapi              (default example)
   --spec <path>          OpenAPI document — JSON only today      (required with --from openapi)
   --port <number>        port baked into the npm script          (default 8000)
-  --script[=name]        add an npm script that runs laqi        (default off; name defaults to "mock")
+  --script[=name]        add an npm script that runs laqi start  (default off; name defaults to "mock")
   --open                 open the panel in a browser once it is running
   --force                overwrite an existing mocks folder
 `.trim()
@@ -375,7 +375,7 @@ function validateScaffold(
 }
 
 function serveCommand(options: InitOptions): string {
-  const parts = ['laqi']
+  const parts = ['laqi', 'start']
   if (options.dir !== 'laqi') parts.push('--dir', options.dir)
   if (options.port !== 8000) parts.push('--port', String(options.port))
   return parts.join(' ')
