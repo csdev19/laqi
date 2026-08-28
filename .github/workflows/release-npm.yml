@@ -69,6 +69,16 @@ jobs:
             DIST_TAG="$(bun scripts/release/print-dist-tag.ts "$VERSION")"
           fi
 
+          # workflow_dispatch carries none of the deliberateness a tag gets
+          # from release-please's config (prerelease: false, or a
+          # `Release-As:` footer). Without this gate, checking "Build and
+          # pack" off by hand on any ref and computing `latest` from
+          # apps/cli/package.json would ship it — no review, no release cut.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$DIST_TAG" = "latest" ]; then
+            echo "::error::Refusing to publish latest from workflow_dispatch. A latest release must come from a tag cut by release-please, never from a manual dispatch."
+            exit 1
+          fi
+
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "dist_tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${VERSION} under dist-tag ${DIST_TAG}"

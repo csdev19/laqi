@@ -1,6 +1,6 @@
 {
   "name": "laqi",
-  "version": "2.0.0",
+  "version": "2.0.0-beta.0",
   "description": "Mock server for frontend development: declarative JSON mocks, a web panel, an MCP server, and a public URL.",
   "keywords": [
     "api",

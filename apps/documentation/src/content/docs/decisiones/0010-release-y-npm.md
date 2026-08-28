@@ -165,6 +165,13 @@ before publishing, and carries a `dry_run` input (default `true` on
 `workflow_dispatch`) so the pipeline can be proven end to end — install,
 build, tarball contents — without publishing anything.
 
+The manual dispatch path may never publish `latest`, only `beta`. A tag
+carries the deliberateness release-please put into it — `prerelease: false`
+or a `Release-As:` footer — but a `workflow_dispatch` run carries none of
+that; it publishes whatever `apps/cli/package.json` happens to say on
+whatever ref someone picked. If that computes to `latest`, the step fails
+instead of shipping it.
+
 Publishing uses `npm publish` rather than `bun publish` for **provenance**:
 the repository is public, so with `id-token: write` npm records a verifiable
 link from the tarball back to the commit and workflow that built it. Install
