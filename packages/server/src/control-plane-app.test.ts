@@ -81,6 +81,62 @@ describe('PUT /api/state', () => {
     expect(await res.json()).toEqual({ scenario: null, overrides: { 'GET /users': 'boom' } })
   })
 
+  // `Project.setScenario` (packages/core/src/project.ts) rejects an unknown
+  // scenario and lists the available ones, and MCP's `set_scenario` goes
+  // through it (packages/mcp/src/server.ts:120). `PUT /api/state` enforces
+  // the same rule using `runtime.getScenarios()`, so both writers of
+  // state.json agree on what's valid: a typo'd name gets a 400 instead of
+  // being stored as if it were active.
+  it('rejects a scenario name that is not declared', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(
+      makeRuntime({
+        setState,
+        getScenarios: () => ({ 'checkout-broken': { 'GET /users': 'boom' } }),
+      }),
+    )
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: 'no-such-scenario', overrides: {} }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(setState).not.toHaveBeenCalled()
+  })
+
+  // Same hole as the scenario one, on the other field: an override naming
+  // an endpoint that was never loaded would sit in state.json forever,
+  // never matched by `resolveResponse` and never surfaced to the caller.
+  it('rejects an override naming an endpoint that does not exist', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ setState }))
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: null, overrides: { 'GET /no-such-endpoint': 'ok' } }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(setState).not.toHaveBeenCalled()
+  })
+
+  it('rejects an override naming a response that is not declared on the endpoint', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(makeRuntime({ setState }))
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: null, overrides: { 'GET /users': 'no-such-response' } }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(setState).not.toHaveBeenCalled()
+  })
+
   it('fills in defaults for a partial body', async () => {
     const setState = vi.fn()
     const app = createControlPlaneApp(makeRuntime({ setState }))
