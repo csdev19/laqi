@@ -134,7 +134,7 @@ describe('runInit — --script', () => {
     expect(written.name).toBe('demo-app')
     expect(written.version).toBe('1.0.0')
     expect(written.dependencies).toEqual({ react: '^19.0.0' })
-    expect(written.scripts).toEqual({ mock: 'laqi' })
+    expect(written.scripts).toEqual({ mock: 'laqi start' })
   })
 
   it('--script=name uses the given name', async () => {
@@ -143,7 +143,7 @@ describe('runInit — --script', () => {
     const written = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(written.scripts).toEqual({ 'mock:api': 'laqi' })
+    expect(written.scripts).toEqual({ 'mock:api': 'laqi start' })
   })
 
   it('bakes a non-default port and dir into the script command', async () => {
@@ -152,7 +152,7 @@ describe('runInit — --script', () => {
     const written = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(written.scripts.mock).toBe('laqi --dir mocks --port 8010')
+    expect(written.scripts.mock).toBe('laqi start --dir mocks --port 8010')
   })
 
   it('preserves existing scripts and only adds the new one', async () => {
@@ -165,7 +165,7 @@ describe('runInit — --script', () => {
     const written = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(written.scripts).toEqual({ build: 'tsc', test: 'vitest', mock: 'laqi' })
+    expect(written.scripts).toEqual({ build: 'tsc', test: 'vitest', mock: 'laqi start' })
   })
 
   it('is a notice, not a failure, when there is no package.json to modify', async () => {
@@ -329,10 +329,10 @@ describe('runInit — summary', () => {
     expect(printed).toContain('npm run mock')
   })
 
-  it('reports the bare laqi command as "next" when no script is added', async () => {
+  it('reports the bare laqi start command as "next" when no script is added', async () => {
     await runInit(['--yes'], root)
     const printed = logSpy.mock.calls.map((call) => call[0]).join('\n')
-    expect(printed).toContain('laqi')
+    expect(printed).toContain('laqi start')
     expect(printed).not.toContain('npm run')
   })
 })

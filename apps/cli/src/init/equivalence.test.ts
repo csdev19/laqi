@@ -155,7 +155,7 @@ describe('the flag path and the prompt path agree', () => {
     const written = JSON.parse(readFileSync(join(flagRoot, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>
     }
-    expect(written.scripts).toEqual({ mock: 'laqi' })
+    expect(written.scripts).toEqual({ mock: 'laqi start' })
   })
 
   it('question 5 — open the panel: --open vs answering "y", both call the same opener', async () => {
