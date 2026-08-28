@@ -21,6 +21,7 @@ import { parseInitArgs, type RawInitFlags } from './args'
 import { resolveInitOptions, type InitOptions } from './options'
 import { openBrowser as defaultOpenBrowser, type OpenResult } from './open-browser'
 import { defaultPromptIO, promptForFlags, type PromptIO } from './prompt'
+import { README_CONTENT } from './readme'
 import { emptyScaffold, exampleScaffold } from './scaffold'
 import { renderInitSummary, type InitChange } from './summary'
 
@@ -169,6 +170,7 @@ export async function runInit(
     `${JSON.stringify(built.scenarios, null, 2)}\n`,
     'utf8',
   )
+  writeFileSync(join(targetDir, 'README.md'), README_CONTENT, 'utf8')
 
   const routeCount = Object.keys(built.api).length
   const responseCount = Object.values(built.api).reduce(
@@ -187,6 +189,11 @@ export async function runInit(
       marker: '+',
       path: `${options.dir}/scenarios.json`,
       detail: scenarioNames.length > 0 ? scenarioNames.join(' · ') : 'no scenarios yet',
+    },
+    {
+      marker: '+',
+      path: `${options.dir}/README.md`,
+      detail: 'how to read and edit this folder',
     },
   ]
 
