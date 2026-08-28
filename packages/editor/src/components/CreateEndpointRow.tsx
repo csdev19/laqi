@@ -58,9 +58,7 @@ export function CreateEndpointRow(props: {
             key={option}
             type="button"
             className={
-              option === method
-                ? `method-option is-selected method-${option}`
-                : 'method-option'
+              option === method ? `method-option is-selected method-${option}` : 'method-option'
             }
             aria-pressed={option === method}
             onClick={() => setMethod(option)}

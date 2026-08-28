@@ -1,5 +1,10 @@
 import type { LaqiEvent } from '@laqi/core'
-import { formatResolvedHeader, resolveResponse, type LoadedEndpoint, type RouteTable } from '@laqi/core'
+import {
+  formatResolvedHeader,
+  resolveResponse,
+  type LoadedEndpoint,
+  type RouteTable,
+} from '@laqi/core'
 import type { LaqiConfig, LaqiState, Scenarios } from '@laqi/schema'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'

@@ -7,10 +7,17 @@ const user: Shape = {
   fields: [
     { name: 'id', shape: primitive('integer'), optional: false },
     { name: 'nick', shape: primitive('string'), optional: true },
-    { name: 'tags', shape: { kind: 'array', items: { kind: 'literals', values: ['a', 'b'] } }, optional: false },
+    {
+      name: 'tags',
+      shape: { kind: 'array', items: { kind: 'literals', values: ['a', 'b'] } },
+      optional: false,
+    },
     {
       name: 'address',
-      shape: { kind: 'object', fields: [{ name: 'street', shape: primitive('string'), optional: false }] },
+      shape: {
+        kind: 'object',
+        fields: [{ name: 'street', shape: primitive('string'), optional: false }],
+      },
       optional: false,
     },
   ],
@@ -39,7 +46,13 @@ describe('printTypes', () => {
   it('degrades a tuple to a union-typed array instead of crashing or losing the field (quicktype has no per-position tuple rendering — see the comment on printTypesEffect)', async () => {
     const boxed: Shape = {
       kind: 'object',
-      fields: [{ name: 'pair', shape: { kind: 'tuple', items: [primitive('string'), primitive('number')] }, optional: false }],
+      fields: [
+        {
+          name: 'pair',
+          shape: { kind: 'tuple', items: [primitive('string'), primitive('number')] },
+          optional: false,
+        },
+      ],
     }
     const { code } = await printTypes(boxed, { typeName: 'Box' })
     expect(code).toContain('export interface Box')
@@ -63,7 +76,15 @@ describe('printTypes', () => {
 describe('supportedLanguages', () => {
   it('advertises the well-known ones', async () => {
     const names = (await supportedLanguages()).map((l) => l.name)
-    for (const expected of ['typescript', 'typescript-zod', 'swift', 'kotlin', 'dart', 'python', 'go']) {
+    for (const expected of [
+      'typescript',
+      'typescript-zod',
+      'swift',
+      'kotlin',
+      'dart',
+      'python',
+      'go',
+    ]) {
       expect(names).toContain(expected)
     }
   })

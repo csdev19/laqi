@@ -36,7 +36,9 @@ export const CLOUDFLARED_MISSING = [
 export const URL_TIMEOUT_MS = 30_000
 
 export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): TunnelProvider {
-  const spawner: Spawner = options.spawner ?? ((command, args) => spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] }))
+  const spawner: Spawner =
+    options.spawner ??
+    ((command, args) => spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] }))
 
   return {
     name: 'cloudflared',
@@ -124,7 +126,9 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
 
         child.on('error', (error) => finish(() => reject(error)))
         child.on('exit', (code) =>
-          finish(() => reject(new Error(`cloudflared exited with code ${code} before reporting a URL`))),
+          finish(() =>
+            reject(new Error(`cloudflared exited with code ${code} before reporting a URL`)),
+          ),
         )
 
         // Matar y NO settlear dejaría la promesa colgada para siempre, y

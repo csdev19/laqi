@@ -270,14 +270,14 @@ rather than failing the whole import.
 
 The panel closes the loop around the data model in both directions:
 
-- **Data → types.** Every endpoint detail has a *Copy types* button with a
+- **Data → types.** Every endpoint detail has a _Copy types_ button with a
   language dropdown — TypeScript, Zod, Swift, Kotlin, Dart, Python, Go and
   twenty more. Types are derived from the live response body on demand, so
   they can never go stale.
 - **Model → data.** Paste a TypeScript interface (a dirty real-world one is
   fine — `extends`, `Pick`, imports from libraries that are not present) and
   laqi generates realistic seeded data from it: `email` fields get emails,
-  `createdAt` gets dates, ids are sequential. *Regenerate* on any response
+  `createdAt` gets dates, ids are sequential. _Regenerate_ on any response
   re-randomises the values from the shape the data already has.
 
 The same two operations are MCP tools (`get_types`, `generate_data`), so an

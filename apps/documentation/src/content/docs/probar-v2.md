@@ -291,14 +291,14 @@ bun run dev    # the frontend
 Open the panel next to the app and flip responses while you use it. Nothing
 restarts:
 
-| Flip this | And the app… |
-| --- | --- |
-| `GET /todos` → `error` | shows its error state with a retry button |
-| `GET /todos` → `empty` | shows the empty state |
-| `GET /todos` → `one-page` | drops to three items and the pager disappears |
-| `GET /todos` → `slow` | shows the loading state, held for 2.5s |
-| `GET /profile` → `unauthorized` | signs you out, the way a real 401 would |
-| scenario `backend-caido` | breaks every endpoint at once |
+| Flip this                       | And the app…                                  |
+| ------------------------------- | --------------------------------------------- |
+| `GET /todos` → `error`          | shows its error state with a retry button     |
+| `GET /todos` → `empty`          | shows the empty state                         |
+| `GET /todos` → `one-page`       | drops to three items and the pager disappears |
+| `GET /todos` → `slow`           | shows the loading state, held for 2.5s        |
+| `GET /profile` → `unauthorized` | signs you out, the way a real 401 would       |
+| scenario `backend-caido`        | breaks every endpoint at once                 |
 
 Those are exactly the states that are painful to reach against a real backend,
 and here they are one click away.

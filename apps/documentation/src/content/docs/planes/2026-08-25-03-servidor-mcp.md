@@ -28,17 +28,17 @@ escriben los mismos archivos, y una caché acá se desincronizaría al instante.
 
 ## Herramientas
 
-| Herramienta | Qué hace |
-|---|---|
-| `list_endpoints` | Todos los endpoints, sus respuestas, y cuál está viva con qué capa |
-| `get_state` | Escenario activo, overrides, y sólo los endpoints fuera de su default |
-| `set_response` | Fija la respuesta viva de un endpoint; `null` borra el override |
-| `set_scenario` | Activa un escenario; `null` lo desactiva |
-| `reset_state` | Limpia overrides y escenario |
-| `create_endpoint` | Crea un endpoint y lo escribe al archivo |
-| `update_endpoint` | Reemplaza la definición completa |
-| `delete_endpoint` | Lo borra, y limpia el override que apuntaba a él |
-| `import_openapi` | Genera mocks desde un documento OpenAPI 3.x |
+| Herramienta       | Qué hace                                                              |
+| ----------------- | --------------------------------------------------------------------- |
+| `list_endpoints`  | Todos los endpoints, sus respuestas, y cuál está viva con qué capa    |
+| `get_state`       | Escenario activo, overrides, y sólo los endpoints fuera de su default |
+| `set_response`    | Fija la respuesta viva de un endpoint; `null` borra el override       |
+| `set_scenario`    | Activa un escenario; `null` lo desactiva                              |
+| `reset_state`     | Limpia overrides y escenario                                          |
+| `create_endpoint` | Crea un endpoint y lo escribe al archivo                              |
+| `update_endpoint` | Reemplaza la definición completa                                      |
+| `delete_endpoint` | Lo borra, y limpia el override que apuntaba a él                      |
+| `import_openapi`  | Genera mocks desde un documento OpenAPI 3.x                           |
 
 El ADR listaba siete; se agregaron `delete_endpoint` (la corrección H8 que el
 Plan 2a ya había hecho en HTTP) y `reset_state`.

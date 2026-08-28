@@ -321,7 +321,11 @@ describe('createEndpoints (batched)', () => {
       ]),
     )
     expect(result.created).toEqual(['GET /good'])
-    expect(result.rejected.map((r) => r.id)).toEqual(['GET /users', 'FETCH /nope', 'GET /__laqi/steal'])
+    expect(result.rejected.map((r) => r.id)).toEqual([
+      'GET /users',
+      'FETCH /nope',
+      'GET /__laqi/steal',
+    ])
     expect(readMocks()).toHaveProperty(['GET /good'])
   })
 

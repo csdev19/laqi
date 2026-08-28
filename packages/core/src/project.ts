@@ -168,7 +168,8 @@ export class Project {
     // carpeta un id que ya existe en OTRO archivo se escribiría igual — y la
     // tabla de rutas rechazaría los dos lados, matando el que ya andaba.
     const existing = byId.get(id)
-    if (existing) return fail(`${JSON.stringify(id)} already exists in ${existing.file}`, 'conflict')
+    if (existing)
+      return fail(`${JSON.stringify(id)} already exists in ${existing.file}`, 'conflict')
 
     const file = this.targetFile(source)
     const result = createEndpointInFile({
@@ -232,14 +233,21 @@ export class Project {
       }
       const id = formatEndpointId(parsed.value.method, parsed.value.path)
       if (taken.has(id)) {
-        rejected.push({ id, error: `${JSON.stringify(id)} already exists in ${byId.get(id)?.file ?? file}` })
+        rejected.push({
+          id,
+          error: `${JSON.stringify(id)} already exists in ${byId.get(id)?.file ?? file}`,
+        })
         continue
       }
 
       taken.add(id)
       definitions.push({
         id,
-        definition: { description: input.description, default: input.default, responses: input.responses },
+        definition: {
+          description: input.description,
+          default: input.default,
+          responses: input.responses,
+        },
       })
       created.push(id)
     }
@@ -252,7 +260,10 @@ export class Project {
     return ok({ created, rejected })
   }
 
-  updateEndpoint(id: string, definition: EndpointDefinition): ProjectResult<{ id: string; file: string }> {
+  updateEndpoint(
+    id: string,
+    definition: EndpointDefinition,
+  ): ProjectResult<{ id: string; file: string }> {
     const existing = this.load().byId.get(id)
     if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
@@ -302,7 +313,9 @@ export class Project {
   }
 
   /** `name: null` desactiva el escenario activo. */
-  setScenario(name: string | null): ProjectResult<{ scenario: string | null; moved: EndpointView[] }> {
+  setScenario(
+    name: string | null,
+  ): ProjectResult<{ scenario: string | null; moved: EndpointView[] }> {
     const { endpoints, scenarios } = this.load()
 
     if (name !== null && !Object.hasOwn(scenarios, name)) {
@@ -351,7 +364,8 @@ export class Project {
 
   private unknownEndpoint(id: string): string {
     const ids = this.load().endpoints.map((e) => e.id)
-    const hint = ids.length === 0 ? 'no endpoints are loaded' : `known ids: ${ids.slice(0, 12).join(', ')}`
+    const hint =
+      ids.length === 0 ? 'no endpoints are loaded' : `known ids: ${ids.slice(0, 12).join(', ')}`
     return `no endpoint with id ${JSON.stringify(id)} — ${hint}`
   }
 }

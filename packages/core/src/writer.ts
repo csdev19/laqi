@@ -18,8 +18,14 @@ export type WriteResult = { ok: true } | { ok: false; error: string }
  * el ADR-0006 pide acotar al servidor MCP — un agente con estas
  * herramientas escribe archivos del proyecto y nunca debe salir de él.
  */
-function resolveInside(root: string, file: string): { ok: true; path: string } | { ok: false; error: string } {
-  const refuse = { ok: false as const, error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root` }
+function resolveInside(
+  root: string,
+  file: string,
+): { ok: true; path: string } | { ok: false; error: string } {
+  const refuse = {
+    ok: false as const,
+    error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root`,
+  }
 
   // realpath, no resolve: `resolve` es puramente léxico y no mira el disco,
   // así que un symlink DENTRO del proyecto apuntando afuera lo esquiva —
@@ -53,7 +59,9 @@ function realOrSelf(path: string): string {
   }
 }
 
-function readFileObject(fullPath: string): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+function readFileObject(
+  fullPath: string,
+): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
   if (!existsSync(fullPath)) return { ok: false, error: `file not found: ${fullPath}` }
 
   try {
@@ -63,7 +71,10 @@ function readFileObject(fullPath: string): { ok: true; value: Record<string, unk
     }
     return { ok: true, value: parsed as Record<string, unknown> }
   } catch (error) {
-    return { ok: false, error: `invalid JSON: ${error instanceof Error ? error.message : String(error)}` }
+    return {
+      ok: false,
+      error: `invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
 }
 
@@ -185,7 +196,10 @@ export function createEndpointsInFile(params: {
   for (const entry of entries) {
     const parsed = EndpointSchema.safeParse(entry.definition)
     if (!parsed.success) {
-      return { ok: false, error: `${entry.id}: ${parsed.error.issues.map((i) => i.message).join('; ')}` }
+      return {
+        ok: false,
+        error: `${entry.id}: ${parsed.error.issues.map((i) => i.message).join('; ')}`,
+      }
     }
     validated.push({ id: entry.id, definition: parsed.data })
   }
@@ -207,7 +221,11 @@ export function createEndpointsInFile(params: {
   })
 }
 
-export function deleteEndpointFromFile(params: { root: string; file: string; id: string }): WriteResult {
+export function deleteEndpointFromFile(params: {
+  root: string
+  file: string
+  id: string
+}): WriteResult {
   const { root, file, id } = params
   const inside = resolveInside(root, file)
   if (!inside.ok) return inside

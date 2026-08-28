@@ -12,7 +12,9 @@ export function WarningBand(props: { warnings: string[]; onDismiss: () => void }
     <div className="band band-warning" role="status" aria-label="generation warnings">
       <div className="band-body">
         <div className="band-title">
-          {props.warnings.length === 1 ? 'generation warning' : `${props.warnings.length} generation warnings`}
+          {props.warnings.length === 1
+            ? 'generation warning'
+            : `${props.warnings.length} generation warnings`}
         </div>
         <ul className="band-warning-list">
           {props.warnings.map((warning, index) => (

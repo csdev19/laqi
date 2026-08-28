@@ -113,7 +113,10 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
     }
 
     if (typeof parsed.value !== 'object' || parsed.value === null || Array.isArray(parsed.value)) {
-      errors.push({ file: displayPath, message: 'a mock file must be a JSON object of "METHOD /path" keys' })
+      errors.push({
+        file: displayPath,
+        message: 'a mock file must be a JSON object of "METHOD /path" keys',
+      })
       continue
     }
 
@@ -155,7 +158,9 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
 
 function formatZodMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
   return issues
-    .map((issue) => (issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message))
+    .map((issue) =>
+      issue.path.length > 0 ? `${issue.path.join('.')}: ${issue.message}` : issue.message,
+    )
     .join('; ')
 }
 

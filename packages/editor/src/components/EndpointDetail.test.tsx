@@ -19,7 +19,10 @@ beforeEach(() => {
     { name: 'typescript', displayName: 'TypeScript' },
     { name: 'typescript-zod', displayName: 'TypeScript + Zod' },
   ])
-  getTypes.mockResolvedValue({ code: 'export interface Users { id: number }', language: 'typescript' })
+  getTypes.mockResolvedValue({
+    code: 'export interface Users { id: number }',
+    language: 'typescript',
+  })
   generateData.mockResolvedValue({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
 })
 
@@ -50,7 +53,10 @@ function renderDetail(value: Endpoint) {
     onDelete: vi.fn(),
   }
   const view = render(<EndpointDetail {...props} />)
-  return { ...props, rerender: (next: Endpoint) => view.rerender(<EndpointDetail {...props} endpoint={next} />) }
+  return {
+    ...props,
+    rerender: (next: Endpoint) => view.rerender(<EndpointDetail {...props} endpoint={next} />),
+  }
 }
 
 const body = () => screen.getByLabelText('response body') as HTMLTextAreaElement
@@ -89,7 +95,9 @@ describe('the draft survives an unrelated reload', () => {
     const { rerender } = renderDetail(endpoint())
     fireEvent.change(body(), { target: { value: '{"mine": 1}' } })
 
-    rerender(endpoint({ responses: { ok: { status: 200, body: { theirs: 2 } }, boom: { status: 500 } } }))
+    rerender(
+      endpoint({ responses: { ok: { status: 200, body: { theirs: 2 } }, boom: { status: 500 } } }),
+    )
 
     await waitFor(() => expect(body().value).toContain('theirs'))
   })
@@ -98,7 +106,14 @@ describe('the draft survives an unrelated reload', () => {
     const { rerender } = renderDetail(endpoint())
     fireEvent.change(body(), { target: { value: '{"mine": 1}' } })
 
-    rerender(endpoint({ id: 'GET /orders', path: '/orders', responses: { ok: { status: 200, body: {} } }, default: 'ok' }))
+    rerender(
+      endpoint({
+        id: 'GET /orders',
+        path: '/orders',
+        responses: { ok: { status: 200, body: {} } },
+        default: 'ok',
+      }),
+    )
 
     await waitFor(() => expect(body().value).not.toContain('mine'))
   })
@@ -111,7 +126,9 @@ describe('generated types and data', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } })
 
     fireEvent.click(await screen.findByRole('button', { name: /copy types/i }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('interface')))
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('interface')),
+    )
   })
 
   it('regenerate fills the body draft with the preview and lets Save do the writing', async () => {
@@ -121,7 +138,9 @@ describe('generated types and data', () => {
     await waitFor(() => expect(body().value).toContain('"Fresh"'))
     // No write happened: regenerate only edits the draft. Saving is the
     // existing Save button — zero new write paths, verbatim from the spec.
-    expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(false)
+    expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(
+      false,
+    )
   })
 
   it('discards a Regenerate response that resolves after the endpoint reloaded underneath it', async () => {

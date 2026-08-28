@@ -85,10 +85,15 @@ export type ControlPlaneRuntime = {
   getTypes: (
     id: string,
     options: { response?: string; lang?: string },
-  ) => Promise<{ ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }>
+  ) => Promise<
+    { ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }
+  >
   generateData: (
     input: GenerateRequest,
-  ) => Promise<{ ok: true; preview: unknown; warnings: string[] } | { ok: false; error: string; code: WriteFailure }>
+  ) => Promise<
+    | { ok: true; preview: unknown; warnings: string[] }
+    | { ok: false; error: string; code: WriteFailure }
+  >
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -108,7 +113,9 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       let allowed = false
       try {
         const parsed = new URL(origin)
-        allowed = parsed.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname)
+        allowed =
+          parsed.protocol === 'http:' &&
+          ['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname)
       } catch {
         allowed = false
       }
@@ -135,7 +142,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     const parsed = StateSchema.safeParse(raw)
     if (!parsed.success) {
       return c.json(
-        { error: 'laqi-control-plane', message: parsed.error.issues.map((i) => i.message).join('; ') },
+        {
+          error: 'laqi-control-plane',
+          message: parsed.error.issues.map((i) => i.message).join('; '),
+        },
         400,
       )
     }
@@ -162,14 +172,20 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     const input = raw as Record<string, unknown>
 
     if (typeof input.method !== 'string' || !isHttpMethod(input.method.toUpperCase())) {
-      return c.json({ error: 'laqi-control-plane', message: `unknown method ${JSON.stringify(input.method)}` }, 400)
+      return c.json(
+        { error: 'laqi-control-plane', message: `unknown method ${JSON.stringify(input.method)}` },
+        400,
+      )
     }
     if (typeof input.path !== 'string' || !input.path.startsWith('/')) {
       return c.json({ error: 'laqi-control-plane', message: 'path must start with "/"' }, 400)
     }
     if (input.path === RESERVED_PREFIX || input.path.startsWith(`${RESERVED_PREFIX}/`)) {
       return c.json(
-        { error: 'laqi-control-plane', message: `${RESERVED_PREFIX} is reserved by the laqi control panel and cannot be mocked` },
+        {
+          error: 'laqi-control-plane',
+          message: `${RESERVED_PREFIX} is reserved by the laqi control panel and cannot be mocked`,
+        },
         400,
       )
     }
@@ -181,7 +197,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     })
     if (!definition.success) {
       return c.json(
-        { error: 'laqi-control-plane', message: definition.error.issues.map((i) => i.message).join('; ') },
+        {
+          error: 'laqi-control-plane',
+          message: definition.error.issues.map((i) => i.message).join('; '),
+        },
         400,
       )
     }
@@ -198,7 +217,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       // 409 sólo cuando de verdad choca con algo. Un path mal formado que
       // Project rechaza es un 400: no entra en conflicto con nada, y un
       // cliente que trate 409 como "ya existe" se confundiría.
-      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'conflict'])
+      return c.json(
+        { error: 'laqi-control-plane', message: result.error },
+        STATUS[result.code ?? 'conflict'],
+      )
     }
 
     return c.json({ id: result.id }, 201)
@@ -221,14 +243,20 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     const definition = EndpointSchema.safeParse(raw)
     if (!definition.success) {
       return c.json(
-        { error: 'laqi-control-plane', message: definition.error.issues.map((i) => i.message).join('; ') },
+        {
+          error: 'laqi-control-plane',
+          message: definition.error.issues.map((i) => i.message).join('; '),
+        },
         400,
       )
     }
 
     const result = runtime.updateEndpoint(id, definition.data)
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
+      return c.json(
+        { error: 'laqi-control-plane', message: result.error },
+        STATUS[result.code ?? 'not-found'],
+      )
     }
 
     return c.json({ ok: true })
@@ -240,7 +268,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     const result = runtime.deleteEndpoint(id)
 
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code ?? 'not-found'])
+      return c.json(
+        { error: 'laqi-control-plane', message: result.error },
+        STATUS[result.code ?? 'not-found'],
+      )
     }
 
     return c.body(null, 204)
@@ -303,14 +334,20 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
     if (!hasModel && !hasFrom) {
       return c.json(
-        { error: 'laqi-control-plane', message: 'body needs either "model" (TS source) or "from" ({endpointId, response})' },
+        {
+          error: 'laqi-control-plane',
+          message: 'body needs either "model" (TS source) or "from" ({endpointId, response})',
+        },
         400,
       )
     }
 
     const parsed = hasModel ? ModelVariantSchema.safeParse(raw) : FromVariantSchema.safeParse(raw)
     if (!parsed.success) {
-      return c.json({ error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) }, 400)
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
     }
 
     const result = await runtime.generateData(parsed.data)

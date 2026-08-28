@@ -39,7 +39,9 @@ export function watchMocks(options: {
       // Los dotfiles incluyen .laqi/state.json, que escribimos nosotros:
       // observarlo sería un bucle de recarga infinito.
       if (relativePath.split(sep).some((part) => part.startsWith('.'))) return true
-      return !matchesTarget(relativePath, normalizedDir) && !matchesTarget(relativePath, normalizedFile)
+      return (
+        !matchesTarget(relativePath, normalizedDir) && !matchesTarget(relativePath, normalizedFile)
+      )
     },
   })
 

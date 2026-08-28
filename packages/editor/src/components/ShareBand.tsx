@@ -10,9 +10,7 @@ export function ShareBand(props: { share: Share }) {
   const [revealed, setRevealed] = useState(false)
   const { url, token } = props.share
 
-  const curl = url
-    ? `curl ${token ? `-H 'Authorization: Bearer ${token}' ` : ''}${url}/`
-    : ''
+  const curl = url ? `curl ${token ? `-H 'Authorization: Bearer ${token}' ` : ''}${url}/` : ''
 
   return (
     <div className="band band-share" role="status">
@@ -34,8 +32,7 @@ export function ShareBand(props: { share: Share }) {
           </div>
         ) : (
           <div className="share-token mono">
-            <span className="micro">token</span>{' '}
-            {revealed ? token : '•'.repeat(token.length)}
+            <span className="micro">token</span> {revealed ? token : '•'.repeat(token.length)}
           </div>
         )}
 

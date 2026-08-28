@@ -131,10 +131,7 @@ export function App() {
     [state, commitState],
   )
 
-  const resetAll = useCallback(
-    () => void commitState(EMPTY_STATE, state),
-    [state, commitState],
-  )
+  const resetAll = useCallback(() => void commitState(EMPTY_STATE, state), [state, commitState])
 
   const create = useCallback(
     async (input: CreateInput) => {
@@ -163,7 +160,9 @@ export function App() {
       setCreateError(null)
       setWarnings([])
       try {
-        const { preview, warnings: generationWarnings } = await api.generateData({ model: input.model })
+        const { preview, warnings: generationWarnings } = await api.generateData({
+          model: input.model,
+        })
         // `create()` closes the CreateEndpointRow and opens the new
         // endpoint's detail — the warnings state lives here, not there, so
         // it survives that transition instead of unmounting with the row.

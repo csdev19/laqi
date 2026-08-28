@@ -51,9 +51,7 @@ export function EndpointRow(props: {
 
       <span
         className={
-          live.layer === 'default'
-            ? 'row-layer'
-            : `row-layer is-not-default layer-${live.layer}`
+          live.layer === 'default' ? 'row-layer' : `row-layer is-not-default layer-${live.layer}`
         }
       >
         {live.layer}

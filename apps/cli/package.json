@@ -2,35 +2,36 @@
   "name": "laqi",
   "version": "2.0.0",
   "description": "Mock server for frontend development: declarative JSON mocks, a web panel, an MCP server, and a public URL.",
+  "keywords": [
+    "api",
+    "frontend",
+    "mcp",
+    "mock",
+    "mock-server",
+    "react-native",
+    "rest",
+    "testing"
+  ],
   "license": "MIT",
-  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/csdev19/laqi.git"
+  },
   "bin": {
     "laqi": "./dist/index.mjs"
   },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE.md"
+    "LICENSE.md",
+    "README.md"
   ],
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
-  "keywords": [
-    "mock",
-    "mock-server",
-    "api",
-    "rest",
-    "frontend",
-    "testing",
-    "mcp",
-    "react-native"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/csdev19/laqi.git"
-  },
-  "engines": {
-    "node": ">=20"
+  "scripts": {
+    "check-types": "tsc --noEmit -p .",
+    "build": "tsdown"
   },
   "dependencies": {
     "@faker-js/faker": "^10.6.0",
@@ -53,8 +54,7 @@
     "@types/node": "^26.2.0",
     "tsdown": "0.18.4"
   },
-  "scripts": {
-    "check-types": "tsc --noEmit -p .",
-    "build": "tsdown"
+  "engines": {
+    "node": ">=20"
   }
 }

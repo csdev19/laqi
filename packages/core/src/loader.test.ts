@@ -58,7 +58,9 @@ describe('loadMocks', () => {
         'GET /orders': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
       }),
     )
-    const ids = load().endpoints.map((e) => e.id).sort()
+    const ids = load()
+      .endpoints.map((e) => e.id)
+      .sort()
     expect(ids).toEqual(['GET /orders', 'GET /users'])
   })
 
@@ -120,14 +122,20 @@ describe('loadMocks', () => {
   })
 
   it('reports an unparseable endpoint key', () => {
-    writeMock('laqi/api.json', JSON.stringify({ '(get)files/:id': { default: 'ok', responses: { ok: { status: 200 } } } }))
+    writeMock(
+      'laqi/api.json',
+      JSON.stringify({ '(get)files/:id': { default: 'ok', responses: { ok: { status: 200 } } } }),
+    )
     const result = load()
     expect(result.endpoints).toEqual([])
     expect(result.errors[0]?.message).toContain('METHOD /path')
   })
 
   it('records the line of each endpoint key', () => {
-    writeMock('laqi/api.json', '{\n  "GET /users": {\n    "default": "ok",\n    "responses": { "ok": { "status": 200 } }\n  }\n}\n')
+    writeMock(
+      'laqi/api.json',
+      '{\n  "GET /users": {\n    "default": "ok",\n    "responses": { "ok": { "status": 200 } }\n  }\n}\n',
+    )
     expect(load().endpoints[0]?.line).toBe(2)
   })
 

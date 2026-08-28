@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -48,17 +56,30 @@ describe('updateEndpointInFile', () => {
       default: 'empty',
       responses: { ok: { status: 200, body: [] }, empty: { status: 200, body: [] } },
     }
-    const result = updateEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /users', definition: updated })
+    const result = updateEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /users',
+      definition: updated,
+    })
 
     expect(result.ok).toBe(true)
     const contents = readMock('laqi/api.json') as Record<string, unknown>
     expect(contents['GET /users']).toEqual(updated)
-    expect(contents['GET /orders']).toEqual({ default: 'ok', responses: { ok: { status: 200, body: [] } } })
+    expect(contents['GET /orders']).toEqual({
+      default: 'ok',
+      responses: { ok: { status: 200, body: [] } },
+    })
   })
 
   it('preserves sibling key order', () => {
     writeMock('laqi/api.json', { a: okDefinition, b: okDefinition, c: okDefinition })
-    updateEndpointInFile({ root, file: 'laqi/api.json', id: 'b', definition: { default: 'ok', responses: { ok: { status: 201, body: {} } } } })
+    updateEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'b',
+      definition: { default: 'ok', responses: { ok: { status: 201, body: {} } } },
+    })
     expect(Object.keys(readMock('laqi/api.json') as object)).toEqual(['a', 'b', 'c'])
   })
 
@@ -79,14 +100,24 @@ describe('updateEndpointInFile', () => {
 
   it('fails cleanly when the id does not exist in the file', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
-    const result = updateEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /ghost', definition: okDefinition })
+    const result = updateEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /ghost',
+      definition: okDefinition,
+    })
     expect(result.ok).toBe(false)
     if (result.ok) return
     expect(result.error).toContain('GET /ghost')
   })
 
   it('fails cleanly when the file does not exist', () => {
-    const result = updateEndpointInFile({ root, file: 'laqi/nope.json', id: 'GET /users', definition: okDefinition })
+    const result = updateEndpointInFile({
+      root,
+      file: 'laqi/nope.json',
+      id: 'GET /users',
+      definition: okDefinition,
+    })
     expect(result.ok).toBe(false)
   })
 })
@@ -111,7 +142,12 @@ describe('deleteEndpointFromFile', () => {
 
 describe('createEndpointInFile', () => {
   it('creates the file if it does not exist yet, with the one endpoint', () => {
-    const result = createEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /users', definition: okDefinition })
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /users',
+      definition: okDefinition,
+    })
 
     expect(result.ok).toBe(true)
     expect(readMock('laqi/api.json')).toEqual({ 'GET /users': okDefinition })
@@ -134,7 +170,12 @@ describe('createEndpointInFile', () => {
 
   it('refuses to overwrite an id that already exists', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
-    const result = createEndpointInFile({ root, file: 'laqi/api.json', id: 'GET /users', definition: okDefinition })
+    const result = createEndpointInFile({
+      root,
+      file: 'laqi/api.json',
+      id: 'GET /users',
+      definition: okDefinition,
+    })
     expect(result.ok).toBe(false)
   })
 
@@ -229,7 +270,9 @@ describe('containment through symlinks', () => {
     })
 
     expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
-    expect(JSON.parse(readFileSync(join(outside, 'victim.json'), 'utf8'))).toEqual({ note: 'outside' })
+    expect(JSON.parse(readFileSync(join(outside, 'victim.json'), 'utf8'))).toEqual({
+      note: 'outside',
+    })
   })
 
   it('refuses a symlinked directory that does not exist yet as a file target', () => {
@@ -281,7 +324,10 @@ describe('non-canonical keys in the file', () => {
       })
 
       expect(result, key).toEqual({ ok: true })
-      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >
       // Se reescribe bajo la MISMA clave que tenía el archivo: reescribirla
       // en forma canónica sería reformatear el archivo del usuario sin que
       // lo haya pedido.
@@ -296,16 +342,24 @@ describe('non-canonical keys in the file', () => {
         'POST /orders': { default: 'ok', responses: { ok: { status: 201 } } },
       })
 
-      expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' }), key).toEqual({
+      expect(
+        deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' }),
+        key,
+      ).toEqual({
         ok: true,
       })
-      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+      const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<
+        string,
+        unknown
+      >
       expect(Object.keys(written), key).toEqual(['POST /orders'])
     }
   })
 
   it('refuses to create a duplicate that differs only in casing or spacing', () => {
-    writeMock('laqi/api.json', { 'get  /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+    writeMock('laqi/api.json', {
+      'get  /users': { default: 'ok', responses: { ok: { status: 200 } } },
+    })
 
     const result = createEndpointInFile({
       root,
@@ -326,20 +380,29 @@ describe('non-canonical keys in the file', () => {
       'GET /users': { default: 'ok', responses: { ok: { status: 200 } } },
     })
 
-    expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' })).toEqual({ ok: true })
-    const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<string, unknown>
+    expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' })).toEqual({
+      ok: true,
+    })
+    const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<
+      string,
+      unknown
+    >
     expect(Object.keys(written)).toEqual(['not an endpoint key at all'])
   })
 })
 
 describe('the batch writer normalises too', () => {
   it('refuses a batch entry that collides with a non-canonical existing key', () => {
-    writeMock('laqi/api.json', { 'get  /users': { default: 'ok', responses: { ok: { status: 200 } } } })
+    writeMock('laqi/api.json', {
+      'get  /users': { default: 'ok', responses: { ok: { status: 200 } } },
+    })
 
     const result = createEndpointsInFile({
       root,
       file: 'laqi/api.json',
-      entries: [{ id: 'GET /users', definition: { default: 'ok', responses: { ok: { status: 200 } } } }],
+      entries: [
+        { id: 'GET /users', definition: { default: 'ok', responses: { ok: { status: 200 } } } },
+      ],
     })
 
     expect(result.ok).toBe(false)

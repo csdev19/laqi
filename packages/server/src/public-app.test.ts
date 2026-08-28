@@ -70,7 +70,12 @@ describe('H1 — the control plane never reaches the tunnel', () => {
     const res = await makeApp().request('/__laqi/api/endpoints', {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'GET', path: '/stolen', default: 'ok', responses: { ok: { status: 200 } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/stolen',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
     })
     expect(res.status).toBe(404)
   })
@@ -156,12 +161,16 @@ describe('CORS in shared mode', () => {
   })
 
   it('never answers with a wildcard', async () => {
-    const res = await makeApp().request('/users', { headers: { ...auth, Origin: 'https://evil.example' } })
+    const res = await makeApp().request('/users', {
+      headers: { ...auth, Origin: 'https://evil.example' },
+    })
     expect(res.headers.get('Access-Control-Allow-Origin')).not.toBe('*')
   })
 
   it('refuses an origin that is not declared', async () => {
-    const res = await makeApp().request('/users', { headers: { ...auth, Origin: 'https://evil.example' } })
+    const res = await makeApp().request('/users', {
+      headers: { ...auth, Origin: 'https://evil.example' },
+    })
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
   })
 })
@@ -303,7 +312,9 @@ describe('rate limiter memory', () => {
 
     // No se puede leer el Map desde afuera, así que se verifica lo que
     // importa: el proceso sigue vivo y respondiendo.
-    expect((await app.request('/users', { headers: { 'CF-Connecting-IP': '10.9.9.9' } })).status).toBe(200)
+    expect(
+      (await app.request('/users', { headers: { 'CF-Connecting-IP': '10.9.9.9' } })).status,
+    ).toBe(200)
   })
 
   it('still enforces the global ceiling after a sweep', async () => {
@@ -318,7 +329,9 @@ describe('rate limiter memory', () => {
 
     const statuses: number[] = []
     for (let i = 0; i < 10; i++) {
-      statuses.push((await app.request('/users', { headers: { 'CF-Connecting-IP': `10.0.0.${i}` } })).status)
+      statuses.push(
+        (await app.request('/users', { headers: { 'CF-Connecting-IP': `10.0.0.${i}` } })).status,
+      )
     }
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0)
   })

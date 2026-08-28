@@ -94,8 +94,12 @@ describe('endpoint list', () => {
   it('marks the live chip as pressed and the others as not', async () => {
     await renderApp()
     const row = rowFor('/users')
-    expect(within(row).getByRole('button', { name: /^ok/ }).getAttribute('aria-pressed')).toBe('true')
-    expect(within(row).getByRole('button', { name: /^boom/ }).getAttribute('aria-pressed')).toBe('false')
+    expect(within(row).getByRole('button', { name: /^ok/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(within(row).getByRole('button', { name: /^boom/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    )
   })
 
   it('reads layer "default" on an untouched row', async () => {
@@ -207,7 +211,10 @@ describe('command palette', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
 
     await waitFor(() =>
-      expect(putState).toHaveBeenCalledWith({ scenario: null, overrides: { 'POST /orders': 'boom' } }),
+      expect(putState).toHaveBeenCalledWith({
+        scenario: null,
+        overrides: { 'POST /orders': 'boom' },
+      }),
     )
     expect(screen.queryByLabelText('command')).toBeNull()
   })
@@ -409,7 +416,9 @@ describe('load failures', () => {
   it('shows the parse error inline and says the rest is still served', async () => {
     status = {
       ...status,
-      errors: [{ file: 'laqi/api.json', line: 7, col: 3, message: 'a trailing comma after "boom"' }],
+      errors: [
+        { file: 'laqi/api.json', line: 7, col: 3, message: 'a trailing comma after "boom"' },
+      ],
     }
     await renderApp()
 

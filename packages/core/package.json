@@ -8,14 +8,14 @@
     "./events": "./src/events.ts",
     "./package.json": "./package.json"
   },
+  "scripts": {
+    "check-types": "tsc --noEmit -p ."
+  },
   "dependencies": {
     "@laqi/schema": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit -p ."
   }
 }

@@ -117,7 +117,10 @@ describe('laqi mcp over stdio', () => {
     })
     expect(result.isError).toBe(false)
 
-    const file = JSON.parse(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')) as Record<string, unknown>
+    const file = JSON.parse(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')) as Record<
+      string,
+      unknown
+    >
     expect(file).toHaveProperty(['POST /orders'])
   })
 
@@ -173,7 +176,11 @@ describe('laqi mcp over stdio', () => {
       },
     })
 
-    expect(result.json()).toMatchObject({ created: ['GET /products/:sku'], updated: [], skipped: [] })
+    expect(result.json()).toMatchObject({
+      created: ['GET /products/:sku'],
+      updated: [],
+      skipped: [],
+    })
 
     const listed = (await call('list_endpoints')).json() as { endpoints: { id: string }[] }
     expect(listed.endpoints.map((e) => e.id)).toContain('GET /products/:sku')
@@ -239,7 +246,8 @@ describe('laqi mcp over stdio', () => {
 
   it('generate_data with from: regenerates from an existing response', async () => {
     const result = await call('generate_data', {
-      from: { endpointId: 'GET /users', response: 'ok' }, seed: 7,
+      from: { endpointId: 'GET /users', response: 'ok' },
+      seed: 7,
     })
     expect(result.isError).toBe(false)
   }, 30_000)
@@ -267,7 +275,9 @@ describe('laqi mcp over stdio', () => {
       'GET /deep': { default: 'ok', responses: { ok: { status: 200, body: deep } } },
     })
 
-    const result = await call('generate_data', { from: { endpointId: 'GET /deep', response: 'ok' } })
+    const result = await call('generate_data', {
+      from: { endpointId: 'GET /deep', response: 'ok' },
+    })
     expect(result.isError).toBe(true)
     expect(result.text).toMatch(/nesting|depth/i)
   }, 30_000)

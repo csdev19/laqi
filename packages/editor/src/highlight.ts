@@ -65,9 +65,7 @@ export function tokenizeJson(source: string): Token[] {
   }
 }
 
-export type JsonCheck =
-  | { valid: true; bytes: number }
-  | { valid: false; message: string }
+export type JsonCheck = { valid: true; bytes: number } | { valid: false; message: string }
 
 /** El readout bajo el editor: `valid JSON · 412 B`, o el error de parseo. */
 export function checkJson(source: string): JsonCheck {

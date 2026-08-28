@@ -81,7 +81,8 @@ export const api = {
    */
   todos: () => request<TodoList>('/todos'),
 
-  createTodo: (title: string) => request<Todo>('/todos', { method: 'POST', body: { title, done: false } }),
+  createTodo: (title: string) =>
+    request<Todo>('/todos', { method: 'POST', body: { title, done: false } }),
 
   updateTodo: (todo: Todo) => request<Todo>(`/todos/${todo.id}`, { method: 'PUT', body: todo }),
 

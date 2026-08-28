@@ -183,7 +183,12 @@ export async function startServer(options: {
       },
       getTypes: async (id, typesOptions) => {
         const endpoint = runtime.table.byId.get(id)
-        if (!endpoint) return { ok: false, error: `no endpoint with id ${JSON.stringify(id)}`, code: 'not-found' }
+        if (!endpoint)
+          return {
+            ok: false,
+            error: `no endpoint with id ${JSON.stringify(id)}`,
+            code: 'not-found',
+          }
 
         const responseName = typesOptions.response ?? endpoint.default
         const response = endpoint.responses[responseName]
@@ -199,10 +204,17 @@ export async function startServer(options: {
         try {
           // Types are a VIEW of the live data — never persisted, never stale.
           const shape = inferShape(response.body ?? null)
-          const printed = await printTypes(shape, { typeName: typeNameFor(id), lang: typesOptions.lang })
+          const printed = await printTypes(shape, {
+            typeName: typeNameFor(id),
+            lang: typesOptions.lang,
+          })
           return { ok: true, ...printed }
         } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : String(error), code: 'invalid' }
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+            code: 'invalid',
+          }
         }
       },
       generateData: async (input) => {
@@ -244,7 +256,11 @@ export async function startServer(options: {
           const preview = await generate(inferShape(response.body ?? null), generateOptions)
           return { ok: true, preview, warnings: [] }
         } catch (error) {
-          return { ok: false, error: error instanceof Error ? error.message : String(error), code: 'invalid' }
+          return {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+            code: 'invalid',
+          }
         }
       },
     }
@@ -291,18 +307,18 @@ export async function startServer(options: {
   if (share) {
     try {
       publicServer = await new Promise<ServerType>((resolve, reject) => {
-      const instance = serve(
-        {
-          fetch: (request: Request) => publicApp!.fetch(request),
-          port: share.port,
-          // Loopback también: cloudflared corre en esta máquina y se conecta
-          // localmente. Bindear a 0.0.0.0 expondría la superficie pública a
-          // la LAN además del túnel, sin que nadie lo haya pedido.
-          hostname: '127.0.0.1',
-        },
-        () => resolve(instance),
-      )
-      instance.on('error', reject)
+        const instance = serve(
+          {
+            fetch: (request: Request) => publicApp!.fetch(request),
+            port: share.port,
+            // Loopback también: cloudflared corre en esta máquina y se conecta
+            // localmente. Bindear a 0.0.0.0 expondría la superficie pública a
+            // la LAN además del túnel, sin que nadie lo haya pedido.
+            hostname: '127.0.0.1',
+          },
+          () => resolve(instance),
+        )
+        instance.on('error', reject)
       })
     } catch (error) {
       // El listener principal ya está arriba. Sin cerrarlo, el throw deja un
@@ -317,7 +333,8 @@ export async function startServer(options: {
     }
 
     const publicAddress = publicServer.address()
-    publicPort = typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port
+    publicPort =
+      typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port
   }
 
   return {

@@ -134,7 +134,12 @@ describe('createMockApp', () => {
       },
     ]
     const { table } = buildRouteTable(spoofed)
-    const runtime: MockRuntime = { table, scenarios: {}, getState: () => ({ scenario: null, overrides: {} }), cors: '*' }
+    const runtime: MockRuntime = {
+      table,
+      scenarios: {},
+      getState: () => ({ scenario: null, overrides: {} }),
+      cors: '*',
+    }
     const res = await createMockApp(runtime).request('/users')
 
     expect(res.headers.get('X-Laqi-Resolved')).toBe('ok (default)')

@@ -37,11 +37,13 @@ title: "laqi v2 — Plan 6: Data generators"
 ### Task 1: `packages/generate` scaffold, the Shape IR, and `inferShape`
 
 **Files:**
+
 - Create: `packages/generate/package.json`, `packages/generate/tsconfig.json`
 - Create: `packages/generate/src/shape.ts`, `packages/generate/src/infer.ts`, `packages/generate/src/index.ts`
 - Test: `packages/generate/src/infer.test.ts`
 
 **Interfaces:**
+
 - Produces: `Shape`, `ShapeField`, `primitive(type)` helper (shape.ts); `inferShape(value: unknown): Shape` (infer.ts). Every later task consumes `Shape` exactly as defined here.
 
 - [ ] **Step 1: Scaffold the package**
@@ -276,11 +278,13 @@ export * from './infer'
 ### Task 2: `shapeToJsonSchema`
 
 **Files:**
+
 - Create: `packages/generate/src/json-schema.ts`
 - Modify: `packages/generate/src/index.ts` (add `export * from './json-schema'`)
 - Test: `packages/generate/src/json-schema.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Shape` from Task 1.
 - Produces: `shapeToJsonSchema(shape: Shape): Record<string, unknown>`.
 
@@ -365,11 +369,13 @@ export function shapeToJsonSchema(shape: Shape): Record<string, unknown> {
 ### Task 3: `parseTypes` — pasted TS → Shape, via the real compiler
 
 **Files:**
+
 - Create: `packages/generate/src/parse-types.ts`
 - Modify: `packages/generate/src/index.ts` (add export)
 - Test: `packages/generate/src/parse-types.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Shape`, `primitive` from Task 1.
 - Produces: `parseTypes(source: string, typeName?: string): Promise<ParsedModel>` where `ParsedModel = { ok: true; shape: Shape; typeName: string; warnings: string[] } | { ok: false; error: string }`.
 
@@ -639,11 +645,13 @@ export async function parseTypes(source: string, typeName?: string): Promise<Par
 ### Task 4: `generate` — Shape → data, seeded faker with field-name heuristics
 
 **Files:**
+
 - Create: `packages/generate/src/generate.ts`
 - Modify: `packages/generate/src/index.ts` (add export)
 - Test: `packages/generate/src/generate.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Shape` from Task 1.
 - Produces: `generate(shape: Shape, options?: { seed?: number; arrayLength?: number }): Promise<unknown>`.
 
@@ -825,11 +833,13 @@ export async function generate(
 ### Task 5: `printTypes` — quicktype behind the JSON Schema bridge
 
 **Files:**
+
 - Create: `packages/generate/src/print-types.ts`
 - Modify: `packages/generate/src/index.ts` (add export)
 - Test: `packages/generate/src/print-types.test.ts`
 
 **Interfaces:**
+
 - Consumes: `Shape`, `shapeToJsonSchema` from Tasks 1–2.
 - Produces: `printTypes(shape: Shape, options: { typeName: string; lang?: string }): Promise<{ code: string; language: string }>` and `supportedLanguages(): Promise<{ name: string; displayName: string }[]>`.
 
@@ -949,11 +959,13 @@ Note for the implementer: if `l.names` does not exist on the installed version's
 ### Task 6: control-plane routes — types, languages, generate/data
 
 **Files:**
+
 - Modify: `packages/server/src/control-plane-app.ts` (extend `ControlPlaneRuntime`; add three GET/POST routes **before the catch-all**, at the marked insertion point)
 - Test: `packages/server/src/control-plane-app.test.ts` (extend)
 
 **Interfaces:**
-- Consumes: nothing from `@laqi/generate` — `packages/server` stays free of `node:*`; it only *types* the callbacks.
+
+- Consumes: nothing from `@laqi/generate` — `packages/server` stays free of `node:*`; it only _types_ the callbacks.
 - Produces: three additions to `ControlPlaneRuntime` that Task 7 implements in `apps/cli`:
 
 ```ts
@@ -1088,7 +1100,7 @@ app.post('/api/generate/data', async (c) => {
 })
 ```
 
-Naming collision note: `getTypes` returns `{ code: string }` where `code` is *source code*; its failure variant uses `code: WriteFailure` for the *reason*. Keep the success payload key `code` (it is what the panel copies) — the two never coexist in one object.
+Naming collision note: `getTypes` returns `{ code: string }` where `code` is _source code_; its failure variant uses `code: WriteFailure` for the _reason_. Keep the success payload key `code` (it is what the panel copies) — the two never coexist in one object.
 
 - [ ] **Step 3: Tests green. Verify `packages/server` still has no `node:*`: `grep -rn "node:" packages/server/src --include="*.ts" | grep -v test` → empty. Commit** — `feat(server): pure generation routes on the control plane`
 
@@ -1097,12 +1109,14 @@ Naming collision note: `getTypes` returns `{ code: string }` where `code` is *so
 ### Task 7: wire the runtime callbacks in `apps/cli`
 
 **Files:**
+
 - Modify: `apps/cli/src/serve.ts` (implement the three callbacks in `controlPlaneRuntime`)
 - Modify: `apps/cli/package.json` (dependencies — see step 1)
 - Modify: `apps/cli/src/package.test.ts` (the pinned dependency list)
 - Test: `apps/cli/src/serve.test.ts` (extend)
 
 **Interfaces:**
+
 - Consumes: `inferShape`, `parseTypes`, `generate`, `printTypes`, `supportedLanguages` from `@laqi/generate`; `GenerateRequest` from `@laqi/server`.
 
 - [ ] **Step 1: Dependencies.** Add to `apps/cli/package.json` `dependencies`: `"@laqi/generate": "workspace:*"` under devDependencies (bundled workspace, same as the other `@laqi/*`), and `"typescript": "^5.9.3"`, `"@faker-js/faker": "^10.6.0"`, `"quicktype-core": "^26.0.0"` under `dependencies` (external, lazy-loaded). Update `package.test.ts`: the pinned runtime list becomes `['@faker-js/faker', '@hono/node-server', 'chokidar', 'hono', 'quicktype-core', 'typescript', 'zod']`, and add `@laqi/generate` to the workspace-dev expectation. Run the test file — it goes green again.
@@ -1262,10 +1276,12 @@ with two unit tests in `serve.test.ts`: `typeNameFor('GET /users/:id')` → `'Us
 ### Task 8: MCP tools — `get_types` and `generate_data`
 
 **Files:**
+
 - Modify: `packages/mcp/src/server.ts` (two `registerTool` calls; add `@laqi/generate` to `packages/mcp/package.json` dependencies as `workspace:*`)
 - Test: `packages/mcp/src/stdio.test.ts` (extend)
 
 **Interfaces:**
+
 - Consumes: `Project` (already there), `inferShape`, `parseTypes`, `generate`, `printTypes` from `@laqi/generate`.
 - Produces: MCP tools `get_types({ endpointId, response?, lang? })`, `generate_data({ model?, typeName?, from?, arrayLength?, seed? })`. Both **pure** — the agent writes with the tools it already has.
 
@@ -1399,11 +1415,13 @@ And the accessor in `packages/core/src/project.ts` (with two unit tests in `proj
 ### Task 9: panel — Copy types with a language dropdown, and Regenerate
 
 **Files:**
+
 - Modify: `packages/editor/src/api.ts` (three client methods)
 - Modify: `packages/editor/src/components/EndpointDetail.tsx` (a Types block in the meta column; a Regenerate button in the editor toolbar)
 - Test: `packages/editor/src/components/EndpointDetail.test.tsx` (extend), `packages/editor/src/api.test.ts` (extend)
 
 **Interfaces:**
+
 - Consumes: the routes from Task 6.
 - Produces: `api.getLanguages()`, `api.getTypes(id, {response?, lang?})`, `api.generateData(input)`.
 
@@ -1544,11 +1562,13 @@ State: `const [typesLang, setTypesLang] = useState('typescript')`, `const [langu
 ### Task 10: panel — create an endpoint from a pasted model
 
 **Files:**
+
 - Modify: `packages/editor/src/components/CreateEndpointRow.tsx` (a "from a model" mode with a paste area)
 - Modify: `packages/editor/src/App.tsx` (`create` accepts an optional generated body)
 - Test: `packages/editor/src/App.test.tsx` (extend)
 
 **Interfaces:**
+
 - Consumes: `api.generateData` from Task 9.
 - Produces: `CreateInput` gains `body?: unknown` — when present, `App.create` uses it as the first response body instead of `{}`.
 
@@ -1619,6 +1639,7 @@ and `create` passes `body: input.body ?? {}` into the existing `api.createEndpoi
 ### Task 11: packaging, lazy-load guarantee, and docs
 
 **Files:**
+
 - Modify: `apps/cli/src/package.test.ts` (lazy-load guard test)
 - Modify: `README.md` (a "Generate types and data" section)
 - Modify: `apps/documentation/src/content/docs/probar-v2.md` (a walkthrough step between MCP and public URL)
@@ -1674,7 +1695,7 @@ your `laqi/` files through the same write path as the editor, and models are
 never stored (types come from the data, not from a saved schema).
 ```
 
-- [ ] **Step 3: Walkthrough.** In `probar-v2.md`, insert a step after the MCP section: paste the `Todo` interface in the create row, see generated data land, flip to the detail, *Copy types* as `typescript-zod`, *Regenerate*, save. Follow the document's existing voice and exact-commands style; write it against the behaviour the tests above pin.
+- [ ] **Step 3: Walkthrough.** In `probar-v2.md`, insert a step after the MCP section: paste the `Todo` interface in the create row, see generated data land, flip to the detail, _Copy types_ as `typescript-zod`, _Regenerate_, save. Follow the document's existing voice and exact-commands style; write it against the behaviour the tests above pin.
 
 - [ ] **Step 4: Plans index.** Add the Plan 6 row (status: whatever is true when this task runs) matching the table format the file has at that time.
 
@@ -1707,6 +1728,7 @@ the classifier directly, table-against-table: each rule carries `accepts` and
 **2. Effect is adopted inside `packages/generate` (new Task 4.5, before
 Task 5).** The owner chose to run the Effect experiment here. Containment
 rules:
+
 - Effect-native programs internally: `Data.TaggedError` classes
   (`ParseError`, `GenerateError`, `PrintError`); fallible/async operations are
   `Effect.Effect<A, E>`. Pure total functions (`inferShape`,

@@ -54,7 +54,12 @@ describe('no matching route', () => {
     const res = await makeApp().request('/typo')
     expect(res.status).toBe(404)
 
-    const body = (await res.json()) as { error: string; message: string; method: string; path: string }
+    const body = (await res.json()) as {
+      error: string
+      message: string
+      method: string
+      path: string
+    }
     expect(body.error).toBe('laqi')
     expect(body.message).toContain('no matching route')
     expect(body.method).toBe('GET')

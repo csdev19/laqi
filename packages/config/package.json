@@ -2,6 +2,8 @@
   "name": "@laqi/config",
   "version": "2.0.0",
   "private": true,
-  "type": "module",
-  "files": ["tsconfig.base.json"]
+  "files": [
+    "tsconfig.base.json"
+  ],
+  "type": "module"
 }

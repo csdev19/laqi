@@ -60,9 +60,11 @@ describe('withFileLock', () => {
   })
 
   it('releases the lock even when the work throws', () => {
-    expect(() => withFileLock(target, () => {
-      throw new Error('boom')
-    })).toThrow('boom')
+    expect(() =>
+      withFileLock(target, () => {
+        throw new Error('boom')
+      }),
+    ).toThrow('boom')
     expect(existsSync(lockOf(target))).toBe(false)
   })
 
@@ -97,27 +99,35 @@ describe('withFileLock', () => {
     expect(withFileLock(target, () => 'done').ok).toBe(true)
   })
 
-  it('returns a failure rather than throwing when it cannot get the lock', () => {
-    // Un dueño VIVO y ajeno no se desaloja: robarle el lock perdería su
-    // escritura, que es justo lo que esto evita. Se espera y se falla.
-    mkdirSync(join(root, 'nested'), { recursive: true })
-    writeFileSync(lockOf(target), String(process.ppid), 'utf8')
+  it(
+    'returns a failure rather than throwing when it cannot get the lock',
+    () => {
+      // Un dueño VIVO y ajeno no se desaloja: robarle el lock perdería su
+      // escritura, que es justo lo que esto evita. Se espera y se falla.
+      mkdirSync(join(root, 'nested'), { recursive: true })
+      writeFileSync(lockOf(target), String(process.ppid), 'utf8')
 
-    const result = withFileLock(target, () => 'never runs')
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toContain('timed out')
-  }, LOCK_TIMEOUT_MS + 5_000)
+      const result = withFileLock(target, () => 'never runs')
+      expect(result.ok).toBe(false)
+      if (!result.ok) expect(result.error).toContain('timed out')
+    },
+    LOCK_TIMEOUT_MS + 5_000,
+  )
 
-  it('does not run the work when it could not lock', () => {
-    mkdirSync(join(root, 'nested'), { recursive: true })
-    writeFileSync(lockOf(target), String(process.ppid), 'utf8')
+  it(
+    'does not run the work when it could not lock',
+    () => {
+      mkdirSync(join(root, 'nested'), { recursive: true })
+      writeFileSync(lockOf(target), String(process.ppid), 'utf8')
 
-    let ran = false
-    withFileLock(target, () => {
-      ran = true
-    })
-    expect(ran).toBe(false)
-  }, LOCK_TIMEOUT_MS + 5_000)
+      let ran = false
+      withFileLock(target, () => {
+        ran = true
+      })
+      expect(ran).toBe(false)
+    },
+    LOCK_TIMEOUT_MS + 5_000,
+  )
 })
 
 function readdirNames(dir: string): string[] {

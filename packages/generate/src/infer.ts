@@ -21,7 +21,9 @@ const MAX_DEPTH = 500
 
 class InferDepthError extends Error {
   constructor() {
-    super(`inferShape: nesting deeper than ${MAX_DEPTH} levels — refusing to infer (not a realistic API response)`)
+    super(
+      `inferShape: nesting deeper than ${MAX_DEPTH} levels — refusing to infer (not a realistic API response)`,
+    )
     this.name = 'InferDepthError'
   }
 }
@@ -56,7 +58,10 @@ export function inferShape(value: unknown, depth = 0): Shape {
     // ever. Tuple shapes only ever come from parseTypes reading an actual
     // TS tuple type.
     if (value.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
-    return { kind: 'array', items: value.map((item) => inferShape(item, depth + 1)).reduce(mergeShapes) }
+    return {
+      kind: 'array',
+      items: value.map((item) => inferShape(item, depth + 1)).reduce(mergeShapes),
+    }
   }
 
   const fields: ShapeField[] = Object.entries(value as Record<string, unknown>).map(
@@ -109,7 +114,11 @@ export function mergeShapes(a: Shape, b: Shape): Shape {
       const left = a.fields.find((f) => f.name === name)
       const right = b.fields.find((f) => f.name === name)
       if (left && right) {
-        return { name, shape: mergeShapes(left.shape, right.shape), optional: left.optional || right.optional }
+        return {
+          name,
+          shape: mergeShapes(left.shape, right.shape),
+          optional: left.optional || right.optional,
+        }
       }
       const only = (left ?? right)!
       return { name, shape: only.shape, optional: true }

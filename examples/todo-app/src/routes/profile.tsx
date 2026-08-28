@@ -46,8 +46,8 @@ function Profile() {
         <dd>{todoCount}</dd>
       </dl>
       <p className="muted">
-        Flip <code>GET /profile</code> to <code>unauthorized</code> in the panel — this page
-        signs you out, the way a real 401 would.
+        Flip <code>GET /profile</code> to <code>unauthorized</code> in the panel — this page signs
+        you out, the way a real 401 would.
       </p>
     </div>
   )

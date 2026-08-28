@@ -214,7 +214,9 @@ async function main(): Promise<void> {
   try {
     tunnel = await provider.start({ port: handle.publicPort ?? share.port })
   } catch (error) {
-    console.error(`\n✖ could not open the tunnel: ${error instanceof Error ? error.message : String(error)}`)
+    console.error(
+      `\n✖ could not open the tunnel: ${error instanceof Error ? error.message : String(error)}`,
+    )
     console.error('  The local server is still running.')
     return
   }
@@ -233,7 +235,9 @@ async function main(): Promise<void> {
 
 function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void {
   console.log(`\n🌐 EXPOSED TO THE INTERNET  ${url}`)
-  console.log(`   mocks only — the panel and the control plane stay on ${config.host}:${config.port}`)
+  console.log(
+    `   mocks only — the panel and the control plane stay on ${config.host}:${config.port}`,
+  )
 
   if (share.token === null) {
     console.log('\n   ⚠ NO TOKEN (--public). Anyone with this URL can read your mocks.')
@@ -244,8 +248,12 @@ function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void
   }
 
   if (share.origins.length === 0) {
-    console.log('\n   No browser origin is allowed through the tunnel (CORS is never "*" when shared).')
-    console.log('   Declare them in laqi.config.json as "cors": ["https://your.app"] if a browser needs it.')
+    console.log(
+      '\n   No browser origin is allowed through the tunnel (CORS is never "*" when shared).',
+    )
+    console.log(
+      '   Declare them in laqi.config.json as "cors": ["https://your.app"] if a browser needs it.',
+    )
   } else {
     console.log(`\n   CORS allows: ${share.origins.join(', ')}`)
   }
@@ -270,7 +278,9 @@ function report(runtime: Runtime, port: number, config: LaqiConfig): void {
   }
 
   if (failed > 0) {
-    console.error(`\n  ${failed} problem${failed === 1 ? '' : 's'} — the rest of the mock is still served.`)
+    console.error(
+      `\n  ${failed} problem${failed === 1 ? '' : 's'} — the rest of the mock is still served.`,
+    )
   }
 }
 

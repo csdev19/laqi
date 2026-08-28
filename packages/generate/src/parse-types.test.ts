@@ -136,7 +136,7 @@ describe('parseTypes', () => {
     })
   })
 
-  it('preserves a homogeneous tuple\'s arity instead of collapsing to a variable-length array', async () => {
+  it("preserves a homogeneous tuple's arity instead of collapsing to a variable-length array", async () => {
     const result = await parseTypes('export type Pair = [number, number]', 'Pair')
     if (!result.ok) throw new Error(result.error)
     expect(result.shape).toEqual({
@@ -159,10 +159,7 @@ describe('parseTypes', () => {
   })
 
   it('preserves a tuple of literal types', async () => {
-    const result = await parseTypes(
-      "export type Coord = ['x' | 'y', 1 | 2]",
-      'Coord',
-    )
+    const result = await parseTypes("export type Coord = ['x' | 'y', 1 | 2]", 'Coord')
     if (!result.ok) throw new Error(result.error)
     // The checker does not preserve union member source order (documented
     // above at the mixed-union branch), so compare each position's values

@@ -1,5 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, HeadContent, Link, Outlet, Scripts, useRouter } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Link,
+  Outlet,
+  Scripts,
+  useRouter,
+} from '@tanstack/react-router'
 import { clearSession, useSession } from '../lib/auth'
 import appCss from '../styles.css?url'
 

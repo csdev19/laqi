@@ -15,7 +15,7 @@ controller.
 
 Every task in this plan already had its own spec-and-quality review, plus a
 whole-branch review before the PR. This audit is what those could not be: a
-look at the seams *between* tasks.
+look at the seams _between_ tasks.
 
 ## Result
 
@@ -58,7 +58,7 @@ data loss was locked in place by its own regression test.
 element types agreed — `[number, number]` generated **three** numbers.
 
 The tuple branch reduced its element shapes with `mergeShapes`, which exists to
-widen the items of a *homogeneous array* and deliberately falls to `unknown` the
+widen the items of a _homogeneous array_ and deliberately falls to `unknown` the
 moment two primitives disagree. That is the opposite of what a tuple is for.
 
 **The test pinned it.** `parse-types.test.ts` asserted the broken shape
@@ -110,26 +110,26 @@ Any failure fell through to Hono's default handler and came back as a bare
 `500 Internal Server Error` with no body. Two angles reached it independently:
 one through a stack overflow on deeply nested JSON, the other through a real
 faker defect (`literals` with no values throws "Cannot get value from empty
-dataset"). A user of *create from a model* could see only "Internal Server
+dataset"). A user of _create from a model_ could see only "Internal Server
 Error" with nothing to act on.
 
 ---
 
 ## Backlog — Medium and Low, not fixed in this round
 
-| # | Severity | What | Where |
-| --- | --- | --- | --- |
-| 6 | Medium | `firstName` and `lastName` both get a **full** name (`{"firstName":"Claudine Kuhn","lastName":"Edwin Bode"}`). All five name variants map to the same `faker.person.fullName()`. A pasted `User` — the most common case there is — comes out visibly wrong. | `packages/generate/src/generate.ts`, the `person` rule |
-| 7 | Medium | The walkthrough claims the generated `title` "reads like a real sentence". It is Latin lorem ipsum (`"truculenter doloribus eveniet"`). Either the copy or the rule should change. | `probar-v2.md` step 6 |
-| 8 | Low | A response body of `[]` makes *Copy types* copy an **empty string**, silently, with a 200. `null` and an absent body both degrade sensibly. | `inferShape([])` → `array<unknown>`, which quicktype prints as nothing |
-| 9 | Low | MCP `get_types` leaks the `(FiberFailure)` prefix into the tool error text. The equivalent HTTP route returns a clean 400. | `packages/mcp/src/server.ts` |
-| 10 | Low | `arrayLength: NaN` escaped the clamp and returned an empty array. Unreachable through HTTP/MCP because zod rejects it first; broken only in the exported library contract. | fixed alongside finding 2 |
-| 11 | Low | The `>= 0` assertions in the `paid`/`valid`/`void`/`rapid` test are **vacuous** — proven by reintroducing the historical bug and watching the test still pass. It documents a regression it cannot catch. | `packages/generate/src/generate.test.ts` |
+| #   | Severity | What                                                                                                                                                                                                                                                        | Where                                                                  |
+| --- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 6   | Medium   | `firstName` and `lastName` both get a **full** name (`{"firstName":"Claudine Kuhn","lastName":"Edwin Bode"}`). All five name variants map to the same `faker.person.fullName()`. A pasted `User` — the most common case there is — comes out visibly wrong. | `packages/generate/src/generate.ts`, the `person` rule                 |
+| 7   | Medium   | The walkthrough claims the generated `title` "reads like a real sentence". It is Latin lorem ipsum (`"truculenter doloribus eveniet"`). Either the copy or the rule should change.                                                                          | `probar-v2.md` step 6                                                  |
+| 8   | Low      | A response body of `[]` makes _Copy types_ copy an **empty string**, silently, with a 200. `null` and an absent body both degrade sensibly.                                                                                                                 | `inferShape([])` → `array<unknown>`, which quicktype prints as nothing |
+| 9   | Low      | MCP `get_types` leaks the `(FiberFailure)` prefix into the tool error text. The equivalent HTTP route returns a clean 400.                                                                                                                                  | `packages/mcp/src/server.ts`                                           |
+| 10  | Low      | `arrayLength: NaN` escaped the clamp and returned an empty array. Unreachable through HTTP/MCP because zod rejects it first; broken only in the exported library contract.                                                                                  | fixed alongside finding 2                                              |
+| 11  | Low      | The `>= 0` assertions in the `paid`/`valid`/`void`/`rapid` test are **vacuous** — proven by reintroducing the historical bug and watching the test still pass. It documents a regression it cannot catch.                                                   | `packages/generate/src/generate.test.ts`                               |
 
 Two more carried over from the branch's own reviews were closed alongside the
 High fixes: `inferShape` now has a depth guard (`MAX_DEPTH = 500`) so a
 pathological body fails with an explanation instead of a `RangeError`, and the
-*Copy types* button, which had no `.catch` at all, now reports its failures
+_Copy types_ button, which had no `.catch` at all, now reports its failures
 through the same surface as the rest of the detail view.
 
 Still Minor and still open: no keyboard or accessibility tests for the new

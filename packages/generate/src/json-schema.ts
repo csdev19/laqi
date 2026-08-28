@@ -9,7 +9,9 @@ export function shapeToJsonSchema(shape: Shape): Record<string, unknown> {
     case 'object':
       return {
         type: 'object',
-        properties: Object.fromEntries(shape.fields.map((f) => [f.name, shapeToJsonSchema(f.shape)])),
+        properties: Object.fromEntries(
+          shape.fields.map((f) => [f.name, shapeToJsonSchema(f.shape)]),
+        ),
         required: shape.fields.filter((f) => !f.optional).map((f) => f.name),
         additionalProperties: false,
       }
