@@ -28,7 +28,25 @@ export default defineConfig({
   // en TODA instalación, aunque nunca corras `laqi mcp`. Nosotros sólo
   // usamos el transport de stdio; bundleándolo, el tree-shaking deja fuera
   // el transport HTTP y todo lo que cuelga de él.
-  noExternal: [/^@laqi\//, '@modelcontextprotocol/sdk'],
+  //
+  // `@clack/prompts` (el wizard de `laqi init`) entra por la misma razón,
+  // salvo que acá no hay nada que el tree-shaking pueda descartar — el
+  // motor de prompts entero se ejecuta siempre que alguien corre `init` en
+  // una TTY. `@clack/core` va aparte porque `prompt.ts` importa sus clases
+  // directamente (`TextPrompt`, `SelectPrompt`, `ConfirmPrompt`) para poder
+  // dibujar su propio `render()`; `@clack/prompts` no expone eso, sólo
+  // helpers con una vista fija. `sisteransi`, `fast-string-width` y
+  // `fast-wrap-ansi` son las dependencias de ese motor — sin bundlearlas
+  // también, quedan como `import` sin resolver en el bundle publicado,
+  // porque ninguna de las dos aparece en `dependencies` del paquete.
+  noExternal: [
+    /^@laqi\//,
+    '@modelcontextprotocol/sdk',
+    /^@clack\//,
+    'sisteransi',
+    'fast-string-width',
+    'fast-wrap-ansi',
+  ],
   shims: true,
   hooks: {
     'build:done': () => {

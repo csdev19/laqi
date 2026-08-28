@@ -233,7 +233,20 @@ describe('promptForFlags — cancellation', () => {
 })
 
 describe('promptForFlags — terminal restore', () => {
-  it('enables raw mode for the session and disables it again once done', async () => {
+  // Each question is its own `@clack/core` prompt, and both `readline`
+  // (which clack asks for a `terminal: true` interface, on any stream — not
+  // only a real TTY) and clack itself toggle raw mode independently around
+  // it, so a five-question run calls `setRawMode` many more times than
+  // "once on, once off". The exact count is theirs to change; what this
+  // module owns, and what leaves a real terminal broken if it slips, is
+  // that raw mode is turned on at least once during the run and never left
+  // on afterwards.
+  function expectEndsDisabled(calls: unknown[][]): void {
+    expect(calls.some((call) => call[0] === true)).toBe(true)
+    expect(calls.at(-1)).toEqual([false])
+  }
+
+  it('enables raw mode for each question and disables it again once done', async () => {
     const input = new PassThrough() as PassThrough & {
       isTTY?: boolean
       setRawMode?: (mode: boolean) => void
@@ -252,8 +265,8 @@ describe('promptForFlags — terminal restore', () => {
     input.write('\r')
     await promise
 
-    expect(setRawMode).toHaveBeenNthCalledWith(1, true)
-    expect(setRawMode).toHaveBeenNthCalledWith(2, false)
+    expect(setRawMode.mock.calls.length).toBeGreaterThan(0)
+    expectEndsDisabled(setRawMode.mock.calls)
   })
 
   it('disables raw mode again even when the wizard is cancelled', async () => {
@@ -272,7 +285,6 @@ describe('promptForFlags — terminal restore', () => {
     const result = await promise
 
     expect(result).toBeNull()
-    expect(setRawMode).toHaveBeenNthCalledWith(1, true)
-    expect(setRawMode).toHaveBeenNthCalledWith(2, false)
+    expectEndsDisabled(setRawMode.mock.calls)
   })
 })
