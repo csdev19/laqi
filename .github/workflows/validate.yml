@@ -1,9 +1,12 @@
 name: Validate ✅
 
 # Gates pull requests into main. Deploys nothing, publishes nothing.
+# Every pull request, whatever it targets. Restricting this to
+# `branches: [main]` meant a stacked PR — one opened against another
+# feature branch rather than main — silently got no validation at all,
+# which is precisely when a diff is hardest to eyeball.
 on:
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
