@@ -236,7 +236,15 @@ async function main(): Promise<void> {
     root,
     dir: config.dir,
     file: config.file,
-    onChange: () => report(handle.reload(), handle.port, config, Date.now() - startedAt),
+    onChange: () => {
+      // Measured around the reload itself, not since process start: `bootMs`
+      // is "how long did THIS load take", and reusing `startedAt` here made
+      // a reload an hour in report `ready in 1h` — which reads as laqi having
+      // gotten slow, not as the uptime it actually was.
+      const reloadStartedAt = Date.now()
+      const runtime = handle.reload()
+      report(runtime, handle.port, config, Date.now() - reloadStartedAt)
+    },
   })
 
   if (share === undefined) return
