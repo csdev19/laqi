@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "mock": "node ../../apps/cli/dist/index.mjs",
+    "mock": "laqi",
+    "mock:dev": "bun ../../apps/cli/src/index.ts",
     "check-types": "tsc --noEmit -p ."
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "laqi": "workspace:*",
     "typescript": "5.9.3",
     "vite": "^7.0.0"
   }
