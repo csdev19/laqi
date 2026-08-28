@@ -20,25 +20,26 @@ export default defineConfig({
   // The banner reports how fast startup was; reading package.json from disk to
   // print the version would be measuring the measurement.
   define: { __LAQI_VERSION__: JSON.stringify(pkg.version) },
-  // Los paquetes del workspace se meten en el bundle: se publica UN paquete,
-  // no seis. Las dependencias reales de npm quedan afuera y se instalan.
+  // The workspace packages get folded into the bundle: what gets published
+  // is ONE package, not six. The real npm dependencies stay out and get
+  // installed normally.
   //
-  // El SDK de MCP también entra al bundle, y no por gusto: como dependencia
-  // instalada arrastra express, jose, ajv y compañía — 91 paquetes y 24 MB
-  // en TODA instalación, aunque nunca corras `laqi mcp`. Nosotros sólo
-  // usamos el transport de stdio; bundleándolo, el tree-shaking deja fuera
-  // el transport HTTP y todo lo que cuelga de él.
+  // The MCP SDK is bundled too, and not for free: as an installed dependency
+  // it drags in express, jose, ajv and friends — 91 packages and 24 MB on
+  // EVERY install, even if you never run `laqi mcp`. We only use the stdio
+  // transport; bundling it lets tree-shaking drop the HTTP transport and
+  // everything hanging off it.
   //
-  // `@clack/prompts` (el wizard de `laqi init`) entra por la misma razón,
-  // salvo que acá no hay nada que el tree-shaking pueda descartar — el
-  // motor de prompts entero se ejecuta siempre que alguien corre `init` en
-  // una TTY. `@clack/core` va aparte porque `prompt.ts` importa sus clases
-  // directamente (`TextPrompt`, `SelectPrompt`, `ConfirmPrompt`) para poder
-  // dibujar su propio `render()`; `@clack/prompts` no expone eso, sólo
-  // helpers con una vista fija. `sisteransi`, `fast-string-width` y
-  // `fast-wrap-ansi` son las dependencias de ese motor — sin bundlearlas
-  // también, quedan como `import` sin resolver en el bundle publicado,
-  // porque ninguna de las dos aparece en `dependencies` del paquete.
+  // `@clack/prompts` (the `laqi init` wizard) is bundled for the same
+  // reason, except here there is nothing for tree-shaking to drop — the
+  // whole prompt engine runs whenever someone runs `init` on a TTY.
+  // `@clack/core` is listed separately because `prompt.ts` imports its
+  // classes directly (`TextPrompt`, `SelectPrompt`, `ConfirmPrompt`) so it
+  // can draw its own `render()`; `@clack/prompts` doesn't expose that, only
+  // helpers with a fixed view. `sisteransi`, `fast-string-width` and
+  // `fast-wrap-ansi` are that engine's own dependencies — without bundling
+  // them too, they'd sit as unresolved `import`s in the published bundle,
+  // since neither one appears in the package's `dependencies`.
   noExternal: [
     /^@laqi\//,
     '@modelcontextprotocol/sdk',
@@ -50,9 +51,9 @@ export default defineConfig({
   shims: true,
   hooks: {
     'build:done': () => {
-      // El panel viaja adentro del paquete publicado. Sin esto, `npx laqi`
-      // serviría la página de "no está construido" para siempre, porque
-      // packages/editor no se publica por separado.
+      // The panel ships inside the published package. Without this, `npx laqi`
+      // would serve the "not built yet" page forever, because packages/editor
+      // isn't published on its own.
       if (!existsSync(join(editorDist, 'index.html'))) {
         throw new Error(
           'packages/editor/dist is missing — run `bun run build --filter=@laqi/editor` first.\n' +
@@ -62,9 +63,9 @@ export default defineConfig({
       const target = join(here, 'dist', 'panel')
       mkdirSync(target, { recursive: true })
       cpSync(editorDist, target, { recursive: true })
-      // README y LICENSE viajan DENTRO del paquete publicado. La licencia
-      // no es opcional: MIT exige que el aviso de copyright esté en toda
-      // copia del software, y sin esto el tarball no llevaba ninguno.
+      // README and LICENSE ship INSIDE the published package. The licence
+      // isn't optional: MIT requires the copyright notice in every copy of
+      // the software, and without this the tarball carried none.
       copyFileSync(join(here, '..', '..', 'README.md'), join(here, 'README.md'))
       copyFileSync(join(here, '..', '..', 'LICENSE.md'), join(here, 'LICENSE.md'))
     },
