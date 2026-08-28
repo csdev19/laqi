@@ -322,6 +322,21 @@ and published by GitHub Actions. Nobody publishes from a laptop.
    `apps/cli/package.json`, writes `CHANGELOG.md`, and pushes a `v*` tag.
 4. The tag triggers `release-npm.yml`, which builds and publishes.
 
+**One-time step, first release only.** The manifest seeds `1.2.1` (the last
+version actually published) so release-please computes forward from there.
+That composes to the intended `2.0.0-beta.0` only if the squash-merge commit
+that adopts this release pipeline carries this exact footer:
+
+```
+Release-As: 2.0.0-beta.0
+```
+
+This applies only to that one adoption merge, not to every release. If it is
+missed, the first release computes to `1.3.0-beta` instead — off the stable
+`X.0.0-beta` shape (see the warning below) — and a later ordinary `feat`
+would then produce a final version that publishes to `latest` and replaces
+the 2022 v1 for every existing `npx laqi` user.
+
 The dist-tag is derived from the version: anything with a `-` goes to its
 prerelease tag (`beta`), anything else to `latest`. See
 [ADR-0010](apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md).
