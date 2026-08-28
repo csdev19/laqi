@@ -23,9 +23,25 @@ The frontend calls `/api/*`, which Vite proxies to laqi. Same-origin from the
 browser's point of view, no CORS in the way — the same shape as a real dev
 setup against your own backend.
 
-> The `mock` script points at `../../apps/cli/dist/index.mjs`, so build the
-> CLI once first (`bun run build` at the repo root). Once laqi is on npm this
-> becomes `npx laqi`, and the example becomes a normal standalone project.
+> The `mock` script runs `laqi`, resolved through the workspace, so build the
+> CLI once first (`bun run build` at the repo root) — the bin points at
+> `dist/index.mjs`, which does not exist until then. `bun run mock:dev` skips
+> the build and runs the TypeScript source instead, which is what you want
+> while working on laqi itself.
+
+### If a port is taken
+
+Both servers refuse to start on a busy port rather than quietly moving to the
+next one, so a stale browser tab can never end up talking to a different app.
+Free the port, or pass another:
+
+```bash
+bun run mock --port 8010   # panel then lives at http://127.0.0.1:8010/__laqi
+bun run dev --port 3010
+```
+
+Pointing the frontend at a laqi on a non-default port needs the proxy target
+too: `LAQI_URL=http://127.0.0.1:8010 bun run dev`.
 
 ## The thing worth trying
 
