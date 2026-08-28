@@ -8,6 +8,7 @@ import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
 import { paint, renderFailure, row, startScreen, type Failure } from '@laqi/tui'
 import { renderGoodbye } from './goodbye'
+import { runInit } from './init/run'
 import { runMigrate } from './migrate'
 import { laqiVersion, outputLevel } from './output'
 import type { Runtime } from './runtime'
@@ -21,6 +22,7 @@ const USAGE = `
 laqi — mock server for frontend development
 
   laqi                 serve the mocks in ./laqi/ or ./laqi.json
+  laqi init            scaffold ./laqi/ with a mock API — see laqi init --help
   laqi mcp             run the MCP server over stdio, for coding agents
   laqi migrate         convert v1 mock files to the v2 format
   laqi --help          show this message
@@ -94,6 +96,18 @@ function parsePort(raw: string | undefined, flag: string): number | undefined | 
 
 async function main(): Promise<void> {
   const startedAt = Date.now()
+
+  // `init` owns its own flag vocabulary (--from, --spec, --script[=name], ...)
+  // that does not fit the shared parseArgs config below — `--script`'s
+  // optional value in particular is not something node's parseArgs can
+  // express — so it is handled before any of that runs, rather than folded
+  // into argsConfig and risking a collision with a future top-level flag.
+  if (process.argv[2] === 'init') {
+    const exitCode = await runInit(process.argv.slice(3), process.cwd())
+    if (exitCode !== undefined) process.exitCode = exitCode
+    return
+  }
+
   const argsConfig = {
     allowPositionals: true,
     options: {
