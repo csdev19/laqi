@@ -141,7 +141,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       inputSchema: {
         method: z.string().describe('GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS'),
         path: z.string().describe('Route path starting with "/", e.g. /users/:id'),
-        description: z.string().optional(),
+        description: z.string().optional().describe('Human-readable note about the endpoint'),
         default: z
           .string()
           .describe('Which named response is served by default — must be a key in responses'),
@@ -168,7 +168,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         'Change what an existing endpoint can return — add a response, edit a body, change the default — by replacing its whole definition in the file it came from. This is a full replacement: responses you omit are removed, so include every response you want to keep. For flipping between responses that already exist, without editing the file, use set_response instead.',
       inputSchema: {
         id: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
-        description: z.string().optional(),
+        description: z.string().optional().describe('Human-readable note about the endpoint'),
         default: z
           .string()
           .describe('Which named response is served by default — must be a key in responses'),
@@ -291,10 +291,27 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         'Use this for a realistic body — an array of users, a paginated list — instead of hand-writing fake values: generate from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
       inputSchema: {
         model: z.string().optional().describe('TypeScript source containing the interface/type'),
-        typeName: z.string().optional(),
-        from: z.object({ endpointId: z.string(), response: z.string() }).optional(),
-        arrayLength: z.number().int().min(1).max(50).optional(),
-        seed: z.number().int().optional(),
+        typeName: z
+          .string()
+          .optional()
+          .describe('Which exported type to generate, when model declares more than one'),
+        from: z
+          .object({
+            endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
+            response: z
+              .string()
+              .describe("Which of that endpoint's declared responses to shape from"),
+          })
+          .optional()
+          .describe('Regenerate from the shape of an existing response, instead of a model'),
+        arrayLength: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('How many items for a top-level or inferred array (default a small number)'),
+        seed: z.number().int().optional().describe('Fix this to get the same output on every call'),
       },
       annotations: { readOnlyHint: true },
     },
