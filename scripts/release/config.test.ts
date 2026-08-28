@@ -44,7 +44,24 @@ describe('release-please-config.json', () => {
     expect(entry).toBeDefined()
   })
 
+  // `include-component-in-tag: false` is what makes release-please cut a
+  // bare `v2.0.0-beta.0` tag instead of `laqi-monorepo-v2.0.0-beta.0`. It is
+  // the only link between the tag and the publish workflow: `release-npm.yml`
+  // matches on `tags: ['v*']`, and `versionFromTag` requires a leading `v`.
+  // Flip this and the tag is cut but nothing publishes.
+  it('cuts the tag without the component prefix', () => {
+    const root = config as Record<string, unknown>
+    expect(root['include-component-in-tag']).toBe(false)
+  })
+
   it("the manifest's keys exactly equal the config's packages keys", () => {
     expect(Object.keys(manifest).sort()).toEqual(Object.keys(config.packages).sort())
+  })
+
+  // Seeded to the last version genuinely published, with zero git tags in
+  // the repo to collide with. See the README's "Releasing" section for the
+  // one-time `Release-As` footer this composes with.
+  it('seeds the manifest at the last version actually published', () => {
+    expect(manifest['.']).toBe('1.2.1')
   })
 })
