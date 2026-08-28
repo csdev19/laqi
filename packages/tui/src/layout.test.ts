@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LABEL_WIDTH, MIN_WIDTH, row, rule, usableWidth } from './layout'
+import { LABEL_WIDTH, MIN_WIDTH, displayWidth, row, rule, usableWidth } from './layout'
 
 describe('rule', () => {
   it('fills the space between the two ends so the line is exactly the width', () => {
@@ -41,5 +41,35 @@ describe('usableWidth', () => {
   // Not a TTY, so process.stdout.columns is undefined.
   it('assumes 80 when the width is unknown', () => {
     expect(usableWidth(undefined)).toBe(80)
+  })
+})
+
+describe('displayWidth', () => {
+  it('counts ordinary text one column per character', () => {
+    expect(displayWidth('laqi 2.0.1')).toBe(10)
+  })
+
+  // The bolt is the reason this function exists: .length says 1, the
+  // terminal draws 2, and the rule's right end would hang one column past
+  // every other line.
+  it('counts the bolt as two columns', () => {
+    expect(displayWidth('⚡')).toBe(2)
+  })
+
+  it('leaves the separator and the rule character at one column', () => {
+    expect(displayWidth('·')).toBe(1)
+    expect(displayWidth('─')).toBe(1)
+  })
+
+  it('counts CJK as two columns', () => {
+    expect(displayWidth('日本')).toBe(4)
+  })
+})
+
+describe('rule with a wide character', () => {
+  it('measures the visible width, not the code-unit count', () => {
+    const out = rule('⚡ laqi', 'ready', 40, 'none')
+    expect(displayWidth(out)).toBe(40)
+    expect(out.length).toBe(39) // one fewer code unit, because the bolt is one unit and two columns
   })
 })
