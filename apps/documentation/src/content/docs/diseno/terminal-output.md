@@ -16,8 +16,9 @@ the only thing. Today it is two lines:
 
 That is not wrong, it is thin. It omits the version, the panel URL — the
 feature laqi is built around — and any sense of what loaded. And it is not a
-system: **41 `console.*` calls live in production code, 32 of them in
-`apps/cli/src/index.ts` alone**, each formatting itself.
+system: **40 `console.*` calls live in production code, 32 of them in
+`apps/cli/src/index.ts` alone**, each formatting itself. (An earlier count said
+41; one of those matches was the word inside a comment, not a call.)
 
 That count is why start, failures and goodbye are one piece of work and not
 three. They share a palette, a label column, a glyph set and a rule; split
@@ -140,7 +141,7 @@ A single module owns the vocabulary; nothing else formats output.
 | `packages/tui/screens.ts` | `start()`, `goodbye()`. Composition only, no formatting.                          |
 
 Every `console.*` in `apps/cli` routes through it. The migration is the bulk of
-the work and the part worth reviewing carefully: **41 call sites**, several of
+the work and the part worth reviewing carefully: **40 call sites**, several of
 which are on error paths with no test coverage today.
 
 `packages/server` keeps its zero-`node:*` rule — it does not import this.

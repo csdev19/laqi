@@ -8,7 +8,7 @@ title: "laqi v2 — Plan 8: Terminal output, stage 1"
 
 **Goal:** Replace laqi's scattered terminal output with one rendering layer, and use it to draw the three screens a session actually has — start, failures, goodbye.
 
-**Architecture:** A new private package `packages/tui` holds four pure modules that **return strings and never print**. That single rule is what makes every screen testable without capturing stdout, and it is what lets `apps/cli` keep deciding between stdout and stderr — which matters because under `laqi mcp` stdout is the protocol channel. `apps/cli` becomes the only place that calls `console.*`, and the 41 existing call sites route through the new vocabulary.
+**Architecture:** A new private package `packages/tui` holds four pure modules that **return strings and never print**. That single rule is what makes every screen testable without capturing stdout, and it is what lets `apps/cli` keep deciding between stdout and stderr — which matters because under `laqi mcp` stdout is the protocol channel. `apps/cli` becomes the only place that calls `console.*`, and the 40 existing call sites route through the new vocabulary.
 
 **Tech Stack:** Existing stack. No new dependencies — ANSI escapes are written by hand, which is a dozen lines and avoids pulling a colour library into a published package.
 
@@ -30,7 +30,7 @@ title: "laqi v2 — Plan 8: Terminal output, stage 1"
 
 ## Verified before writing this plan
 
-- **41 `console.*` calls in production code**: 32 in `apps/cli/src/index.ts`, 8 in `apps/cli/src/migrate.ts`, 1 in `packages/mcp/src/index.ts`.
+- **40 `console.*` calls in production code**: 32 in `apps/cli/src/index.ts`, 8 in `apps/cli/src/migrate.ts`, 1 in `packages/mcp/src/index.ts`.
 - **`LoadError` already carries the evidence fields** the failure format needs: `{ file: string; line?: number; col?: number; message: string; excerpt?: string }` (`packages/core/src/loader.ts:14`).
 - **Nothing counts anything.** No request counter exists anywhere.
 - **The palette lives in the panel already**: `#0B0A0F` background, `#EAE7F2` text, `#00FFC2` accent, plus `#5a00bf`, `#c4007d`, `#ff0058`, `#ffb020`.
@@ -1255,7 +1255,7 @@ published dependency list is unchanged."
 
 ## Self-review
 
-**Spec coverage.** Start screen → Task 4. Failure format, four severities, five parts → Task 3, applied in Task 6. Exit codes → Task 6 Step 7. Goodbye → Task 4, fed by Task 5. Colour ladder including `NO_COLOR` / `TERM=dumb` / non-TTY → Task 1. Label column and rule, no box drawing → Task 2. The 41 call sites → Task 6. stdout-is-sacred → Task 6 Step 8. Version source → Task 6 Steps 1 and 4.
+**Spec coverage.** Start screen → Task 4. Failure format, four severities, five parts → Task 3, applied in Task 6. Exit codes → Task 6 Step 7. Goodbye → Task 4, fed by Task 5. Colour ladder including `NO_COLOR` / `TERM=dumb` / non-TTY → Task 1. Label column and rule, no box drawing → Task 2. The 40 call sites → Task 6. stdout-is-sacred → Task 6 Step 8. Version source → Task 6 Steps 1 and 4.
 
 **Deliberately not here.** The keys line and the request stream are stage 2; share polish is stage 3. Task 4 prints no keys line, which is why: a printed shortcut that is not bound would be a lie.
 
