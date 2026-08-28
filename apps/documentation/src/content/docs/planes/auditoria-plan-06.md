@@ -126,10 +126,24 @@ Error" with nothing to act on.
 | 10 | Low | `arrayLength: NaN` escaped the clamp and returned an empty array. Unreachable through HTTP/MCP because zod rejects it first; broken only in the exported library contract. | fixed alongside finding 2 |
 | 11 | Low | The `>= 0` assertions in the `paid`/`valid`/`void`/`rapid` test are **vacuous** — proven by reintroducing the historical bug and watching the test still pass. It documents a regression it cannot catch. | `packages/generate/src/generate.test.ts` |
 
-Also carried over from the branch's own reviews, all still Minor: no recursion
-depth guard in `inferShape` (a 10,000-deep body raises `RangeError`); the *Copy
-types* button has no `.catch` at all; no keyboard or accessibility tests for the
-new panel controls; lint warnings went from 13 to 15 (an `Array#sort` cluster).
+Two more carried over from the branch's own reviews were closed alongside the
+High fixes: `inferShape` now has a depth guard (`MAX_DEPTH = 500`) so a
+pathological body fails with an explanation instead of a `RangeError`, and the
+*Copy types* button, which had no `.catch` at all, now reports its failures
+through the same surface as the rest of the detail view.
+
+Still Minor and still open: no keyboard or accessibility tests for the new
+panel controls, and lint warnings at 15 (an `Array#sort` cluster), up from 13
+before the plan.
+
+## What this round has NOT had
+
+**These fixes have not been reviewed by anyone.** They were written against
+reproduced findings and the whole suite is green at 607 tests, but no
+independent pass has looked at them — which is exactly the gap that produced
+two of the ten findings in round 2 of the v2 audit, one of them shipping with a
+test that pinned the bug. Treat that as the next piece of work, not as an
+afterthought.
 
 ---
 
