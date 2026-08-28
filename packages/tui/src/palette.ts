@@ -57,6 +57,7 @@ function toAnsi256(r: number, g: number, b: number): number {
 export function paint(text: string, token: Token, level: Level): string {
   if (level === 'none') return text
   const [r, g, b] = RGB[token]
-  const prefix = level === 'truecolor' ? `[38;2;${r};${g};${b}m` : `[38;5;${toAnsi256(r, g, b)}m`
-  return `${prefix}${text}[0m`
+  const prefix =
+    level === 'truecolor' ? `\u001b[38;2;${r};${g};${b}m` : `\u001b[38;5;${toAnsi256(r, g, b)}m`
+  return `${prefix}${text}\u001b[0m`
 }

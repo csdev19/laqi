@@ -30,15 +30,15 @@ describe('detectLevel', () => {
 describe('paint', () => {
   it('wraps text in a truecolor escape and always resets', () => {
     const out = paint('laqi', 'accent', 'truecolor')
-    expect(out.startsWith('[38;2;')).toBe(true)
-    expect(out.endsWith('[0m')).toBe(true)
+    expect(out.startsWith('\u001b[38;2;')).toBe(true)
+    expect(out.endsWith('\u001b[0m')).toBe(true)
     expect(out).toContain('laqi')
   })
 
   it('emits a 256-colour escape at that level', () => {
     const out = paint('laqi', 'accent', 'ansi256')
-    expect(out.startsWith('[38;5;')).toBe(true)
-    expect(out.endsWith('[0m')).toBe(true)
+    expect(out.startsWith('\u001b[38;5;')).toBe(true)
+    expect(out.endsWith('\u001b[0m')).toBe(true)
     expect(out).toContain('laqi')
   })
 
