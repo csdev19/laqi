@@ -1,7 +1,7 @@
 // apps/cli/src/serve.ts
 
 import { serve, type ServerType } from '@hono/node-server'
-import { EventBus, Project, StateStore } from '@laqi/core'
+import { EventBus, Project, SessionCounters, StateStore, type LaqiEvent } from '@laqi/core'
 import type { EndpointDefinition, LaqiConfig } from '@laqi/schema'
 import {
   createControlPlaneApp,
@@ -59,12 +59,24 @@ export async function startServer(options: {
   root: string
   config: LaqiConfig
   share?: ShareOptions
+  /** Owned by the caller (index.ts), so it survives across reloads and is
+   * still readable after the server is closed, for the goodbye summary. */
+  counters?: SessionCounters
 }): Promise<ServeHandle> {
   const { root, config, share } = options
+  const counters = options.counters ?? new SessionCounters()
   let shareUrl: string | null = null
   const store = new StateStore(root)
   const bus = new EventBus()
   const project = new Project(root, config)
+  // Shared by both listeners (local and, with --share, the tunnel-facing
+  // one): a request is a request regardless of which port answered it, and
+  // `recordRequest` is exactly what Task 5 built — an integer increment, no
+  // allocation or timing added on this path.
+  const recordRequest = (event: LaqiEvent): void => {
+    bus.emit(event)
+    if (event.type === 'request') counters.recordRequest(event.endpointId !== null)
+  }
   // Fuera de buildPublicApp a propósito: la app se reconstruye en cada
   // reload, y si los contadores se reconstruyeran con ella, guardar un
   // archivo local le devolvería la cuota a un cliente limitado en el túnel.
@@ -104,7 +116,7 @@ export async function startServer(options: {
         table: runtime.table,
         scenarios: runtime.scenarios,
         getState: () => store.read(),
-        onRequest: (event) => bus.emit(event),
+        onRequest: recordRequest,
       },
       token: options.token,
       origins: options.origins,
@@ -118,13 +130,18 @@ export async function startServer(options: {
       // Se lee en cada request: el panel cambia el estado sin tocar archivos.
       getState: () => store.read(),
       cors: config.cors,
-      onRequest: (event) => bus.emit(event),
+      onRequest: recordRequest,
     })
 
     const controlPlaneRuntime: ControlPlaneRuntime = {
       getEndpoints: () => runtime.table.endpoints,
       getState: () => store.read(),
-      setState: (state) => store.write(state),
+      // The one door the panel writes response overrides and scenario
+      // changes through — a "flip" per Task 7, whichever of the two it was.
+      setState: (state) => {
+        store.write(state)
+        counters.recordFlip()
+      },
       getScenarios: () => runtime.scenarios,
       getStatus: () => ({
         watching: runtime.source === 'file' ? config.file : config.dir,
@@ -161,18 +178,21 @@ export async function startServer(options: {
           responses: input.responses as EndpointDefinition['responses'],
         })
         if (!result.ok) return result
+        counters.recordWrite(result.value.file)
         reload()
         return { ok: true, id: result.value.id }
       },
       updateEndpoint: (id, definition) => {
         const result = project.updateEndpoint(id, definition as EndpointDefinition)
         if (!result.ok) return result
+        counters.recordWrite(result.value.file)
         reload()
         return { ok: true }
       },
       deleteEndpoint: (id) => {
         const result = project.deleteEndpoint(id)
         if (!result.ok) return result
+        counters.recordWrite(result.value.file)
         reload()
         return { ok: true }
       },

@@ -1,10 +1,13 @@
 import { copyFileSync, cpSync, existsSync, mkdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'tsdown'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const editorDist = join(here, '..', '..', 'packages', 'editor', 'dist')
+
+const pkg = createRequire(import.meta.url)('./package.json') as { version: string }
 
 export default defineConfig({
   entry: ['src/index.ts'],
@@ -14,6 +17,9 @@ export default defineConfig({
   outDir: 'dist',
   clean: true,
   dts: false,
+  // The banner reports how fast startup was; reading package.json from disk to
+  // print the version would be measuring the measurement.
+  define: { __LAQI_VERSION__: JSON.stringify(pkg.version) },
   // Los paquetes del workspace se meten en el bundle: se publica UN paquete,
   // no seis. Las dependencias reales de npm quedan afuera y se instalan.
   //
