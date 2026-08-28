@@ -335,6 +335,24 @@ describe('distTagFor', () => {
     expect(() => distTagFor('1.0.0-1')).toThrow(/identifier/i)
   })
 
+  // `latest` is the one tag this whole module exists to protect. An
+  // identifier that IS `latest` must never slip through as if it were an
+  // ordinary tag name — that would silently replace the 1.2.1 that every
+  // `npx laqi` user gets today.
+  it('refuses a prerelease identifier that is latest, case-insensitively', () => {
+    expect(() => distTagFor('2.0.0-latest')).toThrow(/latest/i)
+    expect(() => distTagFor('2.0.0-latest.1')).toThrow(/latest/i)
+    expect(() => distTagFor('2.0.0-LATEST.1')).toThrow(/latest/i)
+  })
+
+  // npm refuses a dist-tag that parses as a valid semver version or range.
+  // Catching this here beats discovering it as a CI break at publish time.
+  it('refuses a prerelease identifier that would be read as a version or range', () => {
+    expect(() => distTagFor('2.0.0-x.1')).toThrow(/identifier/i)
+    expect(() => distTagFor('2.0.0-v1.5')).toThrow(/identifier/i)
+    expect(() => distTagFor('2.0.0-2.1')).toThrow(/identifier/i)
+  })
+
   it('refuses anything that is not a semver version', () => {
     expect(() => distTagFor('v2.0.0')).toThrow(/not a valid semver/i)
     expect(() => distTagFor('2.0')).toThrow(/not a valid semver/i)
@@ -401,6 +419,32 @@ export function distTagFor(version: string): string {
     )
   }
 
+  // `latest` is the one tag this whole module exists to protect: a
+  // prerelease whose identifier IS `latest` must never come back looking
+  // like an ordinary tag name, or it would silently replace the 1.2.1 that
+  // every `npx laqi` user gets today. Compared case-insensitively — npm
+  // dist-tags are case-sensitive, so `LATEST` would not literally collide
+  // with `latest`, but a tag named `LATEST` sitting beside `latest` is a
+  // trap for whoever reads the tag list next.
+  if (identifier.toLowerCase() === 'latest') {
+    throw new Error(
+      `${JSON.stringify(version)} has a prerelease identifier (${identifier}) that reads as ` +
+        '"latest"; that would publish over the tag every existing user resolves. ' +
+        'Name the prerelease something else, e.g. -beta.1',
+    )
+  }
+
+  // npm refuses a dist-tag that parses as a valid semver version or range
+  // (`v1`, `1`, `2.0`, `x`, `X`, `*`). Reject those here rather than fail at
+  // publish time.
+  if (/^[vV]?\d/.test(identifier) || /^[xX*]$/.test(identifier)) {
+    throw new Error(
+      `${JSON.stringify(version)} has a prerelease identifier (${identifier}) that npm would ` +
+        'read as a version or a range; it rejects a dist-tag like that. ' +
+        'Name the prerelease something else, e.g. -beta.1',
+    )
+  }
+
   return identifier
 }
 
@@ -422,7 +466,7 @@ export function versionFromTag(tag: string): string {
 - [ ] **Step 6: Run the tests and watch them pass**
 
 Run: `bunx vitest run scripts/release/dist-tag.test.ts`
-Expected: PASS, 8 tests
+Expected: PASS, 10 tests
 
 - [ ] **Step 7: Add the CLI wrapper**
 

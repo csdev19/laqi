@@ -27,6 +27,24 @@ describe('distTagFor', () => {
     expect(() => distTagFor('1.0.0-1')).toThrow(/identifier/i)
   })
 
+  // `latest` is the one tag this whole module exists to protect. An
+  // identifier that IS `latest` must never slip through as if it were an
+  // ordinary tag name — that would silently replace the 1.2.1 that every
+  // `npx laqi` user gets today.
+  it('refuses a prerelease identifier that is latest, case-insensitively', () => {
+    expect(() => distTagFor('2.0.0-latest')).toThrow(/latest/i)
+    expect(() => distTagFor('2.0.0-latest.1')).toThrow(/latest/i)
+    expect(() => distTagFor('2.0.0-LATEST.1')).toThrow(/latest/i)
+  })
+
+  // npm refuses a dist-tag that parses as a valid semver version or range.
+  // Catching this here beats discovering it as a CI break at publish time.
+  it('refuses a prerelease identifier that would be read as a version or range', () => {
+    expect(() => distTagFor('2.0.0-x.1')).toThrow(/identifier/i)
+    expect(() => distTagFor('2.0.0-v1.5')).toThrow(/identifier/i)
+    expect(() => distTagFor('2.0.0-2.1')).toThrow(/identifier/i)
+  })
+
   it('refuses anything that is not a semver version', () => {
     expect(() => distTagFor('v2.0.0')).toThrow(/not a valid semver/i)
     expect(() => distTagFor('2.0')).toThrow(/not a valid semver/i)
