@@ -21,6 +21,7 @@
     "lint": "oxlint",
     "format": "oxfmt --write .",
     "check": "bun run lint && bun run format",
+    "check:ci": "oxlint && oxfmt --check .",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "test": "vitest run",
