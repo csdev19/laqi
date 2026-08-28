@@ -17,6 +17,7 @@ _cómo_ se usa.
 | [0006](/decisiones/0006-servidor-mcp/)           | Servidor MCP como pieza de primera clase               | Aceptada                       | 2026-08-24 |
 | [0007](/decisiones/0007-url-publica/)            | URL pública: cloudflared primero, relay propio después | Aceptada                       | 2026-08-24 |
 | [0008](/decisiones/0008-multiarchivo-y-nombres/) | Multi-archivo con claves `"METHOD /path"`, y nombres   | Aceptada                       | 2026-08-24 |
+| [0009](/decisiones/0009-sin-i18n/)               | No i18n: English everywhere                            | Aceptada                       | 2026-08-27 |
 | [0010](/decisiones/0010-release-y-npm/)          | release-please, one version line, npm beta line        | Aceptada                       | 2026-08-28 |
 
 ## Estructura

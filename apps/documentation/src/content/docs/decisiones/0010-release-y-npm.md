@@ -28,7 +28,7 @@ The repository state at the time of this decision:
 Publishing by hand from a laptop is how the version in `package.json` and the
 version actually on the registry drift apart. `release-automation.md` in
 general-knowledge opens with exactly that failure: a tag that merely
-*triggers* a build does not *set* the built version, so artifacts ship
+_triggers_ a build does not _set_ the built version, so artifacts ship
 stamped with a stale number and the update feed never advertises anything
 new. We want the shipped version to be a committed fact before it is a tag.
 
@@ -71,7 +71,7 @@ prevent. `extra-files` closes that: the root entry owns the version line, and
 the version is written into the `package.json` that is actually published.
 
 This is the closure rule applied, not sidestepped. The seven private packages
-are bundled *into* the CLI, so **their closure is the CLI**. They cannot ship
+are bundled _into_ the CLI, so **their closure is the CLI**. They cannot ship
 independently even in principle. One deployable, one version line.
 
 **The private packages keep their `2.0.0` and stop meaning anything.** They
@@ -106,11 +106,11 @@ More importantly, **only `X.0.0-beta` is a stable prerelease state.**
 patch === 0`. Otherwise both fall through to the plain `MinorVersionUpdate` /
 `MajorVersionUpdate`, which drop the suffix:
 
-| Current        | `fix`            | `feat`           | `feat!`          |
-| -------------- | ---------------- | ---------------- | ---------------- |
-| `2.0.1-beta`   | `2.0.1-beta.1`   | **`2.1.0`**      | **`3.0.0`**      |
-| `2.1.0-beta`   | `2.1.0-beta.1`   | `2.1.0-beta.1`   | **`3.0.0`**      |
-| `2.0.0-beta`   | `2.0.0-beta.1`   | `2.0.0-beta.1`   | `2.0.0-beta.1`   |
+| Current      | `fix`          | `feat`         | `feat!`        |
+| ------------ | -------------- | -------------- | -------------- |
+| `2.0.1-beta` | `2.0.1-beta.1` | **`2.1.0`**    | **`3.0.0`**    |
+| `2.1.0-beta` | `2.1.0-beta.1` | `2.1.0-beta.1` | **`3.0.0`**    |
+| `2.0.0-beta` | `2.0.0-beta.1` | `2.0.0-beta.1` | `2.0.0-beta.1` |
 
 On any shape other than `X.0.0-beta`, an ordinary `feat` silently produces a
 **final** version. Combined with the dist-tag rule below (no `-` means
@@ -124,7 +124,7 @@ emit `2.0.0-beta`. `.release-please-manifest.json` is therefore seeded to
 **`1.2.1`** — the last version genuinely published, and with zero git tags in
 the repo there is nothing to collide with. The adoption commit carries both a
 `feat!` breaking-change footer and `Release-As: 2.0.0-beta.0`. The footer is
-honest (v2 *is* an incompatible rewrite of the 2022 package) and it is also
+honest (v2 _is_ an incompatible rewrite of the 2022 package) and it is also
 the fallback: if `Release-As` is honoured the first release is exactly
 `2.0.0-beta.0`; if it is not, `feat!` from `1.2.1` lands on `2.0.0-beta` —
 the same stable shape either way.
