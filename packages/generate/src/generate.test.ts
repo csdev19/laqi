@@ -430,17 +430,11 @@ describe('ruleFor classification', () => {
 })
 
 describe('field-name heuristics — known gap', () => {
-  // KNOWN DEFECT — marked `.fails` so it documents the gap without reddening
-  // CI, and turns red the day the rule is widened.
-  //
-  // The `quantity` rule matches `count` and `quantity`, so `itemCount` and
-  // `quantity` produce sensible whole numbers. `qty` — the commonest
-  // abbreviation of the two — falls through to the generic number rule and
-  // produces a decimal: `{ sku: "...", qty: 452.12 }`. A quantity of 452.12
-  // items is noise in a preview whose whole job is to look plausible.
-  //
-  // Observed against a pasted `{ sku: string; qty: number }[]` model.
-  it.fails('treats qty the way it treats count and quantity', () => {
+  // The `quantity` rule now matches `count`, `quantity`, and `qty` (the most
+  // common abbreviation of quantity in real schemas), so `itemCount`,
+  // `quantity`, `qty`, and `qtyOrdered` all produce sensible whole numbers
+  // rather than decimals. This ensures plausible preview data.
+  it('treats qty the way it treats count and quantity', () => {
     expect(ruleFor('qty', 'number')).toBe('quantity')
     expect(ruleFor('qtyOrdered', 'number')).toBe('quantity')
   })
