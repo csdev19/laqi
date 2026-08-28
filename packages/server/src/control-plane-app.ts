@@ -150,6 +150,58 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       )
     }
 
+    // StateSchema only checks shape — `scenario` is `string | null` and
+    // `overrides` is `Record<string, string>`, so any name passes the parse.
+    // Without this, a typo'd scenario (or an override naming an endpoint
+    // that was never loaded) gets a 200 and is stored, and the caller
+    // believes it is active while every request quietly falls through to
+    // its default. `Project.setScenario`/`setResponse` already reject these
+    // the same way; this mirrors that here so both writers of state.json
+    // agree on what's valid.
+    if (parsed.data.scenario !== null) {
+      const scenarios = runtime.getScenarios()
+      if (!Object.hasOwn(scenarios, parsed.data.scenario)) {
+        const available = Object.keys(scenarios)
+        return c.json(
+          {
+            error: 'laqi-control-plane',
+            message:
+              available.length === 0
+                ? 'no scenarios are declared — add a scenarios.json next to your mocks'
+                : `unknown scenario ${JSON.stringify(parsed.data.scenario)}. Available: ${available.join(', ')}`,
+          },
+          400,
+        )
+      }
+    }
+
+    const endpointsById = new Map(runtime.getEndpoints().map((endpoint) => [endpoint.id, endpoint]))
+    for (const [id, response] of Object.entries(parsed.data.overrides)) {
+      const endpoint = endpointsById.get(id)
+      if (endpoint === undefined) {
+        const ids = [...endpointsById.keys()]
+        return c.json(
+          {
+            error: 'laqi-control-plane',
+            message:
+              ids.length === 0
+                ? `no endpoints are loaded — cannot override ${JSON.stringify(id)}`
+                : `no endpoint with id ${JSON.stringify(id)} — known ids: ${ids.slice(0, 12).join(', ')}`,
+          },
+          400,
+        )
+      }
+      if (!Object.hasOwn(endpoint.responses, response)) {
+        return c.json(
+          {
+            error: 'laqi-control-plane',
+            message: `${JSON.stringify(response)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+          },
+          400,
+        )
+      }
+    }
+
     runtime.setState(parsed.data)
     return c.json(parsed.data)
   })
