@@ -17,11 +17,17 @@ import {
 } from '@laqi/schema'
 import { plural, renderFailure, type Failure, type Level } from '@laqi/tui'
 import { outputLevel } from '../output'
-import { parseInitArgs } from './args'
+import { parseInitArgs, type RawInitFlags } from './args'
 import { resolveInitOptions, type InitOptions } from './options'
 import { openBrowser as defaultOpenBrowser, type OpenResult } from './open-browser'
+import { defaultPromptIO, promptForFlags, type PromptIO } from './prompt'
 import { emptyScaffold, exampleScaffold } from './scaffold'
 import { renderInitSummary, type InitChange } from './summary'
+
+/** Unix convention for "interrupted" — there is no shared exit-code table
+ *  entry for a cancelled prompt (the table in terminal-output.md covers
+ *  failures, and a cancellation is not one: nothing broke). */
+const CANCELLED_EXIT_CODE = 130
 
 /** Matches ConfigSchema's own default — not re-imported to keep this module
  *  from depending on the full config surface for one string. */
@@ -45,6 +51,13 @@ Options:
 
 export type RunInitDeps = {
   openBrowser?: (url: string) => Promise<OpenResult>
+  /** Overrides TTY auto-detection. Real invocations always let `runInit`
+   *  detect interactivity itself from `process.stdout`/`process.stdin`;
+   *  tests use this to drive the prompt path without a real terminal. */
+  interactive?: boolean
+  /** Where the wizard reads keys from and writes its screen. Defaults to
+   *  the real terminal; tests inject scripted streams here. */
+  promptIO?: PromptIO
 }
 
 export async function runInit(
@@ -72,7 +85,36 @@ export async function runInit(
     return undefined
   }
 
-  const resolved = resolveInitOptions(parsedArgs.flags)
+  // Non-interactive is detected, not requested: a non-TTY stdout — CI, a
+  // pipe, an agent — behaves as though --yes were passed, with no prompt and
+  // nothing blocking. `deps.interactive` exists only so tests can drive the
+  // prompt path without a real terminal; a real invocation never sets it.
+  const interactive =
+    deps.interactive ??
+    (parsedArgs.flags.yes !== true && process.stdout.isTTY === true && process.stdin.isTTY === true)
+
+  let flags: RawInitFlags = parsedArgs.flags
+  if (interactive) {
+    const io = deps.promptIO ?? defaultPromptIO()
+    const answered = await promptForFlags(flags, level, io)
+    if (answered === null) {
+      console.error(
+        renderFailure(
+          {
+            severity: 'notice',
+            headline: 'init cancelled',
+            cause: 'The prompt was cancelled before every question was answered.',
+            outcome: `nothing was written · exit ${CANCELLED_EXIT_CODE}`,
+          },
+          level,
+        ),
+      )
+      return CANCELLED_EXIT_CODE
+    }
+    flags = answered
+  }
+
+  const resolved = resolveInitOptions(flags)
   if (!resolved.ok) {
     fail(level, {
       headline: 'laqi init could not resolve its options',

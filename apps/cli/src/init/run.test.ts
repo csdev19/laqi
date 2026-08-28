@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { ConfigSchema } from '@laqi/schema'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { startServer, type ServeHandle } from '../serve'
@@ -271,6 +272,36 @@ describe('runInit — --open', () => {
     const openBrowser = vi.fn()
     await runInit(['--yes'], root, { openBrowser })
     expect(openBrowser).not.toHaveBeenCalled()
+  })
+})
+
+describe('runInit — non-interactive is detected, not requested', () => {
+  it('a non-TTY stdout behaves as though --yes were passed, with no --yes flag given', async () => {
+    // vitest's stdout/stdin are never a real TTY, so this exercises the same
+    // auto-detection a piped `laqi init` in CI hits for real — no
+    // `deps.interactive` override here, unlike the equivalence suite.
+    expect(process.stdout.isTTY).not.toBe(true)
+    const exitCode = await runInit(['--dir', 'auto'], root)
+    expect(exitCode).toBeUndefined()
+    expect(existsSync(join(root, 'auto', 'api.json'))).toBe(true)
+  })
+})
+
+describe('runInit — cancelling the wizard', () => {
+  it('writes nothing and exits 130 on Escape', async () => {
+    const input = new PassThrough()
+    const output = new PassThrough()
+    output.on('data', () => {})
+    input.write(String.fromCharCode(0x1b))
+
+    const exitCode = await runInit([], root, {
+      interactive: true,
+      promptIO: { input, output },
+    })
+
+    expect(exitCode).toBe(130)
+    expect(existsSync(join(root, 'laqi'))).toBe(false)
+    expect(errorSpy).toHaveBeenCalled()
   })
 })
 
