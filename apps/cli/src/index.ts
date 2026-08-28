@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 import { SessionCounters } from '@laqi/core'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
-import { renderFailure, startScreen, type Failure } from '@laqi/tui'
+import { paint, renderFailure, row, startScreen, type Failure } from '@laqi/tui'
 import { renderGoodbye } from './goodbye'
 import { runMigrate } from './migrate'
 import { laqiVersion, outputLevel } from './output'
@@ -305,28 +305,64 @@ async function main(): Promise<void> {
 }
 
 function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void {
-  console.log(`\n🌐 EXPOSED TO THE INTERNET  ${url}`)
+  const level = outputLevel()
+
   console.log(
-    `   mocks only — the panel and the control plane stay on ${config.host}:${config.port}`,
+    [
+      '',
+      row('shared', paint(url, 'accent', level), level),
+      row(
+        '',
+        paint(
+          `mocks only — the panel and control plane stay on ${config.host}:${config.port}`,
+          'dim',
+          level,
+        ),
+        level,
+      ),
+    ].join('\n'),
   )
 
   if (share.token === null) {
-    console.log('\n   ⚠ NO TOKEN (--public). Anyone with this URL can read your mocks.')
-    console.log('     These URLs are actively scanned by bots. Drop --public to require a token.')
+    reportFailure({
+      severity: 'notice',
+      headline: 'sharing without a token (--public)',
+      cause:
+        'Anyone with this URL can read your mocks, and these URLs are actively scanned by bots.',
+      outcome: 'sharing continues · drop --public to require a token',
+    })
   } else {
-    console.log(`\n   token  ${share.token}`)
-    console.log(`   curl -H 'Authorization: Bearer ${share.token}' ${url}/`)
+    console.log(
+      [
+        '',
+        row('token', paint(share.token, 'value', level), level),
+        row(
+          '',
+          paint(`curl -H 'Authorization: Bearer ${share.token}' ${url}/`, 'dim', level),
+          level,
+        ),
+      ].join('\n'),
+    )
   }
 
   if (share.origins.length === 0) {
     console.log(
-      '\n   No browser origin is allowed through the tunnel (CORS is never "*" when shared).',
-    )
-    console.log(
-      '   Declare them in laqi.config.json as "cors": ["https://your.app"] if a browser needs it.',
+      [
+        '',
+        row(
+          'cors',
+          paint('no browser origin allowed (CORS is never "*" when shared)', 'dim', level),
+          level,
+        ),
+        row(
+          '',
+          paint('declare them in laqi.config.json as "cors": ["https://your.app"]', 'dim', level),
+          level,
+        ),
+      ].join('\n'),
     )
   } else {
-    console.log(`\n   CORS allows: ${share.origins.join(', ')}`)
+    console.log(row('cors', paint(share.origins.join(', '), 'value', level), level))
   }
 
   console.log('')
