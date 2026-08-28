@@ -1,0 +1,94 @@
+name: Publish to npm 📦
+
+# Publishes apps/cli (the `laqi` package). Trigger: the tag cut by
+# release-please.yml. The tag ref is what gets checked out, so what ships is
+# exactly the released commit.
+#
+# Re-publish is impossible by design — npm never allows reusing a version.
+# workflow_dispatch exists for the dry run and for retrying a publish whose
+# tag was cut but whose run failed.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and pack, but do not publish'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  # Required for npm provenance. The repository is public, so npm can record a
+  # verifiable link from the tarball back to this run.
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      # Bun builds; npm publishes. `npm publish --provenance` needs npm >= 9.5,
+      # which `bun publish` has no equivalent for.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - run: bun install --frozen-lockfile
+
+      # tsdown fails the build if packages/editor/dist is missing, so a
+      # panel-less tarball cannot reach npm.
+      - run: bun run build
+
+      - name: Resolve version and dist-tag
+        id: meta
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./apps/cli/package.json').version")"
+
+          # On a tag push the tag is the authority, and print-dist-tag refuses
+          # to print anything if it disagrees with apps/cli/package.json — that
+          # mismatch means extra-files did not run and the tarball would ship
+          # stamped with the wrong number. On workflow_dispatch there is no
+          # tag, so only the version is passed.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            DIST_TAG="$(bun scripts/release/print-dist-tag.ts "$VERSION" "$GITHUB_REF_NAME")"
+          else
+            DIST_TAG="$(bun scripts/release/print-dist-tag.ts "$VERSION")"
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=${DIST_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${VERSION} under dist-tag ${DIST_TAG}"
+
+      - name: Pack and show what would ship
+        working-directory: apps/cli
+        run: npm pack --dry-run
+
+      - name: Publish
+        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        working-directory: apps/cli
+        run: npm publish --provenance --access public --tag "${{ steps.meta.outputs.dist_tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### laqi ${{ steps.meta.outputs.version }}"
+            echo ""
+            echo "- dist-tag: \`${{ steps.meta.outputs.dist_tag }}\`"
+            echo "- published: ${{ github.event_name == 'push' || inputs.dry_run == false }}"
+          } >> "$GITHUB_STEP_SUMMARY"
