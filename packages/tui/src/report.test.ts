@@ -66,10 +66,10 @@ describe('renderFailure', () => {
   })
 
   it('adds no escape codes at level none', () => {
-    expect(renderFailure(portInUse, 'none')).not.toContain('[')
+    expect(renderFailure(portInUse, 'none')).not.toContain('\u001b[')
   })
 
   it('colours the glyph by severity when colour is on', () => {
-    expect(renderFailure(portInUse, 'truecolor')).toContain('[38;2;255;0;88m')
+    expect(renderFailure(portInUse, 'truecolor')).toContain('\u001b[38;2;255;0;88m')
   })
 })
