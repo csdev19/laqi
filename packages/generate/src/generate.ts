@@ -199,7 +199,12 @@ function numberRules(
     },
     {
       name: 'quantity',
-      when: (n) => hasWordStartingWith(n, 'count', 'quantity'),
+      // Matches count, quantity, qty and their compounds. `qty` is the most
+      // common abbreviation in real schemas; `qtyOrdered` will also match because
+      // its first word is `qty`, which starts with `qty`. We do NOT match `num`
+      // prefixes (numItems, etc.) — that would risk false positives on `number`
+      // and `numeric` fields, which are not quantities.
+      when: (n) => hasWordStartingWith(n, 'count', 'quantity', 'qty'),
       use: (faker) => faker.number.int({ min: 0, max: 100 }),
     },
     {

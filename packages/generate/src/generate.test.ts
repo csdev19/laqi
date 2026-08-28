@@ -428,3 +428,20 @@ describe('ruleFor classification', () => {
     })
   }
 })
+
+describe('field-name heuristics — known gap', () => {
+  // The `quantity` rule now matches `count`, `quantity`, and `qty` (the most
+  // common abbreviation of quantity in real schemas), so `itemCount`,
+  // `quantity`, `qty`, and `qtyOrdered` all produce sensible whole numbers
+  // rather than decimals. This ensures plausible preview data.
+  it('treats qty the way it treats count and quantity', () => {
+    expect(ruleFor('qty', 'number')).toBe('quantity')
+    expect(ruleFor('qtyOrdered', 'number')).toBe('quantity')
+  })
+
+  it('already handles the spelled-out forms', () => {
+    expect(ruleFor('quantity', 'number')).toBe('quantity')
+    expect(ruleFor('count', 'number')).toBe('quantity')
+    expect(ruleFor('itemCount', 'number')).toBe('quantity')
+  })
+})
