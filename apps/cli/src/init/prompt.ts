@@ -6,303 +6,286 @@
 // This module never decides *whether* to prompt (that is `run.ts`'s call,
 // driven by TTY detection); it only knows how to ask, once told to.
 //
-// Built on raw stdin chunks rather than `node:readline`'s keypress decoder:
-// that decoder buffers a lone ESC waiting to see whether it starts a longer
-// escape sequence, and never resolves it if nothing follows — which makes a
-// bare Escape (this module's cancel key) impossible to detect reliably. A
-// human keystroke, including the three bytes of an arrow key, arrives as one
-// `data` chunk, so matching whole chunks against known sequences is both
-// simpler and unambiguous. Confirmed against Node directly before writing
-// this: a standalone ESC byte with nothing after it never fires a
-// `keypress` event at all through `emitKeypressEvents`.
-//
-// Control bytes below are built with `String.fromCharCode` rather than
-// written as escape literals in this file — the editing tool that wrote this
-// module turns a `\u`-style escape into the raw control byte on save, which
-// would leave literal ESC/DEL/ETX bytes sitting in the source.
+// Built on `@clack/core`'s prompt engine rather than hand-rolled cursor
+// arithmetic. An earlier version of this file moved the cursor and cleared
+// the screen itself, and got both wrong: it repainted over the shell's own
+// prompt line, and it never collapsed an answered question, so the screen
+// accumulated every previous question's option list. `@clack/core` (the
+// engine `@clack/prompts` itself is built on, and what `create astro` uses)
+// owns that arithmetic instead — it diffs each frame against the last one it
+// drew and only rewrites what changed, it survives a terminal resize
+// mid-prompt, and it already solved the standalone-Escape problem this
+// module used to work around by reading raw stdin chunks: it opens its own
+// `readline` interface with `escapeCodeTimeout: 50`, short enough that a
+// lone Escape (this wizard's cancel key) resolves quickly instead of
+// waiting to see whether more bytes follow. `@clack/prompts`' own `text`,
+// `select` and `confirm` helpers don't expose their `render()` — it's fixed
+// to their own look — so this module builds directly on `@clack/core`'s
+// `TextPrompt` / `SelectPrompt` / `ConfirmPrompt` classes with a `render()`
+// that draws the shape the product owner asked for: a one-line description,
+// the default visible, and an "enter to accept" hint with the step counter.
+import type { Readable, Writable } from 'node:stream'
+import { ConfirmPrompt, isCancel, SelectPrompt, TextPrompt, type State } from '@clack/core'
 import { paint, type Level } from '@laqi/tui'
 import type { RawInitFlags } from './args'
+import type { InitFrom } from './options'
 import { DEFAULT_DIR, DEFAULT_PORT } from './options'
 
-const ESC = String.fromCharCode(0x1b)
-const CTRL_C = String.fromCharCode(0x03)
-const DEL = String.fromCharCode(0x7f)
-const BACKSPACE = String.fromCharCode(0x08)
-const ARROW_UP = `${ESC}[A`
-const ARROW_DOWN = `${ESC}[B`
-
-/** Moves the cursor up `n` lines, then clears everything from there to the
- *  end of the screen — the redraw primitive the select list uses to repaint
- *  itself in place after every arrow keypress. */
-function cursorUpAndClear(lines: number): string {
-  return `${ESC}[${lines}A${ESC}[0J`
-}
-
-/** Carriage return + clear-to-end-of-line, for redrawing a single-line
- *  prompt in place as the user types. */
-function clearLine(): string {
-  return `\r${ESC}[2K`
-}
-
 export type PromptIO = {
-  input: NodeJS.ReadableStream & {
+  input: Readable & {
     isTTY?: boolean
     setRawMode?: (mode: boolean) => void
-    unref?: () => void
   }
-  output: NodeJS.WritableStream
+  output: Writable
 }
 
 export function defaultPromptIO(): PromptIO {
   return { input: process.stdin, output: process.stdout }
 }
 
-type ParsedKey =
-  | { kind: 'cancel' }
-  | { kind: 'submit' }
-  | { kind: 'backspace' }
-  | { kind: 'up' }
-  | { kind: 'down' }
-  | { kind: 'text'; text: string }
-
-/**
- * Splits one raw `data` chunk into every key it contains. A single physical
- * keystroke is normally one chunk, but that is not guaranteed: pasted text,
- * or input written faster than the pty forwards it, can land in one chunk
- * that mixes plain characters with a control byte — e.g. typing "9010" and
- * pressing Enter quickly enough that they arrive together as `"9010\r"`.
- * Treating that whole chunk as one opaque key (as an early version of this
- * function did) swallows the Enter into the typed text and the prompt never
- * submits. Tokenizing instead — a run of plain characters becomes one text
- * event, each control byte or arrow sequence its own — handles both the
- * common one-key-per-chunk case and this one identically.
- */
-function tokenize(chunk: string): ParsedKey[] {
-  const events: ParsedKey[] = []
-  let text = ''
-  const flushText = (): void => {
-    if (text.length > 0) {
-      events.push({ kind: 'text', text })
-      text = ''
-    }
-  }
-
-  let i = 0
-  while (i < chunk.length) {
-    const rest = chunk.slice(i)
-    if (rest.startsWith(ARROW_UP)) {
-      flushText()
-      events.push({ kind: 'up' })
-      i += ARROW_UP.length
-      continue
-    }
-    if (rest.startsWith(ARROW_DOWN)) {
-      flushText()
-      events.push({ kind: 'down' })
-      i += ARROW_DOWN.length
-      continue
-    }
-
-    const ch = chunk[i]!
-    if (ch === CTRL_C || ch === ESC) {
-      flushText()
-      events.push({ kind: 'cancel' })
-    } else if (ch === '\r' || ch === '\n') {
-      flushText()
-      events.push({ kind: 'submit' })
-    } else if (ch === DEL || ch === BACKSPACE) {
-      flushText()
-      events.push({ kind: 'backspace' })
-    } else {
-      text += ch
-    }
-    i += 1
-  }
-  flushText()
-  return events
-}
-
 class PromptCancelled extends Error {}
 
-type KeyReader = { next: () => Promise<ParsedKey>; dispose: () => void }
+const TOTAL_STEPS = 5
+
+const SYMBOL_ACTIVE = '◆'
+const SYMBOL_SUBMIT = '◇'
+const SYMBOL_ERROR = '▲'
+const SYMBOL_CANCEL = '■'
+const BAR = '│'
+const CORNER = '└'
+const RADIO_ON = '●'
+const RADIO_OFF = '○'
 
 /**
- * One raw-mode session for the whole wizard: a single persistent listener
- * queues keys as they arrive. A per-question listener (attach, read one key,
- * detach, repeat) would drop any key that lands in the gap between one
- * question finishing and the next attaching its own listener.
+ * Draws one question's block: a title line, one prefixed body line per
+ * entry in `body`, and a footer hint — or, once the question is answered
+ * (`submit`/`cancel`), collapses to just the title and the last body line,
+ * so an answered question never leaves its option list on screen for the
+ * next question to scroll past.
  */
-function createKeyReader(io: PromptIO): KeyReader {
-  const queue: ParsedKey[] = []
-  let waiting: ((key: ParsedKey) => void) | undefined
-
-  const push = (event: ParsedKey): void => {
-    if (waiting !== undefined) {
-      const resolve = waiting
-      waiting = undefined
-      resolve(event)
-    } else {
-      queue.push(event)
-    }
+function frame(
+  level: Level,
+  state: State,
+  title: string,
+  body: readonly string[],
+  footer: string,
+): string {
+  const bar = paint(BAR, 'dim', level)
+  if (state === 'submit' || state === 'cancel') {
+    const symbol = paint(
+      state === 'cancel' ? SYMBOL_CANCEL : SYMBOL_SUBMIT,
+      state === 'cancel' ? 'fatal' : 'accent',
+      level,
+    )
+    const summary = body.at(-1) ?? ''
+    return `${symbol}  ${paint(title, 'label', level)}\n${bar}  ${summary}`
   }
+  const symbol = paint(
+    state === 'error' ? SYMBOL_ERROR : SYMBOL_ACTIVE,
+    state === 'error' ? 'degraded' : 'accent',
+    level,
+  )
+  const corner = paint(CORNER, 'dim', level)
+  const lines = [
+    `${symbol}  ${paint(title, 'label', level)}`,
+    ...body.map((line) => `${bar}  ${line}`),
+  ]
+  lines.push(`${corner}  ${footer}`)
+  return lines.join('\n')
+}
 
-  const onData = (data: Buffer | string): void => {
-    for (const event of tokenize(data.toString())) push(event)
-  }
+function hint(step: number, prefix?: string): string {
+  const accept = `enter to accept · ${step}/${TOTAL_STEPS}`
+  return prefix === undefined ? accept : `${prefix} · ${accept}`
+}
 
-  io.input.on('data', onData)
+/** `.prompt()` resolves to a cancellation symbol rather than throwing —
+ *  this turns that into the same short-circuit the rest of this module (and
+ *  the old hand-rolled version) already uses. `@clack/core`'s own typing
+ *  always includes `undefined` in the resolved union (some of its prompts,
+ *  like a multiselect with nothing picked, can genuinely produce it); none
+ *  of the three kinds this module drives ever do — a text prompt without a
+ *  `defaultValue` falls back to `''`, not `undefined`, and select/confirm
+ *  always resolve to one of their options. */
+async function runOrCancel<T>(prompt: { prompt(): Promise<symbol | T | undefined> }): Promise<T> {
+  const result = await prompt.prompt()
+  if (isCancel(result)) throw new PromptCancelled()
+  return result as T
+}
 
-  return {
-    next(): Promise<ParsedKey> {
-      const queued = queue.shift()
-      if (queued !== undefined) return Promise.resolve(queued)
-      return new Promise((resolve) => {
-        waiting = resolve
-      })
+async function askDir(io: PromptIO, level: Level): Promise<string> {
+  const description = 'Where laqi looks for your JSON files.'
+  const placeholder = `./${DEFAULT_DIR}/`
+  const title = 'Mocks folder'
+
+  const prompt = new TextPrompt({
+    input: io.input,
+    output: io.output,
+    render() {
+      const typed = this.userInput
+      const shown = typed.length > 0 ? typed : placeholder
+      const styled = paint(
+        shown,
+        typed.length > 0 || this.state === 'submit' ? 'value' : 'dim',
+        level,
+      )
+      return frame(level, this.state, title, [description, styled], hint(1))
     },
-    dispose(): void {
-      io.input.removeListener('data', onData)
-    },
-  }
+  })
+
+  return runOrCancel(prompt)
 }
 
-/** Restores raw mode (and pauses stdin) unconditionally — called from a
- *  `finally`, so a cancelled prompt, a completed one, and a thrown error all
- *  leave the terminal exactly as they found it. */
-function enableRawMode(io: PromptIO): () => void {
-  const canSetRawMode = typeof io.input.setRawMode === 'function' && io.input.isTTY === true
-  if (canSetRawMode) io.input.setRawMode!(true)
-  io.input.resume()
-  return () => {
-    if (canSetRawMode) io.input.setRawMode!(false)
-    io.input.pause()
-    // Belt and suspenders: `unref()` tells the event loop this handle is not
-    // a reason to keep the process alive, in case anything about resuming a
-    // raw-mode stdin leaves it referenced past `pause()` alone. Cheap and
-    // harmless when it turns out not to be needed.
-    if (typeof io.input.unref === 'function') io.input.unref()
-  }
-}
-
-function write(io: PromptIO, text: string): void {
-  io.output.write(text)
-}
-
-function progressLabel(step: number, total: number, question: string, level: Level): string {
-  return `${paint(`${step}/${total}`, 'dim', level)}  ${paint(question, 'label', level)}`
-}
-
-/** A single-line free-text prompt. Backspace edits, Enter submits (the empty
- *  string when `allowEmpty`, otherwise Enter on nothing is ignored and the
- *  prompt keeps reading), Escape/^C cancel the whole wizard. */
-async function textPrompt(
-  reader: KeyReader,
-  io: PromptIO,
-  level: Level,
-  header: string,
-  hint: string,
-  allowEmpty: boolean,
-): Promise<string> {
-  let value = ''
-  const render = (): string =>
-    `${clearLine()}${header} ${paint(`(${hint})`, 'dim', level)}  ${paint(value, 'value', level)}`
-  write(io, render())
-
-  for (;;) {
-    const key = await reader.next()
-    if (key.kind === 'cancel') throw new PromptCancelled()
-    if (key.kind === 'submit') {
-      if (value.length === 0 && !allowEmpty) continue
-      write(io, '\n')
-      return value
-    }
-    if (key.kind === 'backspace') value = value.slice(0, -1)
-    else if (key.kind === 'text') value += key.text
-    write(io, render())
-  }
-}
-
-/** y/n, defaulting on a bare Enter. Any other key is ignored — there is no
- *  partial state to edit, unlike the text prompt. */
-async function confirmPrompt(
-  reader: KeyReader,
-  io: PromptIO,
-  level: Level,
-  header: string,
-  defaultValue: boolean,
-): Promise<boolean> {
-  const hint = defaultValue ? 'Y/n' : 'y/N'
-  write(io, `${header} ${paint(`(${hint})`, 'dim', level)}  `)
-
-  for (;;) {
-    const key = await reader.next()
-    if (key.kind === 'cancel') throw new PromptCancelled()
-    if (key.kind === 'submit') {
-      write(io, '\n')
-      return defaultValue
-    }
-    if (key.kind === 'text') {
-      const answer = key.text.trim().toLowerCase()
-      if (answer.startsWith('y')) {
-        write(io, '\n')
-        return true
-      }
-      if (answer.startsWith('n')) {
-        write(io, '\n')
-        return false
-      }
-    }
-  }
-}
-
-/** Up/down moves the highlighted marker, Enter confirms it. Redraws the
- *  whole block (header + one line per option) in place on every move — the
- *  `●`/`○` list from the spec's mockup, kept local to `init` rather than
- *  added to `@laqi/tui`, since nothing else in the CLI needs a navigable
- *  list; `paint()` is the only primitive borrowed from there. */
-async function selectPrompt<T extends string>(
-  reader: KeyReader,
-  io: PromptIO,
-  level: Level,
-  header: string,
-  options: readonly { value: T; label: string }[],
-  defaultIndex: number,
-): Promise<T> {
-  let index = defaultIndex
-  const blockLines = options.length + 1
-
-  const renderBlock = (): string => {
-    const lines = [header]
-    for (const [i, option] of options.entries()) {
-      const selected = i === index
-      const marker = paint(selected ? '●' : '○', selected ? 'accent' : 'dim', level)
-      const label = paint(option.label, selected ? 'value' : 'dim', level)
-      lines.push(`  ${marker} ${label}`)
-    }
-    return lines.join('\n')
-  }
-
-  write(io, renderBlock())
-
-  for (;;) {
-    const key = await reader.next()
-    if (key.kind === 'cancel') throw new PromptCancelled()
-    if (key.kind === 'submit') {
-      write(io, `${cursorUpAndClear(blockLines)}${renderBlock()}\n`)
-      return options[index]!.value
-    }
-    if (key.kind === 'up') index = (index - 1 + options.length) % options.length
-    else if (key.kind === 'down') index = (index + 1) % options.length
-    else continue
-    write(io, `${cursorUpAndClear(blockLines)}${renderBlock()}`)
-  }
-}
-
-const FROM_OPTIONS: readonly { value: 'example' | 'empty' | 'openapi'; label: string }[] = [
+const FROM_OPTIONS: { value: InitFrom; label: string }[] = [
   { value: 'example', label: 'example todo API' },
   { value: 'empty', label: 'empty file' },
   { value: 'openapi', label: 'import OpenAPI' },
 ]
+
+async function askFrom(io: PromptIO, level: Level): Promise<InitFrom> {
+  const description = 'What laqi scaffolds before you make it your own.'
+  const title = 'Start from'
+
+  const prompt = new SelectPrompt({
+    input: io.input,
+    output: io.output,
+    options: FROM_OPTIONS,
+    initialValue: FROM_OPTIONS[0]!.value,
+    render() {
+      const selected = FROM_OPTIONS.find((option) => option.value === this.value)
+      if (this.state === 'submit' || this.state === 'cancel') {
+        return frame(
+          level,
+          this.state,
+          title,
+          [description, paint(selected?.label ?? '', 'value', level)],
+          '',
+        )
+      }
+      const optionLines = this.options.map((option, index) => {
+        const active = index === this.cursor
+        const marker = paint(active ? RADIO_ON : RADIO_OFF, active ? 'accent' : 'dim', level)
+        return `${marker} ${paint(option.label, active ? 'value' : 'dim', level)}`
+      })
+      return frame(
+        level,
+        this.state,
+        title,
+        [description, ...optionLines],
+        hint(2, '↑/↓ to choose'),
+      )
+    },
+  })
+
+  return runOrCancel(prompt)
+}
+
+async function askSpec(io: PromptIO, level: Level): Promise<string> {
+  const description = 'A JSON OpenAPI document to import routes from.'
+  const placeholder = '.yaml or .json'
+  const title = 'OpenAPI spec path'
+
+  const prompt = new TextPrompt({
+    input: io.input,
+    output: io.output,
+    validate: (value) =>
+      value === undefined || value.trim().length === 0
+        ? 'laqi needs a path to import from.'
+        : undefined,
+    render() {
+      const typed = this.userInput
+      const styled = paint(
+        typed.length > 0 ? typed : placeholder,
+        typed.length > 0 ? 'value' : 'dim',
+        level,
+      )
+      const body = [description, styled]
+      if (this.state === 'error') body.push(paint(this.error, 'degraded', level))
+      return frame(level, this.state, title, body, 'type a path · enter to accept')
+    },
+  })
+
+  return runOrCancel(prompt)
+}
+
+async function askPort(io: PromptIO, level: Level): Promise<string> {
+  const description = 'The port laqi start listens on.'
+  const placeholder = String(DEFAULT_PORT)
+  const title = 'Port'
+
+  const prompt = new TextPrompt({
+    input: io.input,
+    output: io.output,
+    render() {
+      const typed = this.userInput
+      const shown = typed.length > 0 ? typed : placeholder
+      const styled = paint(
+        shown,
+        typed.length > 0 || this.state === 'submit' ? 'value' : 'dim',
+        level,
+      )
+      return frame(level, this.state, title, [description, styled], hint(3))
+    },
+  })
+
+  return runOrCancel(prompt)
+}
+
+async function askScript(io: PromptIO, level: Level): Promise<boolean> {
+  const description = 'Adds an npm script that runs `laqi start`.'
+  const title = 'Add an npm script'
+
+  const prompt = new ConfirmPrompt({
+    input: io.input,
+    output: io.output,
+    active: 'Yes',
+    inactive: 'No',
+    initialValue: false,
+    render() {
+      const shown = paint(this.value ? 'Yes' : 'No', 'value', level)
+      if (this.state === 'submit' || this.state === 'cancel') {
+        return frame(level, this.state, title, [description, shown], '')
+      }
+      return frame(
+        level,
+        this.state,
+        title,
+        [description, shown],
+        hint(4, this.value ? 'Y/n' : 'y/N'),
+      )
+    },
+  })
+
+  return runOrCancel(prompt)
+}
+
+async function askOpen(io: PromptIO, level: Level): Promise<boolean> {
+  const description = "Opens the mock server's control panel once it's running."
+  const title = 'Open the panel'
+
+  const prompt = new ConfirmPrompt({
+    input: io.input,
+    output: io.output,
+    active: 'Yes',
+    inactive: 'No',
+    initialValue: false,
+    render() {
+      const shown = paint(this.value ? 'Yes' : 'No', 'value', level)
+      if (this.state === 'submit' || this.state === 'cancel') {
+        return frame(level, this.state, title, [description, shown], '')
+      }
+      return frame(
+        level,
+        this.state,
+        title,
+        [description, shown],
+        hint(5, this.value ? 'Y/n' : 'y/N'),
+      )
+    },
+  })
+
+  return runOrCancel(prompt)
+}
 
 /**
  * Runs the five-question wizard, skipping any question whose flag is already
@@ -318,75 +301,33 @@ export async function promptForFlags(
   io: PromptIO = defaultPromptIO(),
 ): Promise<RawInitFlags | null> {
   const flags: RawInitFlags = { ...base }
-  const reader = createKeyReader(io)
-  const restore = enableRawMode(io)
 
   try {
     if (flags.dir === undefined) {
-      const answer = await textPrompt(
-        reader,
-        io,
-        level,
-        progressLabel(1, 5, 'Mocks folder', level),
-        `./${DEFAULT_DIR}/`,
-        true,
-      )
+      const answer = await askDir(io, level)
       if (answer.length > 0) flags.dir = answer
     }
 
     if (flags.from === undefined) {
-      flags.from = await selectPrompt(
-        reader,
-        io,
-        level,
-        progressLabel(2, 5, 'Start from', level),
-        FROM_OPTIONS,
-        0,
-      )
+      flags.from = await askFrom(io, level)
     }
 
     if (flags.from === 'openapi' && flags.spec === undefined) {
-      flags.spec = await textPrompt(
-        reader,
-        io,
-        level,
-        paint('     OpenAPI spec path', 'label', level),
-        '.yaml or .json',
-        false,
-      )
+      flags.spec = await askSpec(io, level)
     }
 
     if (flags.port === undefined) {
-      const answer = await textPrompt(
-        reader,
-        io,
-        level,
-        progressLabel(3, 5, 'Port', level),
-        String(DEFAULT_PORT),
-        true,
-      )
+      const answer = await askPort(io, level)
       if (answer.length > 0) flags.port = answer
     }
 
     if (flags.script === undefined) {
-      const wantsScript = await confirmPrompt(
-        reader,
-        io,
-        level,
-        progressLabel(4, 5, 'Add an npm script', level),
-        false,
-      )
+      const wantsScript = await askScript(io, level)
       if (wantsScript) flags.script = true
     }
 
     if (flags.open === undefined) {
-      const wantsOpen = await confirmPrompt(
-        reader,
-        io,
-        level,
-        progressLabel(5, 5, 'Open the panel', level),
-        false,
-      )
+      const wantsOpen = await askOpen(io, level)
       if (wantsOpen) flags.open = true
     }
 
@@ -394,8 +335,5 @@ export async function promptForFlags(
   } catch (error) {
     if (error instanceof PromptCancelled) return null
     throw error
-  } finally {
-    reader.dispose()
-    restore()
   }
 }
