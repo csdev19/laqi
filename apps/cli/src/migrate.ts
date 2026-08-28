@@ -200,10 +200,20 @@ function findV1Sources(root: string): string[] {
     try {
       const parsed = JSON.parse(readFileSync(legacyConfig, 'utf8')) as { path?: unknown }
       if (typeof parsed.path === 'string') dir = parsed.path
-    } catch {
-      // Config ilegible: seguimos con el default de v1.
-      console.warn(
-        `  ! mock.config.json could not be parsed — using default path ${JSON.stringify(dir)}`,
+    } catch (error) {
+      // Config ilegible: seguimos con el default de v1. Mismo tratamiento que
+      // el laqi.config.json ilegible en index.ts: un archivo de config que no
+      // parsea, laqi sigue con defaults, el usuario tiene que enterarse.
+      console.error(
+        renderFailure(
+          {
+            severity: 'notice',
+            headline: 'mock.config.json is not valid JSON',
+            cause: error instanceof Error ? error.message : String(error),
+            outcome: `using the default path · migrate continues with ${JSON.stringify(dir)}`,
+          },
+          outputLevel(),
+        ),
       )
     }
   }
