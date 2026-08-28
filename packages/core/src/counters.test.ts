@@ -39,11 +39,18 @@ describe('SessionCounters', () => {
     ])
   })
 
-  it('hands out a copy, so a caller cannot mutate the counters', () => {
+  it('hands out a copy, so a caller cannot mutate the counters through it', () => {
     const c = new SessionCounters()
     c.recordWrite('laqi/api.json')
-    const snap = c.snapshot()
-    snap.filesWritten.push({ file: 'nope', times: 1 })
+
+    const snapshot = c.snapshot()
+    // The cast is the point of the test, not a way around the type: it proves
+    // the guarantee survives a caller who defeats `readonly` — which is the
+    // only caller the guarantee needs to survive.
+    ;(snapshot.filesWritten as { file: string; times: number }[]).push({ file: 'nope', times: 1 })
+    // And the entries themselves must be copies, not the Map's own objects.
+    snapshot.filesWritten[0]!.times = 99
+
     expect(c.snapshot().filesWritten).toEqual([{ file: 'laqi/api.json', times: 1 }])
   })
 })
