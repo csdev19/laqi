@@ -24,7 +24,9 @@ title: "laqi v2 — Plan 8: Terminal output, stage 1"
 - **No new runtime dependency** reaches the published package. `apps/cli/src/package.test.ts` pins that list and will fail if one does.
 - **No box drawing.** A rule, a label column, and glyphs.
 - Run `bunx oxfmt --write` on files you create; `bun run check:ci` must exit 0.
-- The suite is **625 passing** across 42 files at the start of this plan.
+- The suite is **623 passing** across 42 files at the start of this plan, measured
+  on this branch. Two draft PRs (#24, #25) each add tests on their own branches off
+  `main`; neither is merged, so neither counts here.
 
 ## Verified before writing this plan
 
