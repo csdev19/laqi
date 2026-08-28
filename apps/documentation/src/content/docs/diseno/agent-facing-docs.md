@@ -13,13 +13,14 @@ walked through it.
 
 ## The thing to notice first
 
-**laqi already has nine MCP tools**, and their descriptions are already the
-agent's documentation:
+**laqi already has eleven MCP tools** (nine at the time this document was
+first drafted; `get_types` and `generate_data` shipped later, in Plan 6), and
+their descriptions are already the agent's documentation:
 
 ```
-list_endpoints    set_response      set_scenario      reset_state
-create_endpoint   update_endpoint   delete_endpoint   import_openapi
-generate_data
+list_endpoints    get_state         set_response      set_scenario
+reset_state       create_endpoint   update_endpoint   delete_endpoint
+import_openapi    get_types         generate_data
 ```
 
 `packages/mcp/src/server.ts` already explains, in prose an agent reads, that
@@ -38,7 +39,7 @@ cannot be half-remembered. A README has to be found, opened, and believed.
 
 ### 1 · The MCP tools — primary
 
-The work is an audit, not new code. For each of the nine tools, three
+The work is an audit, not new code. For each of the eleven tools, three
 questions:
 
 - **Does the description say when to reach for it**, not just what it does?
