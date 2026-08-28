@@ -221,7 +221,7 @@ Two things had to be settled first, both discovered by running the tools.
 **The repository's own `check` script cannot gate anything.** It is
 `bun run lint && bun run format`, and `format` is `oxfmt --write .`. It
 rewrites files instead of verifying them, so it can never fail — which is
-why the repository had drifted to **83 of 205 files unformatted** without
+why the repository had drifted to **77 of 198 files unformatted** without
 anyone noticing. CI therefore calls a new `check:ci`
 (`oxlint && oxfmt --check .`); `check` and `format` keep their existing
 mutating behaviour so local habits are untouched.
@@ -232,7 +232,7 @@ alternative — checking only the files a PR touches — was rejected: it leaves
 the repository permanently half-formatted and makes the gate's meaning
 depend on the diff.
 
-`oxfmt` formats **Markdown as well** (11 of the 205 files it processes), so
+`oxfmt` formats **Markdown as well** (11 of the 198 files it processes), so
 the documentation is covered by the same check; no separate prose formatter
 is needed.
 

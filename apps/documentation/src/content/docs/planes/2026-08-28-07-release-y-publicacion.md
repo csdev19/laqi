@@ -27,8 +27,8 @@ title: "laqi v2 — Plan 7: Release automation and publishing"
 
 ## Verified before writing this plan (do not re-litigate)
 
-- `oxfmt --check` reports **83 of 205 files** unformatted on `main` — `laqi-v2-data-generators`, the branch that carried this figure before, has since merged. oxfmt only consults the root `.gitignore`, so `.astro/` and `.tanstack/` must be listed there or the gate goes red again the moment something builds.
-- `oxfmt` formats **Markdown** (11 of the 205 files it processes), so the docs need no separate prose formatter. It honours `.gitignore`, so `dist/` is untouched.
+- `oxfmt --check` reports **77 of 198 files** unformatted on `main` — `laqi-v2-data-generators`, the branch that carried this figure before, has since merged. oxfmt only consults the root `.gitignore`, so `.astro/` and `.tanstack/` must be listed there or the gate goes red again the moment something builds.
+- `oxfmt` formats **Markdown** (11 of the 198 files it processes), so the docs need no separate prose formatter. It honours `.gitignore`, so `dist/` is untouched.
 - `oxlint` exits **0** on the twelve current warnings. Only `correctness` is `error`.
 - `npm pack` on `apps/cli` produces **9 files** including `dist/panel/`, with `bin: {"laqi": "./dist/index.mjs"}`. The published `package.json` carries `@laqi/*` as literal `workspace:*` in `devDependencies`; this is inert (consumers never install a dependency's devDependencies) and is **out of scope**.
 - The repository has **zero git tags**, so seeding the manifest cannot collide.
@@ -59,7 +59,7 @@ Mechanical and reviewable as such. Must merge before PR C.
 
 **Files:**
 
-- Modify: 77 files across the repository (whatever `oxfmt` rewrites; the count of files with issues, 83, includes generated files that are not tracked)
+- Modify: 77 files across the repository (whatever `oxfmt` rewrites; matches the 77 of 198 files `oxfmt --check` reports on a clean checkout, with no generated files present)
 
 **Interfaces:**
 
@@ -76,7 +76,7 @@ git checkout -b style/format-repo
 - [ ] **Step 2: Confirm the gate is red before the change**
 
 Run: `bunx oxfmt --check .`
-Expected: exits non-zero, `Format issues found in above 83 files`
+Expected: exits non-zero, `Format issues found in above 77 files`
 
 - [ ] **Step 3: Record the pre-change test baseline**
 
@@ -138,7 +138,7 @@ git add -A
 git commit -m "style: format the repository with oxfmt
 
 The \`check\` script runs \`oxfmt --write\`, so it rewrote files instead of
-verifying them and could never fail. The repository had drifted to 83 of 205
+verifying them and could never fail. The repository had drifted to 77 of 198
 files unformatted. This is the one-time catch-up; ADR-0010 adds a
 non-mutating \`check:ci\` and a CI gate so it cannot drift again.
 
@@ -151,7 +151,7 @@ No behaviour change."
 gh pr create --title "style: format the repository with oxfmt" --body "Mechanical. \`oxfmt --write .\` over the repository, no behaviour change. Precondition for the format gate in ADR-0010."
 ```
 
-> **After merging:** rebase `laqi-v2-data-generators` onto the new `main` and re-run `bunx oxfmt --write .` there. Formatting conflicts resolve by re-running the formatter, never by hand-editing.
+> **After merging:** rebase `chore/example-consumes-laqi` and `ci/release-please-and-npm-publish` onto the new `main` and re-run `bunx oxfmt --write .` there. Formatting conflicts resolve by re-running the formatter, never by hand-editing.
 
 ---
 
@@ -707,7 +707,7 @@ git commit -m "ci: gate pull requests on format, lint, types and tests
 
 CI cannot call \`check\`: it runs \`oxfmt --write\`, so it rewrites files
 instead of verifying them and can never fail — which is how the repository
-reached 83 of 205 files unformatted unnoticed. \`check:ci\` verifies.
+reached 77 of 198 files unformatted unnoticed. \`check:ci\` verifies.
 
 Release PRs are skipped: they touch only package.json and CHANGELOG.md."
 ```
@@ -1075,5 +1075,6 @@ is not enabled; the twelve oxlint warnings stay visible and non-blocking.
 `apps/documentation` is not deployed.
 
 **Ordering risk.** Task 1 must merge before Task 5's gate arrives, or PR C is
-red on arrival. Task 1 also forces a rebase of `laqi-v2-data-generators`;
-resolve those conflicts by re-running `oxfmt --write .`, never by hand.
+red on arrival. Task 1 also forces a rebase of `chore/example-consumes-laqi`
+and `ci/release-please-and-npm-publish`; resolve those conflicts by
+re-running `oxfmt --write .`, never by hand.
