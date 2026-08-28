@@ -44,13 +44,13 @@ publish to npm from a tag-triggered workflow.**
   "release-type": "node",
   "include-component-in-tag": false,
   "bootstrap-sha": "8354e21ec809df759756326dfd49706f34be6059",
-  "versioning": "prerelease",
-  "prerelease": true,
-  "prerelease-type": "beta",
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": ["apps/documentation", "examples"],
+      "versioning": "prerelease",
+      "prerelease": true,
+      "prerelease-type": "beta",
       "extra-files": [
         { "type": "json", "path": "apps/cli/package.json", "jsonpath": "$.version" }
       ]
@@ -58,6 +58,13 @@ publish to npm from a tag-triggered workflow.**
   }
 }
 ```
+
+`versioning`, `prerelease`, and `prerelease-type` all sit inside the `"."`
+package rather than at the top level: release-please's schema forbids
+`prerelease-type` at root (`additionalProperties: false`, and the key is
+defined only inside the package-scoped `ReleaserConfigOptions`), and a root
+key the schema silently drops would leave `prereleaseType` undefined —
+producing a plain final `2.0.0` where a `2.0.0-beta` was intended.
 
 The package entry is `"."` and not `apps/cli`, because **release-please
 routes commits to a package by the paths they touch** and essentially all of

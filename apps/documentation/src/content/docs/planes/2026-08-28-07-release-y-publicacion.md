@@ -562,13 +562,13 @@ Create `release-please-config.json`:
   "release-type": "node",
   "include-component-in-tag": false,
   "bootstrap-sha": "8354e21ec809df759756326dfd49706f34be6059",
-  "versioning": "prerelease",
-  "prerelease": true,
-  "prerelease-type": "beta",
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
       "exclude-paths": ["apps/documentation", "examples"],
+      "versioning": "prerelease",
+      "prerelease": true,
+      "prerelease-type": "beta",
       "extra-files": [
         { "type": "json", "path": "apps/cli/package.json", "jsonpath": "$.version" }
       ],
