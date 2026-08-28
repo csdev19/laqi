@@ -200,8 +200,9 @@ Open Claude Code in `demo` and ask it for things like:
 > "activate the everything-broken scenario"
 > "import this OpenAPI spec as mocks"
 
-The nine tools (`list_endpoints`, `set_response`, `set_scenario`,
-`create_endpoint`, `import_openapi`, …) write the same files the panel does —
+The eleven tools (`list_endpoints`, `set_response`, `set_scenario`,
+`create_endpoint`, `import_openapi`, `get_types`, `generate_data`, …) write
+the same files the panel does —
 you can leave the panel open and watch the agent's changes appear live. It
 works even with laqi stopped: the mocks are ready for when you start it.
 
