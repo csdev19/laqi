@@ -17,7 +17,7 @@ export type GoodbyeInfo = {
   requests: number
   unmatched: number
   flips: number
-  filesWritten: readonly string[]
+  filesWritten: readonly { file: string; times: number }[]
 }
 
 const BOLT = '⚡'
@@ -83,7 +83,13 @@ export function goodbyeScreen(info: GoodbyeInfo, level: Level, columns?: number)
   ]
 
   if (info.filesWritten.length > 0) {
-    lines.push(row('files', paint(info.filesWritten.join(', '), 'value', level), level))
+    const filesFormatted = info.filesWritten
+      .map(
+        ({ file, times }) =>
+          `${paint(file, 'value', level)} ${paint(`written ${times === 1 ? 'once' : `${times} times`}`, 'dim', level)}`,
+      )
+      .join(', ')
+    lines.push(row('files', filesFormatted, level))
   }
 
   lines.push(

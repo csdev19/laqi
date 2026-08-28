@@ -58,7 +58,7 @@ describe('goodbyeScreen', () => {
     requests: 218,
     unmatched: 9,
     flips: 12,
-    filesWritten: ['laqi/api.json'],
+    filesWritten: [{ file: 'laqi/api.json', times: 1 }],
   }
 
   it('reports the session in one block', () => {
