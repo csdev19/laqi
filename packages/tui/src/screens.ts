@@ -30,7 +30,8 @@ export function formatDuration(ms: number): string {
   return `${hours}h ${Math.round((ms - hours * 3_600_000) / 60_000)}m`
 }
 
-function plural(n: number, word: string): string {
+/** `1 endpoint`, `2 endpoints` — shared with any caller reporting a count. */
+export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
 

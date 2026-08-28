@@ -7,7 +7,7 @@ import {
   type LaqiConfig,
   type MockResponse,
 } from '@laqi/schema'
-import { renderFailure } from '@laqi/tui'
+import { plural, renderFailure } from '@laqi/tui'
 import { outputLevel } from './output'
 
 export type MigrationResult = {
@@ -183,7 +183,7 @@ export function runMigrate(options: {
     return true
   } else {
     writeFileSync(target, contents, 'utf8')
-    console.log(`✔ wrote ${Object.keys(merged).length} endpoints to ${config.file}`)
+    console.log(`✔ wrote ${plural(Object.keys(merged).length, 'endpoint')} to ${config.file}`)
   }
 
   for (const warning of warnings) console.warn(`  ! ${warning}`)
