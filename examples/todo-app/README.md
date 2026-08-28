@@ -32,16 +32,16 @@ setup against your own backend.
 Open the panel at **http://127.0.0.1:8000/__laqi** next to the app, and flip
 responses while the app is running. Nothing restarts.
 
-| Flip this | And the app… |
-| --- | --- |
-| `GET /todos` → `error` | shows its error state with a retry button |
-| `GET /todos` → `empty` | shows the empty state |
-| `GET /todos` → `one-page` | drops to three items, and the pager disappears |
-| `GET /todos` → `slow` | shows the loading state, held for 2.5s |
-| `GET /profile` → `unauthorized` | signs you out, the way a real 401 would |
-| `POST /auth/login` → `invalid` | shows "Wrong email or password" |
-| `POST /auth/login` → `slow` | shows the pending button |
-| scenario `backend-caido` | breaks every todo endpoint at once |
+| Flip this                       | And the app…                                   |
+| ------------------------------- | ---------------------------------------------- |
+| `GET /todos` → `error`          | shows its error state with a retry button      |
+| `GET /todos` → `empty`          | shows the empty state                          |
+| `GET /todos` → `one-page`       | drops to three items, and the pager disappears |
+| `GET /todos` → `slow`           | shows the loading state, held for 2.5s         |
+| `GET /profile` → `unauthorized` | signs you out, the way a real 401 would        |
+| `POST /auth/login` → `invalid`  | shows "Wrong email or password"                |
+| `POST /auth/login` → `slow`     | shows the pending button                       |
+| scenario `backend-caido`        | breaks every todo endpoint at once             |
 
 Those failure states are the ones that are painful to reach against a real
 backend, and they are one click away here.
@@ -70,7 +70,7 @@ is the whole point of building against a mock.
 
 **Auth as a frontend mechanism, not security.** A mock cannot verify a token;
 it has no conditional logic. `POST /auth/login` returns 200 with a canned token
-whatever you type. What is real is the *shape*: a cookie is stored, a route
+whatever you type. What is real is the _shape_: a cookie is stored, a route
 guard gates the app, and every request carries `Authorization: Bearer …`. See
 [`src/lib/auth.ts`](src/lib/auth.ts) — it says so at the top, so nobody mistakes
 it for the real thing.

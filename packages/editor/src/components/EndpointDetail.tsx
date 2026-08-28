@@ -60,7 +60,10 @@ export function EndpointDetail(props: {
   // Without this list the panel keeps working with the TypeScript default:
   // not worth blocking the screen on a fetch that can fail.
   useEffect(() => {
-    api.getLanguages().then(setLanguages).catch(() => {})
+    api
+      .getLanguages()
+      .then(setLanguages)
+      .catch(() => {})
   }, [])
 
   // El watcher puede recargar el endpoint bajo los pies (alguien editó el
@@ -70,7 +73,12 @@ export function EndpointDetail(props: {
   // devuelve objetos nuevos en cada llamada aunque nada haya cambiado, y
   // cualquier recarga ajena (el watcher, un agente escribiendo por MCP,
   // otra pestaña guardando) borraba lo que estabas tipeando.
-  const fingerprint = JSON.stringify([endpoint.id, endpoint.description, endpoint.default, endpoint.responses])
+  const fingerprint = JSON.stringify([
+    endpoint.id,
+    endpoint.description,
+    endpoint.default,
+    endpoint.responses,
+  ])
   useEffect(() => {
     epochRef.current += 1
     setDraft(toDraft(endpoint))
@@ -97,9 +105,8 @@ export function EndpointDetail(props: {
     for (const [name, response] of Object.entries(draft.responses)) {
       const source = draft.bodies[name] ?? ''
       const trimmed = source.trim()
-      responses[name] = trimmed === ''
-        ? omitBody(response)
-        : { ...response, body: JSON.parse(trimmed) as unknown }
+      responses[name] =
+        trimmed === '' ? omitBody(response) : { ...response, body: JSON.parse(trimmed) as unknown }
     }
     props.onSave(endpoint.id, {
       description: draft.description.trim() || undefined,
@@ -137,7 +144,11 @@ export function EndpointDetail(props: {
           >
             {dirty ? 'Save to file' : 'Saved'}
           </button>
-          <button type="button" className="btn btn-danger" onClick={() => props.onDelete(endpoint.id)}>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={() => props.onDelete(endpoint.id)}
+          >
             Delete endpoint
           </button>
         </div>
@@ -158,7 +169,9 @@ export function EndpointDetail(props: {
               onClick={() => setSelected(name)}
             >
               <span
-                className={name === live.name ? `response-marker layer-${live.layer}` : 'response-marker'}
+                className={
+                  name === live.name ? `response-marker layer-${live.layer}` : 'response-marker'
+                }
                 aria-hidden="true"
               />
               <span className="response-name">{name}</span>
@@ -213,7 +226,10 @@ export function EndpointDetail(props: {
                       if (epochRef.current !== epoch) return
                       setDraft((previous) => ({
                         ...previous,
-                        bodies: { ...previous.bodies, [selected]: JSON.stringify(preview, null, 2) },
+                        bodies: {
+                          ...previous.bodies,
+                          [selected]: JSON.stringify(preview, null, 2),
+                        },
                       }))
                       setWarnings(generationWarnings)
                     })
@@ -254,7 +270,10 @@ export function EndpointDetail(props: {
           <JsonEditor
             value={bodySource}
             onChange={(value) =>
-              setDraft((previous) => ({ ...previous, bodies: { ...previous.bodies, [selected]: value } }))
+              setDraft((previous) => ({
+                ...previous,
+                bodies: { ...previous.bodies, [selected]: value },
+              }))
             }
           />
         </div>
@@ -429,7 +448,10 @@ function sameDefinition(draft: Draft, endpoint: Endpoint): boolean {
 
   const original: Record<string, unknown> = {}
   for (const [name, response] of Object.entries(endpoint.responses)) {
-    original[name] = { ...omitBody(response), ...(response.body === undefined ? {} : { body: response.body }) }
+    original[name] = {
+      ...omitBody(response),
+      ...(response.body === undefined ? {} : { body: response.body }),
+    }
   }
 
   return (

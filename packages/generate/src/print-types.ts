@@ -35,11 +35,17 @@ export const printTypesEffect = (
   options: { typeName: string; lang?: string },
 ): Effect.Effect<{ code: string; language: string }, PrintError> =>
   Effect.gen(function* () {
-    const { quicktype, InputData, JSONSchemaInput, FetchingJSONSchemaStore, defaultTargetLanguages, isLanguageName } =
-      yield* Effect.tryPromise({
-        try: () => import('quicktype-core'),
-        catch: (e) => new PrintError({ message: String(e) }),
-      })
+    const {
+      quicktype,
+      InputData,
+      JSONSchemaInput,
+      FetchingJSONSchemaStore,
+      defaultTargetLanguages,
+      isLanguageName,
+    } = yield* Effect.tryPromise({
+      try: () => import('quicktype-core'),
+      catch: (e) => new PrintError({ message: String(e) }),
+    })
 
     const requested = options.lang ?? 'typescript'
     // Each language's `name` is `names[0]` (per quicktype-core's own docs), so

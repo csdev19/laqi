@@ -13,7 +13,12 @@ export function filterEndpoints(endpoints: Endpoint[], query: string): Endpoint[
 }
 
 function haystack(endpoint: Endpoint): string {
-  return [endpoint.method, endpoint.path, endpoint.description ?? '', ...Object.keys(endpoint.responses)]
+  return [
+    endpoint.method,
+    endpoint.path,
+    endpoint.description ?? '',
+    ...Object.keys(endpoint.responses),
+  ]
     .join(' ')
     .toLowerCase()
 }

@@ -74,8 +74,9 @@ export function overriddenCount(input: {
   scenarios: Scenarios
 }): number {
   const { endpoints, state, scenarios } = input
-  return endpoints.filter((endpoint) => liveResponse({ endpoint, state, scenarios }).layer !== 'default')
-    .length
+  return endpoints.filter(
+    (endpoint) => liveResponse({ endpoint, state, scenarios }).layer !== 'default',
+  ).length
 }
 
 /** `Reset all to default` sólo se dibuja cuando hay algo que resetear. */

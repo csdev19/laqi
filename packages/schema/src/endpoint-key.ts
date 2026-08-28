@@ -5,9 +5,7 @@ export const RESERVED_PREFIX = '/__laqi'
 
 export type ParsedKey = { method: HttpMethod; path: string }
 
-export type ParseKeyResult =
-  | { ok: true; value: ParsedKey }
-  | { ok: false; error: string }
+export type ParseKeyResult = { ok: true; value: ParsedKey } | { ok: false; error: string }
 
 const KEY_PATTERN = /^([A-Za-z]+)\s+(\S+)$/
 

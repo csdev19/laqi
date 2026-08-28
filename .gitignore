@@ -4,3 +4,8 @@ dist
 .laqi/
 *.tsbuildinfo
 .superpowers/
+
+# oxfmt reads only the root .gitignore; nested gitignore files are not consulted.
+# Generated directories below must be listed here to prevent oxfmt from reformatting them.
+.astro/
+.tanstack/

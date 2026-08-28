@@ -108,11 +108,11 @@ language.
 
 ### Dependencies and weight
 
-| | today | with this feature |
-|---|---|---|
-| installed packages | 6 | ~34 (`typescript`, `@faker-js/faker`, `quicktype-core` + its 25) |
-| disk | ~10 MB | ~54 MB |
-| laqi startup | unchanged | **unchanged** — all three load via dynamic `import()` on first use |
+|                    | today     | with this feature                                                  |
+| ------------------ | --------- | ------------------------------------------------------------------ |
+| installed packages | 6         | ~34 (`typescript`, `@faker-js/faker`, `quicktype-core` + its 25)   |
+| disk               | ~10 MB    | ~54 MB                                                             |
+| laqi startup       | unchanged | **unchanged** — all three load via dynamic `import()` on first use |
 
 Accepted as disk weight in a dev tool, lazily loaded, never reaching any app
 bundle.

@@ -29,7 +29,9 @@ describe('shapeToJsonSchema', () => {
       type: 'object',
       additionalProperties: { type: 'number' },
     })
-    expect(shapeToJsonSchema({ kind: 'literals', values: ['a', 'b'] })).toEqual({ enum: ['a', 'b'] })
+    expect(shapeToJsonSchema({ kind: 'literals', values: ['a', 'b'] })).toEqual({
+      enum: ['a', 'b'],
+    })
     expect(shapeToJsonSchema(primitive('date'))).toEqual({ type: 'string', format: 'date-time' })
     expect(shapeToJsonSchema(primitive('null'))).toEqual({ type: 'null' })
     expect(shapeToJsonSchema({ kind: 'unknown' })).toEqual({})

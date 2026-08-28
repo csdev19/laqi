@@ -24,8 +24,7 @@ function Signup() {
     <div className="card narrow">
       <h1>Create an account</h1>
       <p className="muted">
-        Flip <code>POST /auth/signup</code> to <code>taken</code> in the panel to see
-        the 409 path.
+        Flip <code>POST /auth/signup</code> to <code>taken</code> in the panel to see the 409 path.
       </p>
 
       <form

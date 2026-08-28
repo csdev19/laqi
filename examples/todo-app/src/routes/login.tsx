@@ -23,9 +23,9 @@ function Login() {
     <div className="card narrow">
       <h1>Sign in</h1>
       <p className="muted">
-        Any credentials work — laqi answers with a canned token. Flip{' '}
-        <code>POST /auth/login</code> to <code>invalid</code> in the panel to see the
-        failure path, or to <code>slow</code> to see the pending state.
+        Any credentials work — laqi answers with a canned token. Flip <code>POST /auth/login</code>{' '}
+        to <code>invalid</code> in the panel to see the failure path, or to <code>slow</code> to see
+        the pending state.
       </p>
 
       <form

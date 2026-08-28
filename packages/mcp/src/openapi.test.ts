@@ -23,7 +23,10 @@ const minimal = {
     '/users/{id}': {
       get: {
         responses: {
-          '200': { description: 'one user', content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } } },
+          '200': {
+            description: 'one user',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } },
+          },
           '404': { description: 'gone' },
         },
       },
@@ -188,7 +191,9 @@ describe('importOpenapi — hostile input', () => {
         '/node': {
           get: {
             responses: {
-              '200': { content: { 'application/json': { schema: { $ref: '#/components/schemas/Node' } } } },
+              '200': {
+                content: { 'application/json': { schema: { $ref: '#/components/schemas/Node' } } },
+              },
             },
           },
         },

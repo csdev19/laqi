@@ -46,7 +46,10 @@ describe('inferShape', () => {
     const shape = inferShape([{ v: 1 }, { v: 2.5 }])
     expect(shape).toEqual({
       kind: 'array',
-      items: { kind: 'object', fields: [{ name: 'v', shape: primitive('number'), optional: false }] },
+      items: {
+        kind: 'object',
+        fields: [{ name: 'v', shape: primitive('number'), optional: false }],
+      },
     })
   })
 
@@ -54,7 +57,10 @@ describe('inferShape', () => {
     const shape = inferShape([{ v: null }, { v: 'x' }])
     expect(shape).toEqual({
       kind: 'array',
-      items: { kind: 'object', fields: [{ name: 'v', shape: primitive('string'), optional: false }] },
+      items: {
+        kind: 'object',
+        fields: [{ name: 'v', shape: primitive('string'), optional: false }],
+      },
     })
   })
 
@@ -66,7 +72,10 @@ describe('inferShape', () => {
     const shape = inferShape([{ v: 1 }, { v: { nested: true } }])
     expect(shape).toEqual({
       kind: 'array',
-      items: { kind: 'object', fields: [{ name: 'v', shape: { kind: 'unknown' }, optional: false }] },
+      items: {
+        kind: 'object',
+        fields: [{ name: 'v', shape: { kind: 'unknown' }, optional: false }],
+      },
     })
   })
 

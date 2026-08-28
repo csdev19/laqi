@@ -59,7 +59,10 @@ describe('api writes', () => {
 
   it('URL-encodes the composite id so the slash does not become a path segment', async () => {
     const calls = mockFetch(() => json({ ok: true }))
-    await api.updateEndpoint('GET /users/:id', { default: 'ok', responses: { ok: { status: 200 } } })
+    await api.updateEndpoint('GET /users/:id', {
+      default: 'ok',
+      responses: { ok: { status: 200 } },
+    })
     expect(calls[0]?.url).toBe('/__laqi/api/endpoints/GET%20%2Fusers%2F%3Aid')
   })
 
@@ -112,7 +115,9 @@ describe('generate reads/writes', () => {
   it('fetches types with response and lang in the query', async () => {
     const calls = mockFetch(() => json({ code: 'interface X {}', language: 'typescript-zod' }))
     await api.getTypes('GET /users', { response: 'ok', lang: 'typescript-zod' })
-    expect(calls[0]?.url).toBe('/__laqi/api/endpoints/GET%20%2Fusers/types?response=ok&lang=typescript-zod')
+    expect(calls[0]?.url).toBe(
+      '/__laqi/api/endpoints/GET%20%2Fusers/types?response=ok&lang=typescript-zod',
+    )
   })
 
   it('omits absent query params from the types URL', async () => {

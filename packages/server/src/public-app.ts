@@ -75,14 +75,10 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
   app.use('*', async (c, next) => {
     const verdict = consume(c.req.header('CF-Connecting-IP') ?? 'unknown')
     if (!verdict.ok) {
-      return c.json(
-        { error: 'laqi', message: 'too many requests' },
-        429,
-        {
-          'Retry-After': String(Math.ceil(verdict.retryInMs / 1000)),
-          ...corsHeaders(c.req.header('Origin')),
-        },
-      )
+      return c.json({ error: 'laqi', message: 'too many requests' }, 429, {
+        'Retry-After': String(Math.ceil(verdict.retryInMs / 1000)),
+        ...corsHeaders(c.req.header('Origin')),
+      })
     }
     await next()
   })
@@ -106,7 +102,8 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
     return c.body(null, 204, {
       ...corsHeaders(origin),
       'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Laqi-Response, X-Laqi-Scenario',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, X-Laqi-Response, X-Laqi-Scenario',
       'Access-Control-Max-Age': '600',
     })
   })
@@ -116,11 +113,10 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
     app.use('*', async (c, next) => {
       const provided = c.req.header('Authorization') ?? ''
       if (!timingSafeEqual(provided, expected)) {
-        return c.json(
-          { error: 'laqi', message: 'this laqi tunnel requires a bearer token' },
-          401,
-          { 'WWW-Authenticate': 'Bearer', ...corsHeaders(c.req.header('Origin')) },
-        )
+        return c.json({ error: 'laqi', message: 'this laqi tunnel requires a bearer token' }, 401, {
+          'WWW-Authenticate': 'Bearer',
+          ...corsHeaders(c.req.header('Origin')),
+        })
       }
       await next()
     })

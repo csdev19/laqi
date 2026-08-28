@@ -6,7 +6,9 @@ import { Project, type ProjectResult } from '@laqi/core'
 
 const ResponsesShape = z
   .record(z.string(), ResponseSchema)
-  .describe('Named responses, e.g. { "ok": { "status": 200, "body": { … } }, "boom": { "status": 500 } }')
+  .describe(
+    'Named responses, e.g. { "ok": { "status": 200, "body": { … } }, "boom": { "status": 500 } }',
+  )
 
 /**
  * Un fallo de herramienta se devuelve como `isError`, no como una excepción:
@@ -52,7 +54,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         'Which response is served is decided by layers, highest first:',
         '  state    — a per-endpoint override you set with set_response',
         '  scenario — the active scenario, set with set_scenario',
-        '  default  — the endpoint\'s own default, from the file',
+        "  default  — the endpoint's own default, from the file",
         'An override beats the active scenario. Use set_response with response=null',
         'to drop an override rather than setting it back to the default by name.',
         '',
@@ -179,7 +181,8 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     'delete_endpoint',
     {
       title: 'Delete an endpoint',
-      description: 'Remove an endpoint from the file it lives in, and drop any override pointing at it.',
+      description:
+        'Remove an endpoint from the file it lives in, and drop any override pointing at it.',
       inputSchema: { id: z.string().describe('Endpoint id, e.g. "GET /users/:id"') },
       annotations: { destructiveHint: true },
     },
@@ -197,7 +200,9 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         overwrite: z
           .boolean()
           .optional()
-          .describe('Replace endpoints that already exist (default false: they are reported as skipped)'),
+          .describe(
+            'Replace endpoints that already exist (default false: they are reported as skipped)',
+          ),
       },
     },
     ({ document, overwrite }) => {
@@ -215,13 +220,17 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
           responses: endpoint.definition.responses,
         })),
       )
-      if (!batch.ok) return { isError: true, content: [{ type: 'text' as const, text: batch.error }] }
+      if (!batch.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: batch.error }] }
 
       const created = batch.value.created
       const updated: string[] = []
 
       const byId = new Map(
-        imported.endpoints.map((endpoint) => [`${endpoint.method} ${endpoint.path}`, endpoint.definition]),
+        imported.endpoints.map((endpoint) => [
+          `${endpoint.method} ${endpoint.path}`,
+          endpoint.definition,
+        ]),
       )
 
       for (const rejection of batch.value.rejected) {
@@ -298,17 +307,22 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       try {
         if (model !== undefined) {
           const parsed = await parseTypes(model, typeName)
-          if (!parsed.ok) return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
+          if (!parsed.ok)
+            return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
           const preview = await generate(parsed.shape, genOptions)
           return text({ preview, warnings: parsed.warnings })
         }
         if (from !== undefined) {
           const body = project.getResponseBody(from.endpointId, from.response)
-          if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+          if (!body.ok)
+            return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
           const preview = await generate(inferShape(body.value ?? null), genOptions)
           return text({ preview, warnings: [] })
         }
-        return { isError: true, content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }] }
+        return {
+          isError: true,
+          content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }],
+        }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }

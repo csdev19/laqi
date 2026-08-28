@@ -112,8 +112,8 @@ function TodoList() {
         <div className="error-block">
           <p className="error">{message(todos.error)}</p>
           <p className="muted">
-            That is the <code>error</code> response of <code>GET /todos</code>. Flip it back
-            in the panel and hit retry.
+            That is the <code>error</code> response of <code>GET /todos</code>. Flip it back in the
+            panel and hit retry.
           </p>
           <button type="button" className="btn" onClick={() => void todos.refetch()}>
             Retry
@@ -169,8 +169,8 @@ function TodoList() {
       ) : null}
 
       <p className="footnote-inline">
-        The mock returns the whole list and this app slices it. A real backend would
-        paginate server-side — laqi ignores the query string, and asking for a page with{' '}
+        The mock returns the whole list and this app slices it. A real backend would paginate
+        server-side — laqi ignores the query string, and asking for a page with{' '}
         <code>X-Laqi-Response</code> would outrank the panel and break the flips below.
       </p>
     </div>

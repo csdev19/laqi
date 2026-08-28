@@ -44,7 +44,11 @@ describe('liveResponse', () => {
   it('ignores an active scenario that does not cover this endpoint', () => {
     const scenarios: Scenarios = { offline: { 'GET /cart': 'empty' } }
     expect(
-      liveResponse({ endpoint: endpoint(), state: { scenario: 'offline', overrides: {} }, scenarios }),
+      liveResponse({
+        endpoint: endpoint(),
+        state: { scenario: 'offline', overrides: {} },
+        scenarios,
+      }),
     ).toEqual({ name: 'ok', layer: 'default' })
   })
 
@@ -127,7 +131,9 @@ describe('overriddenCount', () => {
   })
 
   it('is zero on a clean state', () => {
-    expect(overriddenCount({ endpoints: [endpoint()], state: noState, scenarios: noScenarios })).toBe(0)
+    expect(
+      overriddenCount({ endpoints: [endpoint()], state: noState, scenarios: noScenarios }),
+    ).toBe(0)
   })
 })
 

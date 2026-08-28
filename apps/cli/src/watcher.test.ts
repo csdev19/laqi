@@ -27,7 +27,13 @@ describe('watchMocks', () => {
     writeFileSync(file, '{}', 'utf8')
 
     let calls = 0
-    watcher = watchMocks({ root, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 20 })
+    watcher = watchMocks({
+      root,
+      dir: 'laqi',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 20,
+    })
     await settle()
 
     writeFileSync(file, '{"a":1}', 'utf8')
@@ -38,7 +44,13 @@ describe('watchMocks', () => {
 
   it('fires when a file is added (v1 defect G)', async () => {
     let calls = 0
-    watcher = watchMocks({ root, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 20 })
+    watcher = watchMocks({
+      root,
+      dir: 'laqi',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 20,
+    })
     await settle()
 
     writeFileSync(join(root, 'laqi', 'new.json'), '{}', 'utf8')
@@ -52,7 +64,13 @@ describe('watchMocks', () => {
     writeFileSync(file, '{}', 'utf8')
 
     let calls = 0
-    watcher = watchMocks({ root, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 20 })
+    watcher = watchMocks({
+      root,
+      dir: 'laqi',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 20,
+    })
     await settle()
 
     unlinkSync(file)
@@ -67,7 +85,13 @@ describe('watchMocks', () => {
     await settle()
 
     let calls = 0
-    watcher = watchMocks({ root, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 120 })
+    watcher = watchMocks({
+      root,
+      dir: 'laqi',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 120,
+    })
     await settle()
 
     for (let i = 0; i < 5; i++) writeFileSync(file, `{"n":${i}}`, 'utf8')
@@ -99,7 +123,13 @@ describe('watchMocks', () => {
   it('detects the mocks folder even when it is created after startup (F9)', async () => {
     const fresh = mkdtempSync(join(tmpdir(), 'laqi-fresh-'))
     let calls = 0
-    watcher = watchMocks({ root: fresh, dir: 'laqi', file: 'laqi.json', onChange: () => calls++, debounceMs: 20 })
+    watcher = watchMocks({
+      root: fresh,
+      dir: 'laqi',
+      file: 'laqi.json',
+      onChange: () => calls++,
+      debounceMs: 20,
+    })
     await settle()
 
     mkdirSync(join(fresh, 'laqi'))

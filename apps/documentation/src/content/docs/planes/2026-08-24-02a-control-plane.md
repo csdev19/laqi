@@ -63,10 +63,12 @@ apps/cli/src/
 ## Task 1: `packages/core` — bus de eventos
 
 **Files:**
+
 - Create: `packages/core/src/events.ts`, `packages/core/src/events.test.ts`
 - Modify: `packages/core/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: `LoadError` (Plan 1, ya en `@laqi/core`)
 - Produces: `type LaqiEvent = { type: 'request'; method: string; path: string; status: number; resolvedName: string; resolvedLayer: string; ms: number } | { type: 'endpoints-changed'; endpointCount: number } | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }`, `class EventBus { emit(event: LaqiEvent): void; subscribe(listener: (event: LaqiEvent) => void): () => void }`
 
@@ -257,9 +259,11 @@ git commit -m "feat(core): add typed in-memory event bus for the control plane"
 ## Task 2: `packages/core` — escritor de archivos: actualizar y borrar
 
 **Files:**
+
 - Create: `packages/core/src/writer.ts`, `packages/core/src/writer.test.ts`
 
 **Interfaces:**
+
 - Consumes: `EndpointSchema`, `type EndpointDefinition` (Plan 1, `@laqi/schema`)
 - Produces: `type WriteResult = { ok: true } | { ok: false; error: string }`, `updateEndpointInFile(params: { root: string; file: string; id: string; definition: EndpointDefinition }): WriteResult`, `deleteEndpointFromFile(params: { root: string; file: string; id: string }): WriteResult`
 
@@ -488,9 +492,11 @@ git commit -m "feat(core): write endpoint updates and deletions back to mock fil
 ## Task 3: `packages/core` — escritor de archivos: crear
 
 **Files:**
+
 - Modify: `packages/core/src/writer.test.ts`, `packages/core/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: `createEndpointInFile` (ya implementada en la Tarea 2, sin tests todavía)
 - Produces: sin símbolos nuevos — esta tarea sólo agrega cobertura y la exportación
 
@@ -579,15 +585,16 @@ git add packages/core
 git commit -m "test(core): cover createEndpointInFile, export writer from @laqi/core"
 ```
 
-
 ## Task 4: `packages/server` — control plane: leer endpoints, leer/mutar estado
 
 Arranca el archivo `control-plane-app.ts`. Establece la forma completa de la app (con su propio catch-all al final) para que las tareas 5–8 sólo inserten rutas nuevas antes de ese catch-all, con un punto de inserción exacto — el mismo patrón que ya funcionó en el Plan 1 para `mock-app.ts`.
 
 **Files:**
+
 - Create: `packages/server/src/control-plane-app.ts`, `packages/server/src/control-plane-app.test.ts`
 
 **Interfaces:**
+
 - Consumes: `type LoadedEndpoint` (`@laqi/core`); `StateSchema`, `type LaqiState` (`@laqi/schema`)
 - Produces: `type ControlPlaneRuntime = { getEndpoints: () => LoadedEndpoint[]; getState: () => LaqiState; setState: (state: LaqiState) => void; ... }` (el tipo se completa en tareas posteriores, pero el nombre y estos dos primeros campos quedan fijos desde acá), `createControlPlaneApp(runtime: ControlPlaneRuntime): Hono`
 
@@ -785,9 +792,11 @@ git commit -m "feat(server): control plane — read endpoints, read/write state"
 ## Task 5: `packages/server` — control plane: escenarios y estado del servidor
 
 **Files:**
+
 - Modify: `packages/server/src/control-plane-app.ts`, `packages/server/src/control-plane-app.test.ts`
 
 **Interfaces:**
+
 - Consumes: `type Scenarios` (`@laqi/schema`); `type LoadError` (`@laqi/core`)
 - Produces: `ControlPlaneRuntime` gana `getScenarios: () => Scenarios` y `getStatus: () => { watching: string; endpointCount: number; address: string; errors: LoadError[] }`
 
@@ -916,13 +925,14 @@ git add packages/server/src/control-plane-app.ts packages/server/src/control-pla
 git commit -m "feat(server): control plane — read scenarios and server status"
 ```
 
-
 ## Task 6: `packages/server` — control plane: crear endpoint
 
 **Files:**
+
 - Modify: `packages/server/src/control-plane-app.ts`, `packages/server/src/control-plane-app.test.ts`
 
 **Interfaces:**
+
 - Consumes: `isHttpMethod`, `formatEndpointId`, `type HttpMethod`, `EndpointSchema` (`@laqi/schema`, Plan 1)
 - Produces: `ControlPlaneRuntime` gana `createEndpoint: (input: { method: HttpMethod; path: string; description?: string; default: string; responses: Record<string, unknown> }) => { ok: true; id: string } | { ok: false; error: string }`
 
@@ -1150,9 +1160,11 @@ git commit -m "feat(server): control plane — create an endpoint"
 El id compuesto (`"GET /users/:id"`) viaja como un único path param `:id`, codificado con `encodeURIComponent` — verificado que `decodeURIComponent(c.req.param('id'))` lo recupera exacto.
 
 **Files:**
+
 - Modify: `packages/server/src/control-plane-app.ts`, `packages/server/src/control-plane-app.test.ts`
 
 **Interfaces:**
+
 - Consumes: nada nuevo
 - Produces: `ControlPlaneRuntime` gana `updateEndpoint: (id: string, definition: { description?: string; default: string; responses: Record<string, unknown> }) => { ok: true } | { ok: false; error: string }` y `deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }`
 
@@ -1337,15 +1349,16 @@ git add packages/server/src/control-plane-app.ts packages/server/src/control-pla
 git commit -m "feat(server): control plane — update and delete an endpoint"
 ```
 
-
 ## Task 8: `packages/server` — control plane: stream de eventos (SSE)
 
 Verificado antes de escribir este plan: `streamSSE` de `hono/streaming` entrega los eventos correctamente sobre `@hono/node-server`, y `stream.onAbort()` limpia el listener del bus al desconectar el cliente — confirmado bajo Node real, que es donde corren los tests de este repo.
 
 **Files:**
+
 - Modify: `packages/server/src/control-plane-app.ts`, `packages/server/src/control-plane-app.test.ts`
 
 **Interfaces:**
+
 - Consumes: `type LaqiEvent` (`@laqi/core`, Tarea 1)
 - Produces: `ControlPlaneRuntime` gana `subscribe: (listener: (event: LaqiEvent) => void) => () => void`
 
@@ -1518,9 +1531,11 @@ git commit -m "feat(server): control plane — live SSE stream of requests, relo
 ## Task 9: `packages/server` — `mock-app.ts` emite eventos de request
 
 **Files:**
+
 - Modify: `packages/server/src/mock-app.ts`, `packages/server/src/mock-app.test.ts`, `packages/server/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: `type LaqiEvent` (`@laqi/core`, Tarea 1)
 - Produces: `MockRuntime` gana `onRequest?: (event: LaqiEvent) => void`, llamado tras resolver cada respuesta (éxito o 500), nunca en el 404 del catch-all (ese no corresponde a ningún endpoint declarado)
 
@@ -1759,15 +1774,16 @@ git add packages/server/src/index.ts
 git commit -m "feat(server): export the control plane app from @laqi/server"
 ```
 
-
 ## Task 10: `apps/cli` — componer control plane + mock app, conectar el bus
 
 Esta es la tarea de integración: junta todo lo anterior en el servidor real. Reusa el hot-swap del Plan 1 sin tocar su forma — sólo hace que `buildApp()` construya dos apps en vez de una, y que `reload()` también emita eventos.
 
 **Files:**
+
 - Modify: `apps/cli/src/serve.ts`, `apps/cli/src/serve.test.ts`
 
 **Interfaces:**
+
 - Consumes: `EventBus`, `type LaqiEvent`, `createEndpointInFile`, `updateEndpointInFile`, `deleteEndpointFromFile`, `type WriteResult` (`@laqi/core`, Tareas 1–3); `createControlPlaneApp`, `type ControlPlaneRuntime`, `createMockApp` (`@laqi/server`, Tareas 4–9); `formatEndpointId`, `type HttpMethod` (`@laqi/schema`, Plan 1)
 - Produces: `ServeHandle` no cambia de forma (mismos campos: `port`, `host`, `reload`, `current`, `close`) — pero ahora `app` (interno, no exportado) sirve mocks y control plane a la vez
 
@@ -2098,7 +2114,6 @@ git add apps/cli/src/serve.ts apps/cli/src/serve.test.ts
 git commit -m "feat(cli): mount the control plane alongside the mock server, wire the event bus"
 ```
 
-
 ## Task 11: Smoke test manual de punta a punta
 
 Sin cambios de código — es la verificación final, a mano, de que todo el control plane funciona junto en un servidor real, incluido el SSE recibiendo eventos de un cliente `curl` real mientras otro cliente dispara requests.
@@ -2192,7 +2207,7 @@ Expected: todo verde.
 
 - **El bloqueo del túnel** (que `/__laqi/*` nunca salga por la URL pública). Este plan sólo entrega la separación estructural (`createControlPlaneApp` ≠ `createMockApp`) que lo hace posible. El mecanismo real (cloudflared, proxy, lo que sea) es el Plan 4.
 - **`share-changed`** como evento del bus — pertenece al Plan 4, no existe todavía nada que lo emita.
-- **Autenticación del control plane.** Cualquiera que llegue al control plane puede leer y escribir mocks — no tiene token ni login. Se mitigan las dos formas concretas de llegar sin querer: **(a) `--host` no-loopback** (LAN/mobile testing, un caso real desde el Plan 1) — el control plane no se monta a menos que `config.host` sea `127.0.0.1`/`localhost`; el servidor de mocks sigue escuchando en el host configurado, sólo `/__laqi` queda retirado. **(b) un request cross-origin desde el navegador** — una página cualquiera que el developer visite mientras `laqi` corre puede intentar un `POST` "simple request" de CORS (sin preflight) contra `127.0.0.1:PORT/__laqi/api/endpoints`; el control plane rechaza cualquier escritura cuyo header `Origin` no coincida con el propio origen del servidor. *(Nota: la redacción original de este ítem decía "es aceptable porque hoy sólo escucha en local" — esa premisa era falsa en las dos formas de arriba, encontradas y corregidas en la revisión final de este plan; ver el ledger de la sesión para el detalle.)* Ninguna de las dos mitigaciones es autenticación real — el Plan 4, al agregar `--share`, sigue siendo quien decide si el control plane necesita su propio token cuando el modo compartido está activo (ADR-0007 ya lo exige para el servidor de mocks; el control plane nunca debería ni siquiera ser alcanzable desde ahí).
+- **Autenticación del control plane.** Cualquiera que llegue al control plane puede leer y escribir mocks — no tiene token ni login. Se mitigan las dos formas concretas de llegar sin querer: **(a) `--host` no-loopback** (LAN/mobile testing, un caso real desde el Plan 1) — el control plane no se monta a menos que `config.host` sea `127.0.0.1`/`localhost`; el servidor de mocks sigue escuchando en el host configurado, sólo `/__laqi` queda retirado. **(b) un request cross-origin desde el navegador** — una página cualquiera que el developer visite mientras `laqi` corre puede intentar un `POST` "simple request" de CORS (sin preflight) contra `127.0.0.1:PORT/__laqi/api/endpoints`; el control plane rechaza cualquier escritura cuyo header `Origin` no coincida con el propio origen del servidor. _(Nota: la redacción original de este ítem decía "es aceptable porque hoy sólo escucha en local" — esa premisa era falsa en las dos formas de arriba, encontradas y corregidas en la revisión final de este plan; ver el ledger de la sesión para el detalle.)_ Ninguna de las dos mitigaciones es autenticación real — el Plan 4, al agregar `--share`, sigue siendo quien decide si el control plane necesita su propio token cuando el modo compartido está activo (ADR-0007 ya lo exige para el servidor de mocks; el control plane nunca debería ni siquiera ser alcanzable desde ahí).
 - **Autoría de escenarios** (crear/editar `scenarios.json`) — el [ADR-0008](/decisiones/0008-multiarchivo-y-nombres/) ya decidió que eso es a mano o vía MCP (Plan 3), nunca desde el panel. `GET /api/scenarios` es de sólo lectura a propósito.
 - **El editor web en sí** (`packages/editor`) — es el Plan 2b, consume esta API.
 

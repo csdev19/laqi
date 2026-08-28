@@ -95,7 +95,10 @@ describe('startServer', () => {
     mkdirSync(join(otherRoot, 'laqi'), { recursive: true })
     try {
       await expect(
-        startServer({ root: otherRoot, config: ConfigSchema.parse({ port: busyPort, host: '127.0.0.1' }) }),
+        startServer({
+          root: otherRoot,
+          config: ConfigSchema.parse({ port: busyPort, host: '127.0.0.1' }),
+        }),
       ).rejects.toThrow()
     } finally {
       rmSync(otherRoot, { recursive: true, force: true })
@@ -241,7 +244,9 @@ describe('control plane, mounted under /__laqi', () => {
     // lados, matando el endpoint que ya funcionaba.
     writeFileSync(
       join(root, 'laqi', 'users.json'),
-      JSON.stringify({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } }),
+      JSON.stringify({
+        'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+      }),
       'utf8',
     )
     handle = await startServer({ root, config })
@@ -261,7 +266,10 @@ describe('control plane, mounted under /__laqi', () => {
     expect(post.status).toBe(409)
 
     expect((await get('/users')).status).toBe(200)
-    const status = (await (await get('/__laqi/api/status')).json()) as { endpointCount: number; errors: unknown[] }
+    const status = (await (await get('/__laqi/api/status')).json()) as {
+      endpointCount: number
+      errors: unknown[]
+    }
     expect(status.endpointCount).toBe(1)
     expect(status.errors).toHaveLength(0)
   })
@@ -310,7 +318,12 @@ describe('startServer with --share (H1)', () => {
     writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200 } } } })
     handle = await startServer({ root, config, share: shared() })
 
-    for (const path of ['/__laqi', '/__laqi/api/endpoints', '/__laqi/api/status', '/__laqi/events']) {
+    for (const path of [
+      '/__laqi',
+      '/__laqi/api/endpoints',
+      '/__laqi/api/status',
+      '/__laqi/events',
+    ]) {
       expect((await publicGet(path, { headers: auth })).status, `public ${path}`).toBe(404)
     }
 
@@ -379,9 +392,15 @@ describe('startServer with --share (H1)', () => {
 
   it('never answers a wildcard CORS through the tunnel', async () => {
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
-    handle = await startServer({ root, config, share: shared({ origins: ['https://app.example.com'] }) })
+    handle = await startServer({
+      root,
+      config,
+      share: shared({ origins: ['https://app.example.com'] }),
+    })
 
-    const allowed = await publicGet('/x', { headers: { ...auth, Origin: 'https://app.example.com' } })
+    const allowed = await publicGet('/x', {
+      headers: { ...auth, Origin: 'https://app.example.com' },
+    })
     expect(allowed.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com')
 
     const evil = await publicGet('/x', { headers: { ...auth, Origin: 'https://evil.example' } })
@@ -412,7 +431,12 @@ describe('the control plane and the MCP server share one implementation', () => 
       const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/endpoints`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method: 'GET', path, default: 'ok', responses: { ok: { status: 200 } } }),
+        body: JSON.stringify({
+          method: 'GET',
+          path,
+          default: 'ok',
+          responses: { ok: { status: 200 } },
+        }),
       })
       expect(res.status, path).not.toBe(201)
     }
@@ -469,7 +493,10 @@ describe('close() with a live SSE client', () => {
 
     // Una pestaña del panel abierta: el stream de /events no termina solo.
     const res = await fetch(`http://127.0.0.1:${local.port}/__laqi/events`)
-    res.body!.getReader().read().catch(() => {})
+    res
+      .body!.getReader()
+      .read()
+      .catch(() => {})
     await new Promise((r) => setTimeout(r, 100))
 
     const closed = local.close().then(() => 'closed' as const)
@@ -604,11 +631,16 @@ describe('which listener failed', () => {
 describe('generation through a live server', () => {
   it('derives types from the live response body', async () => {
     writeMocks({
-      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } } },
+      'GET /users': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } },
+      },
     })
     handle = await startServer({ root, config })
 
-    const res = await get(`/__laqi/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok`)
+    const res = await get(
+      `/__laqi/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok`,
+    )
     expect(res.status).toBe(200)
     const { code, language } = (await res.json()) as { code: string; language: string }
     expect(language).toBe('typescript')
@@ -632,7 +664,9 @@ describe('generation through a live server', () => {
       seed: 42,
     })
     const once = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
     })
     expect(once.status).toBe(200)
     const first = (await once.json()) as { preview: Record<string, unknown>; warnings: string[] }
@@ -640,21 +674,30 @@ describe('generation through a live server', () => {
     expect(typeof first.preview.title).toBe('string')
 
     const twice = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
     })
     expect(((await twice.json()) as { preview: unknown }).preview).toEqual(first.preview)
   }, 30_000)
 
   it('regenerates from live data via from:, without any model', async () => {
     writeMocks({
-      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } } },
+      'GET /users': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } },
+      },
     })
     handle = await startServer({ root, config })
 
     const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: { endpointId: 'GET /users', response: 'ok' }, seed: 7, arrayLength: 2 }),
+      body: JSON.stringify({
+        from: { endpointId: 'GET /users', response: 'ok' },
+        seed: 7,
+        arrayLength: 2,
+      }),
     })
     expect(res.status).toBe(200)
     const { preview } = (await res.json()) as { preview: Record<string, unknown>[] }

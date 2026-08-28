@@ -7,13 +7,13 @@
     ".": "./src/index.ts",
     "./package.json": "./package.json"
   },
+  "scripts": {
+    "check-types": "tsc --noEmit -p ."
+  },
   "dependencies": {
     "@laqi/core": "workspace:*",
     "@laqi/schema": "workspace:*",
     "hono": "catalog:",
     "zod": "catalog:"
-  },
-  "scripts": {
-    "check-types": "tsc --noEmit -p ."
   }
 }

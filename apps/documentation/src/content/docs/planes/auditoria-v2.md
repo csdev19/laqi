@@ -38,23 +38,23 @@ cannot drift.
 
 ### Correctness
 
-| What | Why it mattered |
-|---|---|
-| Double `decodeURIComponent` in the control plane | Hono already decodes: a path with a literal `%` threw `URIError` → 500, and the endpoint became uneditable and undeletable from the panel |
+| What                                                | Why it mattered                                                                                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Double `decodeURIComponent` in the control plane    | Hono already decodes: a path with a literal `%` threw `URIError` → 500, and the endpoint became uneditable and undeletable from the panel                                |
 | The public app's `cors()` swallowed `OPTIONS` mocks | `mock-app.ts` registers OPTIONS mocks before its own cors precisely so they are reachable; the public app's undid that. 200 locally, **an empty 204 through the tunnel** |
-| `seq` read inside the React updater | Events arriving in one flush all came out with the same key |
-| The detail draft reset on object identity | `refresh()` always returns fresh objects: any unrelated reload wiped what you were typing |
-| `getStatus` reported `config.port` | With `--port 0` the panel showed `127.0.0.1:0` and offered a `curl` that fails |
+| `seq` read inside the React updater                 | Events arriving in one flush all came out with the same key                                                                                                              |
+| The detail draft reset on object identity           | `refresh()` always returns fresh objects: any unrelated reload wiped what you were typing                                                                                |
+| `getStatus` reported `config.port`                  | With `--port 0` the panel showed `127.0.0.1:0` and offered a `curl` that fails                                                                                           |
 
 ### Robustness of the internet-facing surface
 
-| What | Why it mattered |
-|---|---|
-| The rate limiter's Map was never swept | The key comes from an attacker-controlled header: rotating it added a permanent entry per request, ~1.7M a day until the process died |
-| cloudflared's output accumulated forever | A tunnel left running for hours kept every logged byte and re-ran the regex over a growing string |
-| `close()` hung with an SSE client connected | `http.Server#close` waits for open connections, and `/events` never ends on its own. With the panel open it never resolved |
-| Malformed `%` escapes in the assets | `%` or `%zz` — routine bot traffic — came out as a 500 with a stack instead of a 404 |
-| `--share-port` was not validated | `Number('abc')` reached `server.listen()` as `NaN` and escaped as a bare stack trace |
+| What                                        | Why it mattered                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| The rate limiter's Map was never swept      | The key comes from an attacker-controlled header: rotating it added a permanent entry per request, ~1.7M a day until the process died |
+| cloudflared's output accumulated forever    | A tunnel left running for hours kept every logged byte and re-ran the regex over a growing string                                     |
+| `close()` hung with an SSE client connected | `http.Server#close` waits for open connections, and `/events` never ends on its own. With the panel open it never resolved            |
+| Malformed `%` escapes in the assets         | `%` or `%zz` — routine bot traffic — came out as a 500 with a stack instead of a 404                                                  |
+| `--share-port` was not validated            | `Number('abc')` reached `server.listen()` as `NaN` and escaped as a bare stack trace                                                  |
 
 ### Efficiency
 
@@ -72,7 +72,7 @@ cannot drift.
 
 ## Finding 16, which was inside a parenthesis
 
-The review's *non-findings* section dismissed `writer.ts`'s containment guard
+The review's _non-findings_ section dismissed `writer.ts`'s containment guard
 like this:
 
 > `resolveInside` correctly rejects escapes **(symlinks aside)**
@@ -135,7 +135,7 @@ asserted `listenerCount === 0`**, pinning the bug in place. A test can enshrine
 the very mistake it ships with.
 
 **2. The duplicate check was bypassed by a space.** The fix normalised the keys
-*in the file* but still built the id from the raw path. `"/users "` passed both
+_in the file_ but still built the id from the raw path. `"/users "` passed both
 checks, leaving two keys that normalise to the same id, and the route table
 rejected both — killing the endpoint that already worked. Precisely the failure
 that commit claimed to close.
@@ -148,10 +148,10 @@ under Node, a tunnel port whose digits start like the main port's blamed
 
 ## Concurrency and state
 
-| What | Why it mattered |
-|---|---|
-| The rate limiter's counters were rebuilt on every hot reload | Saving **any** local file handed a rate-limited tunnel client its full quota back: the public surface's only DoS protection, reset by a keystroke |
-| `writeFileObject` used a fixed `.tmp` name | This release wires **two processes** onto the same files (the MCP server and the control plane). Measured: 80 concurrent creates left **48**, plus a crash with `ENOENT` when one renamed a temp file the other had already taken. Now: unique temp names and a file lock with stale-lock recovery — 80/80 |
+| What                                                         | Why it mattered                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The rate limiter's counters were rebuilt on every hot reload | Saving **any** local file handed a rate-limited tunnel client its full quota back: the public surface's only DoS protection, reset by a keystroke                                                                                                                                                          |
+| `writeFileObject` used a fixed `.tmp` name                   | This release wires **two processes** onto the same files (the MCP server and the control plane). Measured: 80 concurrent creates left **48**, plus a crash with `ENOENT` when one renamed a temp file the other had already taken. Now: unique temp names and a file lock with stale-lock recovery — 80/80 |
 
 ## The example: the panel was not in control
 

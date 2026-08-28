@@ -22,7 +22,12 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
       state = next
     },
     getScenarios: () => ({}),
-    getStatus: () => ({ watching: 'laqi/', endpointCount: 1, address: '127.0.0.1:8000', errors: [] }),
+    getStatus: () => ({
+      watching: 'laqi/',
+      endpointCount: 1,
+      address: '127.0.0.1:8000',
+      errors: [],
+    }),
     createEndpoint: () => ({ ok: true, id: 'GET /new' }),
     updateEndpoint: () => ({ ok: true }),
     deleteEndpoint: () => ({ ok: true }),
@@ -46,10 +51,17 @@ describe('GET /api/endpoints', () => {
 
 describe('GET /api/state', () => {
   it('returns the current state', async () => {
-    const app = createControlPlaneApp(makeRuntime({ getState: () => ({ scenario: 'checkout-broken', overrides: { 'GET /users': 'boom' } }) }))
+    const app = createControlPlaneApp(
+      makeRuntime({
+        getState: () => ({ scenario: 'checkout-broken', overrides: { 'GET /users': 'boom' } }),
+      }),
+    )
     const res = await app.request('/api/state')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ scenario: 'checkout-broken', overrides: { 'GET /users': 'boom' } })
+    expect(await res.json()).toEqual({
+      scenario: 'checkout-broken',
+      overrides: { 'GET /users': 'boom' },
+    })
   })
 })
 
@@ -137,7 +149,15 @@ describe('GET /api/status', () => {
           watching: 'laqi/',
           endpointCount: 27,
           address: '127.0.0.1:8000',
-          errors: [{ file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' }],
+          errors: [
+            {
+              file: 'laqi/orders.json',
+              line: 14,
+              col: 7,
+              message: 'trailing comma',
+              excerpt: '...',
+            },
+          ],
         }),
       }),
     )
@@ -147,7 +167,9 @@ describe('GET /api/status', () => {
       watching: 'laqi/',
       endpointCount: 27,
       address: '127.0.0.1:8000',
-      errors: [{ file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' }],
+      errors: [
+        { file: 'laqi/orders.json', line: 14, col: 7, message: 'trailing comma', excerpt: '...' },
+      ],
     })
   })
 })
@@ -186,7 +208,12 @@ describe('POST /api/endpoints', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ method: 'FETCH', path: '/orders', default: 'ok', responses: { ok: { status: 200 } } }),
+      body: JSON.stringify({
+        method: 'FETCH',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
     })
 
     expect(res.status).toBe(400)
@@ -200,7 +227,12 @@ describe('POST /api/endpoints', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ method: 'GET', path: 'orders', default: 'ok', responses: { ok: { status: 200 } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: 'orders',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
     })
 
     expect(res.status).toBe(400)
@@ -222,13 +254,21 @@ describe('POST /api/endpoints', () => {
   })
 
   it('propagates a failure from the runtime (e.g. duplicate id) as a client error', async () => {
-    const createEndpoint = vi.fn(() => ({ ok: false as const, error: '"GET /orders" already exists' }))
+    const createEndpoint = vi.fn(() => ({
+      ok: false as const,
+      error: '"GET /orders" already exists',
+    }))
     const app = createControlPlaneApp(makeRuntime({ createEndpoint }))
 
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200 } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200 } },
+      }),
     })
 
     expect(res.status).toBe(409)
@@ -264,7 +304,12 @@ describe('cross-origin write protection', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'https://evil.example' },
-      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/pwned',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(403)
@@ -278,7 +323,12 @@ describe('cross-origin write protection', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Origin: 'http://localhost:3000' },
-      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(201)
@@ -292,7 +342,12 @@ describe('cross-origin write protection', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(201)
@@ -305,8 +360,16 @@ describe('cross-origin write protection', () => {
 
     const res = await app.request('/api/endpoints', {
       method: 'POST',
-      headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'http://localhost.evil.example' },
-      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      headers: {
+        'content-type': 'text/plain;charset=UTF-8',
+        Origin: 'http://localhost.evil.example',
+      },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/pwned',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(403)
@@ -319,8 +382,16 @@ describe('cross-origin write protection', () => {
 
     const res = await app.request('/api/endpoints', {
       method: 'POST',
-      headers: { 'content-type': 'text/plain;charset=UTF-8', Origin: 'http://127.0.0.1.evil.example' },
-      body: JSON.stringify({ method: 'GET', path: '/pwned', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      headers: {
+        'content-type': 'text/plain;charset=UTF-8',
+        Origin: 'http://127.0.0.1.evil.example',
+      },
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/pwned',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(403)
@@ -334,7 +405,12 @@ describe('cross-origin write protection', () => {
     const res = await app.request('/api/endpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Origin: 'http://[::1]:5173' },
-      body: JSON.stringify({ method: 'GET', path: '/orders', default: 'ok', responses: { ok: { status: 200, body: {} } } }),
+      body: JSON.stringify({
+        method: 'GET',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 200, body: {} } },
+      }),
     })
 
     expect(res.status).toBe(201)
@@ -394,7 +470,9 @@ describe('DELETE /api/endpoints/:id', () => {
     const deleteEndpoint = vi.fn(() => ({ ok: true as const }))
     const app = createControlPlaneApp(makeRuntime({ deleteEndpoint }))
 
-    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}`, { method: 'DELETE' })
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}`, {
+      method: 'DELETE',
+    })
 
     expect(res.status).toBe(204)
     expect(deleteEndpoint).toHaveBeenCalledWith('GET /users')
@@ -404,7 +482,9 @@ describe('DELETE /api/endpoints/:id', () => {
     const deleteEndpoint = vi.fn(() => ({ ok: false as const, error: 'no endpoint "GET /ghost"' }))
     const app = createControlPlaneApp(makeRuntime({ deleteEndpoint }))
 
-    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /ghost')}`, { method: 'DELETE' })
+    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /ghost')}`, {
+      method: 'DELETE',
+    })
     expect(res.status).toBe(404)
   })
 })
@@ -472,18 +552,24 @@ describe('ids that contain a percent sign', () => {
   // Hono ya decodifica el param. Un decode extra tiraba URIError -> 500, y
   // el endpoint quedaba inaccesible desde el panel para siempre.
   it('does not 500 on a PUT whose id contains a literal %', async () => {
-    const res = await createControlPlaneApp(makeRuntime()).request(`/api/endpoints/${encodeURIComponent('GET /100%')}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ default: 'ok', responses: { ok: { status: 200 } } }),
-    })
+    const res = await createControlPlaneApp(makeRuntime()).request(
+      `/api/endpoints/${encodeURIComponent('GET /100%')}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default: 'ok', responses: { ok: { status: 200 } } }),
+      },
+    )
     expect(res.status).not.toBe(500)
   })
 
   it('does not 500 on a DELETE whose id contains a literal %', async () => {
-    const res = await createControlPlaneApp(makeRuntime()).request(`/api/endpoints/${encodeURIComponent('GET /100%')}`, {
-      method: 'DELETE',
-    })
+    const res = await createControlPlaneApp(makeRuntime()).request(
+      `/api/endpoints/${encodeURIComponent('GET /100%')}`,
+      {
+        method: 'DELETE',
+      },
+    )
     expect(res.status).not.toBe(500)
   })
 })
@@ -491,7 +577,9 @@ describe('ids that contain a percent sign', () => {
 describe('generation routes', () => {
   it('GET /api/generate/languages returns the list', async () => {
     const app = createControlPlaneApp(
-      makeRuntime({ getLanguages: async () => [{ name: 'typescript', displayName: 'TypeScript' }] }),
+      makeRuntime({
+        getLanguages: async () => [{ name: 'typescript', displayName: 'TypeScript' }],
+      }),
     )
     const res = await app.request('/api/generate/languages')
     expect(res.status).toBe(200)
@@ -499,22 +587,38 @@ describe('generation routes', () => {
   })
 
   it('GET /api/endpoints/:id/types passes response and lang through, URL-decoded', async () => {
-    const getTypes = vi.fn(async () => ({ ok: true as const, code: 'export interface X {}', language: 'typescript' }))
+    const getTypes = vi.fn(async () => ({
+      ok: true as const,
+      code: 'export interface X {}',
+      language: 'typescript',
+    }))
     const app = createControlPlaneApp(makeRuntime({ getTypes }))
-    const res = await app.request(`/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok&lang=typescript-zod`)
+    const res = await app.request(
+      `/api/endpoints/${encodeURIComponent('GET /users')}/types?response=ok&lang=typescript-zod`,
+    )
     expect(res.status).toBe(200)
     expect(getTypes).toHaveBeenCalledWith('GET /users', { response: 'ok', lang: 'typescript-zod' })
   })
 
   it('maps a not-found types failure to 404', async () => {
     const app = createControlPlaneApp(
-      makeRuntime({ getTypes: async () => ({ ok: false as const, error: 'no endpoint', code: 'not-found' as const }) }),
+      makeRuntime({
+        getTypes: async () => ({
+          ok: false as const,
+          error: 'no endpoint',
+          code: 'not-found' as const,
+        }),
+      }),
     )
     expect((await app.request('/api/endpoints/GET%20%2Fnope/types')).status).toBe(404)
   })
 
   it('POST /api/generate/data forwards the body and returns the preview', async () => {
-    const generateData = vi.fn(async () => ({ ok: true as const, preview: [{ id: 1 }], warnings: ['w'] }))
+    const generateData = vi.fn(async () => ({
+      ok: true as const,
+      preview: [{ id: 1 }],
+      warnings: ['w'],
+    }))
     const app = createControlPlaneApp(makeRuntime({ generateData }))
     const res = await app.request('/api/generate/data', {
       method: 'POST',
@@ -523,7 +627,10 @@ describe('generation routes', () => {
     })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: ['w'] })
-    expect(generateData).toHaveBeenCalledWith({ model: 'export interface X { id: number }', seed: 7 })
+    expect(generateData).toHaveBeenCalledWith({
+      model: 'export interface X { id: number }',
+      seed: 7,
+    })
   })
 
   it('rejects a body that is neither model nor from as 400, without calling the runtime', async () => {
@@ -540,7 +647,13 @@ describe('generation routes', () => {
 
   it('maps an invalid model failure to 400', async () => {
     const app = createControlPlaneApp(
-      makeRuntime({ generateData: async () => ({ ok: false as const, error: 'no type found', code: 'invalid' as const }) }),
+      makeRuntime({
+        generateData: async () => ({
+          ok: false as const,
+          error: 'no type found',
+          code: 'invalid' as const,
+        }),
+      }),
     )
     const res = await app.request('/api/generate/data', {
       method: 'POST',

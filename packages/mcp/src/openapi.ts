@@ -53,7 +53,12 @@ export function importOpenapi(document: unknown): ImportResult {
 
   const paths = document.paths
   if (!isObject(paths)) {
-    return { endpoints: [], skipped: [{ where: '(document)', reason: 'no "paths" object — is this an OpenAPI 3 document?' }] }
+    return {
+      endpoints: [],
+      skipped: [
+        { where: '(document)', reason: 'no "paths" object — is this an OpenAPI 3 document?' },
+      ],
+    }
   }
 
   const components = isObject(document.components) ? document.components : {}
@@ -69,7 +74,10 @@ export function importOpenapi(document: unknown): ImportResult {
       const operation = item[method]
       if (operation === undefined) continue
       if (!isObject(operation)) {
-        skipped.push({ where: `${method.toUpperCase()} ${rawPath}`, reason: 'operation is not an object' })
+        skipped.push({
+          where: `${method.toUpperCase()} ${rawPath}`,
+          reason: 'operation is not an object',
+        })
         continue
       }
 
@@ -132,7 +140,8 @@ function buildResponses(
       const body = exampleBody(value, schemas)
       if (body !== undefined) response.body = body
 
-      const description = isObject(value) && typeof value.description === 'string' ? value.description.trim() : ''
+      const description =
+        isObject(value) && typeof value.description === 'string' ? value.description.trim() : ''
       if (description) response.description = description
 
       responses[name] = response
@@ -194,7 +203,12 @@ const MAX_DEPTH = 8
  * alcanza con que el frontend reciba la forma correcta y pueda editarla.
  * `seen` corta los `$ref` circulares, que son normales en specs reales.
  */
-function fromSchema(schema: unknown, schemas: Record<string, unknown>, seen: Set<string>, depth: number): unknown {
+function fromSchema(
+  schema: unknown,
+  schemas: Record<string, unknown>,
+  seen: Set<string>,
+  depth: number,
+): unknown {
   if (depth > MAX_DEPTH || !isObject(schema)) return null
 
   if (typeof schema.$ref === 'string') {

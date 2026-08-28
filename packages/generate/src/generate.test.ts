@@ -48,7 +48,9 @@ describe('generate', () => {
   })
 
   it('defaults arrays to 3 items', async () => {
-    expect((await generate({ kind: 'array', items: primitive('integer') }, { seed: 1 })) as unknown[]).toHaveLength(3)
+    expect(
+      (await generate({ kind: 'array', items: primitive('integer') }, { seed: 1 })) as unknown[],
+    ).toHaveLength(3)
   })
 
   it('always includes optional fields (generated data should show the full shape)', async () => {
@@ -156,7 +158,9 @@ describe('generate', () => {
     const shape = { kind: 'array' as const, items: primitive('integer') }
     expect((await generate(shape, { seed: 1, arrayLength: NaN })) as unknown[]).toHaveLength(3)
     expect((await generate(shape, { seed: 1, arrayLength: Infinity })) as unknown[]).toHaveLength(3)
-    expect((await generate(shape, { seed: 1, arrayLength: -Infinity })) as unknown[]).toHaveLength(3)
+    expect((await generate(shape, { seed: 1, arrayLength: -Infinity })) as unknown[]).toHaveLength(
+      3,
+    )
   })
 
   // --- Finding 2: arrayLength^depth amplification (single-request DoS) ---
@@ -417,7 +421,9 @@ describe('ruleFor classification', () => {
         expect(ruleFor(name, type), `expected "${name}" to classify as "${rule}"`).toBe(rule)
       }
       for (const name of rejects) {
-        expect(ruleFor(name, type), `expected "${name}" NOT to classify as "${rule}"`).not.toBe(rule)
+        expect(ruleFor(name, type), `expected "${name}" NOT to classify as "${rule}"`).not.toBe(
+          rule,
+        )
       }
     })
   }

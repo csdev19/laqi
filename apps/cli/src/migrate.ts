@@ -44,7 +44,9 @@ export function migrateV1(input: unknown): MigrationResult {
       continue
     }
 
-    const path = String(rawPath ?? '').startsWith('/') ? String(rawPath) : `/${String(rawPath ?? '')}`
+    const path = String(rawPath ?? '').startsWith('/')
+      ? String(rawPath)
+      : `/${String(rawPath ?? '')}`
     const id = formatEndpointId(method, path)
 
     if (!Array.isArray(endpoint.responses) || endpoint.responses.length === 0) {
@@ -61,7 +63,9 @@ export function migrateV1(input: unknown): MigrationResult {
       let suffix = 2
       while (Object.hasOwn(responses, name)) name = `${base}-${suffix++}`
       if (name !== base) {
-        warnings.push(`${id}: duplicate selectorCode ${JSON.stringify(base)} renamed to ${JSON.stringify(name)}`)
+        warnings.push(
+          `${id}: duplicate selectorCode ${JSON.stringify(base)} renamed to ${JSON.stringify(name)}`,
+        )
       }
 
       responses[name] = Number.isFinite(status)
@@ -70,7 +74,8 @@ export function migrateV1(input: unknown): MigrationResult {
     }
 
     const names = Object.keys(responses)
-    const requested = endpoint.codeResponse === undefined ? undefined : String(endpoint.codeResponse)
+    const requested =
+      endpoint.codeResponse === undefined ? undefined : String(endpoint.codeResponse)
     let fallback = names[0] as string
 
     if (requested !== undefined && names.includes(requested)) {
@@ -93,7 +98,11 @@ export function migrateV1(input: unknown): MigrationResult {
 }
 
 /** Devuelve true si hubo algún fallo, para que el CLI ponga exit code 1. */
-export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: boolean }): boolean {
+export function runMigrate(options: {
+  root: string
+  config: LaqiConfig
+  dryRun: boolean
+}): boolean {
   const { root, config, dryRun } = options
   const sources = findV1Sources(root)
 
@@ -111,7 +120,9 @@ export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: 
       merged = { ...merged, ...result.output }
       warnings.push(...result.warnings.map((w) => `${relative(root, source)}: ${w}`))
     } catch (error) {
-      warnings.push(`${relative(root, source)}: ${error instanceof Error ? error.message : String(error)}`)
+      warnings.push(
+        `${relative(root, source)}: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
   }
 
@@ -150,7 +161,9 @@ function findV1Sources(root: string): string[] {
       if (typeof parsed.path === 'string') dir = parsed.path
     } catch {
       // Config ilegible: seguimos con el default de v1.
-      console.warn(`  ! mock.config.json could not be parsed — using default path ${JSON.stringify(dir)}`)
+      console.warn(
+        `  ! mock.config.json could not be parsed — using default path ${JSON.stringify(dir)}`,
+      )
     }
   }
 

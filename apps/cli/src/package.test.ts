@@ -62,7 +62,7 @@ describe('the published package', () => {
   })
 
   it('ships only what the binary needs, plus the licence', () => {
-    expect(cli.files).toEqual(['dist', 'README.md', 'LICENSE.md'])
+    expect(cli.files).toEqual(['dist', 'LICENSE.md', 'README.md'])
   })
 
   it('declares the Node floor the build targets', () => {
@@ -106,7 +106,9 @@ describe('lazy loading', () => {
     // use, so it is out of scope for this guard.
     const entry = join(ROOT, 'apps', 'cli', 'dist', 'index.mjs')
     if (!existsSync(entry)) {
-      console.warn('skipping: apps/cli/dist/index.mjs not built — run `bun run build --filter=laqi`')
+      console.warn(
+        'skipping: apps/cli/dist/index.mjs not built — run `bun run build --filter=laqi`',
+      )
       return
     }
     const source = readFileSync(entry, 'utf8')
