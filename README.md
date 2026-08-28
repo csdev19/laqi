@@ -2,9 +2,14 @@
 
 ⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
 
-> **Status: v2, pre-release.** Everything below works on this branch. The
-> package is built but not published to npm yet, so `npx laqi` will only work
-> once it is — build it locally in the meantime, as shown below.
+> **Status: v2 beta.** Once published, `laqi@beta` on npm is this v2. Plain
+> `laqi` is still the unrelated 1.2.1 from 2022 and will stay that way until
+> v2 is declared final. See [Releasing](#releasing) for what "once published"
+> means.
+>
+> ```
+> bunx laqi@beta        # or: npx laqi@beta — once the first beta ships
+> ```
 
 **Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/probar-v2.md)
 covering everything: serving mocks, the four resolution layers, the web
@@ -30,13 +35,15 @@ apps/documentation — the docs site (Astro + Starlight)
 
 ## Running it
 
-Once published, from inside a project that has mock files (see below):
+Once the first beta is published (see [Releasing](#releasing)), from inside
+a project that has mock files (see below):
 
 ```
-npx laqi
+npx laqi@beta
 ```
 
-To run it from this repo, build once and use the binary it produces:
+Plain `laqi` still resolves to the unrelated 1.2.1. Until then, build it from
+this repo and use the binary it produces:
 
 ```
 bun install
@@ -72,10 +79,12 @@ root, with the same keys (`port`, `host`, `dir`, `file`, plus `cors`,
 
 ### Migrating from v1
 
-If you have an old `mock.config.json` / `mock-data/` project, run:
+If you have an old `mock.config.json` / `mock-data/` project, run (once the
+first beta is published — see [Releasing](#releasing); until then, use the
+locally built binary as shown above with `migrate --dry-run` appended):
 
 ```
-npx laqi migrate --dry-run
+npx laqi@beta migrate --dry-run
 ```
 
 to preview the converted `laqi.json`, or drop `--dry-run` to write it.
@@ -246,16 +255,19 @@ files there, so it works whether or not `laqi` is currently running.
   "mcpServers": {
     "laqi": {
       "command": "npx",
-      "args": ["laqi", "mcp"],
+      "args": ["laqi@beta", "mcp"],
       "cwd": "<your-project>"
     }
   }
 }
 ```
 
-In Claude Code that goes in `.mcp.json` at your project root; Cursor uses the
-same shape. Before laqi is on npm, point `command` at the built binary
-(`node`, with the path to `dist/index.mjs` and `mcp` as args).
+That config works once the first beta is published (see
+[Releasing](#releasing)) — before that, `laqi@beta` 404s. In Claude Code this
+goes in `.mcp.json` at your project root; Cursor uses the same shape. Right
+now, and whenever you're developing laqi itself, point `command` at the built
+binary instead (`node`, with the path to `dist/index.mjs` and `mcp` as
+args).
 
 Tools: `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
 `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
@@ -297,3 +309,49 @@ On spanish [here](apps/documentation/src/content/docs/nombre.md)
 ## Contributors
 
 - Cristian Sotomayor [@csdev19](https://github.com/csdev19) - Creator
+
+## Releasing
+
+Releases are cut by [release-please](https://github.com/googleapis/release-please)
+and published by GitHub Actions. Nobody publishes from a laptop.
+
+1. Merge normal PRs into `main` with Conventional Commit titles.
+2. release-please maintains a rolling **release PR** that accumulates the
+   changelog and recomputes the version. Read it.
+3. **Merging that release PR is the act of releasing.** It bumps
+   `apps/cli/package.json`, writes `CHANGELOG.md`, and pushes a `v*` tag.
+4. The tag triggers `release-npm.yml`, which builds and publishes.
+
+**One-time step, first release only.** The manifest seeds `1.2.1` (the last
+version actually published) so release-please computes forward from there.
+That composes to the intended `2.0.0-beta.0` only if the squash-merge commit
+that adopts this release pipeline carries this exact footer:
+
+```
+Release-As: 2.0.0-beta.0
+```
+
+This applies only to that one adoption merge, not to every release. If it is
+missed, the first release computes to `1.3.0-beta` instead — off the stable
+`X.0.0-beta` shape (see the warning below) — and a later ordinary `feat`
+would then produce a final version that publishes to `latest` and replaces
+the 2022 v1 for every existing `npx laqi` user.
+
+The dist-tag is derived from the version: anything with a `-` goes to its
+prerelease tag (`beta`), anything else to `latest`. See
+[ADR-0010](apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md).
+
+**The beta line must stay on `X.0.0-beta`.** On any other shape, an ordinary
+`feat` produces a final version and takes over `latest`.
+
+To rehearse the pipeline without publishing, run **Publish to npm** from the
+Actions tab with `dry_run` checked.
+
+### Setup, once
+
+Two secrets in the repository's `production` environment:
+
+| Secret                 | What                                                  | Why                                                                   |
+| ---------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| `RELEASE_PLEASE_TOKEN` | Fine-grained PAT, Contents + Pull requests read/write | A tag pushed by the default `GITHUB_TOKEN` does not trigger workflows |
+| `NPM_TOKEN`            | npm granular token, read/write on `laqi` only         | Publishing                                                            |
