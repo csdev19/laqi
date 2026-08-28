@@ -42,7 +42,7 @@ describe('renderFailure', () => {
       'none',
     )
     expect(out).toContain('laqi/api.json:14')
-    expect(out).not.toContain('14:')
+    expect(out).not.toContain(':14:')
   })
 
   // A degraded failure is the one that has to read as survivable, because it is.
@@ -52,12 +52,16 @@ describe('renderFailure', () => {
         severity: 'degraded',
         headline: 'laqi/api.json is not valid JSON',
         cause: 'A trailing comma leaves one closing brace too many.',
-        outcome: 'still serving the 6 endpoints that loaded · save the file to reload',
+        outcome: 'still serving the 6 endpoints that loaded · save the file to retry',
       },
       'none',
     )
     expect(out.split('\n')[0]).toBe('! laqi/api.json is not valid JSON')
-    expect(out).not.toContain('try')
+    // No remedy block: assert on the labels, not on a bare substring —
+    // the outcome legitimately contains the word "retry".
+    const labels = out.split('\n').map((line) => line.trim())
+    expect(labels.some((line) => line.startsWith('try '))).toBe(false)
+    expect(labels.some((line) => line.startsWith('or '))).toBe(false)
     expect(out).toContain('still serving the 6 endpoints that loaded')
   })
 
