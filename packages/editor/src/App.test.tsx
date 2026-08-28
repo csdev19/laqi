@@ -7,6 +7,7 @@ const putState = vi.fn()
 const createEndpoint = vi.fn()
 const updateEndpoint = vi.fn()
 const deleteEndpoint = vi.fn()
+const generateData = vi.fn()
 
 let endpoints: Endpoint[]
 let state: LaqiState
@@ -30,6 +31,9 @@ vi.mock('./api', async () => {
       createEndpoint,
       updateEndpoint,
       deleteEndpoint,
+      getLanguages: () => Promise.resolve([{ name: 'typescript', displayName: 'TypeScript' }]),
+      getTypes: () => Promise.resolve({ code: '', language: 'typescript' }),
+      generateData,
     },
   }
 })
@@ -263,6 +267,79 @@ describe('creating an endpoint', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(await screen.findByText(/already exists/)).toBeTruthy()
+  })
+
+  it('creates an endpoint from a pasted model, with the generated preview as the body', async () => {
+    generateData.mockResolvedValue({ preview: [{ id: 1, title: 'Generated' }], warnings: [] })
+    createEndpoint.mockResolvedValue({ id: 'GET /todos' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Todo { id: number; title: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(createEndpoint).toHaveBeenCalledWith({
+        method: 'GET',
+        path: '/todos',
+        default: 'ok',
+        responses: { ok: { status: 200, body: [{ id: 1, title: 'Generated' }] } },
+      }),
+    )
+  })
+
+  it('shows generation warnings after creating from a model', async () => {
+    generateData.mockResolvedValue({
+      preview: [{ id: 1, title: 'Generated' }],
+      warnings: ['dropped an index signature on Todo'],
+    })
+    createEndpoint.mockResolvedValue({ id: 'GET /todos' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Todo { id: number; title: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
+  })
+
+  it('shows no warning region when generation returns no warnings', async () => {
+    generateData.mockResolvedValue({ preview: [{ id: 1, title: 'Generated' }], warnings: [] })
+    createEndpoint.mockResolvedValue({ id: 'GET /todos' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Todo { id: number; title: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
+  })
+
+  it('shows the generation error inline and does not create', async () => {
+    generateData.mockRejectedValue(new Error('no interface or type alias found'))
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'const x = 1' } })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText(/no interface or type alias/)).toBeTruthy()
+    expect(createEndpoint).not.toHaveBeenCalled()
   })
 })
 

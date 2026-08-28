@@ -19,6 +19,7 @@
   --magl: #ff7ac8;
   --mint: #00ffc2;
   --red: #ff0058;
+  --warn: #ffb020;
   --palev: #c9a6ff;
   --palem: #7fefd8;
 
@@ -281,6 +282,25 @@ button {
   color: var(--dim2);
   font-size: 11px;
   margin-top: 4px;
+}
+
+.band-warning {
+  background: rgba(255, 176, 32, 0.1);
+  border-bottom-color: rgba(255, 176, 32, 0.4);
+}
+
+.band-warning .band-title {
+  color: var(--warn);
+}
+
+.band-warning-list {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  color: var(--fg);
+}
+
+.band-warning-list li {
+  margin-top: 2px;
 }
 
 /* ── Scenario strip ────────────────────────────────────────────────────── */
@@ -664,6 +684,12 @@ button {
 
 .create-status {
   width: 66px;
+}
+
+.create-model {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-error {
@@ -1231,6 +1257,7 @@ button.log-path:hover {
     --magl: #c4007d;
     --mint: #008062;
     --red: #c30040;
+    --warn: #966000;
     --palev: #5a00bf;
     --palem: #008062;
   }

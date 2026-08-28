@@ -359,6 +359,35 @@ describe('createEndpoints (batched)', () => {
   })
 })
 
+describe('getResponseBody', () => {
+  it('returns the body of the named response', () => {
+    expect(unwrap(project.getResponseBody('GET /users', 'ok'))).toEqual([])
+  })
+
+  it('defaults to the endpoint default when no response name is given', () => {
+    expect(unwrap(project.getResponseBody('GET /users'))).toEqual([])
+  })
+
+  it('refuses an unknown endpoint and hints at the known ids', () => {
+    const result = project.getResponseBody('GET /nope')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.code).toBe('not-found')
+      expect(result.error).toContain('GET /users')
+    }
+  })
+
+  it('refuses an undeclared response and lists the real ones', () => {
+    const result = project.getResponseBody('GET /users', 'ghost')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.code).toBe('not-found')
+      expect(result.error).toContain('not declared')
+      expect(result.error).toContain('ok, boom')
+    }
+  })
+})
+
 describe('the incoming path is normalised too, not just the file keys', () => {
   // El chequeo de duplicados normalizaba las claves DEL ARCHIVO pero armaba
   // el id con el path crudo. Un espacio de más lo esquivaba, quedaban dos

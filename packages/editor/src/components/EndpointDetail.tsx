@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { EndpointDefinition } from '../api'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { api, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
+import { WarningBand } from './WarningBand'
 
 type Draft = {
   description: string
@@ -41,6 +42,26 @@ export function EndpointDetail(props: {
   const { endpoint, state, scenarios } = props
   const [draft, setDraft] = useState<Draft>(() => toDraft(endpoint))
   const [selected, setSelected] = useState<string>(endpoint.default)
+  const [typesLang, setTypesLang] = useState('typescript')
+  const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
+    { name: 'typescript', displayName: 'TypeScript' },
+  ])
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
+
+  // This bumps every time the fingerprint changes (see below). Regenerate
+  // captures the current value when it starts and compares it on resolve:
+  // if they no longer match, a reload won in the meantime and the late
+  // response is discarded rather than overwriting the fresh draft. It does
+  // not depend on the component unmounting — a reload rerenders the same
+  // instance.
+  const epochRef = useRef(0)
+
+  // Without this list the panel keeps working with the TypeScript default:
+  // not worth blocking the screen on a fetch that can fail.
+  useEffect(() => {
+    api.getLanguages().then(setLanguages).catch(() => {})
+  }, [])
 
   // El watcher puede recargar el endpoint bajo los pies (alguien editó el
   // archivo a mano). Rearmar el draft desde la definición nueva.
@@ -51,6 +72,7 @@ export function EndpointDetail(props: {
   // otra pestaña guardando) borraba lo que estabas tipeando.
   const fingerprint = JSON.stringify([endpoint.id, endpoint.description, endpoint.default, endpoint.responses])
   useEffect(() => {
+    epochRef.current += 1
     setDraft(toDraft(endpoint))
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` a propósito no está: ver arriba
@@ -121,7 +143,10 @@ export function EndpointDetail(props: {
         </div>
       </div>
 
-      {props.saveError ? <div className="band band-error">{props.saveError}</div> : null}
+      {props.saveError || actionError ? (
+        <div className="band band-error">{props.saveError ?? actionError}</div>
+      ) : null}
+      <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
 
       <div className="detail-columns">
         <div className="detail-responses">
@@ -171,6 +196,34 @@ export function EndpointDetail(props: {
                 onClick={() => props.onFlip(endpoint, selected)}
               >
                 {live.name === selected ? 'Live now' : 'Set live'}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const epoch = epochRef.current
+                  setActionError(null)
+                  setWarnings([])
+                  void api
+                    .generateData({ from: { endpointId: endpoint.id, response: selected } })
+                    .then(({ preview, warnings: generationWarnings }) => {
+                      // Discard if the endpoint reloaded while the call was
+                      // in flight: the reload already rebuilt the draft and
+                      // this response no longer belongs to it.
+                      if (epochRef.current !== epoch) return
+                      setDraft((previous) => ({
+                        ...previous,
+                        bodies: { ...previous.bodies, [selected]: JSON.stringify(preview, null, 2) },
+                      }))
+                      setWarnings(generationWarnings)
+                    })
+                    .catch((error: unknown) => {
+                      if (epochRef.current !== epoch) return
+                      setActionError(error instanceof Error ? error.message : String(error))
+                    })
+                }}
+              >
+                Regenerate
               </button>
               <button
                 type="button"
@@ -259,6 +312,39 @@ export function EndpointDetail(props: {
                 {/* Enseña la capa header mostrándola, que es como se prueba
                     una respuesta sin tocar la app. */}
                 <pre className="meta-curl">{curlFor(endpoint, selected, props.address)}</pre>
+              </div>
+
+              <div className="meta-field">
+                <span className="micro">types</span>
+                <div className="detail-actions">
+                  <select
+                    className="meta-input"
+                    aria-label="types language"
+                    value={typesLang}
+                    onChange={(event) => setTypesLang(event.target.value)}
+                  >
+                    {languages.map((language) => (
+                      <option key={language.name} value={language.name}>
+                        {language.displayName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setActionError(null)
+                      void api
+                        .getTypes(endpoint.id, { response: selected, lang: typesLang })
+                        .then(({ code }) => navigator.clipboard?.writeText(code))
+                        .catch((error: unknown) =>
+                          setActionError(error instanceof Error ? error.message : String(error)),
+                        )
+                    }}
+                  >
+                    Copy types
+                  </button>
+                </div>
               </div>
 
               <div className="meta-field">

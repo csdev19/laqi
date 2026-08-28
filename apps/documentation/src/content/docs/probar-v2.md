@@ -205,7 +205,44 @@ The nine tools (`list_endpoints`, `set_response`, `set_scenario`,
 you can leave the panel open and watch the agent's changes appear live. It
 works even with laqi stopped: the mocks are ready for when you start it.
 
-## 6. Public URL
+## 6. Types and data from the panel
+
+Back in the panel, click **`+ New endpoint`**, then the toggle next to the
+path field to switch it from `blank` to **`from a model`**. Pick `POST`, path
+`/todos`, and paste a real-world-ish interface into the box that appears:
+
+```ts
+export interface Todo {
+  id: number
+  title: string
+  completed: boolean
+  createdAt: string
+}
+```
+
+Click **Create**. The endpoint is written to `laqi/api.json` immediately,
+with a response body already filled with seeded data generated from that
+shape — `title` reads like a real sentence, `createdAt` is a date, `id` is
+sequential — and the panel drops you straight into the endpoint's detail
+view.
+
+From there:
+
+- **Copy types** — pick `typescript-zod` from the language dropdown next to
+  the button and click it: a Zod schema for `Todo` lands on your clipboard,
+  derived from the body you are looking at right now, not from the interface
+  you pasted (laqi never stores that).
+- **Regenerate** — refills the body draft with a fresh set of random values
+  from the same shape. Nothing is written yet; the save button switches to
+  **`Save to file`**.
+- Click **`Save to file`** to write the regenerated body back to
+  `laqi/api.json`, the same path any other edit in the panel takes.
+
+`generate_data` and `get_types` are the MCP versions of these two moves — the
+same agent from the previous step can paste a model and hand you types
+without opening the panel at all.
+
+## 7. Public URL
 
 Needs [`cloudflared`](https://github.com/cloudflare/cloudflared) on your PATH
 (`brew install cloudflared` — no account, no login):
@@ -237,7 +274,7 @@ That URL is what you give a physical phone running React Native, Expo Go on
 mobile data, or a teammate on another network. You keep using the panel on
 your own `localhost`, and flips show up on the public URL immediately.
 
-## 7. A real frontend against the mock
+## 8. A real frontend against the mock
 
 Everything above was curl and the panel. To see laqi doing its actual job,
 there is [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app):
@@ -266,7 +303,7 @@ restarts:
 Those are exactly the states that are painful to reach against a real backend,
 and here they are one click away.
 
-## 8. Migrating a v1 project
+## 9. Migrating a v1 project
 
 If you have an old project with `mock.config.json` / `mock-data/`:
 

@@ -7,22 +7,34 @@ export type CreateInput = {
   path: string
   responseName: string
   status: number
+  body?: unknown
 }
 
 export function CreateEndpointRow(props: {
   error: string | null
   onCreate: (input: CreateInput) => void
+  onCreateFromModel: (input: { method: string; path: string; model: string }) => void
   onCancel: () => void
 }) {
+  const [mode, setMode] = useState<'blank' | 'model'>('blank')
   const [method, setMethod] = useState('GET')
   const [path, setPath] = useState('')
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
+  const [model, setModel] = useState('')
 
-  const canCreate = path.trim().startsWith('/') && responseName.trim().length > 0
+  const pathValid = path.trim().startsWith('/')
+  const canCreate =
+    mode === 'blank'
+      ? pathValid && responseName.trim().length > 0
+      : pathValid && model.trim().length > 0
 
   const submit = () => {
     if (!canCreate) return
+    if (mode === 'model') {
+      props.onCreateFromModel({ method, path: path.trim(), model: model.trim() })
+      return
+    }
     props.onCreate({
       method,
       path: path.trim(),
@@ -35,7 +47,8 @@ export function CreateEndpointRow(props: {
     <div
       className="create-row"
       onKeyDown={(event) => {
-        if (event.key === 'Enter') submit()
+        const inTextarea = event.target instanceof HTMLTextAreaElement
+        if (event.key === 'Enter' && !inTextarea) submit()
         if (event.key === 'Escape') props.onCancel()
       }}
     >
@@ -65,19 +78,32 @@ export function CreateEndpointRow(props: {
         value={path}
         onChange={(event) => setPath(event.target.value)}
       />
-      <input
-        className="create-input create-name"
-        aria-label="response name"
-        value={responseName}
-        onChange={(event) => setResponseName(event.target.value)}
-      />
-      <input
-        className="create-input create-status"
-        aria-label="status"
-        inputMode="numeric"
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-      />
+
+      {mode === 'blank' ? (
+        <>
+          <input
+            className="create-input create-name"
+            aria-label="response name"
+            value={responseName}
+            onChange={(event) => setResponseName(event.target.value)}
+          />
+          <input
+            className="create-input create-status"
+            aria-label="status"
+            inputMode="numeric"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+          />
+        </>
+      ) : null}
+
+      <button
+        type="button"
+        className="btn"
+        onClick={() => setMode(mode === 'blank' ? 'model' : 'blank')}
+      >
+        {mode === 'blank' ? 'from a model' : 'blank'}
+      </button>
 
       <button type="button" className="btn btn-primary" disabled={!canCreate} onClick={submit}>
         Create
@@ -85,6 +111,18 @@ export function CreateEndpointRow(props: {
       <button type="button" className="btn" onClick={props.onCancel}>
         Cancel
       </button>
+
+      {mode === 'model' ? (
+        <textarea
+          className="create-input create-model"
+          aria-label="model"
+          rows={6}
+          style={{ flexBasis: '100%' }}
+          placeholder="export interface Todo { id: number; title: string }"
+          value={model}
+          onChange={(event) => setModel(event.target.value)}
+        />
+      ) : null}
 
       {/* Sin toasts: el fallo aparece donde se hizo la acción. */}
       {props.error ? <div className="form-error">{props.error}</div> : null}

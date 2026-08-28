@@ -10,6 +10,7 @@ import {
 } from '@laqi/schema'
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
+import { z } from 'zod'
 
 /**
  * Todo lo que el control plane necesita del proceso que lo hospeda. Cada
@@ -23,6 +24,35 @@ const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
   invalid: 400,
   conflict: 409,
   'not-found': 404,
+}
+
+export type GenerateRequest =
+  | { model: string; typeName?: string; arrayLength?: number; seed?: number }
+  | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
+
+// Two separate schemas instead of a z.union: a union emits a single
+// invalid_union with the generic "Invalid input" message at the top level,
+// and the per-branch detail (which field is missing, what type it had)
+// stays buried in nested errors that `issues.map(i => i.message)` never
+// reaches. Parsing against the right branch once we already know which one
+// it is (via the `model`/`from` discriminant key) yields flat issues with
+// the correct path.
+const ModelVariantSchema = z.object({
+  model: z.string().min(1),
+  typeName: z.string().optional(),
+  arrayLength: z.number().int().optional(),
+  seed: z.number().int().optional(),
+})
+
+const FromVariantSchema = z.object({
+  from: z.object({ endpointId: z.string(), response: z.string() }),
+  arrayLength: z.number().int().optional(),
+  seed: z.number().int().optional(),
+})
+
+/** Only builds a readable message carrying the path of the failed field. */
+function issuesToMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
+  return issues.map((i) => [i.path.join('.'), i.message].filter(Boolean).join(': ')).join('; ')
 }
 
 export type ControlPlaneRuntime = {
@@ -51,6 +81,14 @@ export type ControlPlaneRuntime = {
   ) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string; code?: WriteFailure }
   subscribe: (listener: (event: LaqiEvent) => void) => () => void
+  getLanguages: () => Promise<{ name: string; displayName: string }[]>
+  getTypes: (
+    id: string,
+    options: { response?: string; lang?: string },
+  ) => Promise<{ ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }>
+  generateData: (
+    input: GenerateRequest,
+  ) => Promise<{ ok: true; preview: unknown; warnings: string[] } | { ok: false; error: string; code: WriteFailure }>
 }
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
@@ -229,6 +267,58 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       }
     }),
   )
+
+  app.get('/api/generate/languages', async (c) => c.json(await runtime.getLanguages()))
+
+  app.get('/api/endpoints/:id/types', async (c) => {
+    const id = c.req.param('id') // Hono already decoded the param — no extra decode.
+    const result = await runtime.getTypes(id, {
+      response: c.req.query('response'),
+      lang: c.req.query('lang'),
+    })
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
+    }
+    return c.json({ code: result.code, language: result.language })
+  })
+
+  app.post('/api/generate/data', async (c) => {
+    let raw: unknown
+    try {
+      raw = await c.req.json()
+    } catch {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    // We pick the branch by the discriminant key BEFORE parsing, and
+    // validate only against that branch's schema. If we handed both to a
+    // z.union, the only issue that comes out is the generic invalid_union
+    // ("Invalid input") — the branch-specific detail (which field is
+    // missing, what type it had) stays buried inside and never reaches the
+    // user. A present `model` (of any type) wins over `from`, same as
+    // before.
+    const body = raw as Record<string, unknown>
+    const hasModel = typeof body === 'object' && body !== null && 'model' in body
+    const hasFrom = typeof body === 'object' && body !== null && 'from' in body
+
+    if (!hasModel && !hasFrom) {
+      return c.json(
+        { error: 'laqi-control-plane', message: 'body needs either "model" (TS source) or "from" ({endpointId, response})' },
+        400,
+      )
+    }
+
+    const parsed = hasModel ? ModelVariantSchema.safeParse(raw) : FromVariantSchema.safeParse(raw)
+    if (!parsed.success) {
+      return c.json({ error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) }, 400)
+    }
+
+    const result = await runtime.generateData(parsed.data)
+    if (!result.ok) {
+      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
+    }
+    return c.json({ preview: result.preview, warnings: result.warnings })
+  })
 
   // Punto de inserción para futuras rutas: van ACÁ, antes de este
   // catch-all — nunca después.

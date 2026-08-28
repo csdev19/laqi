@@ -33,14 +33,19 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.6.0",
     "@hono/node-server": "^1.19.7",
     "chokidar": "^4.0.3",
+    "effect": "^3.22.1",
     "hono": "4.12.3",
+    "quicktype-core": "^26.0.0",
+    "typescript": "5.9.3",
     "zod": "4.3.6"
   },
   "devDependencies": {
     "@laqi/core": "workspace:*",
     "@laqi/editor": "workspace:*",
+    "@laqi/generate": "workspace:*",
     "@laqi/mcp": "workspace:*",
     "@laqi/schema": "workspace:*",
     "@laqi/server": "workspace:*",

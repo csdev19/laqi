@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -15,6 +15,7 @@ const WORKSPACES: string[][] = [
   ['packages', 'config', 'package.json'],
   ['packages', 'core', 'package.json'],
   ['packages', 'editor', 'package.json'],
+  ['packages', 'generate', 'package.json'],
   ['packages', 'mcp', 'package.json'],
   ['packages', 'schema', 'package.json'],
   ['packages', 'server', 'package.json'],
@@ -81,11 +82,39 @@ describe('install weight', () => {
 
   it('keeps the runtime dependency list small on purpose', () => {
     expect(Object.keys(dependencies).sort()).toEqual([
+      '@faker-js/faker',
       '@hono/node-server',
       'chokidar',
+      'effect',
       'hono',
+      'quicktype-core',
+      'typescript',
       'zod',
     ])
+  })
+})
+
+describe('lazy loading', () => {
+  it('never imports the generation stack statically from the entry chunk', () => {
+    // typescript is 23 MB and quicktype drags 25 packages; effect and
+    // @faker-js/faker add more weight on top. They must load via dynamic
+    // import() on first use, or every `laqi` startup pays for them. A
+    // static `import ... from` in dist/index.mjs — the entry chunk that
+    // always runs at startup — means someone broke it. tsdown code-splits
+    // packages/generate into its own lazy chunk, which legitimately has a
+    // static `from "effect"`: that chunk only loads on first generator
+    // use, so it is out of scope for this guard.
+    const entry = join(ROOT, 'apps', 'cli', 'dist', 'index.mjs')
+    if (!existsSync(entry)) {
+      console.warn('skipping: apps/cli/dist/index.mjs not built — run `bun run build --filter=laqi`')
+      return
+    }
+    const source = readFileSync(entry, 'utf8')
+    for (const dependency of ['typescript', 'quicktype-core', '@faker-js/faker', 'effect']) {
+      expect(source, `dist/index.mjs imports ${dependency} statically`).not.toMatch(
+        new RegExp(`from\\s*["']${dependency}["']`),
+      )
+    }
   })
 })
 
@@ -101,7 +130,7 @@ describe('what gets published', () => {
   it('keeps every internal package unpublishable', () => {
     // Van bundleados dentro del binario. Sin `private`, un `npm publish`
     // desde su carpeta intentaría crear el scope @laqi, que no existe.
-    for (const workspace of ['core', 'mcp', 'schema', 'server', 'editor', 'config']) {
+    for (const workspace of ['core', 'mcp', 'schema', 'server', 'editor', 'config', 'generate']) {
       const pkg = readJson('packages', workspace, 'package.json')
       expect(pkg.private, `packages/${workspace} must be private`).toBe(true)
     }

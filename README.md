@@ -266,6 +266,28 @@ bodies from the schemas. It takes JSON (convert YAML first), never overwrites
 an existing endpoint unless you ask, and reports whatever it skipped and why
 rather than failing the whole import.
 
+## Generate types and data
+
+The panel closes the loop around the data model in both directions:
+
+- **Data → types.** Every endpoint detail has a *Copy types* button with a
+  language dropdown — TypeScript, Zod, Swift, Kotlin, Dart, Python, Go and
+  twenty more. Types are derived from the live response body on demand, so
+  they can never go stale.
+- **Model → data.** Paste a TypeScript interface (a dirty real-world one is
+  fine — `extends`, `Pick`, imports from libraries that are not present) and
+  laqi generates realistic seeded data from it: `email` fields get emails,
+  `createdAt` gets dates, ids are sequential. *Regenerate* on any response
+  re-randomises the values from the shape the data already has.
+
+The same two operations are MCP tools (`get_types`, `generate_data`), so an
+agent can do the whole thing: paste the model from the backend discussion,
+mount the mock, hand you the types.
+
+Nothing is ever persisted except ordinary mock JSON — generated data lands in
+your `laqi/` files through the same write path as the editor, and models are
+never stored (types come from the data, not from a saved schema).
+
 ## Why that name?
 
 The name is composed of 2 Quechua words [llul**LA**](https://es.glosbe.com/quz/es/llulla) (meaning false) and [chas**Q**u**I**](https://es.glosbe.com/qu/es/chaski) (referring to a messenger) that together I give the meaning of "false-messenger" (l**L**ull**A** + chas**Q**u**I** = **LAQI**) for being a server that returns simulated or false information. Also that in English sounds like the word **"lucky"** 😃😃.

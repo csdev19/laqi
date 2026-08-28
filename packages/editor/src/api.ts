@@ -56,6 +56,10 @@ export type EndpointDefinition = {
   responses: Record<string, MockResponse>
 }
 
+export type GenerateDataInput =
+  | { model: string; typeName?: string; arrayLength?: number; seed?: number }
+  | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
+
 export const api = {
   getEndpoints: () => request<Endpoint[]>('/api/endpoints'),
   getState: () => request<LaqiState>('/api/state'),
@@ -76,6 +80,24 @@ export const api = {
 
   deleteEndpoint: (id: string) =>
     request<void>(`/api/endpoints/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+
+  getLanguages: () => request<{ name: string; displayName: string }[]>('/api/generate/languages'),
+
+  getTypes: (id: string, options: { response?: string; lang?: string }) => {
+    const query = new URLSearchParams()
+    if (options.response) query.set('response', options.response)
+    if (options.lang) query.set('lang', options.lang)
+    const suffix = query.size > 0 ? `?${query.toString()}` : ''
+    return request<{ code: string; language: string }>(
+      `/api/endpoints/${encodeURIComponent(id)}/types${suffix}`,
+    )
+  },
+
+  generateData: (input: GenerateDataInput) =>
+    request<{ preview: unknown; warnings: string[] }>('/api/generate/data', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
 }
 
 /** La URL del SSE. Se expone aparte porque la consume EventSource, no fetch. */

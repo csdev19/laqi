@@ -10,6 +10,7 @@ import { Header } from './components/Header'
 import { RequestLog } from './components/RequestLog'
 import { ScenarioStrip } from './components/ScenarioStrip'
 import { ShareBand } from './components/ShareBand'
+import { WarningBand } from './components/WarningBand'
 import { useEvents } from './hooks/useEvents'
 import { appendLog, toLogEntry } from './log'
 import { isDirty, overriddenCount, overridesAfterChipClick } from './resolve'
@@ -37,6 +38,7 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [warnings, setWarnings] = useState<string[]>([])
 
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -142,7 +144,9 @@ export function App() {
           method: input.method,
           path: input.path,
           default: input.responseName,
-          responses: { [input.responseName]: { status: input.status, body: {} } },
+          responses: {
+            [input.responseName]: { status: input.status, body: input.body ?? {} },
+          },
         })
         setCreating(false)
         await refresh()
@@ -152,6 +156,30 @@ export function App() {
       }
     },
     [refresh],
+  )
+
+  const createFromModel = useCallback(
+    async (input: { method: string; path: string; model: string }) => {
+      setCreateError(null)
+      setWarnings([])
+      try {
+        const { preview, warnings: generationWarnings } = await api.generateData({ model: input.model })
+        // `create()` closes the CreateEndpointRow and opens the new
+        // endpoint's detail — the warnings state lives here, not there, so
+        // it survives that transition instead of unmounting with the row.
+        setWarnings(generationWarnings)
+        await create({
+          method: input.method,
+          path: input.path,
+          responseName: 'ok',
+          status: 200,
+          body: preview,
+        })
+      } catch (error) {
+        setCreateError(error instanceof ApiError ? error.message : String(error))
+      }
+    },
+    [create],
   )
 
   const save = useCallback(
@@ -249,6 +277,8 @@ export function App() {
 
       {errors.length > 0 ? <ErrorBand errors={errors} onReload={() => void refresh()} /> : null}
 
+      <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
+
       <div className="panes">
         <main className="pane-endpoints">
           {detail ? (
@@ -299,6 +329,7 @@ export function App() {
                 <CreateEndpointRow
                   error={createError}
                   onCreate={(input) => void create(input)}
+                  onCreateFromModel={(input) => void createFromModel(input)}
                   onCancel={() => setCreating(false)}
                 />
               ) : null}

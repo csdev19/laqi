@@ -98,6 +98,9 @@ describe('H1 — the control plane never reaches the tunnel', () => {
         updateEndpoint: () => ({ ok: true }),
         deleteEndpoint: () => ({ ok: true }),
         subscribe: () => () => {},
+        getLanguages: async () => [],
+        getTypes: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
+        generateData: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
       }),
     )
 

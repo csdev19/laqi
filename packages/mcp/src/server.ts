@@ -23,6 +23,19 @@ function text(value: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] }
 }
 
+/**
+ * @laqi/generate's Effect-based facades (printTypes, generate) reject
+ * through Effect's FiberFailure, whose `name`/`toString()` carry a
+ * "(FiberFailure) SomeError" prefix — internal plumbing, not something a
+ * user should see. `.message` itself is already clean (Effect puts only the
+ * tagged error's own message there), so reading through it IS the
+ * unwrapping. One place for both get_types and generate_data to catch
+ * through, so neither has to know about FiberFailure on its own.
+ */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export function createMcpServer(options: { root: string; config: LaqiConfig }): McpServer {
   const project = new Project(options.root, options.config)
 
@@ -224,6 +237,81 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       }
 
       return text({ created, updated, skipped })
+    },
+  )
+
+  server.registerTool(
+    'get_types',
+    {
+      title: 'Get the types of an endpoint',
+      description:
+        'Derive a data model from the live response body of an endpoint, in any supported language (default "typescript"; try "typescript-zod", "swift", "kotlin", "python", …). Types are derived from the data on demand, so they are never stale.',
+      inputSchema: {
+        endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
+        response: z.string().optional().describe('Response name; defaults to the endpoint default'),
+        lang: z.string().optional().describe('Target language name'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ endpointId, response, lang }) => {
+      const body = project.getResponseBody(endpointId, response)
+      if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+
+      const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+      try {
+        const printed = await printTypes(inferShape(body.value ?? null), {
+          typeName: typeNameFor(endpointId),
+          lang,
+        })
+        return { content: [{ type: 'text' as const, text: printed.code }] }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
+      }
+    },
+  )
+
+  server.registerTool(
+    'generate_data',
+    {
+      title: 'Generate mock data',
+      description:
+        'Generate realistic mock data from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
+      inputSchema: {
+        model: z.string().optional().describe('TypeScript source containing the interface/type'),
+        typeName: z.string().optional(),
+        from: z.object({ endpointId: z.string(), response: z.string() }).optional(),
+        arrayLength: z.number().int().min(1).max(50).optional(),
+        seed: z.number().int().optional(),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ model, typeName, from, arrayLength, seed }) => {
+      const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+      const genOptions = { arrayLength, seed }
+
+      // Same shape as get_types just above: a malformed model or an
+      // unrepresentable shape (a depth-guard trip in inferShape, a
+      // generation-budget overrun in generate()) is a tool-input problem,
+      // not a crash. The MCP SDK does catch an escaped exception on its
+      // own, but only with a generic message — this keeps the reported
+      // error explicit and consistent with get_types.
+      try {
+        if (model !== undefined) {
+          const parsed = await parseTypes(model, typeName)
+          if (!parsed.ok) return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
+          const preview = await generate(parsed.shape, genOptions)
+          return text({ preview, warnings: parsed.warnings })
+        }
+        if (from !== undefined) {
+          const body = project.getResponseBody(from.endpointId, from.response)
+          if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+          const preview = await generate(inferShape(body.value ?? null), genOptions)
+          return text({ preview, warnings: [] })
+        }
+        return { isError: true, content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }] }
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
+      }
     },
   )
 

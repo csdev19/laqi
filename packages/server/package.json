@@ -10,7 +10,8 @@
   "dependencies": {
     "@laqi/core": "workspace:*",
     "@laqi/schema": "workspace:*",
-    "hono": "catalog:"
+    "hono": "catalog:",
+    "zod": "catalog:"
   },
   "scripts": {
     "check-types": "tsc --noEmit -p ."
