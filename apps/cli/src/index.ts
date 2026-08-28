@@ -236,7 +236,15 @@ async function main(): Promise<void> {
     }
     throw error
   }
-  report(handle.current(), handle.port, config, Date.now() - startedAt)
+  const startupExit = report(handle.current(), handle.port, config, Date.now() - startedAt)
+  if (startupExit !== undefined) {
+    // Nothing loaded and nothing will, until someone edits a file — there is
+    // no server worth leaving open. No watcher or signal handlers exist yet
+    // at this point, so a plain close-and-return is enough.
+    await handle.close().catch(() => {})
+    process.exitCode = startupExit
+    return
+  }
 
   const watcher = watchMocks({
     root,
@@ -249,7 +257,18 @@ async function main(): Promise<void> {
       // gotten slow, not as the uptime it actually was.
       const reloadStartedAt = Date.now()
       const runtime = handle.reload()
-      report(runtime, handle.port, config, Date.now() - reloadStartedAt)
+      const reloadExit = report(runtime, handle.port, config, Date.now() - reloadStartedAt)
+      if (reloadExit !== undefined) {
+        // A save that empties the mocks folder, or breaks every file in it,
+        // leaves the same "nothing to serve" state a fresh start would —
+        // same fatal treatment and exit code, not a silent, empty server.
+        void (async () => {
+          await watcher.close().catch(() => {})
+          if (tunnel) await tunnel.stop().catch(() => {})
+          await handle.close().catch(() => {})
+          process.exit(reloadExit)
+        })()
+      }
     },
   })
 
@@ -377,10 +396,50 @@ function reportFatal(failure: Omit<Failure, 'severity'>): void {
   reportFailure({ severity: 'fatal', ...failure })
 }
 
-function report(runtime: Runtime, port: number, config: LaqiConfig, bootMs: number): void {
+/**
+ * Prints the start screen, or — when there is nothing to serve — a fatal
+ * failure instead. Returns the exit code to stop with in the latter case,
+ * `undefined` when laqi is actually serving something and should keep
+ * running. Shared by both the initial boot and every reload, so a save that
+ * empties the mocks folder gets the same verdict a fresh start would.
+ */
+function report(
+  runtime: Runtime,
+  port: number,
+  config: LaqiConfig,
+  bootMs: number,
+): number | undefined {
   const level = outputLevel()
   const where = runtime.source === 'file' ? `./${config.file}` : `./${config.dir}/`
   const base = `http://${config.host}:${port}`
+  const loaded = runtime.table.endpoints.length
+
+  // Nothing loaded and nothing explains why: no mock folder, or one that
+  // defines no endpoints. There is nothing to advertise a URL for.
+  if (loaded === 0 && runtime.errors.length === 0) {
+    reportFatal({
+      headline: `${where} has nothing to serve`,
+      cause: 'No mock folder was found, or it exists but defines no endpoints.',
+      outcome: 'nothing is being served · exit 2',
+    })
+    return 2
+  }
+
+  // Nothing loaded, and every file that would have loaded failed to parse.
+  // This is the total-failure case, not the partial one below it: an
+  // address that answers 404 to everything is not "still serving".
+  if (loaded === 0 && runtime.errors.length > 0) {
+    for (const error of runtime.errors) {
+      reportFailure({
+        severity: 'fatal',
+        headline: `${error.file} failed to load`,
+        cause: error.message,
+        evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
+        outcome: 'nothing is being served · exit 4',
+      })
+    }
+    return 4
+  }
 
   const responses = runtime.table.endpoints.reduce(
     (total, endpoint) => total + Object.keys(endpoint.responses).length,
@@ -394,7 +453,7 @@ function report(runtime: Runtime, port: number, config: LaqiConfig, bootMs: numb
         servingUrl: base,
         panelUrl: `${base}/__laqi`,
         watching: where,
-        endpoints: runtime.table.endpoints.length,
+        endpoints: loaded,
         responses,
         scenarios: Object.keys(runtime.scenarios).length,
         bootMs,
@@ -404,21 +463,19 @@ function report(runtime: Runtime, port: number, config: LaqiConfig, bootMs: numb
     ),
   )
 
-  const loaded = runtime.table.endpoints.length
+  // Some files parsed and some did not: degraded, not fatal — laqi keeps
+  // serving the endpoints that did load.
   for (const error of runtime.errors) {
-    console.error(
-      renderFailure(
-        {
-          severity: 'degraded',
-          headline: `${error.file} failed to load`,
-          cause: error.message,
-          evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
-          outcome: `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
-        },
-        level,
-      ),
-    )
+    reportFailure({
+      severity: 'degraded',
+      headline: `${error.file} failed to load`,
+      cause: error.message,
+      evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
+      outcome: `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
+    })
   }
+
+  return undefined
 }
 
 main().catch((error: unknown) => {
