@@ -7,6 +7,8 @@ import {
   type LaqiConfig,
   type MockResponse,
 } from '@laqi/schema'
+import { renderFailure } from '@laqi/tui'
+import { outputLevel } from './output'
 
 export type MigrationResult = {
   output: Record<string, EndpointDefinition>
@@ -97,17 +99,33 @@ export function migrateV1(input: unknown): MigrationResult {
   return { output, warnings }
 }
 
-/** Devuelve true si hubo algún fallo, para que el CLI ponga exit code 1. */
+/**
+ * Devuelve true si hubo algún fallo. El código de salida exacto (2, 4, o el 1
+ * por defecto) lo pone esta misma función vía `process.exitCode`, porque sólo
+ * ella sabe cuál de sus ramas de fallo corrió.
+ */
 export function runMigrate(options: {
   root: string
   config: LaqiConfig
   dryRun: boolean
 }): boolean {
   const { root, config, dryRun } = options
+  const level = outputLevel()
   const sources = findV1Sources(root)
 
   if (sources.length === 0) {
-    console.error('✖ nothing to migrate — no mock-data/ folder or mock.config.json found')
+    console.error(
+      renderFailure(
+        {
+          severity: 'fatal',
+          headline: 'nothing to migrate',
+          cause: 'No mock-data/ folder or mock.config.json was found in this project.',
+          outcome: 'nothing was written · exit 2',
+        },
+        level,
+      ),
+    )
+    process.exitCode = 2
     return true
   }
 
@@ -127,8 +145,19 @@ export function runMigrate(options: {
   }
 
   if (Object.keys(merged).length === 0 && warnings.length > 0) {
-    console.error('✖ nothing migrated — every source file failed to convert')
+    console.error(
+      renderFailure(
+        {
+          severity: 'fatal',
+          headline: 'nothing migrated',
+          cause: 'Every source file failed to convert.',
+          outcome: 'nothing was written · exit 4',
+        },
+        level,
+      ),
+    )
     for (const warning of warnings) console.warn(`  ! ${warning}`)
+    process.exitCode = 4
     return true
   }
 
@@ -138,7 +167,19 @@ export function runMigrate(options: {
   if (dryRun) {
     console.log(contents)
   } else if (existsSync(target)) {
-    console.error(`✖ ${config.file} already exists — move it aside or run with --dry-run`)
+    console.error(
+      renderFailure(
+        {
+          severity: 'fatal',
+          headline: `${config.file} already exists`,
+          cause: 'Migrating would overwrite it.',
+          remedy: [`mv ${config.file} ${config.file}.bak`, 'laqi migrate --dry-run'],
+          outcome: 'nothing was written · exit 1',
+        },
+        level,
+      ),
+    )
+    process.exitCode = 1
     return true
   } else {
     writeFileSync(target, contents, 'utf8')

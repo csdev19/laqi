@@ -5,7 +5,9 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
+import { renderFailure, startScreen, type Failure } from '@laqi/tui'
 import { runMigrate } from './migrate'
+import { laqiVersion, outputLevel } from './output'
 import type { Runtime } from './runtime'
 import { startServer, type ShareOptions } from './serve'
 import { createCloudflaredProvider } from './tunnel'
@@ -41,8 +43,12 @@ function loadConfig(root: string, overrides: Partial<LaqiConfig>): LaqiConfig {
     try {
       fromFile = JSON.parse(readFileSync(path, 'utf8'))
     } catch (error) {
-      console.error(`✖ ${CONFIG_FILE} is not valid JSON — using defaults`)
-      console.error(`  ${error instanceof Error ? error.message : String(error)}`)
+      reportFailure({
+        severity: 'notice',
+        headline: `${CONFIG_FILE} is not valid JSON`,
+        cause: error instanceof Error ? error.message : String(error),
+        outcome: 'using defaults · laqi starts anyway',
+      })
     }
   }
 
@@ -50,10 +56,14 @@ function loadConfig(root: string, overrides: Partial<LaqiConfig>): LaqiConfig {
   const parsed = ConfigSchema.safeParse(merged)
 
   if (!parsed.success) {
-    console.error(`✖ ${CONFIG_FILE} is invalid — using defaults`)
-    for (const issue of parsed.error.issues) {
-      console.error(`  ${issue.path.join('.')}: ${issue.message}`)
-    }
+    reportFailure({
+      severity: 'notice',
+      headline: `${CONFIG_FILE} is invalid`,
+      cause: parsed.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; '),
+      outcome: 'using defaults · laqi starts anyway',
+    })
     return ConfigSchema.parse({})
   }
 
@@ -70,13 +80,18 @@ function parsePort(raw: string | undefined, flag: string): number | undefined | 
 
   const port = Number(raw)
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    console.error(`✖ ${flag} must be a port number between 0 and 65535, got ${JSON.stringify(raw)}`)
+    reportFatal({
+      headline: `${flag} is not a valid port`,
+      cause: `Expected a whole number between 0 and 65535, got ${JSON.stringify(raw)}.`,
+      outcome: 'nothing was started · exit 5',
+    })
     return null
   }
   return port
 }
 
 async function main(): Promise<void> {
+  const startedAt = Date.now()
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
@@ -103,7 +118,7 @@ async function main(): Promise<void> {
   // al archivo, que estaba bien — y arrancaba con todos los defaults.
   const port = parsePort(values.port, '--port')
   if (port === null) {
-    process.exitCode = 1
+    process.exitCode = 5
     return
   }
 
@@ -125,24 +140,34 @@ async function main(): Promise<void> {
   }
 
   if (positionals[0] === 'migrate') {
-    const failed = runMigrate({ root, config, dryRun: values['dry-run'] === true })
-    if (failed) process.exitCode = 1
+    // runMigrate sets process.exitCode itself: which of the four exit codes
+    // applies depends on which of its own failure branches ran, and only it
+    // knows that.
+    runMigrate({ root, config, dryRun: values['dry-run'] === true })
     return
   }
 
   if (positionals[0] !== undefined) {
-    console.error(`✖ unknown command ${JSON.stringify(positionals[0])}\n`)
-    console.error(USAGE)
-    process.exitCode = 1
+    reportFatal({
+      headline: `unknown command ${JSON.stringify(positionals[0])}`,
+      cause: `laqi does not recognise ${JSON.stringify(positionals[0])} as a command.`,
+      remedy: ['laqi --help'],
+      outcome: 'nothing was started · exit 5',
+    })
+    process.exitCode = 5
     return
   }
 
   const wantsShare = values.share === true
 
   if (values.public === true && !wantsShare) {
-    console.error('✖ --public only means something with --share\n')
-    console.error(USAGE)
-    process.exitCode = 1
+    reportFatal({
+      headline: '--public only means something with --share',
+      cause: '--public drops the bearer token, and there is nothing to share without --share.',
+      remedy: ['laqi --share --public'],
+      outcome: 'nothing was started · exit 5',
+    })
+    process.exitCode = 5
     return
   }
 
@@ -156,7 +181,7 @@ async function main(): Promise<void> {
     // NaN hasta server.listen() y salía como un stack pelado.
     const parsedSharePort = parsePort(values['share-port'], '--share-port')
     if (parsedSharePort === null) {
-      process.exitCode = 1
+      process.exitCode = 5
       return
     }
     const sharePort = parsedSharePort ?? config.port + 1
@@ -165,7 +190,11 @@ async function main(): Promise<void> {
     // banner de arranque haría creer que algo quedó a medio levantar.
     const unavailable = await provider.unavailable()
     if (unavailable !== null) {
-      console.error(`✖ ${unavailable}`)
+      reportFatal({
+        headline: 'the tunnel could not start',
+        cause: unavailable,
+        outcome: 'nothing was started · exit 1',
+      })
       process.exitCode = 1
       return
     }
@@ -188,24 +217,26 @@ async function main(): Promise<void> {
       // Con --share hay DOS listeners. Cuál falló lo marca startServer en el
       // propio error; leerlo del texto del mensaje se equivocaba en las dos
       // direcciones, y encima cambia entre Bun y Node.
-      const failed = (error as { laqiListener?: 'share' }).laqiListener
-      console.error(
-        failed === 'share' && share !== undefined
-          ? `✖ port ${share.port} is already in use — pick another with --share-port, or stop whatever else is using it`
-          : `✖ port ${config.port} is already in use — pick another with --port, or stop whatever else is using it`,
-      )
-      process.exitCode = 1
+      const failedListener = (error as { laqiListener?: 'share' }).laqiListener
+      const busyPort = failedListener === 'share' && share !== undefined ? share.port : config.port
+      reportFatal({
+        headline: 'laqi could not start',
+        cause: `Port ${busyPort} is already in use.`,
+        remedy: [`laqi --port ${busyPort + 1}`, `kill $(lsof -ti :${busyPort})`],
+        outcome: 'nothing was started · exit 3',
+      })
+      process.exitCode = 3
       return
     }
     throw error
   }
-  report(handle.current(), handle.port, config)
+  report(handle.current(), handle.port, config, Date.now() - startedAt)
 
   watchMocks({
     root,
     dir: config.dir,
     file: config.file,
-    onChange: () => report(handle.reload(), handle.port, config),
+    onChange: () => report(handle.reload(), handle.port, config, Date.now() - startedAt),
   })
 
   if (share === undefined) return
@@ -214,10 +245,12 @@ async function main(): Promise<void> {
   try {
     tunnel = await provider.start({ port: handle.publicPort ?? share.port })
   } catch (error) {
-    console.error(
-      `\n✖ could not open the tunnel: ${error instanceof Error ? error.message : String(error)}`,
-    )
-    console.error('  The local server is still running.')
+    reportFailure({
+      severity: 'degraded',
+      headline: 'the tunnel could not open',
+      cause: error instanceof Error ? error.message : String(error),
+      outcome: 'still serving locally · sharing is off',
+    })
     return
   }
 
@@ -261,30 +294,64 @@ function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void
   console.log('')
 }
 
-function report(runtime: Runtime, port: number, config: LaqiConfig): void {
-  const count = runtime.table.endpoints.length
-  const failed = runtime.errors.length
+/** `console.error(renderFailure(...))` without repeating `outputLevel()` at every call site. */
+function reportFailure(failure: Failure): void {
+  console.error(renderFailure(failure, outputLevel()))
+}
 
-  console.log(`\n⚡ laqi  http://${config.host}:${port}`)
+function reportFatal(failure: Omit<Failure, 'severity'>): void {
+  reportFailure({ severity: 'fatal', ...failure })
+}
+
+function report(runtime: Runtime, port: number, config: LaqiConfig, bootMs: number): void {
+  const level = outputLevel()
   const where = runtime.source === 'file' ? `./${config.file}` : `./${config.dir}/`
-  console.log(`   watching ${where}  ·  ${count} endpoint${count === 1 ? '' : 's'}`)
+  const base = `http://${config.host}:${port}`
 
+  const responses = runtime.table.endpoints.reduce(
+    (total, endpoint) => total + Object.keys(endpoint.responses).length,
+    0,
+  )
+
+  console.log(
+    startScreen(
+      {
+        version: laqiVersion(),
+        servingUrl: base,
+        panelUrl: `${base}/__laqi`,
+        watching: where,
+        endpoints: runtime.table.endpoints.length,
+        responses,
+        scenarios: Object.keys(runtime.scenarios).length,
+        bootMs,
+      },
+      level,
+      process.stdout.columns,
+    ),
+  )
+
+  const loaded = runtime.table.endpoints.length
   for (const error of runtime.errors) {
     console.error(
-      `\n✖ LOAD FAILED  ${error.file}${error.line ? `:${error.line}${error.col ? `:${error.col}` : ''}` : ''}`,
-    )
-    console.error(`  ${error.message}`)
-    if (error.excerpt) console.error(error.excerpt.replace(/^/gm, '  '))
-  }
-
-  if (failed > 0) {
-    console.error(
-      `\n  ${failed} problem${failed === 1 ? '' : 's'} — the rest of the mock is still served.`,
+      renderFailure(
+        {
+          severity: 'degraded',
+          headline: `${error.file} failed to load`,
+          cause: error.message,
+          evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
+          outcome: `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
+        },
+        level,
+      ),
     )
   }
 }
 
 main().catch((error: unknown) => {
-  console.error(error)
+  reportFatal({
+    headline: 'laqi crashed',
+    cause: error instanceof Error ? error.message : String(error),
+    outcome: 'exit 1',
+  })
   process.exitCode = 1
 })
