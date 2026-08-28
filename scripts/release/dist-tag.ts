@@ -24,6 +24,13 @@ export function distTagFor(version: string): string {
   // every beta would land on its own tag and `laqi@beta` would resolve to
   // nothing.
   const identifier = prerelease.split('.')[0]
+  // The SEMVER regex requires the prerelease group to be non-empty
+  // ([0-9A-Za-z-]+ before any further dot-segments), so split('.') always
+  // yields at least one element here. noUncheckedIndexedAccess cannot see
+  // that, so this proves it rather than casting the undefined away.
+  if (identifier === undefined) {
+    throw new Error(`${JSON.stringify(version)} has an empty prerelease identifier`)
+  }
   if (/^\d+$/.test(identifier)) {
     throw new Error(
       `${JSON.stringify(version)} has a numeric prerelease identifier (${identifier}); ` +

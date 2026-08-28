@@ -40,5 +40,8 @@ jobs:
       - name: Check types
         run: bun run check-types
 
+      - name: Check types (scripts)
+        run: bun run check-types:scripts
+
       - name: Test
         run: bun run test
