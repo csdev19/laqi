@@ -3,9 +3,11 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
+import { SessionCounters } from '@laqi/core'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
 import { renderFailure, startScreen, type Failure } from '@laqi/tui'
+import { renderGoodbye } from './goodbye'
 import { runMigrate } from './migrate'
 import { laqiVersion, outputLevel } from './output'
 import type { Runtime } from './runtime'
@@ -209,9 +211,13 @@ async function main(): Promise<void> {
     }
   }
 
+  // Owned here, not inside startServer: it has to survive the server being
+  // closed on the way out, so the goodbye summary can still read it.
+  const counters = new SessionCounters()
+
   let handle: Awaited<ReturnType<typeof startServer>>
   try {
-    handle = await startServer({ root, config, share })
+    handle = await startServer({ root, config, share, counters })
   } catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
       // Con --share hay DOS listeners. Cuál falló lo marca startServer en el
@@ -232,7 +238,7 @@ async function main(): Promise<void> {
   }
   report(handle.current(), handle.port, config, Date.now() - startedAt)
 
-  watchMocks({
+  const watcher = watchMocks({
     root,
     dir: config.dir,
     file: config.file,
@@ -247,9 +253,41 @@ async function main(): Promise<void> {
     },
   })
 
+  // Set only once the tunnel has actually opened — never just because
+  // --share was passed — so a failed tunnel (still serving locally, sharing
+  // off; see the catch below) does not make the goodbye screen claim a
+  // public URL closed that never opened.
+  let tunnel: Awaited<ReturnType<typeof provider.start>> | undefined
+
+  // `once`, not `on`: the first ^C or SIGTERM runs this and prints the
+  // summary. A second one arrives with no listener left to catch it, so Node
+  // falls back to its default disposition — immediate termination, no
+  // summary — which is exactly what someone pressing ^C twice wants.
+  const shutdown = () => {
+    void (async () => {
+      // Sin esto cloudflared sobrevive al CLI y el túnel queda abierto
+      // apuntando a un puerto muerto.
+      await watcher.close().catch(() => {})
+      if (tunnel) await tunnel.stop().catch(() => {})
+      await handle.close().catch(() => {})
+
+      console.log(
+        renderGoodbye(
+          counters,
+          Date.now() - startedAt,
+          outputLevel(),
+          tunnel !== undefined,
+          process.stdout.columns,
+        ),
+      )
+      process.exit(0)
+    })()
+  }
+  process.once('SIGINT', shutdown)
+  process.once('SIGTERM', shutdown)
+
   if (share === undefined) return
 
-  let tunnel: Awaited<ReturnType<typeof provider.start>>
   try {
     tunnel = await provider.start({ port: handle.publicPort ?? share.port })
   } catch (error) {
@@ -264,14 +302,6 @@ async function main(): Promise<void> {
 
   handle.setShareUrl(tunnel.url)
   reportShare(tunnel.url, share, config)
-
-  // Sin esto cloudflared sobrevive al CLI y el túnel queda abierto apuntando
-  // a un puerto muerto.
-  const shutDown = () => {
-    void tunnel.stop().finally(() => process.exit(0))
-  }
-  process.once('SIGINT', shutDown)
-  process.once('SIGTERM', shutDown)
 }
 
 function reportShare(url: string, share: ShareOptions, config: LaqiConfig): void {
