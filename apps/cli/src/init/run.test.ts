@@ -33,17 +33,33 @@ async function serves(dir: string, path: string) {
 }
 
 describe('runInit — writes only inside the mocks folder', () => {
-  it('creates laqi/api.json and laqi/scenarios.json, and nothing else at the root', async () => {
+  it('creates laqi/api.json, laqi/scenarios.json and laqi/README.md, and nothing else at the root', async () => {
     const before = readdirSync(root).sort()
     const exitCode = await runInit(['--yes'], root)
     expect(exitCode).toBeUndefined()
 
     expect(existsSync(join(root, 'laqi', 'api.json'))).toBe(true)
     expect(existsSync(join(root, 'laqi', 'scenarios.json'))).toBe(true)
+    expect(existsSync(join(root, 'laqi', 'README.md'))).toBe(true)
 
     const after = readdirSync(root).sort()
     expect(after).toEqual([...before, 'laqi'].sort())
-    expect(readdirSync(join(root, 'laqi')).sort()).toEqual(['api.json', 'scenarios.json'])
+    expect(readdirSync(join(root, 'laqi')).sort()).toEqual([
+      'README.md',
+      'api.json',
+      'scenarios.json',
+    ])
+  })
+
+  it('the README explains the file format and warns off X-Laqi-Response for routine requests', async () => {
+    await runInit(['--yes'], root)
+    const readme = readFileSync(join(root, 'laqi', 'README.md'), 'utf8')
+    expect(readme).toContain('"GET /todos"')
+    expect(readme).toContain('status')
+    expect(readme).toContain('body')
+    expect(readme).toContain('delay')
+    expect(readme).toContain('X-Laqi-Response')
+    expect(readme).toContain('/__laqi')
   })
 
   it('the written scaffold actually loads and serves', async () => {

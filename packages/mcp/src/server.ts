@@ -69,7 +69,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'List endpoints',
       description:
-        'Every mock endpoint, its declared responses, and which one is live right now with the layer that decided it. Also reports any mock file that failed to load.',
+        'Every mock endpoint, its declared responses, and which one is live right now with the layer that decided it. Also reports any mock file that failed to load. Call this before create_endpoint, so you extend a route that already exists instead of duplicating it.',
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
@@ -93,7 +93,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Set the live response',
       description:
-        'Make an endpoint serve a specific named response. Pass response=null to remove the override and fall back to the scenario or the file default. Writes .laqi/state.json, never a mock file.',
+        'Make an endpoint serve a specific named response right now, with no file edit — e.g. force the 500 or the empty state your frontend needs to handle. Pass response=null to remove the override and fall back to the active scenario or the file default; an unknown response name is rejected with the declared ones listed. Beats the active scenario. Writes .laqi/state.json, never a mock file — for a change that should persist, use update_endpoint instead.',
       inputSchema: {
         id: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
         response: z
@@ -111,7 +111,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Activate a scenario',
       description:
-        'Activate a named scenario from scenarios.json, moving every endpoint it covers at once. Pass name=null to deactivate. Only one scenario is active at a time.',
+        "Activate a named scenario from scenarios.json, moving every endpoint it covers at once — use this to switch a whole flow (e.g. 'offline', 'logged-out') instead of calling set_response endpoint by endpoint. A set_response override still beats the active scenario on any endpoint it targets. Pass name=null to deactivate; an unknown scenario name is rejected with the declared ones listed. Only one scenario is active at a time.",
       inputSchema: {
         name: z.string().nullable().describe('Scenario name, or null to deactivate'),
       },
@@ -125,7 +125,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Reset to file defaults',
       description:
-        'Clear every override and deactivate the scenario, returning all endpoints to the defaults declared in their files.',
+        'Clear every set_response override and deactivate the active scenario, returning all endpoints to the defaults declared in their files. Use this to get back to a known state before starting a new test.',
       inputSchema: {},
       annotations: { idempotentHint: true },
     },
@@ -137,12 +137,14 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Create an endpoint',
       description:
-        'Add a new mock endpoint and write it to the project mock files. Path params use a colon: /users/:id.',
+        "Use this when the frontend needs a route the backend hasn't built yet. Adds a new mock endpoint and writes it to the project mock files. Path params use a colon: /users/:id. Check list_endpoints first so you don't recreate one that already exists — it fails with a clear error anyway. For a realistic body instead of hand-written values, pair with generate_data.",
       inputSchema: {
         method: z.string().describe('GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS'),
         path: z.string().describe('Route path starting with "/", e.g. /users/:id'),
         description: z.string().optional(),
-        default: z.string().describe('Which named response is served by default'),
+        default: z
+          .string()
+          .describe('Which named response is served by default — must be a key in responses'),
         responses: ResponsesShape,
       },
     },
@@ -163,11 +165,13 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Update an endpoint',
       description:
-        'Replace an endpoint definition, writing back to the file it came from. This is a full replacement: responses you omit are removed.',
+        'Change what an existing endpoint can return — add a response, edit a body, change the default — by replacing its whole definition in the file it came from. This is a full replacement: responses you omit are removed, so include every response you want to keep. For flipping between responses that already exist, without editing the file, use set_response instead.',
       inputSchema: {
         id: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
         description: z.string().optional(),
-        default: z.string(),
+        default: z
+          .string()
+          .describe('Which named response is served by default — must be a key in responses'),
         responses: ResponsesShape,
       },
     },
@@ -194,7 +198,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Import an OpenAPI document',
       description:
-        'Create mock endpoints from an OpenAPI 3.x document, generating example bodies from the schemas. The document must be JSON — convert YAML before calling. Reports what it skipped and why, and never overwrites an endpoint that already exists unless overwrite is true.',
+        'Use this when you already have an OpenAPI/Swagger document for the API you are mocking, instead of calling create_endpoint per route. Creates mock endpoints from an OpenAPI 3.x document, generating example bodies from the schemas. The document must be JSON — convert YAML before calling. Reports what it skipped and why, and never overwrites an endpoint that already exists unless overwrite is true.',
       inputSchema: {
         document: z.unknown().describe('The parsed OpenAPI 3.x document, as JSON'),
         overwrite: z
@@ -284,7 +288,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Generate mock data',
       description:
-        'Generate realistic mock data from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
+        'Use this for a realistic body — an array of users, a paginated list — instead of hand-writing fake values: generate from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
       inputSchema: {
         model: z.string().optional().describe('TypeScript source containing the interface/type'),
         typeName: z.string().optional(),
