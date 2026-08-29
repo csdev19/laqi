@@ -3,12 +3,28 @@
  * site imports, so the panel and laqi.dev never drift apart. Only
  * this package's own layout tokens (row height, log panel width)
  * stay local, because nothing outside the panel needs them.
+ *
+ * The font FILES are self-hosted here too, not just the family names: the
+ * panel has to look the same with the wifi off, and relying on the user's
+ * system to already have JetBrains Mono installed does not guarantee
+ * that. Without the real files, a missing weight gets faked by the
+ * browser (synthetic bold) — the exact jagged, "cut-off" look this fixes.
+ * 400 is the base weight used everywhere; 600 and 700 cover every bold
+ * mono label in this file (.row-method, .dialog-title, .band-title, …).
  */
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+@import '@fontsource/source-serif-4/400.css';
 @import '@laqi/tokens/tokens.css';
 
 :root {
   --rpy: 10px;
   --log-w: 426px;
+  /* Without this, a browser with no other signal defaults form controls
+     (textarea, select, scrollbars) to light-mode UA chrome — black text
+     on our near-black --bg, invisible until selected. */
+  color-scheme: dark;
 }
 
 :root[data-density='compact'] {
@@ -36,7 +52,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
