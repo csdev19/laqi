@@ -70,8 +70,8 @@ jobs:
           fi
 
           # workflow_dispatch carries none of the deliberateness a tag gets
-          # from release-please's config (prerelease: false, or a
-          # `Release-As:` footer). Without this gate, checking "Build and
+          # from a release PR that release-please cut and a human merged.
+          # Without this gate, checking "Build and
           # pack" off by hand on any ref and computing `latest` from
           # apps/cli/package.json would ship it — no review, no release cut.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$DIST_TAG" = "latest" ]; then

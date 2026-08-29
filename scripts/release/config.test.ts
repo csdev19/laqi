@@ -2,13 +2,11 @@ import { describe, expect, it } from 'vitest'
 import config from '../../release-please-config.json'
 import manifest from '../../.release-please-manifest.json'
 
-// release-please's schema sets `additionalProperties: false` at the root and
-// defines `prerelease-type` only inside `ReleaserConfigOptions`, which
-// applies at package scope. A key that is valid but misplaced still passes
-// `JSON.parse` and any schema-agnostic JSON-validity check, so nothing short
-// of pinning the structure catches it. Without `prerelease-type`, release-please's
-// prerelease strategy silently produces a plain final version instead of a
-// beta, which the publish pipeline would then push to npm as `latest`.
+// release-please's schema sets `additionalProperties: false` at the root, so
+// a key that is valid but misplaced still passes `JSON.parse` and any
+// schema-agnostic JSON-validity check — nothing short of pinning the
+// structure catches it. This suite pins the shape the release topology
+// depends on.
 const ROOT_KEYS_ALLOWED = new Set([
   '$schema',
   'release-type',
@@ -24,16 +22,18 @@ describe('release-please-config.json', () => {
     }
   })
 
-  it('carries the prerelease settings at package scope, not root', () => {
+  // Ruled on 2026-08-29: no beta line. The first release is plain `2.0.0`,
+  // computed from the seeded `1.2.1` plus the `feat!` that adopted the
+  // pipeline (df765c9). A prerelease key sneaking back in would change the
+  // computed version and route the publish to a prerelease dist-tag.
+  it('carries no prerelease settings at any scope', () => {
     const root = config as Record<string, unknown>
-    expect(root['prerelease-type']).toBeUndefined()
-    expect(root.versioning).toBeUndefined()
-    expect(root.prerelease).toBeUndefined()
-
     const pkg = config.packages['.'] as Record<string, unknown>
-    expect(pkg['prerelease-type']).toBe('beta')
-    expect(pkg.versioning).toBe('prerelease')
-    expect(pkg.prerelease).toBe(true)
+    for (const scope of [root, pkg]) {
+      expect(scope['prerelease-type']).toBeUndefined()
+      expect(scope.versioning).toBeUndefined()
+      expect(scope.prerelease).toBeUndefined()
+    }
   })
 
   it('writes the version into apps/cli/package.json via extra-files', () => {
@@ -59,8 +59,8 @@ describe('release-please-config.json', () => {
   })
 
   // Seeded to the last version genuinely published, with zero git tags in
-  // the repo to collide with. See the README's "Releasing" section for the
-  // one-time `Release-As` footer this composes with.
+  // the repo to collide with. From here, the `feat!` adoption commit makes
+  // release-please compute `2.0.0` — no `Release-As` footer needed.
   it('seeds the manifest at the last version actually published', () => {
     expect(manifest['.']).toBe('1.2.1')
   })

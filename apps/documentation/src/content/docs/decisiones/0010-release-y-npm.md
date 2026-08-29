@@ -4,8 +4,19 @@ title: "ADR-0010 — Release automation and publishing to npm"
 
 # ADR-0010 — Release automation and publishing to npm
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-08-29
 **Date:** 2026-08-28
+
+> **Amendment (2026-08-29): the beta line is dropped.** v2's first release is
+> plain `2.0.0`, published to `latest` — publishing is itself the act of going
+> to production, so there is nothing for a prerelease phase to protect. The
+> `versioning` / `prerelease` / `prerelease-type` keys are removed from
+> `release-please-config.json`. No `Release-As` footer is needed either: the
+> pipeline-adoption commit (`df765c9`) is a `feat!`, so release-please
+> computes `1.2.1 → 2.0.0` on its own. The dist-tag guard
+> (`scripts/release/dist-tag.ts`) stays — any future prerelease must still
+> never land on `latest`. The sections below describe the beta design as
+> decided on 2026-08-28 and remain as the record of why it existed.
 
 ## Context
 

@@ -2,13 +2,12 @@
 
 ⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
 
-> **Status: v2 beta.** Once published, `laqi@beta` on npm is this v2. Plain
-> `laqi` is still the unrelated 1.2.1 from 2022 and will stay that way until
-> v2 is declared final. See [Releasing](#releasing) for what "once published"
-> means.
+> **Status: v2, unreleased.** Once `2.0.0` is published, `laqi` on npm is
+> this v2. Until that release, plain `laqi` is still the unrelated 1.2.1
+> from 2022. See [Releasing](#releasing) for what "once published" means.
 >
 > ```
-> bunx laqi@beta        # or: npx laqi@beta — once the first beta ships
+> bunx laqi        # or: npx laqi — once 2.0.0 ships
 > ```
 
 **Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/probar-v2.md)
@@ -35,15 +34,15 @@ apps/documentation — the docs site (Astro + Starlight)
 
 ## Running it
 
-Once the first beta is published (see [Releasing](#releasing)), from inside
+Once `2.0.0` is published (see [Releasing](#releasing)), from inside
 a project that has mock files (see below):
 
 ```
-npx laqi@beta
+npx laqi
 ```
 
-Plain `laqi` still resolves to the unrelated 1.2.1. Until then, build it from
-this repo and use the binary it produces:
+Until that release, `laqi` still resolves to the unrelated 1.2.1 — build it
+from this repo and use the binary it produces:
 
 ```
 bun install
@@ -80,11 +79,11 @@ root, with the same keys (`port`, `host`, `dir`, `file`, plus `cors`,
 ### Migrating from v1
 
 If you have an old `mock.config.json` / `mock-data/` project, run (once the
-first beta is published — see [Releasing](#releasing); until then, use the
+`2.0.0` is published — see [Releasing](#releasing); until then, use the
 locally built binary as shown above with `migrate --dry-run` appended):
 
 ```
-npx laqi@beta migrate --dry-run
+npx laqi migrate --dry-run
 ```
 
 to preview the converted `laqi.json`, or drop `--dry-run` to write it.
@@ -255,15 +254,16 @@ files there, so it works whether or not `laqi` is currently running.
   "mcpServers": {
     "laqi": {
       "command": "npx",
-      "args": ["laqi@beta", "mcp"],
+      "args": ["laqi", "mcp"],
       "cwd": "<your-project>"
     }
   }
 }
 ```
 
-That config works once the first beta is published (see
-[Releasing](#releasing)) — before that, `laqi@beta` 404s. In Claude Code this
+That config works once `2.0.0` is published (see
+[Releasing](#releasing)) — before that, `laqi` still resolves to the
+unrelated 1.2.1. In Claude Code this
 goes in `.mcp.json` at your project root; Cursor uses the same shape. Right
 now, and whenever you're developing laqi itself, point `command` at the built
 binary instead (`node`, with the path to `dist/index.mjs` and `mcp` as
@@ -322,27 +322,16 @@ and published by GitHub Actions. Nobody publishes from a laptop.
    `apps/cli/package.json`, writes `CHANGELOG.md`, and pushes a `v*` tag.
 4. The tag triggers `release-npm.yml`, which builds and publishes.
 
-**One-time step, first release only.** The manifest seeds `1.2.1` (the last
-version actually published) so release-please computes forward from there.
-That composes to the intended `2.0.0-beta.0` only if the squash-merge commit
-that adopts this release pipeline carries this exact footer:
-
-```
-Release-As: 2.0.0-beta.0
-```
-
-This applies only to that one adoption merge, not to every release. If it is
-missed, the first release computes to `1.3.0-beta` instead — off the stable
-`X.0.0-beta` shape (see the warning below) — and a later ordinary `feat`
-would then produce a final version that publishes to `latest` and replaces
-the 2022 v1 for every existing `npx laqi` user.
+**The first release is `2.0.0`.** The manifest seeds `1.2.1` (the last
+version actually published) so release-please computes forward from there,
+and the commit that adopted this pipeline (`df765c9`) is a `feat!`, so the
+first release PR proposes `2.0.0`. Merging it publishes v2 to `latest` —
+that merge is the act of going to production, and it replaces the 2022 v1
+for every `npx laqi` user. Do not merge it before meaning it.
 
 The dist-tag is derived from the version: anything with a `-` goes to its
-prerelease tag (`beta`), anything else to `latest`. See
+prerelease tag, anything else to `latest`. See
 [ADR-0010](apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md).
-
-**The beta line must stay on `X.0.0-beta`.** On any other shape, an ordinary
-`feat` produces a final version and takes over `latest`.
 
 To rehearse the pipeline without publishing, run **Publish to npm** from the
 Actions tab with `dry_run` checked.
