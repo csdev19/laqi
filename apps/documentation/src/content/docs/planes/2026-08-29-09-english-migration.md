@@ -80,44 +80,44 @@ grep -rln 'ó\|í\|á\|é\|ñ' apps/documentation/src
 
 Directories:
 
-| From | To |
-| --- | --- |
-| `conceptos/` | `concepts/` |
+| From          | To           |
+| ------------- | ------------ |
+| `conceptos/`  | `concepts/`  |
 | `decisiones/` | `decisions/` |
-| `diseno/` | `design/` |
-| `planes/` | `plans/` |
+| `diseno/`     | `design/`    |
+| `planes/`     | `plans/`     |
 
 Files (paths relative to `apps/documentation/src/content/docs/`; files not
 listed keep their name):
 
-| From | To |
-| --- | --- |
-| `analisis-v1.md` | `v1-analysis.md` |
-| `nombre.md` | `the-name.md` |
-| `probar-v2.md` | `trying-v2.md` |
-| `prompt-editor-web.md` | `web-editor-prompt.md` |
-| `conceptos/resolucion-de-estado.md` | `concepts/state-resolution.md` |
-| `conceptos/tres-escritores.md` | `concepts/three-writers.md` |
-| `decisiones/0002-hono-sobre-elysia.md` | `decisions/0002-hono-over-elysia.md` |
-| `decisiones/0003-json-declarativo.md` | `decisions/0003-declarative-json.md` |
-| `decisiones/0004-estado-fuera-de-git.md` | `decisions/0004-state-outside-git.md` |
-| `decisiones/0006-servidor-mcp.md` | `decisions/0006-mcp-server.md` |
-| `decisiones/0007-url-publica.md` | `decisions/0007-public-url.md` |
-| `decisiones/0008-multiarchivo-y-nombres.md` | `decisions/0008-multifile-and-names.md` |
-| `decisiones/0009-sin-i18n.md` | `decisions/0009-no-i18n.md` |
-| `decisiones/0010-release-y-npm.md` | `decisions/0010-release-and-npm.md` |
-| `diseno/revision-vs-decisiones.md` | `design/review-vs-decisions.md` |
-| `diseno/sitio-publico.md` | `design/public-site.md` |
-| `planes/2026-08-24-01-fundacion-y-servidor.md` | `plans/2026-08-24-01-foundation-and-server.md` |
-| `planes/2026-08-25-02b-editor-web.md` | `plans/2026-08-25-02b-web-editor.md` |
-| `planes/2026-08-25-03-servidor-mcp.md` | `plans/2026-08-25-03-mcp-server.md` |
-| `planes/2026-08-25-04-url-publica.md` | `plans/2026-08-25-04-public-url.md` |
-| `planes/2026-08-25-05-empaquetado.md` | `plans/2026-08-25-05-packaging.md` |
-| `planes/2026-08-28-07-release-y-publicacion.md` | `plans/2026-08-28-07-release-and-publication.md` |
-| `planes/auditoria-plan-01.md` | `plans/plan-01-audit.md` |
-| `planes/auditoria-plan-06.md` | `plans/plan-06-audit.md` |
-| `planes/auditoria-v2.md` | `plans/v2-audit.md` |
-| `planes/2026-08-29-09-english-migration.md` | `plans/2026-08-29-09-english-migration.md` (this plan moves itself) |
+| From                                            | To                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------- |
+| `analisis-v1.md`                                | `v1-analysis.md`                                                    |
+| `nombre.md`                                     | `the-name.md`                                                       |
+| `probar-v2.md`                                  | `trying-v2.md`                                                      |
+| `prompt-editor-web.md`                          | `web-editor-prompt.md`                                              |
+| `conceptos/resolucion-de-estado.md`             | `concepts/state-resolution.md`                                      |
+| `conceptos/tres-escritores.md`                  | `concepts/three-writers.md`                                         |
+| `decisiones/0002-hono-sobre-elysia.md`          | `decisions/0002-hono-over-elysia.md`                                |
+| `decisiones/0003-json-declarativo.md`           | `decisions/0003-declarative-json.md`                                |
+| `decisiones/0004-estado-fuera-de-git.md`        | `decisions/0004-state-outside-git.md`                               |
+| `decisiones/0006-servidor-mcp.md`               | `decisions/0006-mcp-server.md`                                      |
+| `decisiones/0007-url-publica.md`                | `decisions/0007-public-url.md`                                      |
+| `decisiones/0008-multiarchivo-y-nombres.md`     | `decisions/0008-multifile-and-names.md`                             |
+| `decisiones/0009-sin-i18n.md`                   | `decisions/0009-no-i18n.md`                                         |
+| `decisiones/0010-release-y-npm.md`              | `decisions/0010-release-and-npm.md`                                 |
+| `diseno/revision-vs-decisiones.md`              | `design/review-vs-decisions.md`                                     |
+| `diseno/sitio-publico.md`                       | `design/public-site.md`                                             |
+| `planes/2026-08-24-01-fundacion-y-servidor.md`  | `plans/2026-08-24-01-foundation-and-server.md`                      |
+| `planes/2026-08-25-02b-editor-web.md`           | `plans/2026-08-25-02b-web-editor.md`                                |
+| `planes/2026-08-25-03-servidor-mcp.md`          | `plans/2026-08-25-03-mcp-server.md`                                 |
+| `planes/2026-08-25-04-url-publica.md`           | `plans/2026-08-25-04-public-url.md`                                 |
+| `planes/2026-08-25-05-empaquetado.md`           | `plans/2026-08-25-05-packaging.md`                                  |
+| `planes/2026-08-28-07-release-y-publicacion.md` | `plans/2026-08-28-07-release-and-publication.md`                    |
+| `planes/auditoria-plan-01.md`                   | `plans/plan-01-audit.md`                                            |
+| `planes/auditoria-plan-06.md`                   | `plans/plan-06-audit.md`                                            |
+| `planes/auditoria-v2.md`                        | `plans/v2-audit.md`                                                 |
+| `planes/2026-08-29-09-english-migration.md`     | `plans/2026-08-29-09-english-migration.md` (this plan moves itself) |
 
 Known external references to the renamed paths — regenerate this list at
 execution time with `grep -rn 'diseno\|decisiones\|conceptos\|planes' ...`:
