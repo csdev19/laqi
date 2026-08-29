@@ -1,0 +1,106 @@
+---
+// apps/site/src/components/ResolutionLayers.astro
+const layers = [
+  { name: 'header', color: 'var(--mint)', desc: 'X-Laqi-Response on one request', meta: 'changes nothing' },
+  { name: 'state', color: 'var(--mag)', desc: 'you clicked a chip in the panel', meta: 'persists' },
+  { name: 'scenario', color: 'var(--vio)', desc: 'offline, logged-out, empty-state', meta: 'one at a time' },
+  { name: 'default', color: 'var(--line2)', desc: 'whatever the file says', meta: 'the baseline' },
+]
+---
+<section class="resolution-layers">
+  <div class="prose">
+    <p class="eyebrow">the one concept</p>
+    <h2>Four layers decide every response</h2>
+    <p>
+      A per-request header beats a panel flip, which beats an active
+      scenario, which beats the file's default. laqi always tells you
+      which one won — in the panel, in the terminal, and in an
+      <code>X-Laqi-Resolved</code> header on every response.
+    </p>
+    <p>That is the whole mental model. There is nothing else to learn.</p>
+    <a href="/docs/concepts/resolution-layers/" class="link">Concepts → Resolution →</a>
+  </div>
+  <ol class="layers">
+    {layers.map((layer, i) => (
+      <li style={`border-color: ${layer.color}`}>
+        <span class="index">{i + 1}</span>
+        <div>
+          <p class="name" style={`color: ${layer.color}`}>{layer.name}</p>
+          <p class="desc">{layer.desc} · {layer.meta}</p>
+        </div>
+      </li>
+    ))}
+  </ol>
+</section>
+
+<style>
+  .resolution-layers {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+    background: var(--panel2);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 2rem;
+    color: var(--fg);
+    margin: 0 0 1.25rem;
+  }
+  .prose p {
+    color: var(--dim);
+    line-height: 1.6;
+  }
+  .prose code {
+    font-family: var(--mono);
+    color: var(--fg);
+  }
+  .link {
+    display: inline-block;
+    margin-top: 1rem;
+    font-family: var(--mono);
+    color: var(--mint);
+    text-decoration: none;
+  }
+  .layers {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .layers li {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid;
+    border-radius: 6px;
+  }
+  .index {
+    font-family: var(--mono);
+    color: var(--dim2);
+  }
+  .name {
+    font-family: var(--mono);
+    font-weight: 600;
+    margin: 0 0 0.25rem;
+  }
+  .desc {
+    margin: 0;
+    color: var(--dim);
+    font-size: 0.85rem;
+  }
+</style>

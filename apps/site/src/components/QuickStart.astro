@@ -1,0 +1,114 @@
+---
+// apps/site/src/components/QuickStart.astro
+const steps = [
+  {
+    n: '01',
+    title: 'Describe an endpoint',
+    body: 'A JSON file in ./laqi/. One key per route, a named response for each state you care about.',
+    code: `{
+  "GET /todos": {
+    "default": "ok",
+    "responses": {
+      "ok": { "body": [{ "id": 1 }] },
+      "empty": { "body": [] },
+      "slow": { "delay": 2400, "body": [] },
+      "error": { "status": 500 }
+    }
+  }
+}`,
+  },
+  {
+    n: '02',
+    title: 'Start it',
+    body: 'One command. The panel opens with it, and the folder is watched from then on.',
+    code: `$ laqi start
+
+⚡ laqi 2.0.0
+serving   127.0.0.1:8000
+panel     127.0.0.1:8000/__laqi
+watching  ./laqi/  7 endpoints`,
+  },
+  {
+    n: '03',
+    title: 'Point your app at it',
+    body: 'Change one base URL. Everything else — states, errors, latency — now happens in the panel.',
+    code: `// .env.local
+VITE_API_URL=http://127.0.0.1:8000
+
+// or per-request, no state change:
+fetch("/todos", {
+  headers: { "X-Laqi-Response": "error" }
+})`,
+  },
+]
+---
+<section class="quick-start">
+  <p class="eyebrow">quick start</p>
+  <h2>Three steps, about a minute</h2>
+  <div class="steps">
+    {steps.map((step) => (
+      <div class="step">
+        <p class="n">{step.n}</p>
+        <h3>{step.title}</h3>
+        <p class="body">{step.body}</p>
+        <pre><code>{step.code}</code></pre>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .quick-start {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 2.25rem;
+    color: var(--fg);
+    margin: 0 0 2.5rem;
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 2rem;
+  }
+  .step .n {
+    font-family: var(--mono);
+    color: var(--vio);
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+  }
+  .step h3 {
+    color: var(--fg);
+    margin: 0 0 0.5rem;
+  }
+  .step .body {
+    color: var(--dim);
+    font-size: 0.95rem;
+    margin: 0 0 1rem;
+  }
+  .step pre {
+    margin: 0;
+    padding: 1rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow-x: auto;
+  }
+  .step code {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--fg);
+    white-space: pre;
+  }
+</style>
