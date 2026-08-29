@@ -48,3 +48,12 @@ jobs:
 
       - name: Test
         run: bun run test
+
+      - name: Build the site
+        run: bun run build --filter=@laqi/site
+
+      - name: Site content lint
+        run: bun scripts/site/content-lint.ts apps/site/src
+
+      - name: Site link check
+        run: bunx --bun linkinator apps/site/dist --recurse --silent
