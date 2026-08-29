@@ -1,89 +1,94 @@
 ---
-title: ADR-0006 — Servidor MCP como pieza de primera clase
+title: ADR-0006 — MCP server as a first-class piece
 ---
 
-# ADR-0006 — Servidor MCP como pieza de primera clase
+# ADR-0006 — MCP server as a first-class piece
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-laqi v1 se diseñó para un flujo de trabajo donde el humano escribe los mocks a
-mano. Ese ya no es el único flujo: hoy buena parte del frontend se construye con
-un agente (Claude Code, Cursor) que tiene el contexto de la pantalla que está
-armando.
+laqi v1 was designed for a workflow where the human writes the mocks by
+hand. That is no longer the only workflow: today a good part of frontend
+work is built with an agent (Claude Code, Cursor) that has the context of
+the screen it's building.
 
-Cuando ese agente necesita un endpoint, tiene que abrir un JSON, adivinar el
-esquema, escribirlo y esperar que el hot-reload lo tome. Y cuando necesitas ver
-la pantalla de error, paras, buscas el archivo, cambias un campo y guardas.
+When that agent needs an endpoint, it has to open a JSON, guess the schema,
+write it and hope hot-reload picks it up. And when you need to see the
+error screen, you stop, find the file, change a field and save.
 
-## Decisión
+## Decision
 
-**laqi expone un servidor MCP** (`packages/mcp`) como interfaz de primera clase,
-al mismo nivel que el CLI y el editor web.
+**laqi exposes an MCP server** (`packages/mcp`) as a first-class interface,
+at the same level as the CLI and the web editor.
 
-Herramientas expuestas:
+Exposed tools:
 
-| Herramienta       | Qué hace                                                            |
+| Tool              | What it does                                                        |
 | ----------------- | ------------------------------------------------------------------- |
-| `list_endpoints`  | Devuelve la tabla de rutas con sus respuestas disponibles           |
-| `create_endpoint` | Crea un endpoint con sus respuestas                                 |
-| `update_endpoint` | Modifica definición o respuestas                                    |
-| `set_response`    | Cambia la respuesta activa de una ruta (escribe `.laqi/state.json`) |
-| `set_scenario`    | Activa un escenario con nombre                                      |
-| `get_state`       | Qué está activo ahora y por qué capa                                |
-| `import_openapi`  | Genera mocks desde un spec OpenAPI                                  |
+| `list_endpoints`  | Returns the route table with its available responses                |
+| `create_endpoint` | Creates an endpoint with its responses                              |
+| `update_endpoint` | Modifies a definition or its responses                              |
+| `set_response`    | Changes the active response for a route (writes `.laqi/state.json`) |
+| `set_scenario`    | Activates a named scenario                                          |
+| `get_state`       | What's active right now and by which layer                          |
+| `import_openapi`  | Generates mocks from an OpenAPI spec                                |
 
-## Por qué
+## Why
 
-**1. Es el escritor que faltaba.**
+**1. It's the missing writer.**
 
-El argumento completo está en [los tres escritores](/concepts/three-writers/).
-El MCP no es una feature añadida: es uno de los tres consumidores que definen el
-formato. Diseñar el formato pensando sólo en el humano y agregar MCP después
-habría producido un formato hostil para la máquina.
+The full argument is in [the three writers](/concepts/three-writers/). The
+MCP is not a bolted-on feature: it's one of the three consumers that define
+the format. Designing the format with only the human in mind and adding MCP
+afterward would have produced a format hostile to the machine.
 
-**2. Cambia lo que laqi es.**
+**2. It changes what laqi is.**
 
-Con MCP, el mock deja de ser un archivo que editas y pasa a ser algo que pides:
+With MCP, the mock stops being a file you edit and becomes something you
+ask for:
 
-> "haz que `/orders` devuelva 500 con dos segundos de latencia"
-> "crea el endpoint de perfil según el diseño de esta pantalla"
-> "activa el escenario de carrito vacío"
+> "make `/orders` return 500 with a two-second delay"
+> "create the profile endpoint according to this screen's design"
+> "activate the empty-cart scenario"
 
-El agente ya tiene el contexto de la pantalla. Es el que mejor sabe qué forma
-debe tener la respuesta.
+The agent already has the context of the screen. It's the one who best
+knows what shape the response should have.
 
-**3. La infraestructura ya está.**
+**3. The infrastructure already exists.**
 
-El _control plane_ que necesita el editor web —listar rutas, cambiar estado,
-crear endpoints— es exactamente el que necesita el MCP. Se implementa una vez en
-`core` y se expone por tres superficies: CLI, HTTP (editor) y MCP.
+The _control plane_ the web editor needs — listing routes, changing state,
+creating endpoints — is exactly what the MCP needs. It's implemented once in
+`core` and exposed through three surfaces: CLI, HTTP (editor) and MCP.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Sólo CLI, que el agente corra comandos.** Funciona a medias: el agente puede
-correr `laqi scenario X`. Pero para crear un endpoint tendría que escribir el
-JSON a mano, sin conocer el esquema ni recibir errores de validación
-estructurados. MCP le da las herramientas tipadas y los errores de vuelta.
+**CLI only, letting the agent run commands.** Works halfway: the agent can
+run `laqi scenario X`. But to create an endpoint it would have to write the
+JSON by hand, without knowing the schema or getting structured validation
+errors back. MCP gives it typed tools and errors in return.
 
-**Sólo dejar que el agente edite los archivos.** Es lo que pasa hoy sin MCP.
-Funciona, pero el agente adivina el esquema, no sabe si el hot-reload lo tomó, y
-no puede cambiar estado sin ensuciar git (ver [ADR-0004](/decisions/0004-state-outside-git/)).
+**Just let the agent edit the files.** That's what happens today without
+MCP. It works, but the agent guesses the schema, doesn't know whether
+hot-reload picked it up, and can't change state without dirtying git (see
+[ADR-0004](/decisions/0004-state-outside-git/)).
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- El flujo "construyo la pantalla y el backend falso aparece solo" se vuelve real.
-- El control plane se comparte entre CLI, editor y MCP: una implementación.
+- The "I build the screen and the fake backend shows up on its own" flow
+  becomes real.
+- The control plane is shared between CLI, editor and MCP: one
+  implementation.
 
-**En contra:**
+**Against:**
 
-- Superficie de API que mantener y versionar.
-- Hay que decidir cómo se lanza el servidor MCP (`laqi mcp` sobre stdio es lo
-  más probable) y documentar la configuración para Claude Code y Cursor.
-- Un agente con estas herramientas puede escribir archivos del proyecto. Debe
-  estar acotado estrictamente al directorio de mocks — nunca fuera (ver el
-  defecto 4.4 del [análisis de v1](/v1-analysis/)).
+- An API surface to maintain and version.
+- How the MCP server is launched has to be decided (`laqi mcp` over stdio
+  is the most likely) and the configuration for Claude Code and Cursor has
+  to be documented.
+- An agent with these tools can write project files. It must be strictly
+  scoped to the mocks directory — never outside it (see defect 4.4 in the
+  [v1 analysis](/v1-analysis/)).

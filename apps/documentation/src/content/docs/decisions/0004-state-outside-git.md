@@ -1,157 +1,162 @@
 ---
-title: ADR-0004 — El estado activo no se trackea
+title: ADR-0004 — Active state is not tracked
 ---
 
-# ADR-0004 — El estado activo no se trackea
+# ADR-0004 — Active state is not tracked
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-En v1, el campo `codeResponse` vivía **dentro del archivo de mock**, que se
-commitea:
+In v1, the `codeResponse` field lived **inside the mock file**, which gets
+committed:
 
 ```json
 {
   "post": {
     "method": "GET",
-    "codeResponse": "200",        <-- el estado activo, dentro del archivo commiteado
+    "codeResponse": "200",        <-- the active state, inside the committed file
     "responses": [ ... ]
   }
 }
 ```
 
-Ese campo mezcla dos cosas de naturaleza distinta:
+That field mixes two things of different natures:
 
-- **Definición** — qué respuestas existen. Estable, se comparte, tiene sentido en git.
-- **Estado** — cuál está activa ahora. Volátil, personal, cambia cuarenta veces
-  por tarde.
+- **Definition** — what responses exist. Stable, shared, makes sense in git.
+- **State** — which one is active right now. Volatile, personal, changes
+  forty times an afternoon.
 
-Con el editor web y el MCP escribiendo sobre esos mismos archivos, había que
-decidir dónde vive el estado.
+With the web editor and the MCP writing to those same files, it had to be
+decided where state lives.
 
-## Decisión
+## Decision
 
-**La definición se commitea. El estado activo no se trackea.**
-
-```
-laqi.json               definición + "default"       commiteado
-laqi/scenarios.json     escenarios con nombre        commiteado
-.laqi/state.json        estado activo                gitignored, autocreado
-X-Laqi-Response         override por request         sin estado
-```
-
-El detalle de precedencia está en
-[resolución de estado](/concepts/state-resolution/).
-
-**Nota importante:** el estado **sí se persiste** a disco. La decisión no es
-"guardar o no guardar", es **dónde**: en un archivo aparte que no va a git, no
-dentro del archivo commiteado.
-
-## Qué se pierde si el estado vive en el archivo commiteado
-
-**1. El diff sucio, todos los días.**
-
-Le muestras a la diseñadora el 401, después el 500, después vuelves al 200. Tres
-modificaciones a `laqi.json`. Ahora `git status` está sucio y hay que decidir: si
-commiteas, le empujas tu estado de demo a todo el equipo; si no commiteas, se
-queda en el working tree para siempre y choca en cada `pull`. No hay salida
-buena — es fricción diaria por algo que no es código.
-
-**2. Conflictos de merge que no significan nada.**
-
-Dev A commitea `"default": "boom"` porque estaba probando errores. Dev B
-commitea `"default": "empty"`. Conflicto. Un conflicto de merge debería
-significar "dos personas tocaron la misma lógica"; acá no significa nada, y eso
-entrena al equipo a resolver conflictos en piloto automático — el hábito que hace
-que un día se pierda un cambio real.
-
-**3. La URL pública se vuelve de un solo usuario.** ← la razón decisiva
-
-Específico de la feature que justifica v2. Levantas el túnel y compartes la URL.
-Estás probando tu pantalla de error, así que pones `POST /orders` en 500.
-
-En ese mismo momento **la diseñadora está viendo la demo en su teléfono, contra
-esa misma URL, y le sale 500.** Y tu compañero de backend validando contratos,
-también.
-
-Con un campo global, el mock compartido tiene un solo estado a la vez — y
-compartirlo era la mitad de la razón para tener la URL. Con el header
-`X-Laqi-Response` cada quien declara lo que quiere y nadie pisa a nadie.
-
-**4. Los tests e2e se serializan.**
-
-Un test de Playwright que necesita el 500 tiene que mutar estado global, así que
-ningún otro test puede correr en paralelo mientras tanto. Con header, cada test
-pide lo suyo y corren todos juntos.
-
-## Qué cuesta esta decisión
-
-Lo justo es decirlo:
-
-**1. El estado deja de viajar en el repo.**
-
-En v1, commitear `codeResponse: "error401"` hacía que tu compañero clonara y
-reprodujera tu setup exacto. Eso es una capacidad real.
-
-**No se pierde: eso son los escenarios.** `scenarios.json` sí se commitea, tiene
-nombre, y `laqi scenario checkout-roto` reproduce el mismo estado. Es la misma
-capacidad, explícita y nombrada en vez de implícita y accidental — en v1 lo
-compartías por accidente, acá lo compartes a propósito.
-
-**2. Un concepto y un archivo más.** Costo real. Se mitiga con que es gitignored,
-se autocrea, y nunca se abre a mano: lo manejan el editor y el MCP.
-
-**3. Abrir `laqi.json` ya no dice qué está activo.** También real. Se mitiga con
-`laqi status`, con el log de arranque del servidor, y con el editor web.
-
-**4. Dos lugares donde mirar cuando algo devuelve raro.**
-
-El costo más molesto, y tiene solución limpia: laqi devuelve en **cada** respuesta
-un header diciendo qué capa decidió.
+**The definition is committed. Active state is not tracked.**
 
 ```
-X-Laqi-Resolved: boom (state)      ← lo puso el editor
-X-Laqi-Resolved: ok (default)      ← nadie tocó nada
-X-Laqi-Resolved: boom (header)     ← lo pidió este request
+laqi.json               definition + "default"       committed
+laqi/scenarios.json     named scenarios                committed
+.laqi/state.json        active state                    gitignored, auto-created
+X-Laqi-Response         per-request override             stateless
 ```
 
-Se abre el devtools y se ve de dónde salió la respuesta. El problema desaparece.
+The precedence details are in
+[state resolution](/concepts/state-resolution/).
 
-## Alternativas consideradas
+**Important note:** the state **is** persisted to disk. The decision isn't
+"save or don't save", it's **where**: in a separate file that doesn't go to
+git, not inside the committed file.
 
-**Estado dentro del mock, como v1.** Más simple, un solo archivo, cero conceptos
-nuevos, y el estado se comparte por git. Descartada por los cuatro puntos de
-arriba — sobre todo el tercero, que rompe la feature central de v2.
+## What's lost if state lives in the committed file
 
-Sería la decisión correcta si laqi fuera para un dev, en una máquina, sin URL
-compartida, sin editor y sin IA. Ése ya no es el laqi que se está construyendo:
-los tres pilares del rewrite son justamente los tres casos donde el estado global
-duele.
+**1. A dirty diff, every day.**
 
-**Sólo en memoria, sin persistir.** Git queda igual de limpio que con el archivo
-aparte, pero armas un setup de demo tocando ocho endpoints, haces Ctrl-C y
-perdiste el trabajo. Es estrictamente peor que el archivo aparte por el precio de
-un `JSON.stringify` — se paga el costo sin ganar nada. Descartada.
+You show the designer the 401, then the 500, then go back to the 200. Three
+modifications to `laqi.json`. Now `git status` is dirty and you have to
+decide: if you commit, you push your demo state to the whole team; if you
+don't commit, it stays in the working tree forever and collides on every
+`pull`. There's no good way out — it's daily friction over something that
+isn't code.
 
-## Consecuencias
+**2. Merge conflicts that mean nothing.**
 
-**A favor:**
+Dev A commits `"default": "boom"` because they were testing errors. Dev B
+commits `"default": "empty"`. Conflict. A merge conflict should mean "two
+people touched the same logic"; here it means nothing, and that trains the
+team to resolve conflicts on autopilot — the habit that ends up losing a real
+change one day.
 
-- Git limpio; los diffs de los mocks sólo muestran cambios de definición reales.
-- La URL pública sirve a varias personas con estados distintos.
-- Los tests e2e corren en paralelo.
-- El editor web y el MCP escriben sin ensuciar el working tree.
+**3. The public URL becomes single-user.** ← the deciding reason
 
-**En contra:**
+Specific to the feature that justifies v2. You spin up the tunnel and share
+the URL. You're testing your error screen, so you set `POST /orders` to 500.
 
-- Un archivo y un concepto más que aprender.
-- Hay que implementar `X-Laqi-Resolved` y `laqi status` para que la trazabilidad
-  no se degrade. **No son opcionales**: sin ellos, el costo 4 vuelve.
+At that exact moment **the designer is viewing the demo on her phone,
+against that same URL, and gets a 500.** And so does your backend teammate
+validating contracts.
 
-## Puerta de salida
+With a global field, the shared mock has one state at a time — and sharing
+it was half the reason to have the URL. With the `X-Laqi-Response` header,
+each person declares what they want and nobody steps on anybody else.
 
-`.laqi/state.json` está gitignored **por convención, no por obligación**. Sacarlo
-del `.gitignore` y commitearlo es una línea, si algún equipo decide que quiere el
-estado compartido por git.
+**4. E2E tests get serialized.**
+
+A Playwright test that needs the 500 has to mutate global state, so no other
+test can run in parallel meanwhile. With a header, each test asks for its
+own and they all run together.
+
+## What this decision costs
+
+It's only fair to say it:
+
+**1. State stops traveling in the repo.**
+
+In v1, committing `codeResponse: "error401"` made your teammate clone and
+reproduce your exact setup. That's a real capability.
+
+**Not lost: that's what scenarios are for.** `scenarios.json` is committed,
+has a name, and `laqi scenario checkout-roto` reproduces the same state.
+It's the same capability, explicit and named instead of implicit and
+accidental — in v1 you shared it by accident, here you share it on purpose.
+
+**2. One more concept and one more file.** Real cost. Mitigated by it being
+gitignored, auto-created, and never opened by hand: the editor and the MCP
+handle it.
+
+**3. Opening `laqi.json` no longer tells you what's active.** Also real.
+Mitigated with `laqi status`, the server's startup log, and the web editor.
+
+**4. Two places to look when something returns something odd.**
+
+The most annoying cost, and it has a clean solution: laqi returns a header
+on **every** response saying which layer decided.
+
+```
+X-Laqi-Resolved: boom (state)      ← the editor set it
+X-Laqi-Resolved: ok (default)      ← nobody touched anything
+X-Laqi-Resolved: boom (header)     ← this request asked for it
+```
+
+You open devtools and see where the response came from. The problem
+disappears.
+
+## Alternatives considered
+
+**State inside the mock, like v1.** Simpler, a single file, zero new
+concepts, and state shared via git. Discarded for the four points above —
+above all the third, which breaks v2's central feature.
+
+It would be the right decision if laqi were for one dev, on one machine,
+with no shared URL, no editor and no AI. That is no longer the laqi being
+built: the rewrite's three pillars are exactly the three cases where global
+state hurts.
+
+**In-memory only, without persisting.** Git stays as clean as with a
+separate file, but you build a demo setup touching eight endpoints, hit
+Ctrl-C, and lose the work. It's strictly worse than the separate file for
+the price of a `JSON.stringify` — you pay the cost without gaining anything.
+Discarded.
+
+## Consequences
+
+**In favour:**
+
+- Clean git; mock diffs only show real definition changes.
+- The public URL serves several people with different states.
+- E2E tests run in parallel.
+- The web editor and the MCP write without dirtying the working tree.
+
+**Against:**
+
+- One more file and concept to learn.
+- `X-Laqi-Resolved` and `laqi status` have to be implemented so
+  traceability doesn't degrade. **They are not optional**: without them,
+  cost 4 comes back.
+
+## Escape hatch
+
+`.laqi/state.json` is gitignored **by convention, not by obligation**.
+Taking it out of `.gitignore` and committing it is a one-line change, if some
+team decides they want state shared via git.

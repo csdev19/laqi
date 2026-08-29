@@ -1,75 +1,78 @@
 ---
-title: ADR-0002 — Hono como framework HTTP
+title: ADR-0002 — Hono as the HTTP framework
 ---
 
-# ADR-0002 — Hono como framework HTTP
+# ADR-0002 — Hono as the HTTP framework
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-v1 usaba Express 4.17.2 (de 2021), con diecinueve vulnerabilidades en el árbol de
-dependencias y una API que fuerza `res.status("200")` con strings. Había que
-cambiar. Los candidatos serios eran **Hono** y **Elysia**.
+v1 used Express 4.17.2 (from 2021), with nineteen vulnerabilities in the
+dependency tree and an API that forces `res.status("200")` with strings.
+Something had to change. The serious candidates were **Hono** and
+**Elysia**.
 
-## Decisión
+## Decision
 
 **Hono.**
 
-## Por qué
+## Why
 
-**1. Elysia es Bun-first, y laqi se distribuye por npm.**
+**1. Elysia is Bun-first, and laqi is distributed via npm.**
 
-La razón de ser de Elysia es Bun. Tiene adaptador de Node, pero es ciudadano de
-segunda. laqi se instala con `npx laqi` y su público son devs de frontend que
-tienen Node y no necesariamente Bun. **Exigir Bun instalado es un muro de
-adopción** que una herramienta de este tipo no puede permitirse.
+Elysia's reason for being is Bun. It has a Node adapter, but it's a
+second-class citizen. laqi is installed with `npx laqi` and its audience is
+frontend devs who have Node and not necessarily Bun. **Requiring Bun to be
+installed is an adoption wall** that a tool of this kind can't afford.
 
-**2. El framework y la URL pública son la misma decisión.**
+**2. The framework and the public URL are the same decision.**
 
-Ésta es la razón que decide. El relay propio de
-[ADR-0007](/decisions/0007-public-url/) corre en Cloudflare Workers. Hono corre en
-Node, Bun, Deno, Workers, Vercel y Lambda sobre Web Standards
-(`Request`/`Response`), así que **el mismo `packages/server` corre en el CLI local
-y en el relay del edge**. Con Elysia habría que mantener dos implementaciones.
+This is the deciding reason. [ADR-0007](/decisions/0007-public-url/)'s own
+relay runs on Cloudflare Workers. Hono runs
+on Node, Bun, Deno, Workers, Vercel and Lambda on top of Web Standards
+(`Request`/`Response`), so **the same `packages/server` runs on the local CLI
+and on the edge relay**. With Elysia, two implementations would have to be
+maintained.
 
-**3. Ya está en el stack.**
+**3. It's already in the stack.**
 
-`rakoi-monorepo` tiene `hono@4.12.3` en el catalog de Bun workspaces, y un
-`packages/infra-cloudflare` con `@cloudflare/workers-types`. El terreno ya está
-pisado.
+`rakoi-monorepo` has `hono@4.12.3` in the Bun workspaces catalog, and a
+`packages/infra-cloudflare` with `@cloudflare/workers-types`. The ground is
+already broken in.
 
-**4. Cosas menores que suman.**
+**4. Smaller things that add up.**
 
-`RegExpRouter` es el router JS más rápido que hay. El paquete pesa ~14kB, que
-importa en un CLI que se instala con `npx`. Y `hono/client` da RPC tipado, útil
-si algún día laqi genera un cliente TypeScript a partir de los mocks.
+`RegExpRouter` is the fastest JS router there is. The package weighs ~14kB,
+which matters in a CLI installed via `npx`. And `hono/client` gives typed
+RPC, useful if laqi ever generates a TypeScript client from the mocks.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Elysia.** Mejor en benchmarks puros y con un DX de tipos excelente. Descartada
-por los puntos 1 y 2: el acoplamiento a Bun choca con la distribución por npm, y
-no corre en Workers, que es donde vive el relay.
+**Elysia.** Better in raw benchmarks and with excellent type DX. Discarded
+for points 1 and 2: the coupling to Bun clashes with npm distribution, and it
+doesn't run on Workers, which is where the relay lives.
 
-**Express 5.** Descartada: resolvía las vulnerabilidades pero no aporta nada
-hacia las features nuevas, no corre en el edge, y la migración a v5 igual rompía
-el código por los status codes como string (defecto I).
+**Express 5.** Discarded: it resolved the vulnerabilities but doesn't
+contribute anything toward the new features, doesn't run on the edge, and
+the migration to v5 would still break the code because of string status
+codes (defect I).
 
-**Node HTTP puro.** Descartada: habría que escribir el router, el matching de
-params y el manejo de CORS a mano. Es exactamente el trabajo que Hono ya hace
-mejor.
+**Plain Node HTTP.** Discarded: the router, param matching and CORS handling
+would have to be written by hand. That is exactly the work Hono already does
+better.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- Una sola implementación del servidor para local y edge.
-- Base moderna sobre Web Standards; el árbol de dependencias se reduce drásticamente.
-- Alineado con el stack existente.
+- A single server implementation for local and edge.
+- A modern base on Web Standards; the dependency tree shrinks drastically.
+- Aligned with the existing stack.
 
-**En contra:**
+**Against:**
 
-- Hay que reescribir el registro de endpoints y el middleware de CORS.
-- El ecosistema de middleware de Express es más grande, aunque para lo que laqi
-  necesita (CORS, body parsing, logging) Hono trae todo de fábrica.
+- The endpoint registry and CORS middleware have to be rewritten.
+- Express's middleware ecosystem is larger, although for what laqi needs
+  (CORS, body parsing, logging) Hono ships all of it out of the box.

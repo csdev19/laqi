@@ -1,117 +1,123 @@
 ---
-title: "ADR-0007 — URL pública: cloudflared primero, relay propio después"
+title: "ADR-0007 — Public URL: cloudflared first, self-hosted relay later"
 ---
 
-# ADR-0007 — URL pública: cloudflared primero, relay propio después
+# ADR-0007 — Public URL: cloudflared first, self-hosted relay later
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-El problema original que motivó esta parte del rewrite: **en React Native no
-puedes usar `localhost` como backend confiable.** El dispositivo físico no
-resuelve el `localhost` de tu máquina, Expo Go sobre datos móviles no ve tu red
-local, y un compañero en otra red no llega a tu mock.
+The original problem that motivated this part of the rewrite: **in React
+Native you can't use `localhost` as a reliable backend.** The physical
+device doesn't resolve your machine's `localhost`, Expo Go over mobile data
+can't see your local network, and a teammate on another network can't reach
+your mock.
 
-v1 lo intentaba con el campo `ip` de `mock.config.json`, para bindear a la IP de
-LAN. Eso funciona sólo si el dispositivo está en la misma wifi, se rompe cada vez
-que el router reasigna la IP, y no sirve para compartir con nadie fuera de la
-oficina.
+v1 attempted it with the `ip` field in `mock.config.json`, to bind to the
+LAN IP. That only works if the device is on the same wifi, breaks every time
+the router reassigns the IP, and doesn't help share with anyone outside the
+office.
 
-## Decisión
+## Decision
 
-Un flag `laqi --share` que levanta una **URL pública** apuntando al mock local.
+A `laqi --share` flag that brings up a **public URL** pointing at the local
+mock.
 
-**Fase 1:** envolver `cloudflared`.
-**Fase 2 (después, si el uso lo justifica):** relay propio en Cloudflare Workers,
-con subdominios estables.
+**Phase 1:** wrap `cloudflared`.
+**Phase 2 (later, if usage justifies it):** a self-hosted relay on Cloudflare Workers,
+with stable subdomains.
 
-La capa de compartición se diseña como **interfaz enchufable** (`TunnelProvider`)
-desde el día uno, para que la fase 2 no exija reescribir nada.
+The sharing layer is designed as a **pluggable interface** (`TunnelProvider`)
+from day one, so phase 2 doesn't require rewriting anything.
 
-## Por qué cloudflared primero
+## Why cloudflared first
 
-`cloudflared tunnel --url http://localhost:8000` da una URL `*.trycloudflare.com`
-gratis, sin cuenta, sin límite de sesión y **sin página interstitial** — a
-diferencia del tier gratuito de ngrok y de localtunnel, que meten una pantalla
-intermedia que rompe cualquier cliente que no sea un navegador. Para una app de
-React Native consumiendo una API, ese interstitial es un bloqueante absoluto.
+`cloudflared tunnel --url http://localhost:8000` gives a free
+`*.trycloudflare.com` URL, no account, no session limit and **no
+interstitial page** — unlike ngrok's and localtunnel's free tiers, which put
+up an intermediate screen that breaks any client that isn't a browser. For a
+React Native app consuming an API, that interstitial is an absolute
+blocker.
 
-Cero infraestructura propia, y se implementa en días en vez de semanas.
+Zero self-hosted infrastructure, and it's implemented in days instead of weeks.
 
-**Limitaciones aceptadas:** URL aleatoria en cada arranque, y dependencia de un
-binario externo que hay que detectar o descargar.
+**Accepted limitations:** a random URL on every startup, and a dependency on
+an external binary that has to be detected or downloaded.
 
-## Por qué el relay propio después, y no ahora
+## Why the self-hosted relay comes later, not now
 
-Un Worker de Cloudflare con un Durable Object que mantiene un WebSocket contra el
-CLI y hace proxy de HTTP público → WS → servidor local. Da `<slug>.laqi.dev`,
-subdominios estables, cero terceros, y a escala hobby cuesta prácticamente nada.
-Con Hono es directo, y `rakoi-monorepo` ya tiene `packages/infra-cloudflare` y
-`@cloudflare/workers-types`, así que el terreno está pisado.
+A Cloudflare Worker with a Durable Object that keeps a WebSocket open
+against the CLI and proxies public HTTP → WS → local server. It gives
+`<slug>.laqi.dev`, stable subdomains, zero third parties, and at hobby scale
+costs practically nothing. With Hono it's straightforward, and
+`rakoi-monorepo` already has `packages/infra-cloudflare` and
+`@cloudflare/workers-types`, so the ground is already broken in.
 
-**Se pospone porque es infraestructura de verdad**: dominio, cuenta, operación,
-y a partir de ahí eres responsable de un servicio que otros usan. No vale la pena
-antes de saber si alguien usa `--share`.
+**It's postponed because it's real infrastructure**: domain, account,
+operations, and from there on you're responsible for a service other people
+use. Not worth it before knowing whether anyone uses `--share`.
 
-Lo que sí se hace ahora es **no cerrarse la puerta**: `TunnelProvider` como
-interfaz, con `CloudflaredProvider` como primera implementación.
+What is done now is **not closing the door**: `TunnelProvider` as an
+interface, with `CloudflaredProvider` as the first implementation.
 
-## Seguridad: no negociable
+## Security: non-negotiable
 
-Ésta es la parte crítica. El [análisis de v1](/v1-analysis/) mostró que el
-servidor tenía CORS `*` y cero autenticación. En `127.0.0.1` daba igual. **Con
-URL pública deja de dar igual**, y las URLs de túnel efímero son escaneadas
-activamente por bots.
+This is the critical part. The [v1 analysis](/v1-analysis/) showed the
+server had CORS `*` and zero authentication. On `127.0.0.1` that didn't
+matter. **With a public URL it stops not mattering**, and ephemeral tunnel
+URLs are actively scanned by bots.
 
-Cuando `--share` está activo:
+When `--share` is active:
 
-1. **Token obligatorio por defecto.** El CLI genera un token, lo imprime al
-   arrancar, y todo request sin `Authorization: Bearer <token>` recibe 401.
-   Desactivarlo exige un flag explícito (`--share --public`) que imprime una
-   advertencia.
-2. **CORS restringido.** Nunca `*` en modo compartido. Sólo los orígenes
-   declarados en la config.
-3. **El editor web y el MCP no se exponen.** `/__laqi` y el control plane quedan
-   atados a la interfaz local, nunca al túnel. Que alguien tenga la URL del mock
-   no puede significar que pueda reescribir tus mocks.
-4. **Rate limiting** sobre la superficie pública.
-5. **Aviso claro al arrancar**, diciendo qué quedó expuesto y con qué token.
+1. **Token required by default.** The CLI generates a token, prints it on
+   startup, and any request without `Authorization: Bearer <token>` gets a 401. Disabling it requires an explicit flag (`--share --public`) that
+   prints a warning.
+2. **Restricted CORS.** Never `*` in shared mode. Only the origins declared
+   in the config.
+3. **The web editor and the MCP are not exposed.** `/__laqi` and the
+   control plane stay bound to the local interface, never to the tunnel.
+   Having the mock's URL can never mean being able to rewrite your mocks.
+4. **Rate limiting** on the public surface.
+5. **A clear notice on startup**, saying what got exposed and with which
+   token.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**ngrok.** El más conocido, pero el tier gratuito exige authtoken, limita
-sesiones y mete página interstitial. Descartado por el interstitial.
+**ngrok.** The best known, but the free tier requires an authtoken, limits
+sessions and shows an interstitial page. Discarded for the interstitial.
 
-**localtunnel.** Puro JS, sin binario externo, instalable como dependencia — muy
-atractivo por eso. Descartado por fiabilidad histórica irregular y por mostrar
-también una página intermedia.
+**localtunnel.** Pure JS, no external binary, installable as a dependency —
+very appealing for that. Discarded for spotty historical reliability and
+for also showing an intermediate page.
 
-**Tailscale Funnel.** Sólido, pero exige que todos los participantes tengan
-Tailscale. Choca con "compartirle la URL a la diseñadora".
+**Tailscale Funnel.** Solid, but requires every participant to have
+Tailscale. Clashes with "just share the URL with the designer".
 
-**No hacer túnel; sólo bindear a la IP de LAN (lo de v1).** Descartada: no
-resuelve Expo Go sobre datos móviles, ni un compañero en otra red, ni un
-dispositivo físico en otra wifi. Es exactamente el problema que motivó todo esto.
-Se mantiene igual como opción para el caso simple de misma-wifi.
+**No tunnel; only bind to the LAN IP (v1's approach).** Discarded: it
+doesn't solve Expo Go over mobile data, nor a teammate on another network,
+nor a physical device on another wifi. It's exactly the problem that
+motivated all of this. It's kept as an option for the simple same-wifi
+case.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- Resuelve el problema real de React Native.
-- Convierte al mock en algo compartible: la diseñadora ve la demo desde su
-  teléfono, el backend valida contratos contra la misma URL.
-- Cero infraestructura propia en fase 1.
+- Solves the real React Native problem.
+- Turns the mock into something shareable: the designer sees the demo from
+  her phone, the backend dev validates contracts against the same URL.
+- Zero self-hosted infrastructure in phase 1.
 
-**En contra:**
+**Against:**
 
-- Dependencia de un binario externo (`cloudflared`): detectar, guiar la
-  instalación o descargarlo.
-- URL distinta en cada arranque hasta que exista el relay propio.
-- **Obliga a tomarse la seguridad en serio.** Las cinco medidas de arriba son
-  trabajo real que sin `--share` no haría falta. Es el costo de la feature.
-- El modo compartido **sólo funciona bien porque el estado no es global**
-  ([ADR-0004](/decisions/0004-state-outside-git/)). Las dos decisiones se sostienen
-  mutuamente.
+- Dependency on an external binary (`cloudflared`): detect it, guide the
+  install, or download it.
+- A different URL on every startup until the self-hosted relay exists.
+- **Forces taking security seriously.** The five measures above are real
+  work that wouldn't be needed without `--share`. It's the cost of the
+  feature.
+- Shared mode **only works well because state isn't global**
+  ([ADR-0004](/decisions/0004-state-outside-git/)). The two decisions
+  support each other.

@@ -1,104 +1,106 @@
 ---
-title: ADR-0005 — Monorepo alineado con rakoi
+title: ADR-0005 — Monorepo aligned with rakoi
 ---
 
-# ADR-0005 — Monorepo alineado con rakoi
+# ADR-0005 — Monorepo aligned with rakoi
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-v1 era un paquete npm plano de cuatro archivos. v2 tiene al menos cuatro
-artefactos distintos con ciclos de vida distintos: el CLI que se publica a npm,
-la UI del editor web, un servidor MCP, un Worker de Cloudflare para el relay, y
-un sitio de documentación.
+v1 was a flat npm package of four files. v2 has at least four distinct
+artifacts with distinct lifecycles: the CLI published to npm, the web
+editor UI, an MCP server, a Cloudflare Worker for the relay, and a
+documentation site.
 
-## Decisión
+## Decision
 
-**Monorepo**, con las mismas herramientas que `rakoi-monorepo`: Bun workspaces
-con catalog, Turborepo, oxlint + oxfmt, Vitest, tsdown para publicar, Zod 4,
-Astro + Starlight para la documentación.
+**Monorepo**, with the same tooling as `rakoi-monorepo`: Bun workspaces with
+a catalog, Turborepo, oxlint + oxfmt, Vitest, tsdown for publishing, Zod 4,
+Astro + Starlight for the documentation.
 
 ```
 laqi/
 ├── apps/
-│   ├── cli/            `laqi` — el binario. Es el paquete que ya está en npm
-│   │                   (v1.2.1); v2 es su major, no un paquete nuevo.
-│   ├── documentation/  Astro + Starlight, igual que rakoi
-│   └── relay/          Cloudflare Worker — la URL pública propia (fase 2)
+│   ├── cli/            `laqi` — the binary. It's the package already on npm
+│   │                   (v1.2.1); v2 is its major version, not a new package.
+│   ├── documentation/  Astro + Starlight, same as rakoi
+│   └── relay/          Cloudflare Worker — laqi's own public URL (phase 2)
 └── packages/
-    ├── core/           parser, validación, tabla de rutas, resolución de estado
-    ├── server/         la app Hono — corre igual en Node, Bun y Workers
-    ├── editor/         la UI web, embebida en el CLI y servida en /__laqi
-    ├── mcp/            servidor MCP
-    └── schema/         Zod + JSON Schema generado
+    ├── core/           parser, validation, route table, state resolution
+    ├── server/         the Hono app — runs the same on Node, Bun and Workers
+    ├── editor/         the web UI, embedded in the CLI and served at /__laqi
+    ├── mcp/            MCP server
+    └── schema/         Zod + generated JSON Schema
 ```
 
-## Por qué
+## Why
 
-**1. `core` y `server` separados es lo que hace posible el relay.**
+**1. `core` and `server` being separate is what makes the relay possible.**
 
-Es la razón estructural principal. `server` es una app Hono sobre Web Standards
-que no sabe si corre en Node o en un Worker. Eso permite que **el mismo servidor
-corra en tu máquina y en el edge** sin duplicar código
-([ADR-0007](/decisions/0007-public-url/)).
+This is the main structural reason. `server` is a Hono app on top of Web
+Standards that doesn't know whether it's running on Node or on a Worker.
+That's what lets **the same server run on your machine and on the edge**
+without duplicating code ([ADR-0007](/decisions/0007-public-url/)).
 
-**2. El editor web se embebe, no se despliega.**
+**2. The web editor is embedded, not deployed.**
 
-`packages/editor` es una app React + Vite que se compila a assets estáticos y se
-sirve desde el propio CLI en `http://localhost:8000/__laqi`. Sin app aparte, sin
-cuenta, sin login: `laqi` levanta el mock y su panel de control en el mismo
-proceso. El editor, el MCP y una API de control HTTP hablan los tres contra el
-mismo _control plane_ dentro de `core`.
+`packages/editor` is a React + Vite app that compiles down to static assets
+and is served by the CLI itself at `http://localhost:8000/__laqi`. No
+separate app, no account, no login: `laqi` brings up the mock and its
+control panel in the same process. The editor, the MCP and an HTTP control
+API all talk to the same _control plane_ inside `core`.
 
-**3. `schema` aislado porque lo consumen cuatro cosas.**
+**3. `schema` isolated because four things consume it.**
 
-Las definiciones Zod las usan el CLI (validar al cargar), el editor (validar
-formularios), el MCP (describir sus herramientas al modelo) y el JSON Schema
-publicado (autocompletado en VSCode). Una sola fuente de verdad.
+The Zod definitions are used by the CLI (validate on load), the editor
+(validate forms), the MCP (describe its tools to the model) and the
+published JSON Schema (autocompletion in VSCode). One single source of
+truth.
 
-**4. Alinearse con rakoi baja el costo de contexto.**
+**4. Aligning with rakoi lowers the context cost.**
 
-Mismo gestor de paquetes, mismo linter, mismo runner de tests, misma forma de
-publicar. Moverse entre repos no cuesta recontextualizarse.
+Same package manager, same linter, same test runner, same way of
+publishing. Moving between repos doesn't require recontextualizing.
 
-## Lo que NO se copia de rakoi
+## What is NOT copied from rakoi
 
-**DDD + arquitectura hexagonal.** rakoi es una app de negocio con reglas de
-dominio que justifican las capas `domain ← application ← infra`. laqi es una
-herramienta de cuatro piezas sin dominio de negocio: aplicar esas capas acá sería
-ceremonia sin beneficio.
+**DDD + hexagonal architecture.** rakoi is a business app with domain rules
+that justify the `domain ← application ← infra` layers. laqi is a
+four-piece tool with no business domain: applying those layers here would be
+ceremony without benefit.
 
-**Sí se adopta la política de TDD** del `CLAUDE.md` de rakoi: ningún código de
-producción sin un test que falle primero.
+**TDD policy from rakoi's `CLAUDE.md` is adopted, though:** no production
+code without a failing test written first.
 
-**Y sí se adopta el enfoque MVP-first:** hacer que funcione punta a punta antes
-de refactorizar a la estructura final.
+**And the MVP-first approach is adopted too:** make it work end to end
+before refactoring toward the final structure.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Seguir con un paquete plano.** Descartada: el Worker del relay y el sitio de
-documentación no pueden vivir en el mismo paquete npm que el CLI, y meter la UI
-del editor en el mismo `package.json` que el servidor mezcla dependencias de
-frontend con las del binario que se instala vía `npx`.
+**Stay with a flat package.** Discarded: the relay Worker and the
+documentation site can't live in the same npm package as the CLI, and
+putting the editor UI in the same `package.json` as the server mixes
+frontend dependencies with those of the binary installed via `npx`.
 
-**Repos separados.** Descartada: `core` y `schema` cambian a la vez que sus
-consumidores. Repos separados obligarían a publicar y versionar en cada
-iteración, sobre un proyecto de una sola persona.
+**Separate repos.** Discarded: `core` and `schema` change at the same time
+as their consumers. Separate repos would force publishing and versioning on
+every iteration, on a one-person project.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- El servidor se escribe una vez y corre local y en el edge.
-- El CLI publicado a npm no arrastra dependencias del editor ni de la documentación.
-- Turborepo cachea builds y tests por paquete.
+- The server is written once and runs both locally and on the edge.
+- The CLI published to npm doesn't drag in the editor's or the
+  documentation's dependencies.
+- Turborepo caches builds and tests per package.
 
-**En contra:**
+**Against:**
 
-- Más ceremonia inicial que un solo `package.json`.
-- Hay que cuidar que `apps/cli` empaquete los assets del editor ya compilados —
-  si no, `npx laqi` se rompe.
-- Bun como gestor de paquetes para desarrollar, aunque el artefacto publicado
-  debe correr en Node sin Bun. Hay que testear ambos.
+- More initial ceremony than a single `package.json`.
+- Care is needed so `apps/cli` bundles the already-built editor assets — if
+  not, `npx laqi` breaks.
+- Bun as the package manager for development, even though the published
+  artifact must run on Node without Bun. Both have to be tested.

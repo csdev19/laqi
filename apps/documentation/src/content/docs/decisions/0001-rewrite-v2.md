@@ -1,92 +1,91 @@
 ---
-title: ADR-0001 — Rewrite completo en vez de arreglar v1
+title: ADR-0001 — Full rewrite instead of fixing v1
 ---
 
-# ADR-0001 — Rewrite completo en vez de arreglar v1
+# ADR-0001 — Full rewrite instead of fixing v1
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
+**Status:** Accepted
+**Date:** 2026-08-24
 
-## Contexto
+## Context
 
-laqi v1 (1.2.1) son ~200 líneas de JavaScript CommonJS sobre Express 4. El
-[análisis](/v1-analysis/) encontró doce defectos —cinco verificados
-ejecutando el servidor— y seis problemas de seguridad, incluyendo diecinueve
-vulnerabilidades en dependencias (una crítica).
+laqi v1 (1.2.1) is ~200 lines of CommonJS JavaScript on top of Express 4. The
+[analysis](/v1-analysis/) found twelve defects — five verified by running the
+server — and six security issues, including nineteen vulnerabilities in
+dependencies (one critical).
 
-La pregunta era si arreglar sobre esa base o empezar de cero.
+The question was whether to fix that base or start from zero.
 
-## Decisión
+## Decision
 
-**Rewrite completo**, en TypeScript, sobre un monorepo nuevo. Se conserva la
-idea central (selector declarativo de respuestas) y el nombre. No se conserva
-código.
+**Full rewrite**, in TypeScript, on a new monorepo. The core idea (a
+declarative response selector) and the name are kept. No code is kept.
 
-Los proyectos existentes migran con `laqi migrate`, que convierte los JSON del
-formato v1 al de v2.
+Existing projects migrate with `laqi migrate`, which converts v1-format JSON
+to v2's.
 
-## Por qué
+## Why
 
-**1. Los defectos no son bugs sueltos, son consecuencias del diseño.**
+**1. The defects are not loose bugs, they are consequences of the design.**
 
-Los tres peores salen del mismo modelo de datos:
+The three worst ones come from the same data model:
 
-- El handler escribe sobre la configuración que sirve (`body.query = req.query`)
-  → fuga de estado entre requests.
-- Los archivos se fusionan con spread en un objeto plano → colisiones silenciosas
-  entre archivos.
-- La clave del endpoint codifica también el método → nació el hack `(get)files/:id`,
-  que además no resuelve la colisión entre archivos.
+- The handler writes over the configuration it serves
+  (`body.query = req.query`) → state leak between requests.
+- Files are merged with spread into a flat object → silent collisions between
+  files.
+- The endpoint key also encodes the method → the `(get)files/:id` hack was
+  born, and it doesn't even resolve the collision between files.
 
-Arreglar los tres exige cambiar el modelo de datos. Cambiado el modelo de datos,
-no queda mucho de las 200 líneas.
+Fixing all three requires changing the data model. Once the data model
+changes, not much of the 200 lines is left.
 
-**2. Las limitaciones estructurales no se parchan.**
+**2. Structural limitations don't get patched.**
 
-Sin validación, sin tests, sin CLI (`yargs` declarado y nunca importado), estado
-global único, CommonJS, `res.status("200")` con strings que bloquea Express 5.
-Todo eso es trabajo nuevo, no arreglo.
+No validation, no tests, no CLI (`yargs` declared and never imported), a
+single global state, CommonJS, `res.status("200")` with strings that blocks
+Express 5. All of that is new work, not a fix.
 
-**3. El formato tiene que cambiar de todos modos.**
+**3. The format has to change regardless.**
 
-Las tres features que justifican v2 —editor web, MCP, URL pública compartida—
-requieren separar definición de estado y quitar el método de la clave. Eso rompe
-compatibilidad. Si el formato se rompe, el argumento principal para conservar el
-código desaparece.
+The three features that justify v2 — the web editor, MCP, a shared public
+URL — require separating definition from state and removing the method from
+the key. That breaks compatibility. If the format breaks anyway, the main
+argument for keeping the code disappears.
 
-**4. Doscientas líneas.**
+**4. Two hundred lines.**
 
-El costo de reescribir es bajo, y nunca va a ser más bajo que ahora.
+The cost of rewriting is low, and it will never be lower than it is now.
 
-**5. No hay usuarios en producción que bloqueen.**
+**5. There are no production users to block on.**
 
-Confirmado con el autor. Las apps existentes pueden correr `laqi migrate` sin
-problema.
+Confirmed with the author. Existing apps can run `laqi migrate` without
+issue.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Arreglo incremental manteniendo compatibilidad.** Descartada: obliga a soportar
-para siempre el formato con el método en la clave y el estado global, que son
-justo las dos cosas que impiden las features nuevas. Se pagaría deuda permanente
-para conservar 200 líneas defectuosas.
+**Incremental fix keeping compatibility.** Discarded: it forces forever
+supporting the format with the method in the key and the global state, which
+are exactly the two things blocking the new features. Permanent debt would
+be paid to keep 200 defective lines.
 
-**Arreglar sólo los bugs de seguridad y dejar v1 en mantenimiento.** Descartada
-como objetivo, pero el análisis de seguridad se conserva como documentación por
-si algún proyecto se queda en v1: lo urgente ahí es mover `nodemon` a
-`devDependencies` (arrastra la vulnerabilidad crítica) y no exponer el servidor
-fuera de `127.0.0.1`.
+**Fix only the security bugs and leave v1 in maintenance.** Discarded as a
+goal, but the security analysis is kept as documentation in case some
+project stays on v1: the urgent items there are moving `nodemon` to
+`devDependencies` (it drags in the critical vulnerability) and not exposing
+the server outside `127.0.0.1`.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- Modelo de datos correcto desde el principio, con validación Zod al cargar.
-- TypeScript, tests desde la primera línea (TDD, siguiendo la política de rakoi).
-- Sin deuda de compatibilidad.
+- Correct data model from the start, with Zod validation on load.
+- TypeScript, tests from the first line (TDD, following rakoi's policy).
+- No compatibility debt.
 
-**En contra:**
+**Against:**
 
-- Los usuarios de v1 tienen que migrar. Mitigado con `laqi migrate`.
-- Hay que reescribir el README y la documentación entera.
-- El período hasta que v2 alcance la paridad funcional de v1 es tiempo sin
-  release utilizable.
+- v1 users have to migrate. Mitigated with `laqi migrate`.
+- The README and the entire documentation have to be rewritten.
+- The period until v2 reaches v1's functional parity is time without a
+  usable release.

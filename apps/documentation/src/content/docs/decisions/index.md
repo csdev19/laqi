@@ -1,30 +1,30 @@
 ---
-title: Registro de decisiones (ADRs)
+title: Decision records (ADRs)
 ---
 
-# Registro de decisiones (ADRs)
+# Decision records (ADRs)
 
-Un ADR por decisión estructural. Cada uno responde a _por qué_ se hizo algo, no a
-_cómo_ se usa.
+One ADR per structural decision. Each answers _why_ something was done, not
+_how_ it is used.
 
-| ADR                                          | Decisión                                               | Estado                         | Fecha      |
-| -------------------------------------------- | ------------------------------------------------------ | ------------------------------ | ---------- |
-| [0001](/decisions/0001-rewrite-v2/)          | Rewrite completo en vez de arreglar v1                 | Aceptada                       | 2026-08-24 |
-| [0002](/decisions/0002-hono-over-elysia/)    | Hono como framework HTTP                               | Aceptada                       | 2026-08-24 |
-| [0003](/decisions/0003-declarative-json/)    | JSON declarativo como formato primario                 | Parcialmente superada por 0008 | 2026-08-24 |
-| [0004](/decisions/0004-state-outside-git/)   | El estado activo no se trackea                         | Aceptada                       | 2026-08-24 |
-| [0005](/decisions/0005-monorepo/)            | Monorepo alineado con rakoi                            | Aceptada                       | 2026-08-24 |
-| [0006](/decisions/0006-mcp-server/)          | Servidor MCP como pieza de primera clase               | Aceptada                       | 2026-08-24 |
-| [0007](/decisions/0007-public-url/)          | URL pública: cloudflared primero, relay propio después | Aceptada                       | 2026-08-24 |
-| [0008](/decisions/0008-multifile-and-names/) | Multi-archivo con claves `"METHOD /path"`, y nombres   | Aceptada                       | 2026-08-24 |
-| [0009](/decisions/0009-no-i18n/)             | No i18n: English everywhere                            | Aceptada                       | 2026-08-27 |
-| [0010](/decisions/0010-release-and-npm/)     | release-please, one version line, npm beta line        | Aceptada                       | 2026-08-28 |
+| ADR                                          | Decision                                               | Status                       | Date       |
+| -------------------------------------------- | ------------------------------------------------------ | ---------------------------- | ---------- |
+| [0001](/decisions/0001-rewrite-v2/)          | Full rewrite instead of fixing v1                      | Accepted                     | 2026-08-24 |
+| [0002](/decisions/0002-hono-over-elysia/)    | Hono as the HTTP framework                             | Accepted                     | 2026-08-24 |
+| [0003](/decisions/0003-declarative-json/)    | Declarative JSON as the primary format                 | Partially superseded by 0008 | 2026-08-24 |
+| [0004](/decisions/0004-state-outside-git/)   | Active state is not tracked                            | Accepted                     | 2026-08-24 |
+| [0005](/decisions/0005-monorepo/)            | Monorepo aligned with rakoi                            | Accepted                     | 2026-08-24 |
+| [0006](/decisions/0006-mcp-server/)          | MCP server as a first-class piece                      | Accepted                     | 2026-08-24 |
+| [0007](/decisions/0007-public-url/)          | Public URL: cloudflared first, self-hosted relay later | Accepted                     | 2026-08-24 |
+| [0008](/decisions/0008-multifile-and-names/) | Multi-file with `"METHOD /path"` keys, and names       | Accepted                     | 2026-08-24 |
+| [0009](/decisions/0009-no-i18n/)             | No i18n: English everywhere                            | Accepted                     | 2026-08-27 |
+| [0010](/decisions/0010-release-and-npm/)     | release-please, one version line, npm beta line        | Accepted                     | 2026-08-28 |
 
-## Estructura
+## Structure
 
-**Contexto** — qué problema había. **Decisión** — qué se hace.
-**Alternativas consideradas** — qué se descartó y por qué. **Consecuencias** — lo
-bueno y lo que cuesta.
+**Context** — what problem existed. **Decision** — what is done.
+**Alternatives considered** — what was discarded and why. **Consequences** —
+the good and what it costs.
 
-Una decisión que cambia no se edita: se escribe un ADR nuevo que la supera, y el
-viejo se marca `Superada por NNNN`.
+A decision that changes is not edited: a new ADR is written that supersedes
+it, and the old one is marked `Superseded by NNNN`.

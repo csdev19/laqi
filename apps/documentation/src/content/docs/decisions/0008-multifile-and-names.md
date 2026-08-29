@@ -1,139 +1,147 @@
 ---
-title: "ADR-0008 — Multi-archivo con claves `\"METHOD /path\"`, y nombres"
+title: "ADR-0008 — Multi-file with `\"METHOD /path\"` keys, and names"
 ---
 
-# ADR-0008 — Multi-archivo con claves `"METHOD /path"`, y nombres
+# ADR-0008 — Multi-file with `"METHOD /path"` keys, and names
 
-**Estado:** Aceptada
-**Fecha:** 2026-08-24
-**Supera:** la parte de routing por filesystem del [ADR-0003](/decisions/0003-declarative-json/)
+**Status:** Accepted
+**Date:** 2026-08-24
+**Supersedes:** the filesystem-routing part of [ADR-0003](/decisions/0003-declarative-json/)
 
-## Contexto
+## Context
 
-El [ADR-0003](/decisions/0003-declarative-json/) definió dos modos: un archivo único con
-claves `"METHOD /path"`, o una carpeta con **routing por filesystem**
-(`laqi/users/[id].json`), elegido para que la colisión de rutas entre archivos
-fuera imposible por construcción — el defecto D de v1.
+[ADR-0003](/decisions/0003-declarative-json/) defined two modes: a single
+file with `"METHOD /path"` keys, or a folder with **filesystem routing**
+(`laqi/users/[id].json`), chosen so that route collisions between files
+would be impossible by construction — v1's defect D.
 
-El diseño del control panel asumió otra cosa: una carpeta con **varios archivos
-normales**, todos usando claves `"METHOD /path"` (visible en la banda de error
-—`mocks/orders.json:14:7`— y en el flujo F6, que agrega a `mocks/api.json`).
+The control panel design assumed something else: a folder with **several
+regular files**, all using `"METHOD /path"` keys (visible in the error band
+— `mocks/orders.json:14:7` — and in flow F6, which appends to
+`mocks/api.json`).
 
-Eso reabre la colisión: dos archivos pueden definir `"GET /users"`.
+That reopens the collision: two files can define `"GET /users"`.
 
-Además el diseño usa `./mocks/` como nombre de carpeta, distinto del `laqi/` del
-ADR-0003.
+The design also uses `./mocks/` as the folder name, different from ADR-0003's
+`laqi/`.
 
-## Decisión
+## Decision
 
-**1. Un solo formato de clave, en cualquier cantidad de archivos.**
+**1. A single key format, across any number of files.**
 
 ```
 laqi/
 ├── api.json          { "GET /users": {...}, "POST /users": {...} }
 ├── orders.json       { "GET /orders": {...} }
-└── scenarios.json    escenarios con nombre
+└── scenarios.json    named scenarios
 ```
 
-Sin routing por filesystem. La ruta HTTP sale siempre de la clave, nunca de la
-ubicación del archivo. Los archivos son puramente organizativos.
+No filesystem routing. The HTTP route always comes from the key, never from
+the file's location. Files are purely organizational.
 
-**2. La colisión se resuelve con validación, no con estructura.**
+**2. The collision is resolved with validation, not structure.**
 
-Una ruta duplicada entre archivos es un **error de carga** que aparece en la
-banda roja del panel, nombrando ambos orígenes:
+A duplicate route across files is a **load error** that shows up in the
+panel's error band, naming both origins:
 
 ```
 LOAD FAILED   duplicate route GET /users
               laqi/api.json:2  and  laqi/orders.json:14
 ```
 
-Igual que un JSON inválido: ruidoso, con archivo y línea, y **no fatal** — el
-resto del mock se sigue sirviendo (ver ADR-0003 y la corrección de semántica en
+Same as invalid JSON: loud, with file and line, and **not fatal** — the rest
+of the mock keeps being served (see ADR-0003 and the semantics correction in
 [three-writers](/concepts/three-writers/)).
 
-**3. Nombres.**
+**3. Names.**
 
-| Ruta                  | Qué es                         | Git            |
-| --------------------- | ------------------------------ | -------------- |
-| `laqi.json`           | Modo archivo único, en la raíz | commiteado     |
-| `laqi/`               | Modo carpeta                   | commiteado     |
-| `laqi/scenarios.json` | Escenarios con nombre          | commiteado     |
-| `.laqi/state.json`    | Estado activo                  | **gitignored** |
+| Path                  | What it is                    | Git            |
+| --------------------- | ----------------------------- | -------------- |
+| `laqi.json`           | Single-file mode, at the root | committed      |
+| `laqi/`               | Folder mode                   | committed      |
+| `laqi/scenarios.json` | Named scenarios               | committed      |
+| `.laqi/state.json`    | Active state                  | **gitignored** |
 
-La regla, en una línea: **sin punto es tuyo y se commitea; con punto lo genera
-la máquina y se ignora.**
+The rule, in one line: **no dot means it's yours and gets committed; with a
+dot the machine generates it and it's ignored.**
 
-**4. Los escenarios se escriben a mano y por MCP.**
+**4. Scenarios are written by hand and by MCP.**
 
-El flujo F4 del diseño deja la autoría de escenarios fuera del panel a propósito
-(el panel sólo activa). Se confirma esa decisión, y se cubre el hueco por el
-otro lado: el [ADR-0006](/decisions/0006-mcp-server/) suma `create_scenario` y
-`update_scenario` a las herramientas MCP. El agente es quien mejor sabe qué
-endpoints toca un escenario, porque tiene el contexto de la pantalla que está
-construyendo.
+Flow F4 of the design deliberately leaves scenario authoring out of the
+panel (the panel only activates them). That decision is confirmed, and the
+gap is covered from the other side: [ADR-0006](/decisions/0006-mcp-server/)
+adds `create_scenario` and `update_scenario` to the MCP tools. The agent is
+the one who best knows which endpoints a scenario touches, because it has
+the context of the screen it's building.
 
-## Por qué se cede ante el diseño en el punto 1
+## Why the design is deferred to on point 1
 
-**El objetivo del ADR-0003 era que no hubiera colisiones _silenciosas_.** La
-estructura era un medio para lograrlo, no el fin. La validación consigue lo
-mismo, y a estas alturas es más barata:
+**The goal of ADR-0003 was that there be no _silent_ collisions.** The
+structure was a means to that end, not the end itself. Validation achieves
+the same thing, and at this point it's cheaper:
 
-1. **La banda de error ya existe** en el diseño, con archivo, línea, causa en
-   palabras y extracto de código. Una colisión encaja ahí sin inventar nada.
-2. **Una sola sintaxis de clave** en todos lados. El routing por filesystem
-   obligaba a dos modelos mentales: claves con método en modo archivo, métodos
-   como claves internas en modo carpeta.
-3. **Sin carpetas profundas.** `laqi/api/v1/users/[id]/orders/[orderId].json`
-   contra una línea `"GET /api/v1/users/:id/orders/:orderId"`.
-4. **El editor y el MCP se simplifican**: crear un endpoint es agregar una clave
-   a un archivo, no decidir dónde ponerlo en un árbol.
-5. Cada endpoint ya lleva su archivo de origen en el contrato del control plane,
-   así que el error puede nombrar los dos lados del conflicto.
+1. **The error band already exists** in the design, with file, line, cause
+   in words and a code excerpt. A collision fits right in without inventing
+   anything.
+2. **One single key syntax** everywhere. Filesystem routing forced two
+   mental models: keys with a method in single-file mode, methods as
+   internal keys in folder mode.
+3. **No deep folders.**
+   `laqi/api/v1/users/[id]/orders/[orderId].json` versus one line
+   `"GET /api/v1/users/:id/orders/:orderId"`.
+4. **The editor and the MCP get simpler**: creating an endpoint is adding a
+   key to a file, not deciding where to place it in a tree.
+5. Each endpoint already carries its origin file in the control plane's
+   contract, so the error can name both sides of the conflict.
 
-## Por qué `laqi/` y no `mocks/`
+## Why `laqi/` and not `mocks/`
 
-`mocks/` choca con convenciones que ya existen en proyectos reales: `__mocks__`
-es la convención de Jest, y los setups de MSW usan `mocks/` habitualmente.
-Alguien que instale laqi en un proyecto con una carpeta `mocks/` previa tendría
-un conflicto el primer día.
+`mocks/` clashes with conventions that already exist in real projects:
+`__mocks__` is Jest's convention, and MSW setups commonly use `mocks/`.
+Anyone installing laqi into a project with a pre-existing `mocks/` folder
+would have a conflict on day one.
 
-`laqi/` no colisiona con nada, es corto, y queda simétrico con `laqi.json` del
-modo archivo único. El costo —que el nombre diga qué herramienta lo lee en vez
-de qué contiene— es menor que el riesgo de pisar una carpeta existente.
+`laqi/` doesn't collide with anything, is short, and stays symmetric with
+`laqi.json` from single-file mode. The cost — the name says which tool reads
+it rather than what it contains — is smaller than the risk of stepping on
+an existing folder.
 
-**Consecuencia para el diseño:** las pantallas dicen `./mocks/` y
-`mocks/api.json`. Hay que cambiar esos strings a `./laqi/` y `laqi/api.json` en
-el header, la banda de error, el estado fresh y el flujo F6.
+**Consequence for the design:** the screens say `./mocks/` and
+`mocks/api.json`. Those strings need to change to `./laqi/` and
+`laqi/api.json` in the header, the error band, the fresh state, and flow F6.
 
-## Alternativas consideradas
+## Alternatives considered
 
-**Mantener el routing por filesystem del ADR-0003.** La colisión sería imposible
-en vez de sólo detectada, y el idioma es familiar (Next.js, Nuxt, SvelteKit).
-Descartada por las cinco razones de arriba, y porque obligaba a reajustar un
-diseño ya entregado y bien resuelto.
+**Keep ADR-0003's filesystem routing.** The collision would be impossible
+instead of merely detected, and the idiom is familiar (Next.js, Nuxt,
+SvelteKit). Discarded for the five reasons above, and because it would have
+forced readjusting an already-delivered, well-resolved design.
 
-**Soportar los dos modos.** Filesystem routing si el archivo no tiene claves con
-método, claves `"METHOD /path"` si las tiene. Descartada: dos modelos mentales
-conviviendo, el editor web tendría que entender ambos, el MCP tendría que elegir
-uno al crear, y se duplica la superficie de tests y documentación. Flexibilidad
-que nadie pidió.
+**Support both modes.** Filesystem routing if the file has no keys with a
+method, `"METHOD /path"` keys if it does. Discarded: two mental models
+coexisting, the web editor would have to understand both, the MCP would
+have to pick one when creating, and it duplicates the test and
+documentation surface. Flexibility nobody asked for.
 
-**`mocks/` como en el diseño.** Descartada por el choque con Jest y MSW.
+**`mocks/` as in the design.** Discarded for the clash with Jest and MSW.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- Una sola sintaxis en todo el producto: archivos, editor, MCP y documentación.
-- El diseño entregado se implementa casi tal cual (sólo cambian nombres de rutas).
-- Organizar los mocks es libre: un archivo, uno por recurso, o por feature.
+- A single syntax across the whole product: files, editor, MCP and
+  documentation.
+- The delivered design gets implemented almost as-is (only path strings
+  change).
+- Organizing the mocks is free-form: one file, one per resource, or by
+  feature.
 
-**En contra:**
+**Against:**
 
-- **La colisión es posible, sólo que ruidosa.** Se paga con un test que la
-  cubra y con un mensaje de error que nombre los dos archivos. Sin ese mensaje,
-  esta decisión es peor que la anterior.
-- La ruta HTTP ya no se puede deducir mirando el árbol de archivos; hay que
-  abrirlos. Se mitiga con el campo `file` por endpoint en el panel.
-- Hay que actualizar los strings del diseño.
+- **The collision is possible, just loud.** It's paid for with a test that
+  covers it and an error message naming both files. Without that message,
+  this decision is worse than the previous one.
+- The HTTP route can no longer be inferred by looking at the file tree; the
+  files have to be opened. Mitigated with the `file` field per endpoint in
+  the panel.
+- The design's strings need to be updated.

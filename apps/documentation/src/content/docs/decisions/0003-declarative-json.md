@@ -1,56 +1,57 @@
 ---
-title: ADR-0003 — JSON declarativo como formato primario
+title: ADR-0003 — Declarative JSON as the primary format
 ---
 
-# ADR-0003 — JSON declarativo como formato primario
+# ADR-0003 — Declarative JSON as the primary format
 
-**Estado:** Aceptada — parcialmente superada por [ADR-0008](/decisions/0008-multifile-and-names/)
-**Fecha:** 2026-08-24
+**Status:** Accepted — partially superseded by [ADR-0008](/decisions/0008-multifile-and-names/)
+**Date:** 2026-08-24
 
-> **Nota:** el modo carpeta con _routing por filesystem_ descrito abajo fue
-> reemplazado por el [ADR-0008](/decisions/0008-multifile-and-names/): cualquier
-> cantidad de archivos, todos con claves `"METHOD /path"`, y la colisión de
-> rutas resuelta con validación en vez de estructura. Los nombres también
-> cambian (`laqi/`, `laqi.json`). Todo lo demás de este ADR sigue vigente.
+> **Note:** the folder mode with _filesystem routing_ described below was
+> replaced by [ADR-0008](/decisions/0008-multifile-and-names/): any number of
+> files, all with `"METHOD /path"` keys, with route collisions resolved by
+> validation instead of structure. The names also change (`laqi/`,
+> `laqi.json`). Everything else in this ADR still stands.
 
-## Contexto
+## Context
 
-Había que decidir el formato de los archivos de mock. v1 usaba JSON, pero con un
-esquema que causó tres de sus peores defectos: el método codificado en la clave
-del endpoint (que llevó al hack `(get)files/:id`), la fusión plana de archivos
-(colisiones silenciosas) y `selectorCode` redundante dentro de un array.
+The format for mock files had to be decided. v1 used JSON, but with a schema
+that caused three of its worst defects: the method encoded in the endpoint
+key (which led to the `(get)files/:id` hack), the flat merge of files
+(silent collisions), and a redundant `selectorCode` inside an array.
 
-La pregunta abierta era si seguir en JSON o pasar a TypeScript, que da tipos,
-autocompletado y lógica.
+The open question was whether to stay on JSON or move to TypeScript, which
+gives types, autocompletion and logic.
 
-## Decisión
+## Decision
 
-**JSON declarativo como formato primario**, con esquema nuevo. TypeScript queda
-como escape hatch opcional para el pequeño porcentaje de casos que necesitan
-lógica de verdad.
+**Declarative JSON as the primary format**, with a new schema. TypeScript
+remains an optional escape hatch for the small percentage of cases that need
+real logic.
 
-## Por qué
+## Why
 
-El argumento completo está en [los tres escritores](/concepts/three-writers/).
-Resumido:
+The full argument is in [the three writers](/concepts/three-writers/).
+Summarized:
 
-En v1 los archivos tenían un solo escritor: el humano. En v2 hay tres —el humano,
-el editor web y la IA vía MCP— y eso impone una restricción dura: **el formato
-tiene que ser round-trippeable por una máquina.** El editor web debe poder abrir
-un archivo, cambiar un campo y reescribirlo sin destruir lo que no tocó.
+In v1 files had a single writer: the human. In v2 there are three — the
+human, the web editor, and the AI via MCP — and that imposes a hard
+constraint: **the format has to be round-trippable by a machine.** The web
+editor must be able to open a file, change a field and write it back without
+destroying what it didn't touch.
 
-Eso descarta TypeScript como fuente de verdad:
+That rules out TypeScript as the source of truth:
 
-- Reescribir un `.ts` desde una UI exige un codemod de AST, y el resultado se
-  degrada con cada pasada.
-- La IA tendría que generar **código** en vez de **datos** — más superficie para
-  alucinar y sin forma barata de validar.
-- Cargar `.ts` significa **ejecutar código arbitrario** y meter un transpilador
-  dentro del CLI.
+- Rewriting a `.ts` file from a UI requires an AST codemod, and the result
+  degrades with each pass.
+- The AI would have to generate **code** instead of **data** — more surface
+  to hallucinate and no cheap way to validate it.
+- Loading `.ts` means **executing arbitrary code** and bundling a transpiler
+  inside the CLI.
 
-## El esquema nuevo
+## The new schema
 
-**Modo archivo único** — `laqi.json` en la raíz. El caso de treinta segundos:
+**Single-file mode** — `laqi.json` at the root. The thirty-second case:
 
 ```json
 {
@@ -70,7 +71,7 @@ Eso descarta TypeScript como fuente de verdad:
 }
 ```
 
-**Modo carpeta** — `laqi/` con routing por filesystem, cuando crece.
+**Folder mode** — `laqi/` with filesystem routing, once it grows.
 `laqi/users/[id].json`:
 
 ```json
@@ -80,49 +81,50 @@ Eso descarta TypeScript como fuente de verdad:
 }
 ```
 
-Los dos compilan a la misma tabla de rutas interna. Se empieza con un archivo y
-`laqi split` lo convierte en carpeta cuando estorba. **Soportar los dos modos es
-deliberado**: "un archivo o una carpeta, un comando y está vivo" era lo que hacía
-bueno a v1 y no se pierde.
+Both compile down to the same internal route table. You start with one file
+and `laqi split` turns it into a folder once it gets in the way. **Supporting
+both modes is deliberate**: "one file or one folder, one command and it's
+alive" is what made v1 good, and it isn't lost.
 
-## Qué arregla cada cambio
+## What each change fixes
 
-| Cambio                                 | Defecto de v1 que elimina                                                                                                                        |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| La clave es `"GET /users/:id"`         | El método deja de competir con el path → adiós al hack `(get)files/:id`                                                                          |
-| Routing por filesystem en modo carpeta | Colisión entre archivos **imposible por construcción** (defecto D)                                                                               |
-| `responses` es objeto, no array        | Muere `selectorCode` (era redundante con su propia clave); lookup O(1); nombre único garantizado                                                 |
-| `status` es número                     | Compatible con Hono y Express 5 (defecto I)                                                                                                      |
-| `delay` y `headers` de primera clase   | Simular red lenta y timeouts — crítico para React Native                                                                                         |
-| `{{uuid}}`, `{{name}}`                 | Implementa de verdad el `(generate:uid)` que quedó a medias (defecto E)                                                                          |
-| Validación Zod al cargar               | Selector inexistente, método inválido o entrada `null` fallan **al arrancar**, con mensaje claro, en vez de colgar la request (defectos B, C, G) |
-| `$schema` publicado                    | Autocompletado y validación en VSCode, gratis                                                                                                    |
+| Change                                 | v1 defect it removes                                                                                                                           |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| The key is `"GET /users/:id"`          | The method stops competing with the path → goodbye to the `(get)files/:id` hack                                                                |
+| Filesystem routing in folder mode      | Collision between files **impossible by construction** (defect D)                                                                              |
+| `responses` is an object, not an array | `selectorCode` dies (it was redundant with its own key); O(1) lookup; unique name guaranteed                                                   |
+| `status` is a number                   | Compatible with Hono and Express 5 (defect I)                                                                                                  |
+| `delay` and `headers` as first-class   | Simulate slow networks and timeouts — critical for React Native                                                                                |
+| `{{uuid}}`, `{{name}}`                 | Actually implements the `(generate:uid)` that was left half-done (defect E)                                                                    |
+| Zod validation on load                 | A missing selector, invalid method or `null` input fail **at startup**, with a clear message, instead of hanging the request (defects B, C, G) |
+| Published `$schema`                    | Autocompletion and validation in VSCode, for free                                                                                              |
 
-## Alternativas consideradas
+## Alternatives considered
 
-**TypeScript como fuente de verdad.** Descartada por el argumento de los tres
-escritores. Se mantiene como escape hatch opcional: un archivo `.ts` al lado del
-JSON puede exportar un handler para el caso que necesita lógica real. El editor
-web y el MCP no lo tocan, sólo lo muestran como "manejado por código".
+**TypeScript as the source of truth.** Discarded per the three-writers
+argument. Kept as an optional escape hatch: a `.ts` file next to the JSON
+can export a handler for the case that needs real logic. The web editor and
+the MCP don't touch it, they only show it as "handled by code".
 
-**YAML.** Más legible y admite comentarios, pero el round-trip preservando
-comentarios es frágil y los tres escritores lo tratarían distinto. La ganancia en
-legibilidad no compensa.
+**YAML.** More readable and supports comments, but round-tripping while
+preserving comments is fragile and the three writers would treat it
+differently. The gain in readability doesn't make up for it.
 
-**Mantener el esquema de v1 tal cual.** Descartada: es la fuente directa de tres
-defectos verificados.
+**Keeping v1's schema as is.** Discarded: it is the direct source of three
+verified defects.
 
-## Consecuencias
+## Consequences
 
-**A favor:**
+**In favour:**
 
-- Un formato que los tres escritores comparten sin fricción.
-- Validable barato, con errores al arrancar en vez de en runtime.
-- Sin transpilador ni ejecución de código arbitrario en el CLI.
+- A format the three writers share without friction.
+- Cheap to validate, with errors at startup instead of at runtime.
+- No transpiler and no arbitrary code execution in the CLI.
 
-**En contra:**
+**Against:**
 
-- JSON no admite comentarios. Mitigado con un campo `description` opcional por
-  endpoint y por respuesta.
-- Es más verboso que TS para casos complejos. Para eso está el escape hatch.
-- Rompe compatibilidad con v1. Mitigado con `laqi migrate`.
+- JSON doesn't support comments. Mitigated with an optional `description`
+  field per endpoint and per response.
+- More verbose than TS for complex cases. That's what the escape hatch is
+  for.
+- Breaks compatibility with v1. Mitigated with `laqi migrate`.
