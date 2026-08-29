@@ -1,0 +1,87 @@
+---
+// apps/site/src/components/FeatureGrid.astro
+import DemoPlaceholder from './DemoPlaceholder.astro'
+
+const features = [
+  { kicker: 'one click', color: 'var(--mint)', title: 'Flip a response', body: "Every response is a chip in the list. No dropdown, no rebuild, no restart. The next request gets the new one." },
+  { kicker: 'scenarios', color: 'var(--vio)', title: 'Move the whole API at once', body: 'Name a set of overrides offline and put your app in it with one click. The demo move.' },
+  { kicker: 'live log', color: 'var(--mint)', title: 'See every request land', body: 'Status, timing, and which layer decided the response. Requests that match nothing are impossible to miss.' },
+  { kicker: 'latency', color: 'var(--mag)', title: 'Slow things down on purpose', body: 'A delay on any response. Build the skeleton state you can never reproduce locally.' },
+  { kicker: 'tunnel', color: 'var(--mag)', title: 'Share it for ten minutes', body: 'One button gives you a public URL and a token, for a teammate or a real phone. Off by default, always.' },
+  { kicker: 'plain files', color: 'var(--dim)', title: 'It is just JSON in your repo', body: 'Diffable, reviewable, committed. Edit in your editor or in the panel — both write the same file.' },
+]
+---
+<section class="feature-grid">
+  <p class="eyebrow">what you get</p>
+  <h2>Built for the fifty times a day you ask "what if this fails?"</h2>
+  <div class="grid">
+    {features.map((f) => (
+      <div class="card">
+        <p class="kicker" style={`color: ${f.color}`}>{f.kicker}</p>
+        <h3>{f.title}</h3>
+        <p class="body">{f.body}</p>
+      </div>
+    ))}
+  </div>
+  <div class="demos">
+    <DemoPlaceholder caption="Demo: activating the offline scenario" />
+    <DemoPlaceholder caption="Demo: ⌘K palette, typing 'todos error'" />
+  </div>
+</section>
+
+<style>
+  .feature-grid {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 2rem;
+    color: var(--fg);
+    max-width: 40rem;
+    margin: 0 0 2.5rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 3rem;
+  }
+  .card {
+    padding: 1.5rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: lowercase;
+    margin: 0 0 0.75rem;
+  }
+  .card h3 {
+    font-family: var(--serif);
+    color: var(--fg);
+    margin: 0 0 0.5rem;
+  }
+  .card .body {
+    color: var(--dim);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .demos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+</style>
