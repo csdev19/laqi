@@ -1,33 +1,14 @@
 /*
- * The tokens come from docs/diseno/design.md. No remote fonts: the panel has
- * to look the same with the wifi off, so Source Serif 4 and JetBrains Mono
- * are requested by name and fall back to the system's if unavailable.
+ * Colors and fonts come from @laqi/tokens — the same file the public
+ * site imports, so the panel and laqi.dev never drift apart. Only
+ * this package's own layout tokens (row height, log panel width)
+ * stay local, because nothing outside the panel needs them.
  */
+@import '@laqi/tokens/tokens.css';
+
 :root {
-  --bg: #0b0a0f;
-  --panel: #121019;
-  --panel2: #171522;
-  --line: #241f35;
-  --line2: #332a4a;
-  --fg: #eae7f2;
-  --dim: #8e88a8;
-  --dim2: #5c5678;
-
-  --vio: #7a00ff;
-  --viol: #a366ff;
-  --mag: #ff00a0;
-  --magl: #ff7ac8;
-  --mint: #00ffc2;
-  --red: #ff0058;
-  --warn: #ffb020;
-  --palev: #c9a6ff;
-  --palem: #7fefd8;
-
   --rpy: 10px;
   --log-w: 426px;
-
-  --serif: 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 :root[data-density='compact'] {

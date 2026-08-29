@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "laqi",
-      "version": "2.0.0-beta.0",
+      "version": "2.0.0",
       "bin": {
         "laqi": "./dist/index.mjs",
       },
@@ -93,6 +93,7 @@
       "dependencies": {
         "@laqi/core": "workspace:*",
         "@laqi/schema": "workspace:*",
+        "@laqi/tokens": "workspace:*",
       },
       "devDependencies": {
         "@testing-library/dom": "^10.4.0",
@@ -150,6 +151,13 @@
         "zod": "catalog:",
       },
     },
+    "packages/tokens": {
+      "name": "@laqi/tokens",
+      "version": "1.0.0",
+      "devDependencies": {
+        "vitest": "catalog:",
+      },
+    },
     "packages/tui": {
       "name": "@laqi/tui",
       "version": "2.0.0",
@@ -163,6 +171,7 @@
     "hono": "4.12.3",
     "tsdown": "0.18.4",
     "typescript": "5.9.3",
+    "vitest": "^2.1.0",
     "zod": "4.3.6",
   },
   "packages": {
@@ -391,6 +400,8 @@
     "@laqi/schema": ["@laqi/schema@workspace:packages/schema"],
 
     "@laqi/server": ["@laqi/server@workspace:packages/server"],
+
+    "@laqi/tokens": ["@laqi/tokens@workspace:packages/tokens"],
 
     "@laqi/tui": ["@laqi/tui@workspace:packages/tui"],
 
