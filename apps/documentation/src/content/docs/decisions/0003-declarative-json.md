@@ -4,11 +4,11 @@ title: ADR-0003 — JSON declarativo como formato primario
 
 # ADR-0003 — JSON declarativo como formato primario
 
-**Estado:** Aceptada — parcialmente superada por [ADR-0008](/decisiones/0008-multiarchivo-y-nombres/)
+**Estado:** Aceptada — parcialmente superada por [ADR-0008](/decisions/0008-multifile-and-names/)
 **Fecha:** 2026-08-24
 
 > **Nota:** el modo carpeta con _routing por filesystem_ descrito abajo fue
-> reemplazado por el [ADR-0008](/decisiones/0008-multiarchivo-y-nombres/): cualquier
+> reemplazado por el [ADR-0008](/decisions/0008-multifile-and-names/): cualquier
 > cantidad de archivos, todos con claves `"METHOD /path"`, y la colisión de
 > rutas resuelta con validación en vez de estructura. Los nombres también
 > cambian (`laqi/`, `laqi.json`). Todo lo demás de este ADR sigue vigente.
@@ -31,7 +31,7 @@ lógica de verdad.
 
 ## Por qué
 
-El argumento completo está en [los tres escritores](/conceptos/tres-escritores/).
+El argumento completo está en [los tres escritores](/concepts/three-writers/).
 Resumido:
 
 En v1 los archivos tenían un solo escritor: el humano. En v2 hay tres —el humano,

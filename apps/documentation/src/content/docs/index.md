@@ -17,43 +17,43 @@ la razón. Está en español porque es el idioma en que se discutió.
 
 Si llegas nuevo, en este orden:
 
-1. **[Análisis de v1](/analisis-v1/)** — qué existía, qué servía, qué estaba roto
+1. **[Análisis de v1](/v1-analysis/)** — qué existía, qué servía, qué estaba roto
    y qué era peligroso. Con evidencia reproducible. Es la base de todo lo demás.
-2. **[Conceptos](conceptos/)** — los dos principios transversales que gobiernan
+2. **[Conceptos](concepts/)** — los dos principios transversales que gobiernan
    varias decisiones a la vez.
-3. **[Decisiones](decisiones/)** — un ADR por decisión estructural.
-4. **[Diseño](diseno/)** — el control panel, y la revisión de ese diseño contra
+3. **[Decisiones](decisions/)** — un ADR por decisión estructural.
+4. **[Diseño](design/)** — el control panel, y la revisión de ese diseño contra
    los ADRs.
 
 ## Índice
 
 ### Conceptos
 
-| Doc                                                      | De qué trata                                                             |
-| -------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Los tres escritores](/conceptos/tres-escritores/)       | El principio que decide el formato, la validación y dónde vive el estado |
-| [Resolución de estado](/conceptos/resolucion-de-estado/) | Las tres capas que deciden qué respuesta devuelve un endpoint            |
+| Doc                                                 | De qué trata                                                             |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Los tres escritores](/concepts/three-writers/)     | El principio que decide el formato, la validación y dónde vive el estado |
+| [Resolución de estado](/concepts/state-resolution/) | Las tres capas que deciden qué respuesta devuelve un endpoint            |
 
 ### Diseño
 
-| Doc                                                       | De qué trata                                                                     |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Prompt del editor](/prompt-editor-web/)                  | El brief que se le pasó a Claude Design                                          |
-| [Diseño del control panel](diseno/)                       | Lo que volvió: pantallas, interacciones, flujos F1–F9                            |
-| [Revisión vs decisiones](/diseno/revision-vs-decisiones/) | 13 hallazgos: 1 bloqueante de seguridad, 1 estructural, y las preguntas abiertas |
+| Doc                                                    | De qué trata                                                                     |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| [Prompt del editor](/web-editor-prompt/)               | El brief que se le pasó a Claude Design                                          |
+| [Diseño del control panel](design/)                    | Lo que volvió: pantallas, interacciones, flujos F1–F9                            |
+| [Revisión vs decisiones](/design/review-vs-decisions/) | 13 hallazgos: 1 bloqueante de seguridad, 1 estructural, y las preguntas abiertas |
 
 ### Decisiones
 
-| ADR                                              | Decisión                                               | Estado                     |
-| ------------------------------------------------ | ------------------------------------------------------ | -------------------------- |
-| [0001](/decisiones/0001-rewrite-v2/)             | Rewrite completo en vez de arreglar v1                 | Aceptada                   |
-| [0002](/decisiones/0002-hono-sobre-elysia/)      | Hono como framework HTTP                               | Aceptada                   |
-| [0003](/decisiones/0003-json-declarativo/)       | JSON declarativo como formato primario                 | Superada en parte por 0008 |
-| [0004](/decisiones/0004-estado-fuera-de-git/)    | El estado activo no se trackea                         | Aceptada                   |
-| [0005](/decisiones/0005-monorepo/)               | Monorepo alineado con rakoi                            | Aceptada                   |
-| [0006](/decisiones/0006-servidor-mcp/)           | Servidor MCP como pieza de primera clase               | Aceptada                   |
-| [0007](/decisiones/0007-url-publica/)            | URL pública: cloudflared primero, relay propio después | Aceptada                   |
-| [0008](/decisiones/0008-multiarchivo-y-nombres/) | Multi-archivo con claves `"METHOD /path"`, y nombres   | Aceptada                   |
+| ADR                                          | Decisión                                               | Estado                     |
+| -------------------------------------------- | ------------------------------------------------------ | -------------------------- |
+| [0001](/decisions/0001-rewrite-v2/)          | Rewrite completo en vez de arreglar v1                 | Aceptada                   |
+| [0002](/decisions/0002-hono-over-elysia/)    | Hono como framework HTTP                               | Aceptada                   |
+| [0003](/decisions/0003-declarative-json/)    | JSON declarativo como formato primario                 | Superada en parte por 0008 |
+| [0004](/decisions/0004-state-outside-git/)   | El estado activo no se trackea                         | Aceptada                   |
+| [0005](/decisions/0005-monorepo/)            | Monorepo alineado con rakoi                            | Aceptada                   |
+| [0006](/decisions/0006-mcp-server/)          | Servidor MCP como pieza de primera clase               | Aceptada                   |
+| [0007](/decisions/0007-public-url/)          | URL pública: cloudflared primero, relay propio después | Aceptada                   |
+| [0008](/decisions/0008-multifile-and-names/) | Multi-archivo con claves `"METHOD /path"`, y nombres   | Aceptada                   |
 
 ## Convención de ADRs
 

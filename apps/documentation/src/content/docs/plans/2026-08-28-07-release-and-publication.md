@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 7: Release automation and publishing"
 
 **Tech Stack:** release-please v4 (`googleapis/release-please-action@v4`), GitHub Actions, Bun 1.3.4 for install/build, Node 22 + `npm publish --provenance` for publishing, oxlint + oxfmt for the gate, vitest for the dist-tag tests.
 
-**Spec:** `apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md` — this plan argues from it; read both.
+**Spec:** `apps/documentation/src/content/docs/decisions/0010-release-and-npm.md` — this plan argues from it; read both.
 
 ## Global Constraints
 
@@ -996,7 +996,7 @@ and published by GitHub Actions. Nobody publishes from a laptop.
 
 The dist-tag is derived from the version: anything with a `-` goes to its
 prerelease tag (`beta`), anything else to `latest`. See
-[ADR-0010](apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md).
+[ADR-0010](apps/documentation/src/content/docs/decisions/0010-release-and-npm.md).
 
 **The beta line must stay on `X.0.0-beta`.** On any other shape, an ordinary
 `feat` produces a final version and takes over `latest`.

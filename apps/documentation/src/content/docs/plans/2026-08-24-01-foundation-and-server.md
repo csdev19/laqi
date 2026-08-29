@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 1: Fundación y servidor de mocks"
 
 **Tech Stack:** Bun 1.3 (workspaces + catalog), Turborepo, TypeScript 5.9, Hono 4.12, Zod 4.3, Vitest 2, oxlint + oxfmt, tsdown.
 
-**Spec:** [`docs/decisiones/`](../decisiones/) (ADRs 0001–0008), [`docs/conceptos/`](../conceptos/), [`docs/diseno/STATE-MODEL.md`](/diseno/state-model/)
+**Spec:** [`docs/decisiones/`](../decisions/) (ADRs 0001–0008), [`docs/conceptos/`](../concepts/), [`docs/diseno/STATE-MODEL.md`](/design/state-model/)
 
 ## Global Constraints
 
@@ -1519,7 +1519,7 @@ git commit -m "feat(core): build route table and reject duplicate routes loudly"
 
 ## Task 8: `packages/core` — store de estado
 
-Escribe `.laqi/state.json`, gitignored ([ADR-0004](/decisiones/0004-estado-fuera-de-git/)). Es un archivo que genera la máquina: si está corrupto se descarta y se empieza de cero, nunca se cae el servidor.
+Escribe `.laqi/state.json`, gitignored ([ADR-0004](/decisions/0004-state-outside-git/)). Es un archivo que genera la máquina: si está corrupto se descarta y se empieza de cero, nunca se cae el servidor.
 
 **Files:**
 
@@ -1652,7 +1652,7 @@ git commit -m "feat(core): persist active state in gitignored .laqi/state.json"
 
 ## Task 9: `packages/core` — resolución de las cuatro capas
 
-El corazón del producto. Ver [`docs/diseno/STATE-MODEL.md`](/diseno/state-model/).
+El corazón del producto. Ver [`docs/diseno/STATE-MODEL.md`](/design/state-model/).
 
 **Files:**
 
@@ -2893,7 +2893,7 @@ git commit -m "feat(cli): serve mocks with hot-swap reload that never restarts t
 
 ## Task 13: `apps/cli` — `laqi migrate`
 
-Convierte el formato de v1, incluido el hack `(get)files/:id`. Es lo que hace del [ADR-0001](/decisiones/0001-rewrite-v2/) una migración y no una ruptura.
+Convierte el formato de v1, incluido el hack `(get)files/:id`. Es lo que hace del [ADR-0001](/decisions/0001-rewrite-v2/) una migración y no una ruptura.
 
 **Files:**
 
@@ -3287,10 +3287,10 @@ git commit -m "feat(cli): migrate v1 mock files to the v2 format"
 
 Anotado para que no se pierda:
 
-- **Templating `{{uuid}}` / `{{name}}`** ([ADR-0003](/decisiones/0003-json-declarativo/)). v1 tenía `(generate:uid)` sin implementar; v2 lo implementa, pero en un plan posterior.
+- **Templating `{{uuid}}` / `{{name}}`** ([ADR-0003](/decisions/0003-declarative-json/)). v1 tenía `(generate:uid)` sin implementar; v2 lo implementa, pero en un plan posterior.
 - **v2 no hace eco de `params`, `query` ni `body`** en la respuesta. v1 sí lo hacía, pero como efecto colateral del bug de mutación (defecto A) — no era una feature, era el bug. El reemplazo deliberado es el templating.
 - **Control plane, SSE, editor web** → Plan 2. **MCP** → Plan 3. **`--share`** → Plan 4. **Documentación** → Plan 5.
-- **Escape hatch en TypeScript** para endpoints con lógica ([ADR-0003](/decisiones/0003-json-declarativo/)): sin plan asignado todavía.
+- **Escape hatch en TypeScript** para endpoints con lógica ([ADR-0003](/decisions/0003-declarative-json/)): sin plan asignado todavía.
 - **Empaquetado para npm.** El `bin` apunta a `src/index.ts`, que corre con Bun en desarrollo pero no con Node desde un `npx`. El build con tsdown a `dist/` y la verificación de que `npx laqi` funciona en Node limpio van en el Plan 5, junto con la publicación.
 
 ## Hallazgos de la revisión de diseño cubiertos acá

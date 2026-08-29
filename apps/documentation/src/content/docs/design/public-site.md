@@ -192,7 +192,7 @@ call. Prose has to be found, opened and believed. An agent that reads
 hand when it could have called `create_endpoint`.
 
 `/docs/llm-prompt/` must name the MCP server first and the file format second.
-See `diseno/testing-mcp.md` for what the tools are and how they are tested.
+See `design/testing-mcp.md` for what the tools are and how they are tested.
 
 ## What did not change
 

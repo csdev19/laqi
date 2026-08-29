@@ -6,11 +6,11 @@ title: "ADR-0008 — Multi-archivo con claves `\"METHOD /path\"`, y nombres"
 
 **Estado:** Aceptada
 **Fecha:** 2026-08-24
-**Supera:** la parte de routing por filesystem del [ADR-0003](/decisiones/0003-json-declarativo/)
+**Supera:** la parte de routing por filesystem del [ADR-0003](/decisions/0003-declarative-json/)
 
 ## Contexto
 
-El [ADR-0003](/decisiones/0003-json-declarativo/) definió dos modos: un archivo único con
+El [ADR-0003](/decisions/0003-declarative-json/) definió dos modos: un archivo único con
 claves `"METHOD /path"`, o una carpeta con **routing por filesystem**
 (`laqi/users/[id].json`), elegido para que la colisión de rutas entre archivos
 fuera imposible por construcción — el defecto D de v1.
@@ -50,7 +50,7 @@ LOAD FAILED   duplicate route GET /users
 
 Igual que un JSON inválido: ruidoso, con archivo y línea, y **no fatal** — el
 resto del mock se sigue sirviendo (ver ADR-0003 y la corrección de semántica en
-[tres-escritores](/conceptos/tres-escritores/)).
+[three-writers](/concepts/three-writers/)).
 
 **3. Nombres.**
 
@@ -68,7 +68,7 @@ la máquina y se ignora.**
 
 El flujo F4 del diseño deja la autoría de escenarios fuera del panel a propósito
 (el panel sólo activa). Se confirma esa decisión, y se cubre el hueco por el
-otro lado: el [ADR-0006](/decisiones/0006-servidor-mcp/) suma `create_scenario` y
+otro lado: el [ADR-0006](/decisions/0006-mcp-server/) suma `create_scenario` y
 `update_scenario` a las herramientas MCP. El agente es quien mejor sabe qué
 endpoints toca un escenario, porque tiene el contexto de la pantalla que está
 construyendo.

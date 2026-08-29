@@ -60,7 +60,7 @@ interfaz, con `CloudflaredProvider` como primera implementación.
 
 ## Seguridad: no negociable
 
-Ésta es la parte crítica. El [análisis de v1](/analisis-v1/) mostró que el
+Ésta es la parte crítica. El [análisis de v1](/v1-analysis/) mostró que el
 servidor tenía CORS `*` y cero autenticación. En `127.0.0.1` daba igual. **Con
 URL pública deja de dar igual**, y las URLs de túnel efímero son escaneadas
 activamente por bots.
@@ -113,5 +113,5 @@ Se mantiene igual como opción para el caso simple de misma-wifi.
 - **Obliga a tomarse la seguridad en serio.** Las cinco medidas de arriba son
   trabajo real que sin `--share` no haría falta. Es el costo de la feature.
 - El modo compartido **sólo funciona bien porque el estado no es global**
-  ([ADR-0004](/decisiones/0004-estado-fuera-de-git/)). Las dos decisiones se sostienen
+  ([ADR-0004](/decisions/0004-state-outside-git/)). Las dos decisiones se sostienen
   mutuamente.

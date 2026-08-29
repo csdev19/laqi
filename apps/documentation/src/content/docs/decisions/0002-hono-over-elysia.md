@@ -29,7 +29,7 @@ adopción** que una herramienta de este tipo no puede permitirse.
 **2. El framework y la URL pública son la misma decisión.**
 
 Ésta es la razón que decide. El relay propio de
-[ADR-0007](/decisiones/0007-url-publica/) corre en Cloudflare Workers. Hono corre en
+[ADR-0007](/decisions/0007-public-url/) corre en Cloudflare Workers. Hono corre en
 Node, Bun, Deno, Workers, Vercel y Lambda sobre Web Standards
 (`Request`/`Response`), así que **el mismo `packages/server` corre en el CLI local
 y en el relay del edge**. Con Elysia habría que mantener dos implementaciones.

@@ -8,7 +8,7 @@ title: Resolución de estado
 
 Cómo decide laqi v2 **qué respuesta devolver** cuando un endpoint tiene varias
 declaradas. Es el sucesor del campo `codeResponse` de v1, y la razón por la que
-existe está en [ADR-0004](/decisiones/0004-estado-fuera-de-git/).
+existe está en [ADR-0004](/decisions/0004-state-outside-git/).
 
 ## El problema
 

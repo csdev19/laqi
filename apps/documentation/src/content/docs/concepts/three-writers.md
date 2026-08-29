@@ -7,8 +7,8 @@ title: Los tres escritores
 **Fecha:** 2026-08-24
 
 Éste es el principio que gobierna varias decisiones de v2 a la vez: el formato
-([ADR-0003](/decisiones/0003-json-declarativo/)), dónde vive el estado
-([ADR-0004](/decisiones/0004-estado-fuera-de-git/)) y por qué la validación
+([ADR-0003](/decisions/0003-declarative-json/)), dónde vive el estado
+([ADR-0004](/decisions/0004-state-outside-git/)) y por qué la validación
 es obligatoria al cargar. Vale la pena entenderlo antes que los ADRs, porque
 todos apuntan acá.
 
@@ -46,7 +46,7 @@ Eso descarta cualquier formato que requiera interpretar código para entenderlo:
 
 **JSON gana**, no por conservadurismo, sino por ser el único formato que los tres
 escritores comparten sin fricción. Ver
-[ADR-0003](/decisiones/0003-json-declarativo/).
+[ADR-0003](/decisions/0003-declarative-json/).
 
 ### 2. La validación deja de ser un lujo
 
@@ -55,7 +55,7 @@ arreglas. Con tres escritores — dos de ellos automáticos, uno de ellos un mod
 de lenguaje que a veces alucina un campo — **los datos inválidos son inevitables**.
 
 Por eso v2 valida con Zod **al cargar**, no en runtime. Los defectos B, C y G del
-[análisis de v1](/analisis-v1/) son exactamente esto: entradas inválidas que
+[análisis de v1](/v1-analysis/) son exactamente esto: entradas inválidas que
 no se detectaron y produjeron un 404 silencioso, una request colgada, o una
 llamada a una propiedad arbitraria.
 
@@ -81,7 +81,7 @@ commiteas, cada click y cada instrucción a la IA te ensucia el working tree.
 El humano commitea. El editor y la IA no deberían tener que decidir si lo que
 escriben va a git. La separación resuelve eso: **la definición es del humano y se
 commitea; el estado es de la sesión y no se trackea.** Ver
-[ADR-0004](/decisiones/0004-estado-fuera-de-git/).
+[ADR-0004](/decisions/0004-state-outside-git/).
 
 ## La regla, en una línea
 

@@ -8,35 +8,35 @@ export default defineConfig({
     starlight({
       title: 'laqi',
       lastUpdated: true,
-      defaultLocale: 'es',
+      defaultLocale: 'en',
       locales: {
-        root: { label: 'Español', lang: 'es' },
+        root: { label: 'English', lang: 'en' },
       },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/csdev19/laqi' }],
       sidebar: [
         {
-          label: 'Inicio',
-          items: [{ slug: 'index' }, { slug: 'probar-v2' }, { slug: 'nombre' }],
+          label: 'Start',
+          items: [{ slug: 'index' }, { slug: 'trying-v2' }, { slug: 'the-name' }],
         },
         {
-          label: 'Contexto',
-          items: [{ slug: 'analisis-v1' }, { slug: 'prompt-editor-web' }],
+          label: 'Context',
+          items: [{ slug: 'v1-analysis' }, { slug: 'web-editor-prompt' }],
         },
         {
-          label: 'Conceptos',
-          autogenerate: { directory: 'conceptos' },
+          label: 'Concepts',
+          autogenerate: { directory: 'concepts' },
         },
         {
-          label: 'Decisiones',
-          autogenerate: { directory: 'decisiones' },
+          label: 'Decisions',
+          autogenerate: { directory: 'decisions' },
         },
         {
-          label: 'Diseño',
-          autogenerate: { directory: 'diseno' },
+          label: 'Design',
+          autogenerate: { directory: 'design' },
         },
         {
-          label: 'Planes',
-          autogenerate: { directory: 'planes' },
+          label: 'Plans',
+          autogenerate: { directory: 'plans' },
         },
       ],
     }),

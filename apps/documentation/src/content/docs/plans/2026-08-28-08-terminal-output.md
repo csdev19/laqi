@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 8: Terminal output, stage 1"
 
 **Tech Stack:** Existing stack. No new dependencies — ANSI escapes are written by hand, which is a dozen lines and avoids pulling a colour library into a published package.
 
-**Spec:** `apps/documentation/src/content/docs/diseno/terminal-output.md` — the plan argues from it; read both.
+**Spec:** `apps/documentation/src/content/docs/design/terminal-output.md` — the plan argues from it; read both.
 
 ## Global Constraints
 

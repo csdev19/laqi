@@ -191,7 +191,7 @@ GET    /__laqi/events               → SSE: request | endpoints-changed | error
 
 Latency is same-machine: paint optimistically, reconcile on the event.
 
-> **Correcciones pendientes** — ver [revision-vs-decisiones.md](/diseno/revision-vs-decisiones/):
+> **Correcciones pendientes** — ver [review-vs-decisions.md](/design/review-vs-decisions/):
 > falta `DELETE /__laqi/api/endpoints/:id` (H8), y **todo `/__laqi/*` debe
 > devolver 404 a través del túnel** (H1, bloqueante de seguridad).
 

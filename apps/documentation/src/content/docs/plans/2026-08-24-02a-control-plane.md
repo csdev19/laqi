@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 2a: Control plane"
 
 **Tech Stack:** El mismo del Plan 1 (Bun, TypeScript, Hono 4.12, Zod 4.3, Vitest). Suma `hono/streaming` (`streamSSE`) para el SSE.
 
-**Spec:** [`docs/diseno/DESIGN.md`](/diseno/design/) sección 7 (contratos de API, con la corrección de `DELETE` del hallazgo H8), [`docs/diseno/STATE-MODEL.md`](/diseno/state-model/), [`docs/diseno/revision-vs-decisiones.md`](/diseno/revision-vs-decisiones/) (H1, H4, H5, H7, H8, H9), [`docs/decisiones/0006-servidor-mcp.md`](/decisiones/0006-servidor-mcp/), [`docs/decisiones/0007-url-publica.md`](/decisiones/0007-url-publica/).
+**Spec:** [`docs/diseno/DESIGN.md`](/design/design/) sección 7 (contratos de API, con la corrección de `DELETE` del hallazgo H8), [`docs/diseno/STATE-MODEL.md`](/design/state-model/), [`docs/diseno/revision-vs-decisiones.md`](/design/review-vs-decisions/) (H1, H4, H5, H7, H8, H9), [`docs/decisiones/0006-servidor-mcp.md`](/decisions/0006-mcp-server/), [`docs/decisiones/0007-url-publica.md`](/decisions/0007-public-url/).
 
 ## Global Constraints
 
@@ -2208,7 +2208,7 @@ Expected: todo verde.
 - **El bloqueo del túnel** (que `/__laqi/*` nunca salga por la URL pública). Este plan sólo entrega la separación estructural (`createControlPlaneApp` ≠ `createMockApp`) que lo hace posible. El mecanismo real (cloudflared, proxy, lo que sea) es el Plan 4.
 - **`share-changed`** como evento del bus — pertenece al Plan 4, no existe todavía nada que lo emita.
 - **Autenticación del control plane.** Cualquiera que llegue al control plane puede leer y escribir mocks — no tiene token ni login. Se mitigan las dos formas concretas de llegar sin querer: **(a) `--host` no-loopback** (LAN/mobile testing, un caso real desde el Plan 1) — el control plane no se monta a menos que `config.host` sea `127.0.0.1`/`localhost`; el servidor de mocks sigue escuchando en el host configurado, sólo `/__laqi` queda retirado. **(b) un request cross-origin desde el navegador** — una página cualquiera que el developer visite mientras `laqi` corre puede intentar un `POST` "simple request" de CORS (sin preflight) contra `127.0.0.1:PORT/__laqi/api/endpoints`; el control plane rechaza cualquier escritura cuyo header `Origin` no coincida con el propio origen del servidor. _(Nota: la redacción original de este ítem decía "es aceptable porque hoy sólo escucha en local" — esa premisa era falsa en las dos formas de arriba, encontradas y corregidas en la revisión final de este plan; ver el ledger de la sesión para el detalle.)_ Ninguna de las dos mitigaciones es autenticación real — el Plan 4, al agregar `--share`, sigue siendo quien decide si el control plane necesita su propio token cuando el modo compartido está activo (ADR-0007 ya lo exige para el servidor de mocks; el control plane nunca debería ni siquiera ser alcanzable desde ahí).
-- **Autoría de escenarios** (crear/editar `scenarios.json`) — el [ADR-0008](/decisiones/0008-multiarchivo-y-nombres/) ya decidió que eso es a mano o vía MCP (Plan 3), nunca desde el panel. `GET /api/scenarios` es de sólo lectura a propósito.
+- **Autoría de escenarios** (crear/editar `scenarios.json`) — el [ADR-0008](/decisions/0008-multifile-and-names/) ya decidió que eso es a mano o vía MCP (Plan 3), nunca desde el panel. `GET /api/scenarios` es de sólo lectura a propósito.
 - **El editor web en sí** (`packages/editor`) — es el Plan 2b, consume esta API.
 
 ## Definición de terminado

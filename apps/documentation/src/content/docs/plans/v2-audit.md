@@ -85,7 +85,7 @@ straight through:
 laqi/escape -> /tmp/outside    →    write result: {"ok": true}
 ```
 
-That is exactly what [ADR-0006](/decisiones/0006-servidor-mcp/) forbids: the
+That is exactly what [ADR-0006](/decisions/0006-mcp-server/) forbids: the
 agent must stay confined to the mocks directory, and creating a symlink is
 something the agent itself can do. The guard now resolves real paths — the root
 included, because the root can be a symlink too (on macOS `/tmp` is one, and

@@ -52,4 +52,4 @@ always present next to the colour, for colour-blind users and for screenshots.
 > dentro de la caja de headers **editables** del detalle. Dos problemas: el valor
 > va sin la capa (rompe la promesa de "verbatim" del F3), y lo genera laqi, así
 > que no puede vivir en un campo que el usuario edita. Ver
-> [revision-vs-decisiones.md](/diseno/revision-vs-decisiones/).
+> [review-vs-decisions.md](/design/review-vs-decisions/).

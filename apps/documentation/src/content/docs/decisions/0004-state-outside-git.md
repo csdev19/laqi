@@ -43,7 +43,7 @@ X-Laqi-Response         override por request         sin estado
 ```
 
 El detalle de precedencia está en
-[resolución de estado](/conceptos/resolucion-de-estado/).
+[resolución de estado](/concepts/state-resolution/).
 
 **Nota importante:** el estado **sí se persiste** a disco. La decisión no es
 "guardar o no guardar", es **dónde**: en un archivo aparte que no va a git, no

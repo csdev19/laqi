@@ -42,7 +42,7 @@ laqi/
 Es la razón estructural principal. `server` es una app Hono sobre Web Standards
 que no sabe si corre en Node o en un Worker. Eso permite que **el mismo servidor
 corra en tu máquina y en el edge** sin duplicar código
-([ADR-0007](/decisiones/0007-url-publica/)).
+([ADR-0007](/decisions/0007-public-url/)).
 
 **2. El editor web se embebe, no se despliega.**
 

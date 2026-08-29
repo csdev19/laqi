@@ -7,7 +7,7 @@ export type Tunnel = {
 
 /**
  * The sharing layer as a pluggable interface, from day one
- * ([ADR-0007](../decisiones/0007-url-publica.md)). `CloudflaredProvider` is
+ * ([ADR-0007](../decisions/0007-public-url.md)). `CloudflaredProvider` is
  * phase 1; a self-hosted relay on Workers slots in here without rewriting
  * anything.
  */

@@ -10,7 +10,7 @@ title: ADR-0001 — Rewrite completo en vez de arreglar v1
 ## Contexto
 
 laqi v1 (1.2.1) son ~200 líneas de JavaScript CommonJS sobre Express 4. El
-[análisis](/analisis-v1/) encontró doce defectos —cinco verificados
+[análisis](/v1-analysis/) encontró doce defectos —cinco verificados
 ejecutando el servidor— y seis problemas de seguridad, incluyendo diecinueve
 vulnerabilidades en dependencias (una crítica).
 

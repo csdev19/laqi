@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 6: Data generators"
 
 **Tech Stack:** Existing stack plus three zero-transitive-dep additions to the published package: `typescript@^5.9.3` (23.6 MB), `@faker-js/faker@^10.6.0` (2.9 MB), `quicktype-core@^26.0.0` (4.2 MB + 25 transitive). All three load via dynamic `import()` on first use — laqi startup is unchanged.
 
-**Spec:** `apps/documentation/src/content/docs/diseno/data-generators.md` — the plan argues from it; read both.
+**Spec:** `apps/documentation/src/content/docs/design/data-generators.md` — the plan argues from it; read both.
 
 ## Global Constraints
 
@@ -1642,8 +1642,8 @@ and `create` passes `body: input.body ?? {}` into the existing `api.createEndpoi
 
 - Modify: `apps/cli/src/package.test.ts` (lazy-load guard test)
 - Modify: `README.md` (a "Generate types and data" section)
-- Modify: `apps/documentation/src/content/docs/probar-v2.md` (a walkthrough step between MCP and public URL)
-- Modify: `apps/documentation/src/content/docs/planes/index.md` (Plan 6 row)
+- Modify: `apps/documentation/src/content/docs/trying-v2.md` (a walkthrough step between MCP and public URL)
+- Modify: `apps/documentation/src/content/docs/plans/index.md` (Plan 6 row)
 - Test: `apps/cli/src/package.test.ts`
 
 - [ ] **Step 1: The lazy-load guard.** A failing test first:
@@ -1695,7 +1695,7 @@ your `laqi/` files through the same write path as the editor, and models are
 never stored (types come from the data, not from a saved schema).
 ```
 
-- [ ] **Step 3: Walkthrough.** In `probar-v2.md`, insert a step after the MCP section: paste the `Todo` interface in the create row, see generated data land, flip to the detail, _Copy types_ as `typescript-zod`, _Regenerate_, save. Follow the document's existing voice and exact-commands style; write it against the behaviour the tests above pin.
+- [ ] **Step 3: Walkthrough.** In `trying-v2.md`, insert a step after the MCP section: paste the `Todo` interface in the create row, see generated data land, flip to the detail, _Copy types_ as `typescript-zod`, _Regenerate_, save. Follow the document's existing voice and exact-commands style; write it against the behaviour the tests above pin.
 
 - [ ] **Step 4: Plans index.** Add the Plan 6 row (status: whatever is true when this task runs) matching the table format the file has at that time.
 

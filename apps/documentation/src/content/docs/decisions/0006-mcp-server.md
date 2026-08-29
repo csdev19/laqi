@@ -39,7 +39,7 @@ Herramientas expuestas:
 
 **1. Es el escritor que faltaba.**
 
-El argumento completo está en [los tres escritores](/conceptos/tres-escritores/).
+El argumento completo está en [los tres escritores](/concepts/three-writers/).
 El MCP no es una feature añadida: es uno de los tres consumidores que definen el
 formato. Diseñar el formato pensando sólo en el humano y agregar MCP después
 habría producido un formato hostil para la máquina.
@@ -70,7 +70,7 @@ estructurados. MCP le da las herramientas tipadas y los errores de vuelta.
 
 **Sólo dejar que el agente edite los archivos.** Es lo que pasa hoy sin MCP.
 Funciona, pero el agente adivina el esquema, no sabe si el hot-reload lo tomó, y
-no puede cambiar estado sin ensuciar git (ver [ADR-0004](/decisiones/0004-estado-fuera-de-git/)).
+no puede cambiar estado sin ensuciar git (ver [ADR-0004](/decisions/0004-state-outside-git/)).
 
 ## Consecuencias
 
@@ -86,4 +86,4 @@ no puede cambiar estado sin ensuciar git (ver [ADR-0004](/decisiones/0004-estado
   más probable) y documentar la configuración para Claude Code y Cursor.
 - Un agente con estas herramientas puede escribir archivos del proyecto. Debe
   estar acotado estrictamente al directorio de mocks — nunca fuera (ver el
-  defecto 4.4 del [análisis de v1](/analisis-v1/)).
+  defecto 4.4 del [análisis de v1](/v1-analysis/)).

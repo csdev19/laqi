@@ -19,21 +19,21 @@ una inconsistencia interna del propio diseño, y varios huecos menores.
 Vale la pena registrarlo porque valida los ADRs con una segunda cabeza:
 
 - **El modelo de estado coincide exactamente** con
-  [resolución de estado](/conceptos/resolucion-de-estado/): cuatro capas,
+  [resolución de estado](/concepts/state-resolution/): cuatro capas,
   `state` gana sobre `scenario`, y `header` **nunca muta estado** — sólo aparece
   en el log, nunca cambia un chip. Esa asimetría la dedujo el diseño por su
   cuenta y es correcta.
 - **El control plane que define es la superficie del MCP.** `GET/PUT
 /__laqi/api/state`, `GET/POST/PUT /__laqi/api/endpoints`, `GET
 /__laqi/api/scenarios` mapean casi 1:1 contra las herramientas del
-  [ADR-0006](/decisiones/0006-servidor-mcp/). Confirma la tesis de que se
+  [ADR-0006](/decisions/0006-mcp-server/). Confirma la tesis de que se
   implementa una vez y se expone por tres superficies.
 - **`"GET /users"` como ID de endpoint** es exactamente el formato del
-  [ADR-0003](/decisiones/0003-json-declarativo/). Las capturas muestran
+  [ADR-0003](/decisions/0003-declarative-json/). Las capturas muestran
   `GET /users` y `POST /users` como filas separadas: el hack `(get)` de v1 queda
   enterrado.
 - **Compartir apagado por defecto, cada sesión, y token enmascarado** coincide
-  con el [ADR-0007](/decisiones/0007-url-publica/).
+  con el [ADR-0007](/decisions/0007-public-url/).
 
 Y una cosa que el diseño resolvió **mejor** de lo que estaba especificado — ver
 H3 abajo.
@@ -71,7 +71,7 @@ F7 levanta una URL pública que apunta al servidor. El diseño **nunca dice que
 - `POST /__laqi/api/share` → un tercero controla el túnel.
 - El propio panel queda navegable desde internet.
 
-El [ADR-0007](/decisiones/0007-url-publica/) ya lo exige ("el editor web y
+El [ADR-0007](/decisions/0007-public-url/) ya lo exige ("el editor web y
 el MCP no se exponen"), pero el diseño no lo encodea y es el tipo de cosa que se
 implementa mal por omisión.
 
@@ -95,7 +95,7 @@ claves `"METHOD /path"`.
 Eso significa que `api.json` y `orders.json` pueden **ambos** definir
 `"GET /users"`. Es el defecto D de v1 volviendo por la puerta de atrás.
 
-El [ADR-0003](/decisiones/0003-json-declarativo/) lo había resuelto haciendo
+El [ADR-0003](/decisions/0003-declarative-json/) lo había resuelto haciendo
 que el modo carpeta usara routing por filesystem (`laqi/users/[id].json`), donde
 la colisión es imposible por construcción.
 
@@ -124,7 +124,7 @@ F8 dice: un archivo roto muestra la banda y **"el resto del mock se sigue
 sirviendo"**, con el contador en `26 (+1 file failed)`.
 
 Eso es **mejor** que lo que dejé escrito en
-[tres-escritores](/conceptos/tres-escritores/), que dice "falla ruidosamente
+[three-writers](/concepts/three-writers/), que dice "falla ruidosamente
 al arrancar" y se puede leer como _fail-fast_. Reiniciar todo el mock porque un
 archivo tiene una coma de más es hostil.
 
@@ -227,7 +227,7 @@ pública y el bearer. O muestra las dos variantes.
 ### H10 — `mocks/` vs `laqi/`
 
 El diseño usa `./mocks/` y `mocks/api.json`. El
-[ADR-0003](/decisiones/0003-json-declarativo/) decía `laqi.json` o `laqi/`.
+[ADR-0003](/decisions/0003-declarative-json/) decía `laqi.json` o `laqi/`.
 
 **Recomendación: quedarse con `mocks/`.** Le dice a alguien que abre el repo por
 primera vez qué hay dentro; `laqi/` sólo dice qué herramienta lo lee. El archivo

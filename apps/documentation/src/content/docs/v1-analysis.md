@@ -10,7 +10,7 @@ title: Análisis de laqi v1
 casos de prueba construidos a propósito. Los bugs marcados como _verificados_
 se reprodujeron corriendo el servidor, no se dedujeron leyendo.
 
-Este documento es la evidencia que justifica el [ADR-0001 (rewrite)](/decisiones/0001-rewrite-v2/).
+Este documento es la evidencia que justifica el [ADR-0001 (rewrite)](/decisions/0001-rewrite-v2/).
 
 ---
 
@@ -55,7 +55,7 @@ comporta tu UI con un 401.
 
 Casi ningún mock server hace esto de forma declarativa. Es el diferenciador y v2
 lo mantiene, con otra sintaxis y sin las limitaciones (ver
-[resolución de estado](/conceptos/resolucion-de-estado/)).
+[resolución de estado](/concepts/state-resolution/)).
 
 **Lo demás que se conserva como idea:**
 
@@ -63,7 +63,7 @@ lo mantiene, con otra sintaxis y sin las limitaciones (ver
 - Carpetas anidadas para agrupar endpoints.
 - El campo `ip` en la config, pensado explícitamente para devs mobile que no
   pueden usar `localhost`. La intuición era buena; la solución (bindear a la IP
-  de LAN) se quedaba corta — ver [ADR-0007](/decisiones/0007-url-publica/).
+  de LAN) se quedaba corta — ver [ADR-0007](/decisions/0007-public-url/).
 - El nombre. `llulla` (falso) + `chasqui` (mensajero) = **LAQI**, "falso
   mensajero". Se queda.
 
@@ -270,4 +270,4 @@ Arreglar los doce defectos sobre esta base cuesta más que reescribir 200 línea
 y dejaría intactas las limitaciones estructurales (método codificado en la clave,
 estado global único, sin validación, sin tests, CommonJS).
 
-De ahí el [ADR-0001](/decisiones/0001-rewrite-v2/).
+De ahí el [ADR-0001](/decisions/0001-rewrite-v2/).
