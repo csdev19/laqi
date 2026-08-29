@@ -11,12 +11,6 @@ import starlight from '@astrojs/starlight'
 // so a file at docs/installation.md gets the slug "docs/installation"
 // and therefore the route /docs/installation/).
 export default defineConfig({
-  // Astro's built-in <Code> component (used on the landing page's Quick
-  // Start snippets) only bundles the theme(s) named here — anything else
-  // fails at build time with "Theme X is not included in this bundle".
-  markdown: {
-    shikiConfig: { theme: 'vitesse-dark' },
-  },
   integrations: [
     starlight({
       title: 'laqi',
@@ -31,11 +25,19 @@ export default defineConfig({
       sidebar: [
         {
           label: 'Getting Started',
-          items: [{ slug: 'docs' }, { slug: 'docs/installation' }],
+          items: [{ slug: 'docs' }, { slug: 'docs/installation' }, { slug: 'docs/mock-files' }],
         },
         {
           label: 'Concepts',
           items: [{ slug: 'docs/concepts/resolution-layers' }],
+        },
+        {
+          label: 'Features',
+          items: [{ slug: 'docs/panel' }, { slug: 'docs/data-generators' }],
+        },
+        {
+          label: 'AI agents',
+          items: [{ slug: 'docs/ai-agents' }],
         },
       ],
     }),
