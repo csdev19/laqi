@@ -16,12 +16,12 @@ test.
 
 ## Order of precedence
 
-| # | Layer | Set by | Persists |
-| - | - | - | - |
-| 1 | `header` | `X-Laqi-Response` on the request | no |
-| 2 | `state` | a click in the control panel | yes |
-| 3 | `scenario` | the active scenario, if it covers this route | yes |
-| 4 | `default` | the `default` key in the mock file | — |
+| #   | Layer      | Set by                                       | Persists |
+| --- | ---------- | -------------------------------------------- | -------- |
+| 1   | `header`   | `X-Laqi-Response` on the request             | no       |
+| 2   | `state`    | a click in the control panel                 | yes      |
+| 3   | `scenario` | the active scenario, if it covers this route | yes      |
+| 4   | `default`  | the `default` key in the mock file           | —        |
 
 ## Reading the winner
 

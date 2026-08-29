@@ -14,7 +14,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'laqi',
-      description: "Mock any API, flip any response, in one click.",
+      description: 'Mock any API, flip any response, in one click.',
       defaultLocale: 'root',
       locales: {
         root: { label: 'English', lang: 'en' },
