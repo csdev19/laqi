@@ -1602,6 +1602,22 @@ describe('findBrandCasingViolations', () => {
     expect(violations).toHaveLength(1)
     expect(violations[0]?.file).toMatch(/page\.md$/)
   })
+
+  it('does not flag "Laqi" as a segment of a real hyphenated header name', () => {
+    // X-Laqi-Response and X-Laqi-Resolved are real, already-shipped HTTP
+    // headers (see packages/server/src/control-plane-app.ts) — this is
+    // the correct capitalization for that identifier, not a casing
+    // mistake. A plain \bLaqi\b regex would wrongly flag this: a hyphen
+    // counts as a word boundary, so "X-Laqi-Response" reads as three
+    // boundary-separated words to \b, the middle one matching "Laqi".
+    dir = mkdtempSync(join(tmpdir(), 'content-lint-'))
+    writeFileSync(
+      join(dir, 'page.md'),
+      'Every response carries an X-Laqi-Response header naming the winner, ' +
+        'and laqi also sets X-Laqi-Resolved for the same purpose.\n',
+    )
+    expect(findBrandCasingViolations(dir)).toHaveLength(0)
+  })
 })
 ````
 
@@ -1619,7 +1635,14 @@ import { extname, join } from 'node:path'
 
 export type Violation = { file: string; line: number; match: string }
 
-const BRAND_MISCASING = /\b(Laqi|LAQI)\b/g
+// A plain \b boundary treats a hyphen as a word edge, so \bLaqi\b would
+// match the middle segment of X-Laqi-Response — a real, already-shipped
+// HTTP header (packages/server/src/control-plane-app.ts), not a casing
+// mistake. Requiring the character on either side to be neither a word
+// character NOR a hyphen means "Laqi" only matches when it stands alone
+// (space/punctuation/line-boundary on both sides), never as one segment
+// of a hyphenated identifier.
+const BRAND_MISCASING = /(?<![\w-])(Laqi|LAQI)(?![\w-])/g
 const FENCE = /^```/
 
 function stripInlineCode(line: string): string {
