@@ -1,6 +1,11 @@
 ---
 // apps/site/src/pages/index.astro
 import '../styles/global.css'
+import SiteNav from '../components/SiteNav.astro'
+import Hero from '../components/Hero.astro'
+import QuickStart from '../components/QuickStart.astro'
+import ResolutionLayers from '../components/ResolutionLayers.astro'
+import FeatureGrid from '../components/FeatureGrid.astro'
 ---
 <html lang="en">
   <head>
@@ -8,11 +13,16 @@ import '../styles/global.css'
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>laqi — mock any API, flip any response, in one click</title>
+    <meta
+      name="description"
+      content="laqi is a local mock server with a control panel. Point your app at it and put your API into any state — without touching a line of code."
+    />
   </head>
   <body>
-    <main>
-      <p>laqi.dev — scaffold in progress.</p>
-      <a href="/docs/">Docs</a>
-    </main>
+    <SiteNav />
+    <Hero />
+    <QuickStart />
+    <ResolutionLayers />
+    <FeatureGrid />
   </body>
 </html>
