@@ -1,7 +1,7 @@
 import type { LaqiState, MockResponse, Scenarios } from '@laqi/schema'
 import type { LoadedEndpoint } from './loader'
 
-/** Las cuatro únicas palabras de capa. El panel mapea cada una a un color. */
+/** The only four layer words. The panel maps each one to a color. */
 export type Layer = 'header' | 'state' | 'scenario' | 'default'
 
 export type Resolution =
@@ -18,8 +18,9 @@ export function resolveResponse(input: {
   const { endpoint, state, scenarios, headerResponse, headerScenario } = input
   const { name, layer } = selectName()
 
-  // Object.hasOwn: "toString" u otra clave heredada del prototipo no es una
-  // respuesta declarada, aunque `responses[name]` devuelva algo truthy.
+  // Object.hasOwn: "toString" or another inherited prototype key is not a
+  // declared response, even though `responses[name]` would return something
+  // truthy.
   const response = Object.hasOwn(endpoint.responses, name) ? endpoint.responses[name] : undefined
   if (!response) {
     return {
@@ -33,31 +34,31 @@ export function resolveResponse(input: {
   return { ok: true, name, layer, response }
 
   function selectName(): { name: string; layer: Layer } {
-    // 1. Header explícito. No persiste nada.
+    // 1. Explicit header. Doesn't persist anything.
     if (headerResponse) return { name: headerResponse, layer: 'header' }
 
-    // 2. Escenario pedido por header: también capa `header`, por lo mismo.
+    // 2. Scenario requested via header: also `header` layer, for the same reason.
     if (headerScenario) {
       const fromHeaderScenario = scenarios[headerScenario]?.[endpoint.id]
       if (fromHeaderScenario) return { name: fromHeaderScenario, layer: 'header' }
     }
 
-    // 3. Override por endpoint, escrito por el panel o el MCP.
+    // 3. Per-endpoint override, written by the panel or the MCP.
     const override = state.overrides[endpoint.id]
     if (override) return { name: override, layer: 'state' }
 
-    // 4. Escenario activo — más general que un override, por eso va después.
+    // 4. Active scenario — more general than an override, hence it comes after.
     if (state.scenario) {
       const fromScenario = scenarios[state.scenario]?.[endpoint.id]
       if (fromScenario) return { name: fromScenario, layer: 'scenario' }
     }
 
-    // 5. La baseline del archivo.
+    // 5. The file's baseline.
     return { name: endpoint.default, layer: 'default' }
   }
 }
 
-/** El valor exacto de `X-Laqi-Resolved`. El log del panel lo imprime verbatim. */
+/** The exact value of `X-Laqi-Resolved`. The panel's log prints it verbatim. */
 export function formatResolvedHeader(resolution: Resolution): string {
   return `${resolution.name} (${resolution.layer})`
 }

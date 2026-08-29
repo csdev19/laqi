@@ -13,10 +13,10 @@ import type { ContentfulStatusCode, StatusCode } from 'hono/utils/http-status'
 export type MockRuntime = {
   table: RouteTable
   scenarios: Scenarios
-  /** Función, no valor: el estado cambia sin que cambie la tabla de rutas. */
+  /** A function, not a value: the state changes without the route table changing. */
   getState: () => LaqiState
   cors: LaqiConfig['cors']
-  /** Opcional: si está, se llama tras resolver cada respuesta (éxito o 500). */
+  /** Optional: if present, called after resolving each response (success or 500). */
   onRequest?: (event: LaqiEvent) => void
 }
 
@@ -42,8 +42,9 @@ export function createMockApp(runtime: MockRuntime): Hono {
         runtime.onRequest?.({
           type: 'request',
           method: endpoint.method,
-          // El path pedido, no `endpoint.path`: el log muestra qué se llamó
-          // de verdad, si no cien requests a /users/1..100 se ven iguales.
+          // The requested path, not `endpoint.path`: the log shows what was
+          // actually called, otherwise a hundred requests to /users/1..100
+          // would all look identical.
           path: new URL(c.req.url).pathname,
           status,
           ms: Date.now() - startedAt,
@@ -53,7 +54,7 @@ export function createMockApp(runtime: MockRuntime): Hono {
         })
       }
 
-      // Un selector inexistente es un 500 explícito. Jamás una request colgada.
+      // A selector that doesn't exist is an explicit 500. Never a hanging request.
       if (!resolution.ok) {
         c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
         emit(500)
@@ -70,8 +71,8 @@ export function createMockApp(runtime: MockRuntime): Hono {
         c.header(name, value)
       }
 
-      // Se fija DESPUÉS de los headers del mock: uno declarado como
-      // "X-Laqi-Resolved" nunca puede mentir sobre la capa que decidió.
+      // Set AFTER the mock's own headers: one declared as "X-Laqi-Resolved"
+      // can never lie about the layer that decided it.
       c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
       emit(response.status)
 
@@ -79,15 +80,14 @@ export function createMockApp(runtime: MockRuntime): Hono {
         return c.body(null, response.status as StatusCode)
       }
 
-      // structuredClone: el cuerpo servido nunca es la referencia cargada.
+      // structuredClone: the served body is never the loaded reference.
       return c.json(structuredClone(response.body), response.status as ContentfulStatusCode)
     })
   }
 
-  // Los endpoints OPTIONS se registran ANTES de cors(): cors() intercepta
-  // toda request OPTIONS con un 204 propio antes de que corra cualquier ruta,
-  // así que un mock declarado para OPTIONS nunca sería alcanzable si cors()
-  // fuera primero.
+  // OPTIONS endpoints are registered BEFORE cors(): cors() intercepts every
+  // OPTIONS request with its own 204 before any route runs, so a mock
+  // declared for OPTIONS would never be reachable if cors() came first.
   for (const endpoint of runtime.table.endpoints) {
     if (endpoint.method === 'OPTIONS') registerEndpoint(endpoint)
   }
@@ -105,14 +105,15 @@ export function createMockApp(runtime: MockRuntime): Hono {
     if (endpoint.method !== 'OPTIONS') registerEndpoint(endpoint)
   }
 
-  /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */
+  /** Cap on listed routes: useful for a typo, unmanageable with a hundred endpoints. */
   const MAX_SUGGESTIONS = 20
 
   app.all('*', (c) => {
     const path = new URL(c.req.url).pathname
 
-    // Sin `endpointId`/`resolved*` porque no hubo endpoint ni resolución.
-    // El panel branchea en `endpointId === null` para pintar la fila roja.
+    // No `endpointId`/`resolved*` because there was no endpoint and no
+    // resolution. The panel branches on `endpointId === null` to paint the
+    // row red.
     runtime.onRequest?.({
       type: 'request',
       method: c.req.method,

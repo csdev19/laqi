@@ -21,11 +21,11 @@ import {
 } from '@laqi/schema'
 
 /**
- * Por qué falló, para que quien llame elija el status HTTP correcto.
+ * Why it failed, so the caller can pick the right HTTP status.
  *
- * - `invalid`   la entrada está mal formada → 400
- * - `conflict`  choca con algo que ya existe → 409
- * - `not-found` no existe lo que se pidió tocar → 404
+ * - `invalid`   the input is malformed → 400
+ * - `conflict`  clashes with something that already exists → 409
+ * - `not-found` what was asked to be touched doesn't exist → 404
  */
 export type ProjectFailure = 'invalid' | 'conflict' | 'not-found'
 
@@ -46,22 +46,22 @@ export type EndpointView = {
   path: string
   description?: string
   file: string
-  /** Todas las respuestas declaradas, con su status. */
+  /** All declared responses, with their status. */
   responses: { name: string; status: number; delay?: number }[]
-  /** El default del archivo. */
+  /** The file's default. */
   default: string
-  /** Qué se sirve ahora mismo y qué capa lo decidió. */
+  /** What's being served right now and which layer decided it. */
   live: { name: string; layer: string }
 }
 
 /**
- * Todo lo que las herramientas MCP saben hacer sobre un proyecto laqi.
+ * Everything the MCP tools know how to do to a laqi project.
  *
- * Trabaja directo sobre los archivos, no contra un servidor corriendo: el
- * mock server lee el estado en cada request y el watcher toma los cambios de
- * archivo, así que un agente puede crear mocks con laqi apagado y funcionan
- * cuando lo prendas. Cada operación recarga desde disco porque el panel, el
- * editor y el propio developer escriben los mismos archivos.
+ * Works directly on the files, not against a running server: the mock
+ * server reads the state on every request and the watcher picks up file
+ * changes, so an agent can create mocks with laqi turned off and they work
+ * once you turn it on. Every operation reloads from disk because the panel,
+ * the editor, and the developer themselves all write the same files.
  */
 export class Project {
   private readonly store: StateStore
@@ -91,7 +91,7 @@ export class Project {
     }
   }
 
-  /** Dónde va un endpoint nuevo: el archivo único, o laqi/api.json. */
+  /** Where a new endpoint goes: the single file, or laqi/api.json. */
   private targetFile(source: 'dir' | 'file' | 'none'): string {
     return source === 'file' ? this.config.file : join(this.config.dir, 'api.json')
   }
@@ -124,7 +124,7 @@ export class Project {
     scenario: string | null
     overrides: Record<string, string>
     scenarios: string[]
-    /** Sólo los endpoints que NO están en su default: el resto es ruido. */
+    /** Only the endpoints that are NOT on their default: the rest is noise. */
     active: EndpointView[]
   }> {
     const { endpoints, scenarios } = this.load()
@@ -149,24 +149,26 @@ export class Project {
     const method = input.method.toUpperCase()
     if (!isHttpMethod(method)) return fail(`unknown HTTP method ${JSON.stringify(input.method)}`)
 
-    // La misma validación que corre al cargar el archivo: prefijo reservado,
-    // path bien formado, segmentos alcanzables. Si no se hiciera acá, el
-    // endpoint se escribiría y recién fallaría al recargar — el archivo del
-    // usuario quedaría roto por una herramienta que dijo "ok".
-    // El id se arma con el path YA NORMALIZADO que devuelve parseEndpointKey,
-    // no con el crudo. Con el crudo, un path con espacios de más ("/users ")
-    // producía un id distinto que esquivaba tanto el chequeo de duplicados
-    // como el del writer, y quedaban dos claves que normalizan al mismo id —
-    // colisión en la tabla de rutas, y el endpoint que ya andaba muere.
+    // The same validation that runs when loading the file: reserved prefix,
+    // well-formed path, reachable segments. If this weren't done here, the
+    // endpoint would get written and only fail on the next reload — the
+    // user's file would end up broken by a tool that said "ok".
+    // The id is built from the ALREADY NORMALIZED path that parseEndpointKey
+    // returns, not from the raw one. With the raw one, a path with extra
+    // spaces ("/users ") produced a different id that dodged both the
+    // duplicate check and the writer's, leaving two keys that normalize to
+    // the same id — a collision in the route table, killing the endpoint
+    // that was already working.
     const parsed = parseEndpointKey(formatEndpointId(method as HttpMethod, input.path))
     if (!parsed.ok) return fail(parsed.error)
     const id = formatEndpointId(parsed.value.method, parsed.value.path)
 
     const { byId, source } = this.load()
 
-    // Rechazar acá y no en el writer: el writer sólo ve un archivo, y en modo
-    // carpeta un id que ya existe en OTRO archivo se escribiría igual — y la
-    // tabla de rutas rechazaría los dos lados, matando el que ya andaba.
+    // Reject here and not in the writer: the writer only sees one file, and
+    // in folder mode an id that already exists in ANOTHER file would get
+    // written just the same — and the route table would reject both sides,
+    // killing the one that was already working.
     const existing = byId.get(id)
     if (existing)
       return fail(`${JSON.stringify(id)} already exists in ${existing.file}`, 'conflict')
@@ -187,13 +189,13 @@ export class Project {
   }
 
   /**
-   * Crea muchos endpoints de una. Existe porque `import_openapi` llamaba a
-   * `createEndpoint` una vez por operación, y cada llamada recarga y
-   * re-parsea TODOS los archivos de mock y después reescribe el archivo
-   * destino entero — O(n^2) de disco, y una recarga del watcher por cada
-   * endpoint. Un spec de 150 operaciones hacía 150 de cada cosa.
+   * Creates many endpoints at once. Exists because `import_openapi` used to
+   * call `createEndpoint` once per operation, and each call reloads and
+   * re-parses ALL the mock files and then rewrites the entire target file —
+   * O(n^2) disk work, plus a watcher reload for every endpoint. A 150
+   * operation spec did 150 of each.
    *
-   * Se carga una vez, se valida todo, y se escribe una vez.
+   * This loads once, validates everything, and writes once.
    */
   createEndpoints(
     inputs: {
@@ -210,8 +212,8 @@ export class Project {
     const created: string[] = []
     const rejected: { id: string; error: string }[] = []
     const definitions: { id: string; definition: EndpointDefinition }[] = []
-    // Los ids nuevos también cuentan como ocupados: dos operaciones del
-    // mismo spec pueden colisionar entre sí, no sólo contra lo que ya había.
+    // New ids also count as taken: two operations from the same spec can
+    // collide with each other, not just against what already existed.
     const taken = new Set(byId.keys())
 
     for (const input of inputs) {
@@ -224,7 +226,7 @@ export class Project {
         continue
       }
 
-      // Mismo normalizado que createEndpoint: ver el comentario de arriba.
+      // Same normalization as createEndpoint: see the comment above.
       const raw = formatEndpointId(method as HttpMethod, input.path)
       const parsed = parseEndpointKey(raw)
       if (!parsed.ok) {
@@ -278,8 +280,8 @@ export class Project {
     const result = deleteEndpointFromFile({ root: this.root, file: existing.file, id })
     if (!result.ok) return fail(result.error)
 
-    // Un override colgando de un endpoint borrado haría que el estado
-    // nombre algo que ya no existe.
+    // An override left dangling from a deleted endpoint would make the
+    // state name something that no longer exists.
     const state = this.store.read()
     if (state.overrides[id] !== undefined) {
       const overrides = { ...state.overrides }
@@ -290,7 +292,7 @@ export class Project {
     return ok({ id, file: existing.file })
   }
 
-  /** `response: null` borra el override y devuelve el endpoint a su default. */
+  /** `response: null` clears the override and returns the endpoint to its default. */
   setResponse(id: string, response: string | null): ProjectResult<EndpointView> {
     const { byId, scenarios } = this.load()
     const endpoint = byId.get(id)
@@ -312,7 +314,7 @@ export class Project {
     return ok(this.view(endpoint, next, scenarios))
   }
 
-  /** `name: null` desactiva el escenario activo. */
+  /** `name: null` deactivates the active scenario. */
   setScenario(
     name: string | null,
   ): ProjectResult<{ scenario: string | null; moved: EndpointView[] }> {

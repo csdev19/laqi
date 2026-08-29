@@ -1,7 +1,7 @@
 import type { LoadedEndpoint, LoadError } from './loader'
 
 export type RouteTable = {
-  /** En orden de archivo — el panel depende de que sea estable. */
+  /** In file order — the panel depends on it being stable. */
   endpoints: LoadedEndpoint[]
   byId: Map<string, LoadedEndpoint>
 }
@@ -29,7 +29,8 @@ export function buildRouteTable(endpoints: LoadedEndpoint[]): {
       continue
     }
 
-    // Ninguno gana: elegir uno sería adivinar, y el desarrollador no vería cuál.
+    // None of them wins: picking one would be guessing, and the developer
+    // wouldn't see which.
     const where = group.map((e) => `${e.file}:${e.line}`).join(' and ')
     errors.push({
       file: first?.file ?? '',

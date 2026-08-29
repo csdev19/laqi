@@ -4,7 +4,7 @@ export type JsonParseResult =
   | { ok: true; value: unknown }
   | { ok: false; message: string; line: number; col: number; excerpt: string }
 
-/** Convierte un offset de caracteres en línea/columna 1-based. */
+/** Converts a character offset to a 1-based line/column. */
 export function offsetToPosition(source: string, offset: number): Position {
   const clamped = Math.max(0, Math.min(offset, source.length))
   let line = 1
@@ -21,8 +21,8 @@ export function offsetToPosition(source: string, offset: number): Position {
 }
 
 /**
- * Tres líneas de contexto con un caret bajo la columna que falla.
- * El formato lo consume tal cual la banda de error del panel (F8).
+ * Three lines of context with a caret under the failing column.
+ * The panel's error banner (F8) consumes this format as-is.
  */
 export function buildExcerpt(source: string, line: number, col: number): string {
   const lines = source.split('\n')
@@ -42,10 +42,10 @@ export function buildExcerpt(source: string, line: number, col: number): string 
 }
 
 /**
- * V8 (Node) incluye la posición en el mensaje — formato viejo `at position N` y
- * formato nuevo `(line N column N)`. JavaScriptCore (Bun) no incluye ninguna.
- * El CLI publicado corre en Node, así que producción siempre tiene posición;
- * bajo Bun (desarrollo) se degrada a línea 1 con el mensaje completo.
+ * V8 (Node) includes the position in the message — old format `at position N`
+ * and new format `(line N column N)`. JavaScriptCore (Bun) includes neither.
+ * The published CLI runs on Node, so production always has a position; under
+ * Bun (development) it degrades to line 1 with the full message.
  */
 const OFFSET_PATTERN = /at position (\d+)/
 const LINE_COL_PATTERN = /\(line (\d+) column (\d+)\)/
@@ -63,7 +63,7 @@ export function parseJsonWithPosition(source: string): JsonParseResult {
 
     return {
       ok: false,
-      // Quitamos la coletilla de posición: la línea y columna van en sus campos.
+      // We strip the position suffix: the line and column go in their own fields.
       message: raw.replace(/\s*in JSON at position \d+.*$/, '').trim() || raw,
       line,
       col,

@@ -179,8 +179,9 @@ describe('createMockApp', () => {
     })
 
     it('reports the requested path, not the route pattern', async () => {
-      // El log del panel muestra qué se pidió de verdad. Con el patrón,
-      // cien requests a /users/1..100 se ven como cien filas idénticas.
+      // The panel's log shows what was actually requested. With the
+      // pattern, a hundred requests to /users/1..100 would look like a
+      // hundred identical rows.
       const onRequest = vi.fn()
       const app = makeApp(undefined, undefined, { onRequest })
 
@@ -193,8 +194,8 @@ describe('createMockApp', () => {
     })
 
     it('fires for a request that matches no endpoint, with a null endpointId', async () => {
-      // La fila no-route es la más importante del log ("¿por qué mi mock no
-      // contesta?"). Sin este evento el panel no puede dibujarla nunca.
+      // The no-route row is the most important one in the log ("why isn't
+      // my mock responding?"). Without this event the panel can never draw it.
       const onRequest = vi.fn()
       const app = makeApp(undefined, undefined, { onRequest })
 

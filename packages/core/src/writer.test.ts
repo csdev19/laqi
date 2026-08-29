@@ -21,9 +21,9 @@ let sandbox: string
 let root: string
 
 beforeEach(() => {
-  // root anidado a propósito: los tests de contención escriben hacia
-  // afuera, y tienen que caer en un lugar que este test sea dueño de
-  // limpiar — no en el tmpdir compartido de la máquina.
+  // root nested on purpose: the containment tests write outward, and they
+  // need to land somewhere this test owns and can clean up — not in the
+  // machine's shared tmpdir.
   sandbox = mkdtempSync(join(tmpdir(), 'laqi-writer-'))
   root = join(sandbox, 'project')
   mkdirSync(root, { recursive: true })
@@ -192,9 +192,9 @@ describe('createEndpointInFile', () => {
 })
 
 describe('containment', () => {
-  // ADR-0006 lo pide explícitamente para el servidor MCP: un agente con
-  // estas herramientas escribe archivos del proyecto y tiene que quedar
-  // acotado al directorio de mocks. `join(root, file)` solo no alcanza.
+  // ADR-0006 explicitly requires this for the MCP server: an agent with
+  // these tools writes project files and must stay confined to the mocks
+  // directory. `join(root, file)` alone isn't enough.
   const escapes = [
     '../escaped.json',
     '../../escaped.json',
@@ -250,10 +250,11 @@ describe('containment', () => {
 })
 
 describe('containment through symlinks', () => {
-  // `resolve()` es léxico: no mira el filesystem. Un symlink DENTRO del
-  // proyecto que apunta afuera lo esquiva. El ADR-0006 exige que el agente
-  // MCP quede acotado al directorio de mocks, y un symlink es algo que el
-  // propio agente puede crear, o que ya puede existir en el repo.
+  // `resolve()` is lexical: it doesn't look at the filesystem. A symlink
+  // INSIDE the project that points outward dodges it. ADR-0006 requires
+  // that the MCP agent stay confined to the mocks directory, and a symlink
+  // is something the agent itself can create, or that may already exist in
+  // the repo.
   it('refuses to write through a symlink that leaves the project', () => {
     const outside = join(sandbox, 'outside')
     mkdirSync(outside, { recursive: true })
@@ -293,8 +294,8 @@ describe('containment through symlinks', () => {
   })
 
   it('still allows a normal nested path, and a root that is itself a symlink', () => {
-    // En macOS /tmp es un symlink a /private/tmp: si se comparara el root
-    // sin resolver, TODO uso legítimo quedaría rechazado.
+    // On macOS /tmp is a symlink to /private/tmp: if the root were compared
+    // unresolved, EVERY legitimate use would get rejected.
     const result = createEndpointInFile({
       root,
       file: 'laqi/deep/nested.json',
@@ -307,9 +308,10 @@ describe('containment through symlinks', () => {
 })
 
 describe('non-canonical keys in the file', () => {
-  // El loader normaliza la clave ("get  /users" -> id "GET /users"), pero el
-  // writer buscaba la clave CRUDA. Resultado: el endpoint se lista y se
-  // sirve, pero editarlo o borrarlo desde el panel o el MCP daba 404.
+  // The loader normalizes the key ("get  /users" -> id "GET /users"), but
+  // the writer used to look up the RAW key. Result: the endpoint gets
+  // listed and served, but editing or deleting it from the panel or the
+  // MCP gave a 404.
   const variants = ['get /users', 'GET  /users', 'Get /users']
 
   it('updates an endpoint whose file key is not in canonical form', () => {
@@ -328,9 +330,8 @@ describe('non-canonical keys in the file', () => {
         string,
         unknown
       >
-      // Se reescribe bajo la MISMA clave que tenía el archivo: reescribirla
-      // en forma canónica sería reformatear el archivo del usuario sin que
-      // lo haya pedido.
+      // Rewritten under the SAME key the file had: rewriting it in canonical
+      // form would reformat the user's file without them asking for it.
       expect(Object.keys(written), key).toEqual([key])
     }
   })
@@ -368,13 +369,14 @@ describe('non-canonical keys in the file', () => {
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
     })
 
-    // Escribirlo dejaría DOS claves que resuelven al mismo id, y la tabla de
-    // rutas rechazaría las dos como colisión — matando la que ya andaba.
+    // Writing it would leave TWO keys that resolve to the same id, and the
+    // route table would reject both as a collision — killing the one that
+    // was already working.
     expect(result.ok).toBe(false)
   })
 
   it('leaves a key that is not a valid endpoint key alone', () => {
-    // Un archivo con basura no debe romper la búsqueda.
+    // A file with garbage in it shouldn't break the lookup.
     writeMock('laqi/api.json', {
       'not an endpoint key at all': {},
       'GET /users': { default: 'ok', responses: { ok: { status: 200 } } },

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** Un mock nunca debería tardar más de un minuto; más allá es un typo. */
+/** A mock should never take more than a minute; beyond that, it's a typo. */
 export const MAX_DELAY_MS = 60_000
 
 export const ResponseSchema = z.object({

@@ -11,12 +11,12 @@ import {
 export type WriteResult = { ok: true } | { ok: false; error: string }
 
 /**
- * Resuelve `file` dentro de `root` y se niega si el resultado se sale.
+ * Resolves `file` inside `root` and refuses if the result escapes it.
  *
- * `join(root, file)` solo no alcanza: `join(root, '../x.json')` sale del
- * proyecto sin quejarse. Todo escritor pasa por acá, que es el punto donde
- * el ADR-0006 pide acotar al servidor MCP — un agente con estas
- * herramientas escribe archivos del proyecto y nunca debe salir de él.
+ * `join(root, file)` alone isn't enough: `join(root, '../x.json')` leaves
+ * the project without complaint. Every writer goes through here, which is
+ * the point where ADR-0006 requires the MCP server to be confined — an
+ * agent with these tools writes project files and must never leave it.
  */
 function resolveInside(
   root: string,
@@ -27,15 +27,15 @@ function resolveInside(
     error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root`,
   }
 
-  // realpath, no resolve: `resolve` es puramente léxico y no mira el disco,
-  // así que un symlink DENTRO del proyecto apuntando afuera lo esquiva —
-  // verificado, escribía fuera de la raíz sin quejarse. El root también se
-  // resuelve porque él mismo puede ser un symlink (en macOS /tmp lo es).
+  // realpath, not resolve: `resolve` is purely lexical and doesn't look at
+  // the disk, so a symlink INSIDE the project pointing outward dodges it —
+  // verified, it wrote outside the root without complaint. The root also
+  // gets resolved because it itself can be a symlink (on macOS /tmp is).
   const base = realOrSelf(resolve(root))
   const target = resolve(base, file)
 
-  // El archivo puede no existir todavía, y su carpeta tampoco. Se resuelve
-  // el ancestro más profundo que SÍ existe: es el que puede ser un symlink.
+  // The file may not exist yet, and neither may its folder. We resolve the
+  // deepest ancestor that DOES exist: that's the one that could be a symlink.
   let existing = dirname(target)
   while (!existsSync(existing) && dirname(existing) !== existing) {
     existing = dirname(existing)
@@ -44,7 +44,7 @@ function resolveInside(
   const realExisting = realOrSelf(existing)
   if (realExisting !== base && !realExisting.startsWith(base + sep)) return refuse
 
-  // El archivo mismo puede ser un symlink aunque su carpeta esté adentro.
+  // The file itself may be a symlink even though its folder is inside.
   const realTarget = existsSync(target) ? realOrSelf(target) : target
   if (realTarget !== base && !realTarget.startsWith(base + sep)) return refuse
 
@@ -82,20 +82,20 @@ function writeFileObject(fullPath: string, contents: Record<string, unknown>): v
   writeFileAtomic(fullPath, `${JSON.stringify(contents, null, 2)}\n`)
 }
 
-/** Adapta el resultado del lock al `WriteResult` que expone este módulo. */
+/** Adapts the lock's outcome to the `WriteResult` this module exposes. */
 function locked(fullPath: string, work: () => WriteResult): WriteResult {
   const outcome = withFileLock(fullPath, work)
   return outcome.ok ? outcome.value : { ok: false, error: outcome.error }
 }
 
 /**
- * La clave REAL del archivo que corresponde a este id.
+ * The REAL file key that corresponds to this id.
  *
- * El loader normaliza (`"get  /users"` es el id `"GET /users"`), así que
- * buscar la clave cruda fallaba: el endpoint se listaba y se servía, pero
- * editarlo o borrarlo devolvía 404. Se compara por id normalizado y se
- * devuelve la clave tal como está escrita, para no reformatear el archivo
- * del usuario sin que lo haya pedido.
+ * The loader normalizes (`"get  /users"` is the id `"GET /users"`), so
+ * looking up the raw key used to fail: the endpoint got listed and served,
+ * but editing or deleting it returned 404. Compares by normalized id and
+ * returns the key exactly as written, so as not to reformat the user's file
+ * without them asking for it.
  */
 function findKey(contents: Record<string, unknown>, id: string): string | undefined {
   if (Object.hasOwn(contents, id)) return id
@@ -124,8 +124,8 @@ export function updateEndpointInFile(params: {
     return { ok: false, error: validated.error.issues.map((i) => i.message).join('; ') }
   }
 
-  // Leer, comprobar y escribir bajo el lock: entre el read y el write puede
-  // haber otro proceso haciendo lo mismo sobre el mismo archivo.
+  // Read, check, and write under the lock: between the read and the write
+  // another process could be doing the same thing to the same file.
   return locked(fullPath, () => {
     const read = readFileObject(fullPath)
     if (!read.ok) return read
@@ -158,13 +158,13 @@ export function createEndpointInFile(params: {
   }
 
   return locked(fullPath, () => {
-    // El archivo puede no existir todavía (primer endpoint creado desde el panel).
+    // The file may not exist yet (first endpoint created from the panel).
     const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
     if (!read.ok) return read
 
-    // Normalizado: escribir "GET /users" junto a un "get  /users" existente
-    // dejaría dos claves con el mismo id, y la tabla de rutas rechazaría las
-    // dos como colisión — matando la que ya andaba.
+    // Normalized: writing "GET /users" next to an existing "get  /users"
+    // would leave two keys with the same id, and the route table would
+    // reject both as a collision — killing the one that was already working.
     const clash = findKey(read.value, id)
     if (clash !== undefined) {
       return { ok: false, error: `${JSON.stringify(id)} already exists in ${file}` }
@@ -177,10 +177,10 @@ export function createEndpointInFile(params: {
 }
 
 /**
- * Escribe varios endpoints en un archivo de una sola pasada: una lectura,
- * una validación por entrada, una escritura atómica. Escribirlos uno por uno
- * relee y reescribe el archivo entero cada vez, y dispara el watcher una vez
- * por endpoint.
+ * Writes several endpoints to a file in a single pass: one read, one
+ * validation per entry, one atomic write. Writing them one by one rereads
+ * and rewrites the whole file each time, and fires the watcher once per
+ * endpoint.
  */
 export function createEndpointsInFile(params: {
   root: string
@@ -209,7 +209,7 @@ export function createEndpointsInFile(params: {
     if (!read.ok) return read
 
     for (const entry of validated) {
-      // Normalizado, igual que createEndpointInFile: ver findKey.
+      // Normalized, same as createEndpointInFile: see findKey.
       if (findKey(read.value, entry.id) !== undefined) {
         return { ok: false, error: `${JSON.stringify(entry.id)} already exists in ${file}` }
       }
