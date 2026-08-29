@@ -1,0 +1,95 @@
+---
+// apps/site/src/components/Hero.astro
+import InstallCommand from './InstallCommand.astro'
+import DemoPlaceholder from './DemoPlaceholder.astro'
+---
+<section class="hero">
+  <p class="eyebrow">llulla + chasqui · the false messenger</p>
+  <h1>Mock any API,<br />flip any response,<br />in one click.</h1>
+  <p class="lede">
+    laqi is a local mock server with a control panel. Point your app at it
+    and put your API into any state — empty, slow, unauthorized, on
+    fire — without touching a line of code.
+  </p>
+  <div class="cta-row">
+    <InstallCommand />
+    <a href="/docs/installation/" class="btn-primary">Quick start</a>
+    <a href="/docs/" class="btn-secondary">Read the docs</a>
+  </div>
+  <p class="badges">
+    <span>no account</span>
+    <span>no cloud</span>
+    <span>no code changes</span>
+    <span>one binary</span>
+  </p>
+  <DemoPlaceholder
+    chrome="127.0.0.1:8000/__laqi"
+    caption="Drop the panel demo video poster (or a screen recording still) — 16:9"
+  />
+</section>
+
+<style>
+  .hero {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 6rem 1.5rem 4rem;
+    text-align: center;
+    background: radial-gradient(ellipse at top, color-mix(in srgb, var(--vio) 12%, transparent), transparent 60%);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 1.5rem;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    line-height: 1.15;
+    color: var(--fg);
+    margin: 0 0 1.5rem;
+  }
+  .lede {
+    max-width: 40rem;
+    margin: 0 auto 2rem;
+    color: var(--dim);
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .btn-primary {
+    padding: 0.85rem 1.5rem;
+    background: var(--vio);
+    color: var(--fg);
+    border-radius: 6px;
+    text-decoration: none;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+  .btn-secondary {
+    padding: 0.85rem 1.5rem;
+    border: 1px solid var(--line2);
+    color: var(--fg);
+    border-radius: 6px;
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+  .badges {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--dim2);
+    margin-bottom: 3rem;
+  }
+</style>
