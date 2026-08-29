@@ -1,9 +1,9 @@
 import type { LoadError } from '../types'
 
 /**
- * Un archivo de mock roto es la falla más común, y el panel es el único
- * lugar donde el developer está mirando cuando pasa — por eso el detalle
- * va inline y no detrás de un click.
+ * A broken mock file is the most common failure, and the panel is the only
+ * place the developer is looking when it happens — that's why the detail
+ * goes inline instead of behind a click.
  */
 export function ErrorBand(props: { errors: LoadError[]; onReload: () => void }) {
   const [first, ...rest] = props.errors

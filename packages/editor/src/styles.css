@@ -1,7 +1,7 @@
 /*
- * Los tokens salen de docs/diseno/design.md. Nada de fuentes remotas: el
- * panel tiene que verse igual con el wifi apagado, así que Source Serif 4 y
- * JetBrains Mono se piden por nombre y caen a las del sistema si no están.
+ * The tokens come from docs/diseno/design.md. No remote fonts: the panel has
+ * to look the same with the wifi off, so Source Serif 4 and JetBrains Mono
+ * are requested by name and fall back to the system's if unavailable.
  */
 :root {
   --bg: #0b0a0f;
@@ -72,11 +72,11 @@ button {
   outline-offset: 2px;
 }
 
-/* La selección por defecto del navegador es texto oscuro sobre un highlight
-   claro: sobre --bg casi negro, invisible. Mismo par que .btn-primary:hover
-   (violeta de marca + blanco), así que no es un color nuevo, y el input/
-   textarea de abajo dejan explícito que también aplica ahí, que es donde se
-   notó. */
+/* The browser's default selection is dark text on a light highlight: over
+   the near-black --bg, invisible. Same pair as .btn-primary:hover (brand
+   violet + white), so it isn't a new color, and the input/textarea rules
+   below make it explicit that it applies there too, which is where it was
+   noticed. */
 ::selection {
   background: var(--vio);
   color: #fff;
@@ -103,7 +103,7 @@ textarea::-moz-selection {
   font-family: var(--mono);
 }
 
-/* Micro-etiquetas: 9–10px mono en mayúsculas con tracking ancho. */
+/* Micro-labels: 9–10px mono, uppercase, wide tracking. */
 .micro {
   font-family: var(--mono);
   font-size: 9.5px;
@@ -191,7 +191,7 @@ textarea::-moz-selection {
   text-overflow: ellipsis;
 }
 
-/* El único número que cambia minuto a minuto es el único con acento. */
+/* The only number that changes minute to minute is the only one with an accent color. */
 .fact-value.is-overridden {
   color: var(--mag);
 }
@@ -465,7 +465,7 @@ textarea::-moz-selection {
   background: var(--mint);
 }
 
-/* 54px fijos: los paths se alinean en un solo borde legible. */
+/* 54px fixed: paths line up on a single readable edge. */
 .row-method {
   width: 54px;
   flex: none;
@@ -526,7 +526,7 @@ textarea::-moz-selection {
   min-width: 0;
 }
 
-/* 52% máximo: un set largo de respuestas nunca empuja el path. */
+/* 52% max: a long set of responses never pushes the path over. */
 .row-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1043,9 +1043,9 @@ button.log-path:hover {
   position: relative;
 }
 
-/* El textarea real va transparente encima del <pre> coloreado, alineados
-   carácter a carácter — es lo que hace que se pueda editar Y colorear sin
-   traer un editor entero. */
+/* The real textarea sits transparent on top of the colorized <pre>, aligned
+   character for character — that's what makes it possible to edit AND
+   colorize without bringing in a whole editor. */
 .editor-paint,
 .editor-input {
   margin: 0;
@@ -1356,7 +1356,7 @@ button.log-path:hover {
 
 /* ── Sharing band ──────────────────────────────────────────────────────── */
 
-/* Lo más ruidoso del producto: nada compite con esto. */
+/* The loudest thing in the product: nothing competes with this. */
 .band-share {
   background: rgba(255, 0, 160, 0.1);
   border-bottom-color: rgba(255, 0, 160, 0.45);
@@ -1379,7 +1379,7 @@ button.log-path:hover {
   animation: share-pulse 1.4s ease-in-out infinite;
 }
 
-/* La única animación del producto, junto al slide-in de la banda. */
+/* The product's only animation, alongside the band's slide-in. */
 @keyframes share-pulse {
   0%,
   100% {

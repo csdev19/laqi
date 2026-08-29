@@ -1,66 +1,70 @@
 ---
-title: Documentación interna de laqi
-description: Registro de decisiones, conceptos, diseño y planes del rewrite de laqi a v2.
+title: laqi internal documentation
+description: Log of decisions, concepts, design and plans for the laqi v2 rewrite.
 ---
 
-# Documentación interna de laqi
+# laqi internal documentation
 
-Este sitio es el **registro de decisiones** del rewrite de laqi a v2 (antes vivía
-en `docs/` y `documentacion/` en la raíz del monorepo; ahora se publica desde
-`apps/documentation` con Astro + Starlight).
+This site is the **decision log** for the laqi v2 rewrite (it used to live in
+`docs/` and `documentacion/` at the monorepo root; it is now published from
+`apps/documentation` with Astro + Starlight).
 
-Lo que hay acá es el _por qué_: la evidencia que justificó tirar v1, los criterios
-con los que se eligió cada pieza, y las alternativas que se descartaron junto con
-la razón. Está en español porque es el idioma en que se discutió.
+What's here is the _why_: the evidence that justified scrapping v1, the
+criteria used to choose each piece, and the alternatives that were discarded,
+along with the reason. It was originally written in Spanish, the language it
+was discussed in, and translated to English as part of the project's move to
+English everywhere ([ADR-0009](/decisions/0009-no-i18n/)).
 
-## Cómo leerlo
+## How to read it
 
-Si llegas nuevo, en este orden:
+If you are new here, in this order:
 
-1. **[Análisis de v1](/analisis-v1/)** — qué existía, qué servía, qué estaba roto
-   y qué era peligroso. Con evidencia reproducible. Es la base de todo lo demás.
-2. **[Conceptos](conceptos/)** — los dos principios transversales que gobiernan
-   varias decisiones a la vez.
-3. **[Decisiones](decisiones/)** — un ADR por decisión estructural.
-4. **[Diseño](diseno/)** — el control panel, y la revisión de ese diseño contra
-   los ADRs.
+1. **[v1 analysis](/v1-analysis/)** — what existed, what worked, what was
+   broken and what was dangerous. With reproducible evidence. It is the
+   foundation for everything else.
+2. **[Concepts](concepts/)** — the two cross-cutting principles that govern
+   several decisions at once.
+3. **[Decisions](decisions/)** — one ADR per structural decision.
+4. **[Design](design/)** — the control panel, and the review of that design
+   against the ADRs.
 
-## Índice
+## Index
 
-### Conceptos
+### Concepts
 
-| Doc                                                      | De qué trata                                                             |
-| -------------------------------------------------------- | ------------------------------------------------------------------------ |
-| [Los tres escritores](/conceptos/tres-escritores/)       | El principio que decide el formato, la validación y dónde vive el estado |
-| [Resolución de estado](/conceptos/resolucion-de-estado/) | Las tres capas que deciden qué respuesta devuelve un endpoint            |
+| Doc                                             | What it covers                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| [The three writers](/concepts/three-writers/)   | The principle that decides the format, the validation and where the state lives |
+| [State resolution](/concepts/state-resolution/) | The three layers that decide which response an endpoint returns                 |
 
-### Diseño
+### Design
 
-| Doc                                                       | De qué trata                                                                     |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Prompt del editor](/prompt-editor-web/)                  | El brief que se le pasó a Claude Design                                          |
-| [Diseño del control panel](diseno/)                       | Lo que volvió: pantallas, interacciones, flujos F1–F9                            |
-| [Revisión vs decisiones](/diseno/revision-vs-decisiones/) | 13 hallazgos: 1 bloqueante de seguridad, 1 estructural, y las preguntas abiertas |
+| Doc                                                 | What it covers                                                        |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| [Editor prompt](/web-editor-prompt/)                | The brief handed to Claude Design                                     |
+| [Control panel design](design/)                     | What came back: screens, interactions, F1–F9 flows                    |
+| [Review vs decisions](/design/review-vs-decisions/) | 13 findings: 1 security blocker, 1 structural, and the open questions |
 
-### Decisiones
+### Decisions
 
-| ADR                                              | Decisión                                               | Estado                     |
-| ------------------------------------------------ | ------------------------------------------------------ | -------------------------- |
-| [0001](/decisiones/0001-rewrite-v2/)             | Rewrite completo en vez de arreglar v1                 | Aceptada                   |
-| [0002](/decisiones/0002-hono-sobre-elysia/)      | Hono como framework HTTP                               | Aceptada                   |
-| [0003](/decisiones/0003-json-declarativo/)       | JSON declarativo como formato primario                 | Superada en parte por 0008 |
-| [0004](/decisiones/0004-estado-fuera-de-git/)    | El estado activo no se trackea                         | Aceptada                   |
-| [0005](/decisiones/0005-monorepo/)               | Monorepo alineado con rakoi                            | Aceptada                   |
-| [0006](/decisiones/0006-servidor-mcp/)           | Servidor MCP como pieza de primera clase               | Aceptada                   |
-| [0007](/decisiones/0007-url-publica/)            | URL pública: cloudflared primero, relay propio después | Aceptada                   |
-| [0008](/decisiones/0008-multiarchivo-y-nombres/) | Multi-archivo con claves `"METHOD /path"`, y nombres   | Aceptada                   |
+| ADR                                          | Decision                                               | Status                       |
+| -------------------------------------------- | ------------------------------------------------------ | ---------------------------- |
+| [0001](/decisions/0001-rewrite-v2/)          | Full rewrite instead of fixing v1                      | Accepted                     |
+| [0002](/decisions/0002-hono-over-elysia/)    | Hono as the HTTP framework                             | Accepted                     |
+| [0003](/decisions/0003-declarative-json/)    | Declarative JSON as the primary format                 | Partially superseded by 0008 |
+| [0004](/decisions/0004-state-outside-git/)   | Active state is not tracked                            | Accepted                     |
+| [0005](/decisions/0005-monorepo/)            | Monorepo aligned with rakoi                            | Accepted                     |
+| [0006](/decisions/0006-mcp-server/)          | MCP server as a first-class piece                      | Accepted                     |
+| [0007](/decisions/0007-public-url/)          | Public URL: cloudflared first, self-hosted relay later | Accepted                     |
+| [0008](/decisions/0008-multifile-and-names/) | Multi-file with `"METHOD /path"` keys, and names       | Accepted                     |
 
-## Convención de ADRs
+## ADR convention
 
-Cada decisión sigue la misma estructura: **Contexto** (qué problema había),
-**Decisión** (qué se hace), **Alternativas consideradas** (qué se descartó y por
-qué) y **Consecuencias** (lo bueno _y_ lo que cuesta).
+Every decision follows the same structure: **Context** (what problem existed),
+**Decision** (what is being done), **Alternatives considered** (what was
+discarded and why) and **Consequences** (the good _and_ the cost).
 
-Un ADR no se edita cuando cambia de opinión: se escribe uno nuevo que lo supera y
-se marca el viejo como `Superada por NNNN`. El valor está en poder leer la
-historia del razonamiento, no en que el documento esté siempre al día.
+An ADR is never edited when its author changes their mind: a new one is
+written that supersedes it, and the old one is marked `Superseded by NNNN`.
+The value is in being able to read the history of the reasoning, not in the
+document always being up to date.

@@ -63,7 +63,7 @@ beforeEach(() => {
 
 afterEach(cleanup)
 
-/** Espera al primer render con datos ya cargados. */
+/** Waits for the first render with data already loaded. */
 async function renderApp() {
   render(<App />)
   await screen.findByText('/users')
@@ -441,7 +441,7 @@ describe('fresh project', () => {
     render(<App />)
 
     const empty = (await screen.findByText('No endpoints loaded')).closest('.empty')!
-    // Nombra la carpeta vigilada, no una genérica: es un blanco donde pegar.
+    // Names the watched folder, not a generic one: it's a target to paste into.
     expect(within(empty as HTMLElement).getByText('laqi')).toBeTruthy()
     expect(within(empty as HTMLElement).getByText('Copy example file')).toBeTruthy()
   })

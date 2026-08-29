@@ -1,11 +1,11 @@
 # @laqi/documentation
 
-Sitio de documentación de laqi, construido con [Astro](https://astro.build) +
-[Starlight](https://starlight.astro.build). Contiene el registro de decisiones,
-conceptos, diseño y planes que antes vivían en `docs/` y `documentacion/` en la
-raíz del monorepo.
+laqi's documentation site, built with [Astro](https://astro.build) +
+[Starlight](https://starlight.astro.build). Contains the decision log,
+concepts, design and plans that used to live in `docs/` and `documentacion/`
+at the root of the monorepo.
 
-## Estructura
+## Structure
 
 ```
 .
@@ -20,24 +20,24 @@ raíz del monorepo.
 └── tsconfig.json
 ```
 
-Starlight busca archivos `.md`/`.mdx` en `src/content/docs/`. Cada archivo se
-expone como una ruta según su nombre y carpeta.
+Starlight looks for `.md`/`.mdx` files in `src/content/docs/`. Each file is
+exposed as a route based on its name and folder.
 
-## Comandos
+## Commands
 
-Desde la raíz del monorepo (con Bun + Turborepo):
+From the monorepo root (with Bun + Turborepo):
 
-| Comando                                      | Acción                                        |
-| -------------------------------------------- | --------------------------------------------- |
-| `bun install`                                | Instala dependencias                          |
-| `bun run dev --filter=@laqi/documentation`   | Levanta el servidor local en `localhost:4321` |
-| `bun run build --filter=@laqi/documentation` | Compila el sitio a `./dist/`                  |
+| Command                                      | Action                                      |
+| -------------------------------------------- | ------------------------------------------- |
+| `bun install`                                | Installs dependencies                       |
+| `bun run dev --filter=@laqi/documentation`   | Starts the local server at `localhost:4321` |
+| `bun run build --filter=@laqi/documentation` | Builds the site to `./dist/`                |
 
-También se puede correr directamente desde `apps/documentation`:
+It can also be run directly from `apps/documentation`:
 
-| Comando         | Acción                                       |
-| --------------- | -------------------------------------------- |
-| `bun dev`       | Servidor local en `localhost:4321`           |
-| `bun build`     | Build de producción en `./dist/`             |
-| `bun preview`   | Preview del build local                      |
-| `bun astro ...` | CLI de Astro (`astro add`, `astro check`, …) |
+| Command         | Action                                    |
+| --------------- | ----------------------------------------- |
+| `bun dev`       | Local server at `localhost:4321`          |
+| `bun build`     | Production build in `./dist/`             |
+| `bun preview`   | Preview of the local build                |
+| `bun astro ...` | Astro CLI (`astro add`, `astro check`, …) |

@@ -6,8 +6,8 @@ export function getRouter() {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Un mock server contesta al instante; reintentar sólo esconde el
-        // error que querés estar viendo mientras desarrollás.
+        // A mock server answers instantly; retrying only hides the error
+        // you want to be seeing while you develop.
         retry: false,
         staleTime: 10_000,
       },

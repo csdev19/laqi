@@ -1,6 +1,6 @@
 import { HTTP_METHODS, isHttpMethod, type HttpMethod } from './method'
 
-/** Prefijo del control panel. Ningún mock puede declarar rutas acá debajo. */
+/** Control panel prefix. No mock may declare routes underneath this. */
 export const RESERVED_PREFIX = '/__laqi'
 
 export type ParsedKey = { method: HttpMethod; path: string }
@@ -32,9 +32,9 @@ export function parseEndpointKey(key: string): ParseKeyResult {
     return { ok: false, error: `path must start with "/" in ${JSON.stringify(key)}` }
   }
 
-  // Un `..` como segmento hace la ruta inalcanzable: clientes y servidores
-  // normalizan la URL antes de rutear, así que el mock nunca se serviría.
-  // Mejor un error explícito que un endpoint muerto en el archivo.
+  // A `..` segment makes the route unreachable: clients and servers
+  // normalize the URL before routing, so the mock would never get served.
+  // Better an explicit error than a dead endpoint in the file.
   if (path.split('/').includes('..')) {
     return {
       ok: false,

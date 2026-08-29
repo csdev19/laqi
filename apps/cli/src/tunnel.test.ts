@@ -4,7 +4,7 @@ import type { ChildProcess } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CLOUDFLARED_MISSING, createCloudflaredProvider, type Spawner } from './tunnel'
 
-/** Un cloudflared de mentira: los mismos eventos, sin el binario. */
+/** A fake cloudflared: the same events, without the binary. */
 class FakeChild extends EventEmitter {
   stdout = new PassThrough()
   stderr = new PassThrough()
@@ -13,7 +13,7 @@ class FakeChild extends EventEmitter {
 
   kill(): boolean {
     this.killed = true
-    // Un proceso real tarda un tick en salir tras el kill.
+    // A real process takes a tick to exit after being killed.
     setImmediate(() => {
       this.exitCode = 0
       this.emit('exit', 0)
@@ -95,8 +95,8 @@ describe('start', () => {
     const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
     const starting = provider.start({ port: 8000 })
 
-    // cloudflared parte el banner en varias escrituras; mirar chunk a chunk
-    // se perdería una URL cortada al medio.
+    // cloudflared splits the banner across several writes; looking chunk
+    // by chunk would miss a URL cut in half.
     children[0]!.stderr.write('|  Visit it at: https://shy-forest')
     children[0]!.stderr.write('-1234.trycloudflare.com   |')
 
@@ -124,8 +124,9 @@ describe('start', () => {
     const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
     const starting = provider.start({ port: 8000 })
 
-    // El handler se adjunta ANTES de avanzar el reloj: si no, la promesa
-    // rechaza en un tick sin handler y Node lo reporta como unhandled.
+    // The handler is attached BEFORE advancing the clock: otherwise the
+    // promise rejects in a tick with no handler and Node reports it as
+    // unhandled.
     const rejects = expect(starting).rejects.toThrow('did not report a URL')
     await vi.advanceTimersByTimeAsync(31_000)
     await rejects
@@ -138,7 +139,7 @@ describe('start', () => {
     children[0]!.stderr.write(BANNER)
     const tunnel = await starting
 
-    // Un exit tardío no debe convertirse en un unhandled rejection.
+    // A late exit must not turn into an unhandled rejection.
     children[0]!.emit('exit', 0)
     expect(tunnel.url).toContain('trycloudflare')
   })
@@ -180,15 +181,15 @@ describe('start', () => {
 
 describe('the child process keeps draining', () => {
   it('does not pause the pipes when it stops accumulating', async () => {
-    // Quitar los listeners y nada más pausa el stream: Node deja de vaciar el
-    // pipe, se llena, y cloudflared —que escribe a stderr de forma
-    // bloqueante— se traba para siempre en su próximo log.
+    // Removing the listeners and nothing else pauses the stream: Node stops
+    // draining the pipe, it fills up, and cloudflared — which writes to
+    // stderr blockingly — hangs forever on its next log line.
     const provider = createCloudflaredProvider({ spawner: fakeSpawner() })
     const starting = provider.start({ port: 8000 })
     children[0]!.stderr.write(BANNER)
     await starting
 
-    // Sigue habiendo alguien escuchando: el stream nunca queda pausado.
+    // Someone is still listening: the stream never ends up paused.
     expect(children[0]!.stderr.listenerCount('data')).toBeGreaterThan(0)
     expect(children[0]!.stdout.listenerCount('data')).toBeGreaterThan(0)
   })
@@ -199,8 +200,8 @@ describe('the child process keeps draining', () => {
     children[0]!.stderr.write(BANNER)
     const tunnel = await starting
 
-    // Un túnel de horas: megabytes de heartbeats. No debe romper nada ni
-    // volver a resolver.
+    // An hours-long tunnel: megabytes of heartbeats. It must not break
+    // anything or resolve again.
     for (let i = 0; i < 500; i++) children[0]!.stderr.write(`heartbeat ${i}\n`)
     expect(tunnel.url).toBe('https://shy-forest-1234.trycloudflare.com')
   })

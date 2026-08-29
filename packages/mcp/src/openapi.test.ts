@@ -269,13 +269,13 @@ describe('importOpenapi — hostile input', () => {
     const { endpoints } = importOpenapi({
       paths: { '/x': { get: { responses: { '599': {}, '598': {} } } } },
     })
-    // Orden ascendente: JS itera las claves enteras de un objeto ordenadas.
+    // Ascending order: JS iterates an object's integer keys in sorted order.
     expect(Object.keys(endpoints[0]!.definition.responses)).toEqual(['status-598', 'status-599'])
   })
 
   it('deduplicates when two keys normalise to the same status', () => {
-    // OpenAPI dice que la clave es un string; nada impide '200' y '200.0',
-    // y ambos son el status 200, que querría llamarse 'ok' dos veces.
+    // OpenAPI says the key is a string; nothing stops '200' and '200.0',
+    // and both are status 200, which would want to be called 'ok' twice.
     const { endpoints } = importOpenapi({
       paths: { '/x': { get: { responses: { '200': {}, '200.0': {} } } } },
     })

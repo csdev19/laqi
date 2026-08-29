@@ -330,8 +330,8 @@ describe('createEndpoints (batched)', () => {
   })
 
   it('catches a collision between two entries of the same batch', () => {
-    // Dos operaciones del mismo spec pueden chocar entre sí, no sólo contra
-    // lo que ya estaba en el archivo.
+    // Two operations from the same spec can collide with each other, not
+    // just with what was already in the file.
     const result = unwrap(
       project.createEndpoints([
         { method: 'GET', path: '/dup', default: 'ok', responses: { ok: { status: 200 } } },
@@ -393,9 +393,9 @@ describe('getResponseBody', () => {
 })
 
 describe('the incoming path is normalised too, not just the file keys', () => {
-  // El chequeo de duplicados normalizaba las claves DEL ARCHIVO pero armaba
-  // el id con el path crudo. Un espacio de más lo esquivaba, quedaban dos
-  // claves con el mismo id, y la tabla de rutas mataba las dos.
+  // The duplicate check normalized the FILE keys but built the id from the
+  // raw path. One extra space dodged it, leaving two keys with the same id,
+  // and the route table killed both.
   it('refuses a duplicate whose path only differs in whitespace', () => {
     for (const path of ['/users ', ' /users', '/users  ']) {
       const result = project.createEndpoint({

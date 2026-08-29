@@ -8,13 +8,13 @@ export type ImportedEndpoint = {
 
 export type ImportResult = {
   endpoints: ImportedEndpoint[]
-  /** Lo que se salteó y por qué. Nunca se descarta nada en silencio. */
+  /** What got skipped and why. Nothing is ever dropped silently. */
   skipped: { where: string; reason: string }[]
 }
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
 
-/** Nombres legibles por status. Un agente pide "boom", no "status-500". */
+/** Readable names by status. An agent asks for "boom", not "status-500". */
 const NAMES: Record<string, string> = {
   '200': 'ok',
   '201': 'created',
@@ -33,15 +33,15 @@ const NAMES: Record<string, string> = {
 }
 
 /**
- * Convierte un documento OpenAPI 3.x ya parseado en definiciones de laqi.
+ * Converts an already-parsed OpenAPI 3.x document into laqi definitions.
  *
- * Sólo JSON: no hay parser de YAML acá y traer uno por esto sería una
- * dependencia grande para un caso que el agente puede resolver él mismo
- * convirtiendo el spec antes de llamar.
+ * JSON only: there is no YAML parser here, and pulling one in for this
+ * would be a big dependency for a case the agent can solve on its own by
+ * converting the spec before calling.
  *
- * Nunca tira: lo que no puede convertir sale en `skipped` con el motivo, y
- * el resto se importa igual. Un spec de cien rutas con dos raras vale más
- * importado al 98% que rechazado entero.
+ * Never throws: whatever it can't convert comes back in `skipped` with the
+ * reason, and the rest still gets imported. A spec with a hundred routes
+ * and two odd ones is worth more imported at 98% than rejected whole.
  */
 export function importOpenapi(document: unknown): ImportResult {
   const skipped: { where: string; reason: string }[] = []
@@ -105,7 +105,7 @@ export function importOpenapi(document: unknown): ImportResult {
   return { endpoints, skipped }
 }
 
-/** `/users/{id}` → `/users/:id`, que es lo que entiende el router. */
+/** `/users/{id}` → `/users/:id`, which is what the router understands. */
 export function toLaqiPath(path: string): string {
   return path.replace(/\{([^}]+)\}/g, ':$1')
 }
@@ -114,8 +114,8 @@ function describe(operation: Record<string, unknown>): string | undefined {
   const summary = typeof operation.summary === 'string' ? operation.summary.trim() : ''
   if (summary) return summary
   const description = typeof operation.description === 'string' ? operation.description.trim() : ''
-  // Sólo la primera línea: la descripción de OpenAPI suele ser markdown largo
-  // y esto va a una fila de una tabla.
+  // First line only: an OpenAPI description is often long markdown, and
+  // this goes into a table row.
   return description ? description.split('\n')[0]!.trim() : undefined
 }
 
@@ -148,8 +148,8 @@ function buildResponses(
     }
   }
 
-  // El default es el 2xx más bajo — el camino feliz. Si no hay ninguno, el
-  // primero declarado, para que el endpoint siempre tenga algo que servir.
+  // The default is the lowest 2xx — the happy path. If there isn't one,
+  // the first one declared, so the endpoint always has something to serve.
   let defaultIndex = 0
   let best = Number.POSITIVE_INFINITY
   for (const [index, status] of codes.entries()) {
@@ -163,7 +163,7 @@ function buildResponses(
 }
 
 function statusOf(code: string): number | null {
-  // `default` y los rangos `2XX` de OpenAPI no son un status concreto.
+  // `default` and OpenAPI's `2XX` ranges aren't a concrete status.
   const parsed = Number(code)
   if (!Number.isInteger(parsed) || parsed < 100 || parsed > 599) return null
   return parsed
@@ -182,7 +182,7 @@ function exampleBody(response: unknown, schemas: Record<string, unknown>): unkno
   const json = response.content['application/json']
   if (!isObject(json)) return undefined
 
-  // Un ejemplo escrito a mano siempre le gana a uno generado del schema.
+  // A hand-written example always wins over one generated from the schema.
   if (json.example !== undefined) return json.example
 
   if (isObject(json.examples)) {
@@ -199,9 +199,10 @@ function exampleBody(response: unknown, schemas: Record<string, unknown>): unkno
 const MAX_DEPTH = 8
 
 /**
- * Un ejemplo plausible a partir de un JSON Schema. No pretende ser completo:
- * alcanza con que el frontend reciba la forma correcta y pueda editarla.
- * `seen` corta los `$ref` circulares, que son normales en specs reales.
+ * A plausible example built from a JSON Schema. It doesn't aim to be
+ * complete: it's enough for the frontend to receive the right shape and be
+ * able to edit it. `seen` cuts off circular `$ref`s, which are common in
+ * real specs.
  */
 function fromSchema(
   schema: unknown,
@@ -227,7 +228,7 @@ function fromSchema(
     const branch = schema[key]
     if (Array.isArray(branch) && branch.length > 0) {
       if (key === 'allOf') {
-        // allOf es una intersección: mezclar todas las ramas en un objeto.
+        // allOf is an intersection: merge all the branches into one object.
         const merged: Record<string, unknown> = {}
         for (const part of branch) {
           const value = fromSchema(part, schemas, seen, depth + 1)
@@ -254,7 +255,7 @@ function fromSchema(
     case 'null':
       return null
     default:
-      // Sin `type` pero con `properties` es un objeto en la práctica.
+      // No `type` but with `properties` is an object in practice.
       return isObject(schema.properties) ? objectFrom(schema, schemas, seen, depth) : null
   }
 }

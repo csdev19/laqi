@@ -11,8 +11,9 @@ const ResponsesShape = z
   )
 
 /**
- * Un fallo de herramienta se devuelve como `isError`, no como una excepción:
- * el agente tiene que poder leer el motivo y corregir, no ver un stack.
+ * A tool failure is returned as `isError`, not as a thrown exception: the
+ * agent needs to be able to read the reason and correct course, not see a
+ * stack trace.
  */
 function reply<T>(result: ProjectResult<T>) {
   if (!result.ok) {
@@ -213,8 +214,8 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       const imported = importOpenapi(document)
       const skipped = [...imported.skipped]
 
-      // Una sola carga y una sola escritura para todo el spec. Antes era una
-      // llamada por operación, y cada una recargaba el proyecto entero.
+      // One load and one write for the whole spec. It used to be one call
+      // per operation, and each one reloaded the entire project.
       const batch = project.createEndpoints(
         imported.endpoints.map((endpoint) => ({
           method: endpoint.method,

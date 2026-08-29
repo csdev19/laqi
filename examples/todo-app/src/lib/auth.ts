@@ -1,16 +1,16 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 
 /**
- * El "auth" de este ejemplo es un MECANISMO DEL FRONTEND, no seguridad.
+ * This example's "auth" is a FRONTEND MECHANISM, not security.
  *
- * laqi es un mock server: devuelve respuestas enlatadas y no puede verificar
- * un token — no corre lógica condicional. `POST /auth/login` responde 200 con
- * un token fijo tengas las credenciales que tengas.
+ * laqi is a mock server: it returns canned responses and can't verify a
+ * token — it runs no conditional logic. `POST /auth/login` responds 200
+ * with a fixed token no matter what credentials you send.
  *
- * Lo que sí es real es la FORMA: se guarda una cookie, un guard de ruta
- * bloquea la app sin sesión, y cada request lleva su `Authorization: Bearer`.
- * Cuando aparezca el backend de verdad, el frontend no cambia — que es
- * exactamente para lo que sirve laqi.
+ * What IS real is the SHAPE: a cookie is stored, a route guard blocks the
+ * app without a session, and every request carries its `Authorization:
+ * Bearer`. Once the real backend shows up, the frontend doesn't change —
+ * which is exactly what laqi is for.
  */
 const COOKIE = 'laqi_demo_session'
 const MAX_AGE_SECONDS = 60 * 60 * 8
@@ -19,7 +19,7 @@ export type User = { id: number; name: string; email: string }
 export type Session = { token: string; user: User }
 
 export function readSession(): Session | null {
-  // En SSR no hay document.
+  // There's no document in SSR.
   if (typeof document === 'undefined') return null
 
   const raw = rawCookie()
@@ -28,7 +28,7 @@ export function readSession(): Session | null {
   try {
     return JSON.parse(decodeURIComponent(raw)) as Session
   } catch {
-    // Cookie corrupta: se descarta en vez de romper la app.
+    // Corrupt cookie: discard it instead of breaking the app.
     return null
   }
 }
@@ -51,7 +51,7 @@ function rawCookie(): string | undefined {
     ?.slice(COOKIE.length + 1)
 }
 
-/* ── El store, para que React no se entere tarde ───────────────────────── */
+/* ── The store, so React doesn't find out late ──────────────────────────── */
 
 const listeners = new Set<() => void>()
 
@@ -64,9 +64,10 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-// useSyncExternalStore vuelve a llamar a getSnapshot en cada render y compara
-// por identidad: devolver un objeto nuevo cada vez sería un loop infinito. Se
-// cachea contra el string crudo de la cookie, que es lo que de verdad cambia.
+// useSyncExternalStore calls getSnapshot again on every render and compares
+// by identity: returning a new object every time would be an infinite
+// loop. It's cached against the cookie's raw string, which is what
+// actually changes.
 let cachedRaw: string | undefined
 let cachedSession: Session | null = null
 
@@ -79,16 +80,16 @@ function getSnapshot(): Session | null {
   return cachedSession
 }
 
-/** En el servidor nunca hay sesión: es lo que hace que la hidratación cierre. */
+/** On the server there is never a session: that's what makes hydration line up. */
 function getServerSnapshot(): Session | null {
   return null
 }
 
 /**
- * `ready` es lo que evita el rebote: durante SSR y el primer render del
- * cliente la sesión es `null` por construcción, así que un guard que decidiera
- * ahí mandaría a /login a alguien que sí tiene sesión. Los guards esperan a
- * `ready`, que sólo se enciende después de montar.
+ * `ready` is what avoids the bounce: during SSR and the client's first
+ * render the session is `null` by construction, so a guard that decided
+ * right then would send someone who does have a session to /login. Guards
+ * wait for `ready`, which only turns on after mounting.
  */
 export function useSession(): { session: Session | null; ready: boolean } {
   const session = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)

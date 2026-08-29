@@ -13,11 +13,11 @@ import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 
 /**
- * Todo lo que el control plane necesita del proceso que lo hospeda. Cada
- * tarea de este plan agrega los campos que sus rutas necesitan — este tipo
- * es el contrato completo recién al final de la Tarea 8.
+ * Everything the control plane needs from the process that hosts it. Each
+ * task in this plan adds the fields its routes need — this type only
+ * becomes the complete contract at the end of Task 8.
  */
-/** Por qué falló una escritura, para elegir el status correcto. */
+/** Why a write failed, to pick the right status. */
 export type WriteFailure = 'invalid' | 'conflict' | 'not-found'
 
 const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
@@ -65,7 +65,7 @@ export type ControlPlaneRuntime = {
     endpointCount: number
     address: string
     errors: LoadError[]
-    /** `null` cuando --share no está activo. */
+    /** `null` when --share is not active. */
     share?: { url: string | null; token: string | null; exposed: string } | null
   }
   createEndpoint: (input: {
@@ -99,12 +99,12 @@ export type ControlPlaneRuntime = {
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   const app = new Hono()
 
-  // Un POST con Content-Type: text/plain es un CORS "simple request" — un
-  // navegador lo manda SIN preflight — y c.req.json() igual lo parsea sin
-  // mirar el content-type declarado. Sin esto, cualquier pestaña abierta en
-  // otro sitio podría escribir en el proyecto del developer en silencio.
-  // Ningún Origin header (curl, fetch same-origin) pasa igual: sólo un
-  // navegador cross-origin siempre manda Origin.
+  // A POST with Content-Type: text/plain is a CORS "simple request" — a
+  // browser sends it WITHOUT preflight — and c.req.json() parses it anyway
+  // without looking at the declared content-type. Without this, any tab
+  // open on another site could silently write to the developer's project.
+  // No Origin header (curl, same-origin fetch) passes just the same: only
+  // a cross-origin browser always sends Origin.
   app.use('*', async (c, next) => {
     const origin = c.req.header('Origin')
     const isWriteMethod = ['POST', 'PUT', 'DELETE'].includes(c.req.method)
@@ -266,9 +266,9 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     })
 
     if (!result.ok) {
-      // 409 sólo cuando de verdad choca con algo. Un path mal formado que
-      // Project rechaza es un 400: no entra en conflicto con nada, y un
-      // cliente que trate 409 como "ya existe" se confundiría.
+      // 409 only when it truly clashes with something. A malformed path
+      // that Project rejects is a 400: it doesn't conflict with anything,
+      // and a client that treats 409 as "already exists" would get confused.
       return c.json(
         { error: 'laqi-control-plane', message: result.error },
         STATUS[result.code ?? 'conflict'],
@@ -279,10 +279,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   })
 
   app.put('/api/endpoints/:id', async (c) => {
-    // Sin decodeURIComponent: Hono ya decodifica el param. Decodificar otra
-    // vez rompe cualquier id con un '%' literal — encodeURIComponent lo
-    // manda como %25, Hono lo devuelve como '%', y el segundo decode tira
-    // URIError, o sea un 500 en vez de editar el endpoint.
+    // No decodeURIComponent: Hono already decodes the param. Decoding it
+    // again breaks any id with a literal '%' — encodeURIComponent sends it
+    // as %25, Hono returns it as '%', and the second decode throws
+    // URIError, i.e. a 500 instead of editing the endpoint.
     const id = c.req.param('id')
 
     let raw: unknown
@@ -315,7 +315,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   })
 
   app.delete('/api/endpoints/:id', (c) => {
-    // Ver el comentario del PUT: Hono ya decodificó.
+    // See the comment on PUT: Hono already decoded it.
     const id = c.req.param('id')
     const result = runtime.deleteEndpoint(id)
 
@@ -331,10 +331,10 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
   app.get('/events', (c) =>
     streamSSE(c, async (stream) => {
-      // Sin busy-loop: el generador se queda esperando esta promesa, que
-      // resuelve en el momento exacto en que el cliente corta. Antes había
-      // un `while (!closed) await stream.sleep(30)`, que despertaba un timer
-      // 33 veces por segundo por conexión sólo para mirar un flag.
+      // No busy-loop: the generator just waits on this promise, which
+      // resolves the exact moment the client disconnects. There used to be
+      // a `while (!closed) await stream.sleep(30)`, which woke a timer
+      // 33 times per second per connection just to check a flag.
       const disconnected = new Promise<void>((resolve) => {
         stream.onAbort(() => resolve())
       })
@@ -409,8 +409,8 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.json({ preview: result.preview, warnings: result.warnings })
   })
 
-  // Punto de inserción para futuras rutas: van ACÁ, antes de este
-  // catch-all — nunca después.
+  // Insertion point for future routes: they go HERE, before this
+  // catch-all — never after.
   app.all('*', (c) =>
     c.json({ error: 'laqi-control-plane', message: 'no matching route', path: c.req.path }, 404),
   )

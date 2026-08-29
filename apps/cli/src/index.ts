@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// apps/cli/src/index.ts — el shebang DEBE quedar como primera línea del archivo
+// apps/cli/src/index.ts — the shebang MUST stay as the first line of the file
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -79,7 +79,7 @@ function stripUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
-/** `undefined` si no se pasó; `null` si es inválido (ya se reportó). */
+/** `undefined` if it wasn't passed; `null` if it's invalid (already reported). */
 function parsePort(raw: string | undefined, flag: string): number | undefined | null {
   if (raw === undefined) return undefined
 
@@ -151,10 +151,10 @@ async function main(): Promise<void> {
     return
   }
 
-  // Los flags numéricos se validan ANTES de mezclarlos con el archivo. Sin
-  // esto, `--port abc` se volvía NaN, hacía fallar la validación del objeto
-  // mezclado, y loadConfig descartaba el laqi.config.json ENTERO — culpando
-  // al archivo, que estaba bien — y arrancaba con todos los defaults.
+  // Numeric flags are validated BEFORE merging with the file. Without
+  // this, `--port abc` turned into NaN, failed validation on the merged
+  // object, and loadConfig discarded the ENTIRE laqi.config.json —
+  // blaming the file, which was fine — and started with all defaults.
   const port = parsePort(values.port, '--port')
   if (port === null) {
     process.exitCode = 5
@@ -170,8 +170,8 @@ async function main(): Promise<void> {
   })
 
   if (positionals[0] === 'mcp') {
-    // stdout es el canal del protocolo MCP: nada puede escribir ahí salvo
-    // el transport. El banner de arranque va a stderr.
+    // stdout is the MCP protocol channel: nothing can write there except
+    // the transport. The startup banner goes to stderr.
     const { startMcpStdio } = await import('@laqi/mcp')
     console.error(`laqi mcp — serving ${root}`)
     await startMcpStdio({ root, config })
@@ -221,10 +221,10 @@ async function main(): Promise<void> {
   let share: ShareOptions | undefined
 
   if (wantsShare) {
-    // Un flag mal escrito se reporta antes que un problema del entorno: es
-    // lo que el developer puede arreglar solo. --port pasa por ConfigSchema;
-    // --share-port no tenía nada, así que un valor no numérico llegaba como
-    // NaN hasta server.listen() y salía como un stack pelado.
+    // A mistyped flag is reported before an environment problem: it's
+    // something the developer can fix on their own. --port goes through
+    // ConfigSchema; --share-port had nothing, so a non-numeric value
+    // reached server.listen() as NaN and came out as a bare stack trace.
     const parsedSharePort = parsePort(values['share-port'], '--share-port')
     if (parsedSharePort === null) {
       process.exitCode = 5
@@ -232,8 +232,8 @@ async function main(): Promise<void> {
     }
     const sharePort = parsedSharePort ?? config.port + 1
 
-    // Se chequea ANTES de abrir puertos: fallar después de imprimir el
-    // banner de arranque haría creer que algo quedó a medio levantar.
+    // Checked BEFORE opening ports: failing after printing the startup
+    // banner would make it look like something was left half-started.
     const unavailable = await provider.unavailable()
     if (unavailable !== null) {
       reportFatal({
@@ -248,9 +248,9 @@ async function main(): Promise<void> {
     share = {
       port: sharePort,
       token: values.public === true ? null : generateToken(),
-      // El ADR-0007 prohíbe `*` en modo compartido. Con la config por
-      // defecto no hay ningún origen de navegador permitido — que es lo
-      // seguro. curl y React Native no mandan Origin, así que siguen andando.
+      // ADR-0007 forbids `*` in shared mode. With the default config no
+      // browser origin is allowed at all — which is the safe state. curl
+      // and React Native don't send Origin, so they keep working.
       origins: config.cors === '*' ? [] : config.cors,
     }
   }
@@ -264,9 +264,10 @@ async function main(): Promise<void> {
     handle = await startServer({ root, config, share, counters })
   } catch (error) {
     if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-      // Con --share hay DOS listeners. Cuál falló lo marca startServer en el
-      // propio error; leerlo del texto del mensaje se equivocaba en las dos
-      // direcciones, y encima cambia entre Bun y Node.
+      // With --share there are TWO listeners. Which one failed is marked
+      // by startServer on the error itself; reading it from the message
+      // text got it wrong in both directions, and on top of that it
+      // varies between Bun and Node.
       const failedListener = (error as { laqiListener?: 'share' }).laqiListener
       const busyPort = failedListener === 'share' && share !== undefined ? share.port : config.port
       reportFatal({
@@ -328,8 +329,8 @@ async function main(): Promise<void> {
   // summary — which is exactly what someone pressing ^C twice wants.
   const shutdown = () => {
     void (async () => {
-      // Sin esto cloudflared sobrevive al CLI y el túnel queda abierto
-      // apuntando a un puerto muerto.
+      // Without this cloudflared outlives the CLI and the tunnel stays
+      // open, pointing at a dead port.
       await watcher.close().catch(() => {})
       if (tunnel) await tunnel.stop().catch(() => {})
       await handle.close().catch(() => {})

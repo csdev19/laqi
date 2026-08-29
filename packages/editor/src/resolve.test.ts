@@ -99,8 +99,8 @@ describe('overridesAfterChipClick', () => {
   })
 
   it('WRITES the override when clicking the file default while a scenario covers the endpoint', () => {
-    // Salirse del escenario para un endpoint es una decisión real: sin
-    // override, el escenario lo volvería a mover en el próximo render.
+    // Opting out of the scenario for one endpoint is a real decision:
+    // without the override, the scenario would move it back on the next render.
     const scenarios: Scenarios = { 'checkout-broken': { 'GET /users': 'boom' } }
     expect(
       overridesAfterChipClick({

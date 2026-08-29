@@ -84,19 +84,19 @@ export function App() {
       (event) => {
         if (event.type === 'request') {
           if (paused) return
-          // La entrada se arma ACÁ, no adentro del updater: EventSource
-          // despacha en un mismo tick todos los frames que llegaron juntos,
-          // y los updaters corren después — los dos leerían el mismo
-          // seq.current y producirían dos filas con la misma key de React.
+          // The entry is built HERE, not inside the updater: EventSource
+          // dispatches every frame that arrived together in the same tick,
+          // and updaters run afterwards — both would read the same
+          // seq.current and produce two rows with the same React key.
           const entry = toLogEntry(event, ++seq.current, new Date())
           setLog((previous) => appendLog(previous, entry))
           return
         }
-        // Tanto una recarga como un error de parseo cambian lo que hay que
-        // mostrar: la fuente de verdad sigue siendo el servidor, no el
-        // evento. Se agrupa porque un solo guardado emite un
-        // `endpoints-changed` más un `error` por archivo roto, y cada uno
-        // dispararía cuatro GETs contra el control plane.
+        // Both a reload and a parse error change what needs to be shown: the
+        // source of truth is still the server, not the event. This is
+        // debounced because a single save emits an `endpoints-changed` plus
+        // an `error` per broken file, and each one would fire four GETs
+        // against the control plane.
         scheduleRefresh()
       },
       [paused, scheduleRefresh],
@@ -104,9 +104,9 @@ export function App() {
   )
 
   /**
-   * Pintar optimista: misma máquina, latencia cero — nunca un spinner. Si el
-   * PUT falla, el estado vuelve a lo que había y el servidor tiene la última
-   * palabra.
+   * Optimistic paint: same machine, zero latency — never a spinner. If the
+   * PUT fails, state reverts to what it was and the server has the final
+   * word.
    */
   const commitState = useCallback(async (next: LaqiState, previous: LaqiState) => {
     setState(next)
@@ -208,8 +208,8 @@ export function App() {
     [refresh],
   )
 
-  // esc siempre significa "un nivel arriba", en un orden predecible:
-  // paleta → crear → detalle.
+  // esc always means "one level up", in a predictable order:
+  // palette → create → detail.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {

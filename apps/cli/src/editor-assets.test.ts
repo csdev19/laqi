@@ -47,8 +47,8 @@ describe('createEditorApp', () => {
   })
 
   it('refuses to walk out of the dist directory', async () => {
-    // El secreto vive fuera de dist/, que es exactamente lo que un traversal
-    // busca alcanzar.
+    // The secret lives outside dist/, which is exactly what a traversal
+    // attack tries to reach.
     const secret = join(dist, '..', 'laqi-secret.txt')
     writeFileSync(secret, 'SECRET')
 
@@ -90,10 +90,10 @@ describe('editorDistDir', () => {
 })
 
 describe('editorDistDir — packaged layout', () => {
-  // Antes este test hacía `existsSync(editorDistDir()/index.html)`, lo que
-  // exigía que el panel estuviera CONSTRUIDO: en un clone fresco (bun
-  // install && bun run test, o sea CI) la suite salía roja con el árbol
-  // sano. La regla se verifica inyectando el directorio base.
+  // This test used to do `existsSync(editorDistDir()/index.html)`, which
+  // required the panel to be BUILT: on a fresh clone (bun install && bun
+  // run test, i.e. CI) the suite came back red on a healthy tree. The rule
+  // is verified by injecting the base directory instead.
   it('prefers a panel/ directory next to the bundle when one is there', () => {
     const bundleDir = join(dist, 'fake-bundle')
     mkdirSync(join(bundleDir, 'panel'), { recursive: true })
@@ -110,7 +110,7 @@ describe('editorDistDir — packaged layout', () => {
   })
 
   it('falls back to the monorepo package when there is no bundled panel', () => {
-    // Sin comprobar que exista: en un clone fresco todavía no está.
+    // Without checking that it exists: on a fresh clone it isn't there yet.
     const dir = editorDistDir(join(dist, 'nothing-here'))
     expect(dir).toContain(join('packages', 'editor', 'dist'))
   })

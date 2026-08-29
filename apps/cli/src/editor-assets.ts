@@ -5,14 +5,14 @@ import { fileURLToPath } from 'node:url'
 import { Hono, type Context } from 'hono'
 
 /**
- * Dónde quedó el build del panel. Dos casos, en este orden:
+ * Where the panel build ended up. Two cases, in this order:
  *
- * 1. **Empaquetado** (`npx laqi`): el panel viaja como `panel/` al lado del
- *    bundle. `@laqi/editor` no se publica, así que resolverlo por módulo
- *    fallaría — se busca primero acá.
- * 2. **Monorepo** (corriendo desde el fuente): se resuelve
- *    `@laqi/editor/package.json` por el resolver de módulos, que no depende
- *    de dónde esté este archivo.
+ * 1. **Packaged** (`npx laqi`): the panel travels as `panel/` next to the
+ *    bundle. `@laqi/editor` isn't published, so resolving it through the
+ *    module system would fail — it's looked for here first.
+ * 2. **Monorepo** (running from source): resolved via
+ *    `@laqi/editor/package.json` through the module resolver, which
+ *    doesn't depend on where this file lives.
  */
 export function editorDistDir(baseDir = dirname(fileURLToPath(import.meta.url))): string | null {
   const packaged = join(baseDir, 'panel')
@@ -44,11 +44,12 @@ function contentType(path: string): string {
 }
 
 /**
- * Sirve el panel construido. Se monta ANTES del control plane, porque el
- * control plane termina en un catch-all que se comería estas rutas.
+ * Serves the built panel. Mounted BEFORE the control plane, because the
+ * control plane ends in a catch-all that would swallow these routes.
  *
- * Si no hay build (nadie corrió `bun run build`), devuelve una página que lo
- * dice en vez de un 404 mudo — es el error más probable de un contribuidor.
+ * If there's no build (nobody ran `bun run build`), returns a page that
+ * says so instead of a silent 404 — it's the most likely error for a
+ * contributor to hit.
  */
 export function createEditorApp(distDir: string | null = editorDistDir()): Hono {
   const app = new Hono()
@@ -58,9 +59,9 @@ export function createEditorApp(distDir: string | null = editorDistDir()): Hono 
       return c.html(missingBuildPage(), 503)
     }
 
-    // El path llega de la URL: sin esto, /__laqi/assets/../../../etc/passwd
-    // saldría de dist/. `normalize` colapsa los `..` y después se verifica
-    // que el resultado siga adentro de la raíz.
+    // The path comes from the URL: without this, /__laqi/assets/../../../etc/passwd
+    // would escape dist/. `normalize` collapses the `..`s, and then we verify
+    // the result still lands inside the root.
     const root = resolve(distDir)
     const target = resolve(root, normalize(relativePath).replace(/^(\.\.[/\\])+/, ''))
     if (target !== root && !target.startsWith(root + sep)) {
@@ -85,8 +86,8 @@ export function createEditorApp(distDir: string | null = editorDistDir()): Hono 
     try {
       decoded = decodeURIComponent(path)
     } catch {
-      // `%` suelto o `%zz`: los bots y los escáneres de links los producen
-      // todo el tiempo. Es un 404, no un 500 con stack.
+      // A stray `%` or `%zz`: bots and link scanners produce these all
+      // the time. It's a 404, not a 500 with a stack trace.
       return c.text('not found', 404)
     }
 

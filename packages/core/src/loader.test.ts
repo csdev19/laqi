@@ -140,8 +140,9 @@ describe('loadMocks', () => {
   })
 
   it('reports a per-file error instead of throwing when a file goes unreadable between scan and read (C2)', () => {
-    // Un symlink cuyo target se borra justo antes de leerlo: readdirSync lo lista,
-    // pero readFileSync explota — el mismo hueco que un archivo borrado a mitad de carga.
+    // A symlink whose target gets deleted right before reading it: readdirSync
+    // lists it, but readFileSync blows up — the same gap as a file deleted
+    // mid-load.
     writeMock('laqi/api.json', usersEndpoint)
     const target = join(root, 'ghost-target.json')
     writeFileSync(target, usersEndpoint, 'utf8')

@@ -72,9 +72,9 @@ describe('formatEndpointId', () => {
 })
 
 describe('unreachable paths', () => {
-  // Un cliente y un servidor normalizan la URL antes de rutear, así que una
-  // ruta declarada con `..` no puede ser alcanzada nunca. Rechazarla la
-  // convierte en un error explícito en vez de un endpoint muerto.
+  // Both a client and a server normalize the URL before routing, so a route
+  // declared with `..` can never be reached. Rejecting it turns that into
+  // an explicit error instead of a dead endpoint.
   it('rejects a path with a .. segment', () => {
     for (const key of ['GET /../escaped', 'GET /a/../b', 'GET /..', 'POST /a/b/../../c']) {
       const result = parseEndpointKey(key)

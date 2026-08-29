@@ -17,16 +17,16 @@ function Profile() {
   const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.profile() })
   const expired = profile.error instanceof ApiError && profile.error.status === 401
 
-  // El 401 es la respuesta `unauthorized` del mock, y un frontend real cierra
-  // sesión ahí. Va en un efecto, no en el render: clearSession escribe una
-  // cookie, y hacer eso durante el render corre dos veces bajo StrictMode y
-  // rompe la pureza que React espera.
+  // The 401 is the mock's `unauthorized` response, and a real frontend
+  // signs out there. It goes in an effect, not in render: clearSession
+  // writes a cookie, and doing that during render runs twice under
+  // StrictMode and breaks the purity React expects.
   useEffect(() => {
     if (expired) clearSession()
   }, [expired])
 
-  // La redirección la hace <Navigate>, que es la primitiva del router para
-  // esto; el efecto de arriba ya limpió la sesión.
+  // The redirect is done by <Navigate>, which is the router's primitive
+  // for this; the effect above already cleared the session.
   if (expired) return <Navigate to="/login" replace />
 
   if (profile.isPending) return <p className="muted">Loading…</p>

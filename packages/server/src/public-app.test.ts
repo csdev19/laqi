@@ -88,8 +88,8 @@ describe('H1 — the control plane never reaches the tunnel', () => {
   })
 
   it('is structural: even if a control plane were mounted, the 404 wins', async () => {
-    // Defensa en profundidad. La garantía real es que el puerto público no
-    // monta el control plane — esto cubre el día que alguien lo monte mal.
+    // Defense in depth. The real guarantee is that the public port doesn't
+    // mount the control plane — this covers the day someone mounts it wrong.
     const app = createPublicApp({ mock: makeMock(), token: null, origins: [] })
     app.route(
       '/__laqi',
@@ -215,8 +215,9 @@ describe('rate limiting', () => {
   })
 
   it('a rotated CF-Connecting-IP still hits the global ceiling', async () => {
-    // El header lo fija cloudflared, pero quien llegue directo al puerto
-    // podría inventarlo. Rotarlo esquiva el bucket propio, no el global.
+    // The header is set by cloudflared, but whoever reaches the port
+    // directly could make one up. Rotating it dodges its own bucket, not
+    // the global one.
     const app = makeApp({ token: null, rateLimit: { windowMs: 1000, max: 2, globalMax: 5 } })
 
     const statuses: number[] = []
@@ -272,9 +273,9 @@ describe('OPTIONS mocks survive the tunnel', () => {
   }
 
   it('serves a declared OPTIONS mock instead of a bare CORS 204', async () => {
-    // createMockApp registra los mocks OPTIONS antes de su propio cors()
-    // para que sean alcanzables. Un cors() en la app pública lo deshacía:
-    // el mock andaba en local y devolvía 204 vacío por el túnel.
+    // createMockApp registers OPTIONS mocks ahead of its own cors() so
+    // they're reachable. A cors() in the public app used to undo that: the
+    // mock worked locally but returned an empty 204 through the tunnel.
     const app = createPublicApp({ mock: withOptionsMock(), token: null, origins: [] })
     const res = await app.request('/probe', { method: 'OPTIONS' })
 
@@ -305,13 +306,13 @@ describe('rate limiter memory', () => {
       rateLimit: { windowMs: 60_000, max: 5, globalMax: 100_000 },
     })
 
-    // Muchas más requests que el techo de buckets, cada una con una IP nueva.
+    // Many more requests than the bucket ceiling, each with a fresh IP.
     for (let i = 0; i < MAX_BUCKETS + 500; i++) {
       await app.request('/users', { headers: { 'CF-Connecting-IP': `10.0.${i >> 8}.${i & 255}` } })
     }
 
-    // No se puede leer el Map desde afuera, así que se verifica lo que
-    // importa: el proceso sigue vivo y respondiendo.
+    // The Map can't be read from the outside, so we verify what matters:
+    // the process is still alive and responding.
     expect(
       (await app.request('/users', { headers: { 'CF-Connecting-IP': '10.9.9.9' } })).status,
     ).toBe(200)
@@ -354,8 +355,8 @@ describe('an OPTIONS mock is not a way around the token', () => {
   }
 
   it('401s an OPTIONS mock requested without a token', async () => {
-    // Saltear el auth para todo OPTIONS filtraba el cuerpo entero por el
-    // túnel a cualquiera que encontrara la URL.
+    // Skipping auth for every OPTIONS used to leak the entire body through
+    // the tunnel to anyone who found the URL.
     const app = createPublicApp({ mock: withOptionsMock(), token: TOKEN, origins: [] })
     const res = await app.request('/capabilities', { method: 'OPTIONS' })
 
@@ -382,7 +383,7 @@ describe('an OPTIONS mock is not a way around the token', () => {
       headers: { Origin: 'https://app.example.com', 'Access-Control-Request-Method': 'GET' },
     })
 
-    // Se contesta como preflight (204 sin cuerpo), nunca con el mock.
+    // Answered as a preflight (204, no body), never with the mock.
     expect(res.status).toBe(204)
     expect(await res.text()).toBe('')
   })

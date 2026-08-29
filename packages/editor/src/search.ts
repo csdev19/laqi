@@ -1,9 +1,9 @@
 import type { Endpoint } from './types'
 
 /**
- * El filtro de la lista: match de substring sobre método, path, descripción
- * y nombres de respuesta. Case-insensitive, sin tokenizar — narrows lo que
- * MIRÁS, que es un trabajo distinto al de la paleta.
+ * The list filter: substring match over method, path, description and
+ * response names. Case-insensitive, no tokenizing — it narrows what you're
+ * LOOKING AT, which is a different job than the palette's.
  */
 export function filterEndpoints(endpoints: Endpoint[], query: string): Endpoint[] {
   const needle = query.trim().toLowerCase()
@@ -25,15 +25,15 @@ function haystack(endpoint: Endpoint): string {
 
 export type PaletteResult = {
   endpoint: Endpoint
-  /** El nombre de respuesta que esta fila pondría en vivo. */
+  /** The response name this row would put live. */
   response: string
 }
 
 /**
- * La paleta actúa sin mirar: multi-token, TODOS los tokens tienen que
- * matchear en `METHOD path response`, en cualquier orden — `orders boom`
- * encuentra `POST /orders → boom`. Una fila por par endpoint×respuesta,
- * porque el ↵ pone una respuesta concreta en vivo, no un endpoint.
+ * The palette acts without looking: multi-token, ALL tokens have to match
+ * within `METHOD path response`, in any order — `orders boom` finds
+ * `POST /orders → boom`. One row per endpoint×response pair, because ↵ puts
+ * a specific response live, not an endpoint.
  */
 export function paletteResults(endpoints: Endpoint[], query: string, limit = 40): PaletteResult[] {
   const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)

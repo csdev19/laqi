@@ -38,8 +38,9 @@ describe('writeFileAtomic', () => {
   })
 
   it('uses a distinct temp name per write, so two writers cannot collide', () => {
-    // Con un `.tmp` fijo, dos procesos se pisaban el temporal y uno moría
-    // con ENOENT al renombrar algo que el otro ya se había llevado.
+    // With a fixed `.tmp` name, two processes would step on each other's
+    // temp file and one would die with ENOENT renaming something the other
+    // had already taken.
     const names = new Set<string>()
     for (let i = 0; i < 20; i++) {
       writeFileAtomic(target, String(i))
@@ -69,9 +70,9 @@ describe('withFileLock', () => {
   })
 
   it('reclaims a lock whose owner process is gone, without waiting', () => {
-    // El caso real: un proceso muerto a mitad de escritura deja el lock con
-    // un mtime fresco. Decidir por antigüedad hacía esperar el timeout
-    // entero y después fallar, dejando el lock puesto para siempre.
+    // The real-world case: a process that died mid-write leaves the lock
+    // with a fresh mtime. Deciding by age would wait out the full timeout
+    // and then fail, leaving the lock in place forever.
     mkdirSync(join(root, 'nested'), { recursive: true })
     writeFileSync(lockOf(target), '999999', 'utf8')
 
@@ -82,8 +83,9 @@ describe('withFileLock', () => {
   })
 
   it('reclaims a lock this same process left behind', () => {
-    // Este camino es síncrono, así que no podemos estarlo sosteniendo ahora:
-    // sobró de una llamada anterior que murió entre el open y el finally.
+    // This path is synchronous, so we can't still be holding it now: it's
+    // left over from an earlier call that died between the open and the
+    // finally.
     mkdirSync(join(root, 'nested'), { recursive: true })
     writeFileSync(lockOf(target), String(process.pid), 'utf8')
 
@@ -102,8 +104,9 @@ describe('withFileLock', () => {
   it(
     'returns a failure rather than throwing when it cannot get the lock',
     () => {
-      // Un dueño VIVO y ajeno no se desaloja: robarle el lock perdería su
-      // escritura, que es justo lo que esto evita. Se espera y se falla.
+      // A LIVE owner that isn't us doesn't get evicted: stealing its lock
+      // would lose its write, which is exactly what this is meant to
+      // prevent. So we wait, and then fail.
       mkdirSync(join(root, 'nested'), { recursive: true })
       writeFileSync(lockOf(target), String(process.ppid), 'utf8')
 

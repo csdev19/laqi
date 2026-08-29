@@ -1,9 +1,9 @@
 /**
- * Un warning de generación no es un error: la operación funcionó y produjo
- * datos, solo que degradados (un índice descartado, un import que no se
- * pudo resolver). `role="status"` porque es informativo y no debe robar el
- * foco ni interrumpir como un `alert`; dismissible porque no es una
- * condición persistente como la de compartir.
+ * A generation warning is not an error: the operation succeeded and
+ * produced data, just degraded (a dropped index signature, an import that
+ * couldn't be resolved). `role="status"` because it's informative and
+ * shouldn't steal focus or interrupt like an `alert`; dismissible because
+ * it's not a persistent condition like the sharing one.
  */
 export function WarningBand(props: { warnings: string[]; onDismiss: () => void }) {
   if (props.warnings.length === 0) return null

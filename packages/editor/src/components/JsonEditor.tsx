@@ -1,9 +1,9 @@
 import { checkJson, tokenizeJson } from '../highlight'
 
 /**
- * Un textarea transparente encima de un <pre> coloreado, alineados carácter
- * a carácter. Es todo lo que hace falta: el diseño pide explícitamente NO
- * traer un editor entero para esta superficie.
+ * A transparent textarea on top of a colorized <pre>, aligned character for
+ * character. That's all it needs: the design explicitly calls for NOT
+ * bringing in a whole editor for this surface.
  */
 export function JsonEditor(props: {
   value: string
@@ -27,8 +27,8 @@ export function JsonEditor(props: {
               {token.text}
             </span>
           ))}
-          {/* Una línea final vacía mantiene la altura cuando el source
-              termina en \n, si no el caret se sale del área pintada. */}
+          {/* An empty trailing line keeps the height when the source ends
+              in \n, otherwise the caret ends up outside the painted area. */}
           {props.value.endsWith('\n') ? '\n' : ''}
         </pre>
 

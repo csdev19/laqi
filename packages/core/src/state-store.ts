@@ -14,8 +14,8 @@ export class StateStore {
   }
 
   /**
-   * Lo genera la máquina, así que cualquier daño se descarta en silencio:
-   * perder el estado de una sesión es preferible a no arrancar.
+   * The machine generates this, so any corruption is silently discarded:
+   * losing a session's state is preferable to not starting at all.
    */
   read(): LaqiState {
     if (!existsSync(this.path)) return { ...DEFAULT_STATE }
@@ -29,31 +29,31 @@ export class StateStore {
   }
 
   /**
-   * Escribe el estado entero.
+   * Writes the whole state.
    *
-   * Bajo el mismo lock que los archivos de mock, y por el mismo motivo: los
-   * DOS procesos que escriben mocks —`laqi mcp` y el control plane del CLI—
-   * escriben también acá, vía `setResponse`, `setScenario` y `PUT /api/state`.
-   * El arreglo de concurrencia se había aplicado sólo a `writer.ts`, así que
-   * este archivo seguía con el bug entero: temporal de nombre fijo, ENOENT al
-   * renombrar, y escrituras perdidas. Medido antes: de 600 overrides escritos
-   * desde dos procesos sobrevivían 300, con un crash.
+   * Under the same lock as the mock files, and for the same reason: the TWO
+   * processes that write mocks — `laqi mcp` and the CLI's control plane —
+   * also write here, via `setResponse`, `setScenario`, and `PUT /api/state`.
+   * The concurrency fix had only been applied to `writer.ts`, so this file
+   * still carried the whole bug: fixed-name temp file, ENOENT on rename, and
+   * lost writes. Measured before the fix: of 600 overrides written from two
+   * processes, 300 survived, with a crash.
    */
   write(state: LaqiState): void {
     withFileLock(this.path, () => {
       writeFileAtomic(this.path, `${JSON.stringify(state, null, 2)}\n`)
     })
-    // Sin propagar el fallo a propósito: esto es estado de máquina, y su
-    // contrato desde el Plan 1 es que nunca tumba el servidor. Un lock
-    // vencido pierde ese cambio; perder un flip es preferible a un 500.
+    // Not propagating the failure, on purpose: this is machine state, and
+    // its contract since Plan 1 is that it never takes the server down. A
+    // stale lock loses that change; losing one flip is preferable to a 500.
   }
 
   /**
-   * Lee, transforma y escribe en un solo turno bajo el lock.
+   * Reads, transforms, and writes in a single turn under the lock.
    *
-   * `read()` seguido de `write()` desde afuera deja una ventana en la que
-   * otro proceso escribe en el medio y su cambio se pierde. Quien mute el
-   * estado debería usar esto.
+   * `read()` followed by `write()` from the outside leaves a window where
+   * another process writes in between and its change gets lost. Anyone
+   * mutating the state should use this.
    */
   update(change: (current: LaqiState) => LaqiState): LaqiState {
     let result: LaqiState = this.read()

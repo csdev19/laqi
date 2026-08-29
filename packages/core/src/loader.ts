@@ -55,7 +55,7 @@ export function loadMocks(options: { root: string; dir: string; file: string }):
   return { endpoints: [], scenarios: {}, errors: [], source: 'none' }
 }
 
-/** Recorre la carpeta saltando dotfiles y dotdirs, en orden alfabético estable. */
+/** Walks the folder skipping dotfiles and dotdirs, in stable alphabetical order. */
 function collectJsonFiles(dirPath: string): string[] {
   const found: string[] = []
 
@@ -93,7 +93,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
 
     const parsed = parseJsonWithPosition(raw)
 
-    // Un error de parseo invalida el archivo entero: no hay nada que rescatar.
+    // A parse error invalidates the whole file: there's nothing to salvage.
     if (!parsed.ok) {
       errors.push({
         file: displayPath,
@@ -120,7 +120,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
       continue
     }
 
-    // Validación por clave, para que un endpoint inválido no tumbe a sus vecinos.
+    // Per-key validation, so an invalid endpoint doesn't take down its neighbors.
     for (const [key, definition] of Object.entries(parsed.value as Record<string, unknown>)) {
       const line = findKeyLine(raw, key)
       const parsedKey = parseEndpointKey(key)
@@ -164,7 +164,7 @@ function formatZodMessage(issues: readonly { path: PropertyKey[]; message: strin
     .join('; ')
 }
 
-/** Localiza la línea donde se declara una clave, para el mensaje de error. */
+/** Locates the line where a key is declared, for the error message. */
 function findKeyLine(source: string, key: string): number {
   const index = source.indexOf(JSON.stringify(key))
   if (index < 0) return 1

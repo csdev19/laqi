@@ -1,14 +1,14 @@
 import type { Endpoint, LaqiState, MockResponse, Scenarios, Status } from './types'
 
 /**
- * El panel se sirve montado bajo /__laqi, así que la API es siempre
- * same-origin. Absoluto y no relativo a propósito: una ruta relativa se
- * resolvería distinto desde /__laqi que desde /__laqi/ y una de las dos
- * caería en el mock server del usuario.
+ * The panel is served mounted under /__laqi, so the API is always
+ * same-origin. Absolute and not relative on purpose: a relative path would
+ * resolve differently from /__laqi than from /__laqi/ and one of the two
+ * would fall through to the user's mock server.
  */
 const BASE = '/__laqi'
 
-/** Un fallo del control plane, con el mensaje que el servidor ya redactó. */
+/** A control plane failure, with the message the server already wrote. */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -27,8 +27,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
     })
   } catch (error) {
-    // El servidor se cayó o el proceso murió: el panel tiene que decirlo, no
-    // quedarse con datos viejos en pantalla como si nada.
+    // The server went down or the process died: the panel has to say so, not
+    // keep showing stale data on screen as if nothing happened.
     throw new ApiError(error instanceof Error ? error.message : 'the laqi server is unreachable', 0)
   }
 
@@ -45,7 +45,7 @@ async function errorMessage(response: Response): Promise<string> {
     const body = (await response.json()) as { message?: unknown }
     if (typeof body.message === 'string') return body.message
   } catch {
-    // El cuerpo no era JSON. El status solo ya dice algo.
+    // The body wasn't JSON. The status alone already says something.
   }
   return `${response.status} ${response.statusText}`.trim()
 }
@@ -100,5 +100,5 @@ export const api = {
     }),
 }
 
-/** La URL del SSE. Se expone aparte porque la consume EventSource, no fetch. */
+/** The SSE URL. Exposed separately because EventSource consumes it, not fetch. */
 export const EVENTS_URL = `${BASE}/events`

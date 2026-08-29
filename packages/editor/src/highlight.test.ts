@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { checkJson, tokenizeJson } from './highlight'
 
-/** Reconstruir el source desde los tokens: la propiedad que no puede fallar. */
+/** Rebuild the source from the tokens: the property that must never fail. */
 function roundTrip(source: string): string {
   return tokenizeJson(source)
     .map((t) => t.text)

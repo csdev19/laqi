@@ -228,9 +228,9 @@ describe('control plane, mounted under /__laqi', () => {
       }),
     })
 
-    // La ruta de creación rechaza explícitamente el prefijo reservado ANTES
-    // de escribir nada — no hay LOAD FAILED que limpiar a mano, ni archivo
-    // contaminado con una entrada muerta.
+    // The create route explicitly rejects the reserved prefix BEFORE
+    // writing anything — no LOAD FAILED to clean up by hand, no file
+    // contaminated with a dead entry.
     expect(post.status).toBe(400)
     const status = await (await get('/__laqi/api/status')).json()
     expect((status as { errors: unknown[] }).errors).toHaveLength(0)
@@ -238,10 +238,10 @@ describe('control plane, mounted under /__laqi', () => {
   })
 
   it('rejects creating an id that already exists in a DIFFERENT mock file, without touching the existing endpoint (cross-file duplicate)', async () => {
-    // Modo carpeta: todo endpoint nuevo va a laqi/api.json, así que un id
-    // preexistente en laqi/users.json debe rechazarse ANTES de escribir —
-    // si no, buildRouteTable ve el duplicado cross-file y descarta AMBOS
-    // lados, matando el endpoint que ya funcionaba.
+    // Folder mode: every new endpoint goes to laqi/api.json, so an id that
+    // already exists in laqi/users.json must be rejected BEFORE writing —
+    // otherwise buildRouteTable sees the cross-file duplicate and drops
+    // BOTH sides, killing the endpoint that already worked.
     writeFileSync(
       join(root, 'laqi', 'users.json'),
       JSON.stringify({
@@ -278,10 +278,10 @@ describe('control plane, mounted under /__laqi', () => {
 describe('control plane mount is restricted to loopback hosts', () => {
   it('does not mount /__laqi on a non-loopback host — falls through to the mock app 404', async () => {
     writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
-    // El chequeo de mount es puramente sobre el string config.host, no sobre
-    // el binding real — 0.0.0.0 con puerto efímero sigue siendo alcanzable
-    // vía 127.0.0.1 (0.0.0.0 escucha en todas las interfaces, loopback
-    // incluida), así que no hace falta una IP de LAN real para probar esto.
+    // The mount check is purely on the config.host string, not on the
+    // actual binding — 0.0.0.0 with an ephemeral port is still reachable
+    // via 127.0.0.1 (0.0.0.0 listens on every interface, loopback
+    // included), so we don't need a real LAN IP to test this.
     const nonLoopbackConfig = ConfigSchema.parse({ port: 0, host: '0.0.0.0' })
     handle = await startServer({ root, config: nonLoopbackConfig })
 
@@ -327,7 +327,7 @@ describe('startServer with --share (H1)', () => {
       expect((await publicGet(path, { headers: auth })).status, `public ${path}`).toBe(404)
     }
 
-    // Pero sí en el puerto local — que es exactamente el punto de tener dos.
+    // But it does on the local port — which is exactly the point of having two.
     expect((await get('/__laqi/api/status')).status).toBe(200)
   })
 
@@ -386,7 +386,7 @@ describe('startServer with --share (H1)', () => {
     handle.reload()
 
     expect((await publicGet('/b', { headers: auth })).status).toBe(201)
-    // Y la garantía sigue en pie tras reconstruir la app.
+    // And the guarantee still holds after rebuilding the app.
     expect((await publicGet('/__laqi/api/status', { headers: auth })).status).toBe(404)
   })
 
@@ -420,8 +420,8 @@ describe('startServer with --share (H1)', () => {
 })
 
 describe('the control plane and the MCP server share one implementation', () => {
-  // Antes eran dos copias y ya habían divergido. Estos tests fijan las dos
-  // reglas que a la copia del control plane le faltaban.
+  // These used to be two copies that had already diverged. These tests
+  // pin the two rules the control plane's copy was missing.
   it('refuses a path the loader would reject, instead of writing a dead endpoint', async () => {
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
     handle = await startServer({ root, config })
@@ -442,7 +442,7 @@ describe('the control plane and the MCP server share one implementation', () => 
     }
 
     expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
-    // Y no aparece una banda de error: nunca se escribió nada roto.
+    // And no error band shows up: nothing broken was ever written.
     const status = (await (await get('/__laqi/api/status')).json()) as { errors: unknown[] }
     expect(status.errors).toEqual([])
   })
@@ -465,7 +465,7 @@ describe('the control plane and the MCP server share one implementation', () => 
     )
     expect(deleted.status).toBe(204)
 
-    // Sin esto, recrear el endpoint más tarde lo revive sirviendo "boom".
+    // Without this, recreating the endpoint later revives it serving "boom".
     const state = (await (await get('/__laqi/api/state')).json()) as {
       overrides: Record<string, string>
     }
@@ -475,8 +475,9 @@ describe('the control plane and the MCP server share one implementation', () => 
 
 describe('the address the panel shows', () => {
   it('reports the port actually bound, not the configured one', async () => {
-    // config.port es 0 en todos estos tests: el SO asigna el real. Antes el
-    // panel mostraba "127.0.0.1:0" y el curl que ofrecía copiar fallaba.
+    // config.port is 0 in every one of these tests: the OS assigns the
+    // real one. The panel used to show "127.0.0.1:0" and the curl it
+    // offered to copy would fail.
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
     handle = await startServer({ root, config })
 
@@ -491,7 +492,7 @@ describe('close() with a live SSE client', () => {
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
     const local = await startServer({ root, config })
 
-    // Una pestaña del panel abierta: el stream de /events no termina solo.
+    // A panel tab left open: the /events stream doesn't end on its own.
     const res = await fetch(`http://127.0.0.1:${local.port}/__laqi/events`)
     res
       .body!.getReader()
@@ -507,8 +508,8 @@ describe('close() with a live SSE client', () => {
 
 describe('the panel is mounted on every loopback address', () => {
   it('mounts on ::1, not only 127.0.0.1 and localhost', async () => {
-    // `--host ::1` es loopback: no expone nada a la red. Dejarlo afuera
-    // apagaba el panel en silencio y parecía que estaba roto.
+    // `--host ::1` is loopback: it exposes nothing to the network. Leaving
+    // it out silently disabled the panel and made it look broken.
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
     handle = await startServer({ root, config: ConfigSchema.parse({ port: 0, host: '::1' }) })
 
@@ -530,13 +531,13 @@ describe('when the share listener cannot bind', () => {
   it('does not leave the main listener running behind a thrown error', async () => {
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
 
-    // Un puerto libre y CONOCIDO para el listener principal: si el arranque
-    // fallido lo deja abierto, el segundo intento choca contra sí mismo.
+    // A free and KNOWN port for the main listener: if a failed startup
+    // leaves it open, the second attempt collides with itself.
     const probe = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
     const mainPort = probe.port
     await probe.close()
 
-    // Y un puerto ocupado para que falle el listener del túnel.
+    // And a busy port so the tunnel listener fails.
     const blocker = await startServer({ root, config: ConfigSchema.parse({ port: 0 }) })
 
     try {
@@ -548,9 +549,9 @@ describe('when the share listener cannot bind', () => {
         }),
       ).rejects.toThrow()
 
-      // Si el principal quedó colgado, este arranque tira EADDRINUSE. El
-      // proceso real, además, nunca terminaría: el listener huérfano
-      // mantiene vivo el event loop después de decir que falló.
+      // If the main one stayed hanging open, this startup throws
+      // EADDRINUSE. The real process, moreover, would never terminate:
+      // the orphan listener keeps the event loop alive after saying it failed.
       handle = await startServer({ root, config: ConfigSchema.parse({ port: mainPort }) })
       expect((await fetch(`http://127.0.0.1:${mainPort}/x`)).status).toBe(200)
     } finally {
@@ -577,8 +578,8 @@ describe('the rate limiter survives a reload', () => {
     }
     expect(blocked).toBe(true)
 
-    // Un guardado local no puede ser una forma de resetear el límite de
-    // alguien en internet.
+    // A local save must not be a way to reset the rate limit for someone
+    // out on the internet.
     handle.reload()
     expect((await fetch(url, { headers })).status).toBe(429)
   })
@@ -590,7 +591,7 @@ describe('which listener failed', () => {
     const blocker = await startServer({ root, config })
 
     try {
-      // El puerto del túnel está ocupado; el principal está libre.
+      // The tunnel port is busy; the main one is free.
       const error = await startServer({
         root,
         config,
@@ -613,7 +614,7 @@ describe('which listener failed', () => {
     try {
       const error = await startServer({
         root,
-        // Ahora el ocupado es el principal.
+        // Now it's the main one that's busy.
         config: ConfigSchema.parse({ port: blocker.port }),
         share: { port: 0, token: null, origins: [] },
       }).then(

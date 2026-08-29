@@ -10,7 +10,7 @@
 > bunx laqi        # or: npx laqi — once 2.0.0 ships
 > ```
 
-**Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/probar-v2.md)
+**Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/trying-v2.md)
 covering everything: serving mocks, the four resolution layers, the web
 panel, driving it from a coding agent over MCP, and the public URL.
 
@@ -304,7 +304,7 @@ never stored (types come from the data, not from a saved schema).
 
 The name is composed of 2 Quechua words [llul**LA**](https://es.glosbe.com/quz/es/llulla) (meaning false) and [chas**Q**u**I**](https://es.glosbe.com/qu/es/chaski) (referring to a messenger) that together I give the meaning of "false-messenger" (l**L**ull**A** + chas**Q**u**I** = **LAQI**) for being a server that returns simulated or false information. Also that in English sounds like the word **"lucky"** 😃😃.
 
-On spanish [here](apps/documentation/src/content/docs/nombre.md)
+More on the name in [the docs](apps/documentation/src/content/docs/the-name.md).
 
 ## Contributors
 
@@ -331,7 +331,7 @@ for every `npx laqi` user. Do not merge it before meaning it.
 
 The dist-tag is derived from the version: anything with a `-` goes to its
 prerelease tag, anything else to `latest`. See
-[ADR-0010](apps/documentation/src/content/docs/decisiones/0010-release-y-npm.md).
+[ADR-0010](apps/documentation/src/content/docs/decisions/0010-release-and-npm.md).
 
 To rehearse the pipeline without publishing, run **Publish to npm** from the
 Actions tab with `dry_run` checked.

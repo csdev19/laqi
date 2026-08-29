@@ -566,8 +566,8 @@ describe('GET /events (SSE)', () => {
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
 
-    // El handler recién queda "conectado" cuando terminó de registrar el
-    // listener — darle una vuelta de microtask antes de emitir.
+    // The handler is only "connected" once it's done registering the
+    // listener — give it a microtask turn before emitting.
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(emit).toBeDefined()
 
@@ -596,8 +596,8 @@ describe('GET /events (SSE)', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     await reader.cancel()
-    // 150ms: 5x el intervalo de poll de 30ms del handler SSE, margen de
-    // sobra para no ser un test frágil por estar justo en el borde.
+    // 150ms: 5x the SSE handler's 30ms poll interval, plenty of margin so
+    // this isn't a flaky test from sitting right on the edge.
     await new Promise((resolve) => setTimeout(resolve, 150))
 
     expect(unsubscribed).toBe(true)
@@ -605,8 +605,8 @@ describe('GET /events (SSE)', () => {
 })
 
 describe('ids that contain a percent sign', () => {
-  // Hono ya decodifica el param. Un decode extra tiraba URIError -> 500, y
-  // el endpoint quedaba inaccesible desde el panel para siempre.
+  // Hono already decodes the param. An extra decode threw URIError -> 500,
+  // and the endpoint became permanently inaccessible from the panel.
   it('does not 500 on a PUT whose id contains a literal %', async () => {
     const res = await createControlPlaneApp(makeRuntime()).request(
       `/api/endpoints/${encodeURIComponent('GET /100%')}`,

@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { Share } from '../types'
 
 /**
- * Una banda, no un panel ni un modal: la exposición es una CONDICIÓN
- * persistente, no una tarea. Tiene que estar en toda captura de pantalla que
- * el developer saque y ser imposible de olvidar.
+ * A band, not a panel or a modal: exposure is a persistent CONDITION, not a
+ * task. It has to be in every screenshot the developer takes and impossible
+ * to forget.
  */
 export function ShareBand(props: { share: Share }) {
   const [revealed, setRevealed] = useState(false)
@@ -36,7 +36,7 @@ export function ShareBand(props: { share: Share }) {
           </div>
         )}
 
-        {/* La garantía del H1, escrita. Sin esto es invisible. */}
+        {/* The H1 guarantee, written out. Without this it's invisible. */}
         <div className="band-note">{props.share.exposed}</div>
       </div>
 
