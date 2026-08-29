@@ -12,38 +12,53 @@ result.
 Read the original alongside this. Nothing here restates it — this is only the
 delta.
 
+## Rulings (2026-08-29)
+
+After reviewing this delta, the author ruled on the open points. These rulings
+override anything below that says otherwise:
+
+1. **No beta.** v2 ships as plain `2.0.0` — the first version published when
+   we decide to go to production. The prerelease machinery (versioning
+   strategy, `beta` dist-tag as the default path) is removed. The
+   `dist-tag.ts` guard stays as a safety net.
+2. **The panel is not published to npm**, and the live demo / playground is
+   deferred to a later iteration of the site — it does not block the initial
+   launch. The transport extraction goes with it.
+3. **The site is in English**, with a Spanish version considered from the
+   start via Starlight's built-in i18n (English at the root, `es/` as a
+   locale) — the same model the Astro, Vite and NestJS docs use. ADR-0009
+   covers the product's surfaces (CLI, panel), not the site, so this is an
+   addition, not a reversal.
+4. **The new app hosts both the landing and the docs** — one Astro app,
+   public, separate from `apps/documentation` (internal, never deployed).
+
 ## Two decisions the spec left open are already settled
 
 **The npm name (§17.2).** The spec says to verify `laqi` is free before
 investing. It is not free — **it is ours**. `laqi@1.2.1` was published in April
-2022 from this account, and v2 is going out under the same name on the `beta`
-dist-tag. No scope, no rename, no twenty places to touch. That decision is
+2022 from this account, and v2 goes out under the same name as plain `2.0.0`
+(Ruling 1). No scope, no rename, no twenty places to touch. That decision is
 closed.
 
 **The changelog page (§2, `/docs/changelog/`).** release-please already
 generates `CHANGELOG.md` at the repository root on every release. The docs page
 renders that file; nobody writes it. See ADR-0010.
 
-## The landing's install command would be wrong on day one
+## The landing's install command constrains the launch order
 
 §8 specifies a copyable install block reading `npm i -g laqi`.
 
-Today that installs **the 2022 v1** — an Express-based mock library with an
-incompatible interface. v2 ships as `2.0.0-beta` under the `beta` dist-tag
-precisely so existing v1 users are not replaced without deciding to.
+Under Ruling 1 that string is correct — but only **after `2.0.0` is on npm**.
+Today it installs the 2022 v1, an Express-based mock library with an
+incompatible interface, because `latest` still points at `1.2.1`.
 
-Until v2 is declared final, the hero block must read:
+So the constraint is sequencing, not wording: **publish `2.0.0` before or
+with the site launch, never after.** A live laqi.dev whose hero installs a
+different program is worse than no site.
 
-```
-npm i -g laqi@beta
-```
-
-This is not a detail to fix later. It is the single most copied string on the
-site, and getting it wrong installs a different program.
-
-Whoever builds the landing should read that version from one place rather than
-hard-coding it, so the day the final ships the string changes once. The tag to
-show and the version badge in the nav come from the same source.
+Whoever builds the landing should read the version from one place rather than
+hard-coding it — the hero block and the version badge in the nav come from
+the same source, and change once per release.
 
 ## `apps/documentation` already exists, and it is Starlight
 
@@ -195,10 +210,14 @@ it.
 The spec's own recommended writing order is right. In build terms, the smallest
 thing worth deploying:
 
-1. `apps/site` with the landing and the six core pages, plain CSS on shared
-   tokens, no demo island.
+1. The new public app with the landing and the six core pages, plain CSS on
+   shared tokens, no demo island. English at the root, Spanish as a Starlight
+   locale (Ruling 3).
 2. The content lint and the link validator in CI, before there is content to
    retrofit.
+
+Deferred by Ruling 2, in this order when the time comes:
+
 3. The transport extraction in the panel package.
 4. The demo island, `client:visible`, with its static fallback.
 
