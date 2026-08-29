@@ -1,19 +1,18 @@
 ---
-title: Prompt para diseñar el editor web
+title: Prompt for designing the web editor
 ---
 
-# Prompt para diseñar el editor web
+# Prompt for designing the web editor
 
-Este archivo contiene un prompt autocontenido para pasarle a Claude Design (o
-cualquier herramienta de diseño) y obtener el diseño de `packages/editor`, la UI
-web de laqi v2.
+This file contains a self-contained prompt to hand to Claude Design (or any
+design tool) to get the design for `packages/editor`, laqi v2's web UI.
 
-**Está en inglés a propósito:** el copy de la interfaz va en inglés (como el
-README y `apps/documentation`), y un prompt en español hace que la herramienta
-genere los textos de la UI en español. Si prefieres revisarlo en español, avísame
-y lo traduzco.
+**It's in English on purpose:** the interface copy is in English (like the
+README and `apps/documentation`), and a prompt in Spanish makes the tool
+generate the UI text in Spanish. If you'd rather review it in Spanish, let me
+know and I'll translate it.
 
-Todo lo que está entre `<<<` y `>>>` es lo que se copia y pega.
+Everything between `<<<` and `>>>` is what gets copied and pasted.
 
 ---
 
@@ -229,16 +228,16 @@ both busy and empty; and a fresh project with zero endpoints.
 
 ---
 
-## Notas para ajustar el prompt
+## Notes for adjusting the prompt
 
-Cosas que puedes cambiar según lo que quieras explorar:
+Things you can change depending on what you want to explore:
 
-- **El número de endpoints.** Dice "diseña para ~25, que no se rompa con 100". Si
-  tus proyectos son más chicos, bájalo — cambia bastante el layout.
-- **La paleta.** El párrafo de identidad es deliberadamente vago para no
-  encajonar la propuesta. Si ya tienes un color, ponlo explícito.
-- **El log de requests.** Lo pedí al lado de la lista, no en un tab. Es una
-  decisión fuerte de layout; si quieres ver la alternativa, quítala y deja que la
-  herramienta decida.
-- **La paleta de comandos.** La sugerí para el flip por teclado. Si te parece de
-  más para v1, sácala del punto 1.
+- **The number of endpoints.** It says "design for ~25, don't break at 100".
+  If your projects are smaller, lower it — it changes the layout quite a bit.
+- **The palette.** The identity paragraph is deliberately vague so as not to
+  box in the proposal. If you already have a color, make it explicit.
+- **The request log.** I asked for it next to the list, not in a tab. It's a
+  strong layout decision; if you want to see the alternative, remove it and
+  let the tool decide.
+- **The command palette.** I suggested it for keyboard flipping. If it feels
+  like too much for v1, take it out of point 1.
