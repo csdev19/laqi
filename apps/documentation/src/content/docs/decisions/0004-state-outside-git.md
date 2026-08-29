@@ -97,7 +97,7 @@ In v1, committing `codeResponse: "error401"` made your teammate clone and
 reproduce your exact setup. That's a real capability.
 
 **Not lost: that's what scenarios are for.** `scenarios.json` is committed,
-has a name, and `laqi scenario checkout-roto` reproduces the same state.
+has a name, and `laqi scenario checkout-broken` reproduces the same state.
 It's the same capability, explicit and named instead of implicit and
 accidental — in v1 you shared it by accident, here you share it on purpose.
 

@@ -46,7 +46,7 @@ From highest to lowest precedence:
 
 ```
 X-Laqi-Response: boom               forces one specific response
-X-Laqi-Scenario: broken-checkout    applies a whole scenario to this request
+X-Laqi-Scenario: checkout-broken    applies a whole scenario to this request
 ```
 
 It mutates nothing. It's what makes possible:
@@ -64,7 +64,7 @@ the MCP change:
 
 ```json
 {
-  "scenario": "broken-checkout",
+  "scenario": "checkout-broken",
   "overrides": { "GET /users": "boom" }
 }
 ```
@@ -86,7 +86,7 @@ once. It lives in `laqi/scenarios.json` and **is committed**:
 
 ```json
 {
-  "broken-checkout": {
+  "checkout-broken": {
     "POST /orders": "error500",
     "GET /cart":    "empty"
   },
@@ -98,7 +98,7 @@ once. It lives in `laqi/scenarios.json` and **is committed**:
 ```
 
 ```bash
-laqi scenario broken-checkout   # or a click in the editor, or an instruction to the AI
+laqi scenario checkout-broken   # or a click in the editor, or an instruction to the AI
 ```
 
 Scenarios are the answer to "but I wanted to share my state with the team".
@@ -115,7 +115,7 @@ response:
 ```
 X-Laqi-Resolved: boom (header)      ← this request asked for it
 X-Laqi-Resolved: boom (state)       ← the web editor or the MCP set it
-X-Laqi-Resolved: boom (scenario:broken-checkout)
+X-Laqi-Resolved: boom (scenario:checkout-broken)
 X-Laqi-Resolved: ok (default)       ← nobody touched anything
 ```
 

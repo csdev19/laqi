@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 2a: Control plane"
 
 **Tech Stack:** Same as Plan 1 (Bun, TypeScript, Hono 4.12, Zod 4.3, Vitest). Adds `hono/streaming` (`streamSSE`) for SSE.
 
-**Spec:** [`docs/diseno/DESIGN.md`](/design/design/) section 7 (API contracts, with the `DELETE` fix from finding H8), [`docs/diseno/STATE-MODEL.md`](/design/state-model/), [`docs/diseno/revision-vs-decisiones.md`](/design/review-vs-decisions/) (H1, H4, H5, H7, H8, H9), [`docs/decisiones/0006-servidor-mcp.md`](/decisions/0006-mcp-server/), [`docs/decisiones/0007-url-publica.md`](/decisions/0007-public-url/).
+**Spec:** [`docs/design/design.md`](/design/design/) section 7 (API contracts, with the `DELETE` fix from finding H8), [`docs/design/state-model.md`](/design/state-model/), [`docs/design/review-vs-decisions.md`](/design/review-vs-decisions/) (H1, H4, H5, H7, H8, H9), [`docs/decisions/0006-mcp-server.md`](/decisions/0006-mcp-server/), [`docs/decisions/0007-public-url.md`](/decisions/0007-public-url/).
 
 ## Global Constraints
 

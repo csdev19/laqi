@@ -12,7 +12,7 @@ title: "laqi v2 — Plan 1: Foundation and mock server"
 
 **Tech Stack:** Bun 1.3 (workspaces + catalog), Turborepo, TypeScript 5.9, Hono 4.12, Zod 4.3, Vitest 2, oxlint + oxfmt, tsdown.
 
-**Spec:** [`docs/decisiones/`](../decisions/) (ADRs 0001–0008), [`docs/conceptos/`](../concepts/), [`docs/diseno/STATE-MODEL.md`](/design/state-model/)
+**Spec:** [`docs/decisions/`](../decisions/) (ADRs 0001–0008), [`docs/concepts/`](../concepts/), [`docs/design/state-model.md`](/design/state-model/)
 
 ## Global Constraints
 
@@ -1654,7 +1654,7 @@ git commit -m "feat(core): persist active state in gitignored .laqi/state.json"
 
 ## Task 9: `packages/core` — resolving the four layers
 
-The product's heart. See [`docs/diseno/STATE-MODEL.md`](/design/state-model/).
+The product's heart. See [`docs/design/state-model.md`](/design/state-model/).
 
 **Files:**
 
@@ -1895,21 +1895,21 @@ Expected: PASS, 13 tests.
 In `docs/conceptos/resolucion-de-estado.md`, replace the algorithm's line
 
 ```
-    si request tiene X-Laqi-Scenario  -> la del escenario,    origen "scenario:<n>"
+    if request has X-Laqi-Scenario  -> the scenario's,    origin "scenario:<n>"
 ```
 
 with
 
 ```
-    si request tiene X-Laqi-Scenario  -> la del escenario,    origen "header"
+    if request has X-Laqi-Scenario  -> the scenario's,    origin "header"
 ```
 
 and add below the code block:
 
 ```markdown
-> Las palabras de capa son exactamente cuatro: `header`, `state`, `scenario` y
-> `default`. Un escenario pedido por header reporta `header`, no `scenario`,
-> porque no persiste nada — y porque el panel mapea cada palabra a un color.
+> The layer words are exactly four: `header`, `state`, `scenario`, and
+> `default`. A scenario requested by header reports `header`, not `scenario`,
+> because it persists nothing — and because the panel maps each word to a color.
 ```
 
 - [ ] **Step 6: Commit**

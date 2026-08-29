@@ -15,7 +15,7 @@ Claude Design, **verbatim**.
 
 | #   | Flow                          | Frequency          | File                                      |
 | --- | ----------------------------- | ------------------ | ----------------------------------------- |
-| F1  | Flip the active response      | tens/hour          | [01](/design/flows/01-flip-response/)     |
+| F1  | Flip the active response      | dozens/hour        | [01](/design/flows/01-flip-response/)     |
 | F2  | See what is active right now  | continuous         | [02](/design/flows/02-scan-state/)        |
 | F3  | Watch requests arrive         | continuous         | [03](/design/flows/03-watch-requests/)    |
 | F4  | Activate a scenario           | several/day        | [04](/design/flows/04-activate-scenario/) |
