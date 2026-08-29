@@ -56,4 +56,13 @@ jobs:
         run: bun scripts/site/content-lint.ts apps/site/src
 
       - name: Site link check
-        run: bunx --bun linkinator apps/site/dist --recurse --silent
+        # Two LOCATION args must be crawled explicitly: Starlight's language
+        # switcher renders as <select><option>, not <a href>, so recursing
+        # from the English root alone never discovers /es/*. linkinator only
+        # resolves a correct shared server root for multiple relative local
+        # paths when it can compute their common absolute ancestor; passed as
+        # plain relative paths it falls back to serving from $CWD instead,
+        # which 404s every absolute link (/docs/, /favicon.svg, ...). Pinning
+        # --server-root avoids that and crawls both the English root (".")
+        # and the Spanish root ("es") from it.
+        run: bunx --bun linkinator . es --server-root apps/site/dist --recurse --silent

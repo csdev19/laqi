@@ -10,6 +10,7 @@ on:
     paths:
       - 'apps/site/**'
       - 'packages/tokens/**'
+      - 'apps/cli/package.json'
       - '.github/workflows/deploy-site.yml'
 
 permissions:
