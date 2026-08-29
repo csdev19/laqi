@@ -1,0 +1,43 @@
+# .github/workflows/deploy-site.yml
+name: Deploy site
+
+# Merge to main, not a tag: the site is content, and a typo fix must
+# reach laqi.dev without cutting a version of the CLI. Path-filtered so
+# an unrelated change elsewhere in the monorepo never triggers a deploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/site/**'
+      - 'packages/tokens/**'
+      - '.github/workflows/deploy-site.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build --filter=@laqi/site
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/site/dist --project-name=laqi-dev
