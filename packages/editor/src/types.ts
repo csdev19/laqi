@@ -1,13 +1,14 @@
 /**
- * Las formas que devuelve el control plane (Plan 2a).
+ * The shapes the control plane returns (Plan 2a).
  *
- * `LaqiEvent` se importa del subpath `@laqi/core/events` y NO del barrel:
- * `@laqi/core` re-exporta loader/state-store/writer, que importan `node:fs`,
- * y este paquete corre en el navegador. El subpath existe justamente para
- * esto — antes el tipo estaba redeclarado acá y podía driftear del real.
+ * `LaqiEvent` is imported from the `@laqi/core/events` subpath and NOT from
+ * the barrel: `@laqi/core` re-exports loader/state-store/writer, which
+ * import `node:fs`, and this package runs in the browser. The subpath exists
+ * precisely for this — the type used to be redeclared here and could drift
+ * from the real one.
  *
- * Las formas que el control plane serializa a JSON (endpoints, status) sí se
- * declaran localmente: son lo que sale por HTTP, no el tipo interno.
+ * The shapes the control plane serializes to JSON (endpoints, status) are
+ * declared locally: they're what goes out over HTTP, not the internal type.
  */
 import type { LaqiEvent } from '@laqi/core/events'
 import type { LaqiState, MockResponse, Scenarios } from '@laqi/schema'
@@ -34,10 +35,10 @@ export type LoadError = {
 }
 
 export type Share = {
-  /** `null` mientras el túnel todavía está levantando. */
+  /** `null` while the tunnel is still coming up. */
   url: string | null
   token: string | null
-  /** La garantía del hallazgo H1, en palabras, para mostrarla en la banda. */
+  /** The H1 finding's guarantee, in words, to show in the band. */
   exposed: string
 }
 
@@ -46,11 +47,11 @@ export type Status = {
   endpointCount: number
   address: string
   errors: LoadError[]
-  /** Ausente o `null` cuando --share no está activo. */
+  /** Absent or `null` when --share is not active. */
   share?: Share | null
 }
 
-/** Una entrada del log, que es un evento `request` más un id de render. */
+/** A log entry, which is a `request` event plus a render id. */
 export type LogEntry = {
   seq: number
   time: string
@@ -60,6 +61,6 @@ export type LogEntry = {
   resolvedName: string
   resolvedLayer: string
   ms: number
-  /** El id del endpoint que la sirvió, o null si no matcheó ninguna ruta. */
+  /** The id of the endpoint that served it, or null if no route matched. */
   endpointId: string | null
 }

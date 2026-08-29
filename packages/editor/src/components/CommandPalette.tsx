@@ -15,8 +15,8 @@ export function CommandPalette(props: {
   const [highlight, setHighlight] = useState(0)
   const results = paletteResults(props.endpoints, query)
 
-  // Un resultado que se achica bajo el cursor dejaría el highlight fuera de
-  // rango y ↵ no haría nada.
+  // A result list that shrinks under the cursor would leave the highlight
+  // out of range and ↵ would do nothing.
   useEffect(() => {
     setHighlight(0)
   }, [query])
@@ -85,7 +85,7 @@ export function CommandPalette(props: {
                   <span className="palette-row-path">{result.endpoint.path}</span>
                   <span className="palette-verb">set live</span>
                   <span>{result.response}</span>
-                  {/* Para no "flipear" algo que ya estaba flipeado. */}
+                  {/* So you don't "flip" something that was already flipped. */}
                   {isLive ? <span className="palette-live">live</span> : null}
                 </button>
               )

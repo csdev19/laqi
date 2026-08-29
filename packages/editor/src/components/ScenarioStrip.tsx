@@ -26,8 +26,8 @@ export function ScenarioStrip(props: {
               type="button"
               className={isActive ? 'scenario-chip is-active' : 'scenario-chip'}
               aria-pressed={isActive}
-              // Click de nuevo = desactivar. Toda acción destructiva está a
-              // un click de revertirse.
+              // Click again = deactivate. Every destructive action is one
+              // click away from reverting.
               onClick={() => props.onActivate(isActive ? null : name)}
             >
               {name}

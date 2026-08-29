@@ -8,12 +8,12 @@ const LITERAL = /^(?:true|false|null)\b/
 const PUNCT = /^[{}[\],:]/
 
 /**
- * Un tokenizer de JSON del tamaño justo para colorear. No valida ni parsea:
- * lo que no reconoce sale como `plain`, así que un archivo a medio escribir
- * se sigue pintando en vez de romper el editor.
+ * A JSON tokenizer just big enough to colorize. It neither validates nor
+ * parses: whatever it doesn't recognize comes out as `plain`, so a
+ * half-written file still paints instead of breaking the editor.
  *
- * Un string es `key` sólo si lo sigue un `:` (saltando espacios) — es la
- * única diferencia que el ojo necesita entre la clave y el valor.
+ * A string is `key` only if it's followed by a `:` (skipping whitespace) —
+ * that's the only difference the eye needs between a key and a value.
  */
 export function tokenizeJson(source: string): Token[] {
   const tokens: Token[] = []
@@ -51,7 +51,7 @@ export function tokenizeJson(source: string): Token[] {
       continue
     }
 
-    // Nada reconocido: consumir un carácter para no colgarse nunca.
+    // Nothing recognized: consume one character so it never hangs.
     push('plain', rest[0]!)
   }
 
@@ -67,7 +67,7 @@ export function tokenizeJson(source: string): Token[] {
 
 export type JsonCheck = { valid: true; bytes: number } | { valid: false; message: string }
 
-/** El readout bajo el editor: `valid JSON · 412 B`, o el error de parseo. */
+/** The readout under the editor: `valid JSON · 412 B`, or the parse error. */
 export function checkJson(source: string): JsonCheck {
   try {
     JSON.parse(source)

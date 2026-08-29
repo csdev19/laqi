@@ -70,7 +70,7 @@ describe('RequestLog', () => {
   it('gives a no-route row the loudest treatment and no destination', () => {
     renderLog([noRoute()])
     expect(screen.getByText('no matching route')).toBeTruthy()
-    // No es un botón: no hay endpoint al que ir.
+    // Not a button: there's no endpoint to go to.
     expect(screen.queryByRole('button', { name: '/typo' })).toBeNull()
     expect(document.querySelector('.log-row.is-no-route')).toBeTruthy()
   })

@@ -1,6 +1,6 @@
 import type { LaqiEvent, LogEntry } from './types'
 
-/** Cap del cliente. El log es el único render de alta frecuencia del panel. */
+/** Client-side cap. The log is the panel's only high-frequency render. */
 export const LOG_CAP = 200
 
 type RequestEvent = Extract<LaqiEvent, { type: 'request' }>
@@ -26,20 +26,20 @@ function formatTime(at: Date): string {
 }
 
 /**
- * Las entradas nuevas van arriba y la lista se corta al cap. Devuelve un
- * array nuevo siempre: React necesita la identidad distinta para repintar.
+ * New entries go on top and the list is cut at the cap. Always returns a new
+ * array: React needs the distinct identity to repaint.
  */
 export function appendLog(entries: LogEntry[], entry: LogEntry, cap = LOG_CAP): LogEntry[] {
   return [entry, ...entries].slice(0, cap)
 }
 
-/** El texto verbatim del header `X-Laqi-Resolved`, verificable contra la red. */
+/** The verbatim text of the `X-Laqi-Resolved` header, checkable against the network. */
 export function resolvedText(entry: LogEntry): string {
   if (entry.endpointId === null) return 'no matching route'
   return `${entry.resolvedName} (${entry.resolvedLayer})`
 }
 
-/** La clase de status, que es la segunda dimensión de escaneo del diseño. */
+/** The status class, which is the design's second scan dimension. */
 export function statusClass(status: number): 'ok' | 'redirect' | 'client' | 'server' {
   if (status >= 500) return 'server'
   if (status >= 400) return 'client'

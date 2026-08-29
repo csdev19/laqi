@@ -98,9 +98,9 @@ describe('statusClass', () => {
 
 describe('sequence numbers are the React key', () => {
   it('never repeats when several events are handled in one flush', () => {
-    // EventSource despacha en un mismo tick todos los frames que llegaron
-    // juntos. Si el seq se leyera adentro del updater de React, las dos
-    // filas saldrían con la misma key.
+    // EventSource dispatches every frame that arrived together in the same
+    // tick. If the seq were read inside React's updater, both rows would
+    // come out with the same key.
     let seq = 0
     const batch = [served(), served(), served()].map((event) => toLogEntry(event, ++seq, at))
     const keys = batch.map((entry) => entry.seq)

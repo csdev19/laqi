@@ -12,7 +12,7 @@ type Draft = {
   description: string
   default: string
   responses: Record<string, MockResponse>
-  /** El cuerpo se edita como texto: JSON a medio escribir no es parseable. */
+  /** The body is edited as text: half-written JSON isn't parseable. */
   bodies: Record<string, string>
 }
 
@@ -68,13 +68,13 @@ export function EndpointDetail(props: {
       .catch(() => {})
   }, [])
 
-  // El watcher puede recargar el endpoint bajo los pies (alguien editó el
-  // archivo a mano). Rearmar el draft desde la definición nueva.
+  // The watcher can reload the endpoint out from under you (someone edited
+  // the file by hand). Rebuild the draft from the new definition.
   //
-  // La dependencia es el CONTENIDO, no la identidad del objeto: `refresh()`
-  // devuelve objetos nuevos en cada llamada aunque nada haya cambiado, y
-  // cualquier recarga ajena (el watcher, un agente escribiendo por MCP,
-  // otra pestaña guardando) borraba lo que estabas tipeando.
+  // The dependency is the CONTENT, not the object identity: `refresh()`
+  // returns new objects on every call even when nothing changed, and any
+  // unrelated reload (the watcher, an agent writing via MCP, another tab
+  // saving) used to wipe out what you were typing.
   const fingerprint = JSON.stringify([
     endpoint.id,
     endpoint.description,
@@ -85,7 +85,7 @@ export function EndpointDetail(props: {
     epochRef.current += 1
     setDraft(toDraft(endpoint))
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` a propósito no está: ver arriba
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` is deliberately omitted: see above
   }, [fingerprint])
 
   const live = liveResponse({ endpoint, state, scenarios })
@@ -330,8 +330,8 @@ export function EndpointDetail(props: {
 
               <div className="meta-field">
                 <span className="micro">curl</span>
-                {/* Enseña la capa header mostrándola, que es como se prueba
-                    una respuesta sin tocar la app. */}
+                {/* Teaches the header layer by showing it, which is how you
+                    test a response without touching the app. */}
                 <pre className="meta-curl">{curlFor(endpoint, selected, props.address)}</pre>
               </div>
 
@@ -428,8 +428,8 @@ function uniqueName(existing: string[]): string {
 function renameResponse(draft: Draft, from: string, to: string): Draft {
   const responses: Record<string, MockResponse> = {}
   const bodies: Record<string, string> = {}
-  // Reconstruir en orden preserva la posición en la lista; un delete+set la
-  // mandaría al final cada vez que renombrás.
+  // Rebuilding in order preserves the position in the list; a delete+set
+  // would send it to the end every time you rename.
   for (const [name, response] of Object.entries(draft.responses)) {
     const key = name === from ? to : name
     responses[key] = response
@@ -453,8 +453,8 @@ function deleteResponse(draft: Draft, name: string): Draft {
     ...draft,
     responses,
     bodies,
-    // `default` tiene que nombrar una respuesta que exista o el archivo
-    // queda inválido y el endpoint deja de servirse.
+    // `default` has to name a response that exists or the file becomes
+    // invalid and the endpoint stops being served.
     default: draft.default === name ? (remaining[0] ?? '') : draft.default,
   }
 }
@@ -472,8 +472,8 @@ function sameDefinition(draft: Draft, endpoint: Endpoint): boolean {
     try {
       body = source === '' ? undefined : JSON.parse(source)
     } catch {
-      // Un cuerpo a medio escribir cuenta como cambio: es exactamente lo
-      // que el developer está haciendo en ese momento.
+      // A half-written body counts as a change: it's exactly what the
+      // developer is doing at that moment.
       return false
     }
     rebuilt[name] = { ...omitBody(response), ...(body === undefined ? {} : { body }) }

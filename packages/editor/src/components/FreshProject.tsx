@@ -10,8 +10,8 @@ const EXAMPLE = `{
 }`
 
 /**
- * Un blanco donde pegar, no una pantalla de bienvenida: alineado a la
- * izquierda, arriba del panel, sin ilustración.
+ * A target to paste into, not a welcome screen: left-aligned, at the top of
+ * the panel, no illustration.
  */
 export function FreshProject(props: { watching: string; onCreate: () => void }) {
   return (

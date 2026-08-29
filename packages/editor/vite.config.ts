@@ -1,9 +1,9 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// El panel se sirve montado en /__laqi, nunca en la raíz: los assets tienen
-// que resolverse relativos a esa base o el index.html pediría /assets/* y
-// caería en el mock server del usuario.
+// The panel is served mounted at /__laqi, never at the root: assets have to
+// resolve relative to that base or index.html would request /assets/* and
+// fall through to the user's mock server.
 export default defineConfig({
   base: '/__laqi/',
   plugins: [react()],

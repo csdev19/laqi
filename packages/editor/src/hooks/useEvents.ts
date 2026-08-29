@@ -5,12 +5,12 @@ import type { LaqiEvent } from '../types'
 const TYPES = ['request', 'endpoints-changed', 'error'] as const
 
 /**
- * Suscribe al SSE del control plane. `onEvent` se guarda en un ref para que
- * cambiar el handler en cada render no reabra la conexión — reconectar por
- * cada tecla apretada en el filtro perdería requests del log.
+ * Subscribes to the control plane's SSE. `onEvent` is stored in a ref so
+ * that changing the handler on every render doesn't reopen the connection —
+ * reconnecting on every keystroke in the filter would lose log requests.
  *
- * En un entorno sin EventSource (jsdom en los tests) no hace nada: el panel
- * sigue andando, sólo sin stream en vivo.
+ * In an environment without EventSource (jsdom in tests) it does nothing:
+ * the panel keeps working, just without the live stream.
  */
 export function useEvents(onEvent: (event: LaqiEvent) => void): void {
   const handler = useRef(onEvent)
@@ -25,7 +25,7 @@ export function useEvents(onEvent: (event: LaqiEvent) => void): void {
         try {
           handler.current(JSON.parse(message.data) as LaqiEvent)
         } catch {
-          // Un frame corrupto no puede tumbar el panel entero.
+          // A corrupt frame can't take down the whole panel.
         }
       }
       source.addEventListener(type, listener as EventListener)

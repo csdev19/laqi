@@ -68,10 +68,10 @@ afterEach(() => {
 
 describe('the draft survives an unrelated reload', () => {
   it('keeps what you were typing when the endpoint object is replaced but unchanged', () => {
-    // App.refresh() vuelve a parsear el JSON del servidor, así que devuelve
-    // objetos nuevos aunque nada haya cambiado. Cualquier recarga ajena —
-    // el watcher, un agente por MCP, otra pestaña guardando — pasaba por
-    // acá y borraba lo que estabas tipeando, sin aviso.
+    // App.refresh() re-parses the server's JSON, so it returns new objects
+    // even when nothing changed. Any unrelated reload — the watcher, an
+    // agent via MCP, another tab saving — used to go through here and wipe
+    // out what you were typing, with no warning.
     const original = endpoint()
     const { rerender } = renderDetail(original)
 

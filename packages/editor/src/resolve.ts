@@ -1,19 +1,19 @@
 import type { Endpoint, LaqiState, Scenarios } from './types'
 
 /**
- * Las cuatro palabras de capa del modelo de estado. `header` no se origina
- * nunca en el panel (es por request), pero el log lo imprime, así que el tipo
- * tiene que incluirlo.
+ * The four layer names of the state model. `header` never originates in the
+ * panel (it's per-request), but the log prints it, so the type has to
+ * include it.
  */
 export type Layer = 'header' | 'state' | 'scenario' | 'default'
 
 export type LiveResponse = { name: string; layer: Layer }
 
 /**
- * Qué respuesta está viva para un endpoint, y quién lo decidió. Es el mismo
- * orden de precedencia que `resolveResponse` de @laqi/core, menos las dos
- * ramas de header: un override por endpoint le gana al escenario activo, y
- * el `default` del archivo es siempre la baseline.
+ * Which response is live for an endpoint, and who decided it. It's the same
+ * precedence order as `resolveResponse` from @laqi/core, minus the two
+ * header branches: a per-endpoint override beats the active scenario, and
+ * the file's `default` is always the baseline.
  */
 export function liveResponse(input: {
   endpoint: Endpoint
@@ -34,16 +34,16 @@ export function liveResponse(input: {
 }
 
 /**
- * Qué escribir en el estado cuando el developer hace click en un chip.
+ * What to write to state when the developer clicks a chip.
  *
- * La regla del diseño: clickear el chip que YA es el default del archivo,
- * cuando ningún escenario cubre ese endpoint, borra el override en vez de
- * escribir uno idéntico — si no, la fila quedaría teñida de "yo cambié esto"
- * para siempre aunque sirva exactamente lo que dice el archivo.
+ * The design rule: clicking the chip that's ALREADY the file's default, when
+ * no scenario covers that endpoint, removes the override instead of writing
+ * an identical one — otherwise the row would stay tinted "I changed this"
+ * forever even though it serves exactly what the file says.
  *
- * Cuando un escenario SÍ cubre el endpoint, elegir el default del archivo es
- * una decisión real (te estás saliendo del escenario para ese endpoint), así
- * que ahí sí se escribe el override.
+ * When a scenario DOES cover the endpoint, choosing the file's default is a
+ * real decision (you're opting out of the scenario for that endpoint), so
+ * the override does get written in that case.
  */
 export function overridesAfterChipClick(input: {
   endpoint: Endpoint
@@ -67,7 +67,7 @@ export function overridesAfterChipClick(input: {
   return next
 }
 
-/** Cuántos endpoints tiene el panel fuera de su default de archivo. */
+/** How many endpoints the panel has outside their file default. */
 export function overriddenCount(input: {
   endpoints: Endpoint[]
   state: LaqiState
@@ -79,7 +79,7 @@ export function overriddenCount(input: {
   ).length
 }
 
-/** `Reset all to default` sólo se dibuja cuando hay algo que resetear. */
+/** `Reset all to default` is only drawn when there's something to reset. */
 export function isDirty(state: LaqiState): boolean {
   return state.scenario !== null || Object.keys(state.overrides).length > 0
 }

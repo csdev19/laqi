@@ -19,8 +19,8 @@ export function Header(props: {
         <Fact label="watching" value={status?.watching ?? '…'} />
         <Fact
           label="endpoints"
-          // El contador nunca miente en silencio: si un archivo no cargó,
-          // lo dice acá mismo en vez de mostrar un total más chico a secas.
+          // The counter never lies silently: if a file failed to load, it
+          // says so right here instead of just showing a smaller total.
           value={
             failedFiles > 0
               ? `${endpointCount} (+${failedFiles} file failed)`

@@ -63,7 +63,7 @@ function Row(props: { entry: LogEntry; onJump: (endpointId: string) => void }) {
       <span className="log-time">{entry.time}</span>
       <span className={`log-method method-${entry.method}`}>{entry.method}</span>
 
-      {/* Una fila no-route no lleva a ningún lado: no hay endpoint que abrir. */}
+      {/* A no-route row doesn't go anywhere: there's no endpoint to open. */}
       {noRoute ? (
         <span className="log-path">{entry.path}</span>
       ) : (

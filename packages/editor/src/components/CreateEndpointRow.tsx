@@ -122,7 +122,7 @@ export function CreateEndpointRow(props: {
         />
       ) : null}
 
-      {/* Sin toasts: el fallo aparece donde se hizo la acción. */}
+      {/* No toasts: the failure appears where the action was taken. */}
       {props.error ? <div className="form-error">{props.error}</div> : null}
     </div>
   )
