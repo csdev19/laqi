@@ -1,14 +1,14 @@
 ---
-title: "laqi v2 — Plan 1: Fundación y servidor de mocks"
+title: "laqi v2 — Plan 1: Foundation and mock server"
 ---
 
-# laqi v2 — Plan 1: Fundación y servidor de mocks
+# laqi v2 — Plan 1: Foundation and mock server
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Un `laqi` que corre, carga mocks desde `laqi.json` o `laqi/`, los valida, los sirve con las cuatro capas de resolución, recarga en caliente sin reiniciar el proceso, y migra proyectos de v1.
+**Goal:** A `laqi` that runs, loads mocks from `laqi.json` or `laqi/`, validates them, serves them through the four resolution layers, hot-reloads without restarting the process, and migrates v1 projects.
 
-**Architecture:** Monorepo Bun + Turborepo. `packages/schema` define los esquemas Zod y es la única fuente de verdad del formato. `packages/core` carga archivos (tolerante a fallos por archivo), construye la tabla de rutas detectando colisiones, y resuelve qué respuesta está viva. `packages/server` es una app Hono construida a partir de esa tabla, sobre Web Standards para que el mismo código corra después en Cloudflare Workers. `apps/cli` orquesta: config, watcher e intercambio en caliente de la tabla de rutas.
+**Architecture:** Bun + Turborepo monorepo. `packages/schema` defines the Zod schemas and is the single source of truth for the format. `packages/core` loads files (fault-tolerant per file), builds the route table detecting collisions, and resolves which response is live. `packages/server` is a Hono app built from that table, on Web Standards so the same code can later run on Cloudflare Workers. `apps/cli` orchestrates: config, the watcher, and hot-swapping the route table.
 
 **Tech Stack:** Bun 1.3 (workspaces + catalog), Turborepo, TypeScript 5.9, Hono 4.12, Zod 4.3, Vitest 2, oxlint + oxfmt, tsdown.
 
@@ -16,58 +16,59 @@ title: "laqi v2 — Plan 1: Fundación y servidor de mocks"
 
 ## Global Constraints
 
-- **TDD obligatorio.** Ningún código de producción sin un test que falle primero. Única excepción en este plan: la Tarea 1, que es configuración pura.
-- **TypeScript estricto**, ESM (`"type": "module"`). Nada de CommonJS.
-- **Zod 4.3.6, Hono 4.12.3** — versiones exactas, vía el catalog de Bun.
-- **`packages/server` no puede importar nada de Node** (`fs`, `path`, `process`). Sólo Web Standards. El acceso a disco vive en `core` y `cli`. Esto es lo que permite que el mismo servidor corra en Cloudflare Workers en el Plan 4.
-- **`/__laqi` es prefijo reservado.** Ningún mock puede declarar una ruta que empiece así.
-- **Los errores de carga son ruidosos pero no fatales.** Un archivo inválido reporta su error y retira sólo sus endpoints; el resto se sigue sirviendo.
-- **Ninguna request cuelga jamás.** Todo camino de resolución termina en una respuesta HTTP, incluidos los errores (defecto C de v1).
-- **Nunca se muta el objeto de respuesta cargado.** Todo cuerpo servido es una copia (defecto A de v1).
-- **El header de trazabilidad es exactamente `X-Laqi-Resolved: <name> (<layer>)`**, con `<layer>` ∈ `header | state | scenario | default`. Sin excepciones — el panel imprime ese string verbatim.
-- Commits con Conventional Commits (`feat:`, `fix:`, `test:`, `chore:`).
+- **TDD is mandatory.** No production code without a failing test first. The one exception in this plan is Task 1, which is pure configuration.
+- **Strict TypeScript**, ESM (`"type": "module"`). No CommonJS.
+- **Zod 4.3.6, Hono 4.12.3** — exact versions, via Bun's catalog.
+- **`packages/server` cannot import anything from Node** (`fs`, `path`, `process`). Web Standards only. Disk access lives in `core` and `cli`. This is what lets the same server run on Cloudflare Workers in Plan 4.
+- **`/__laqi` is a reserved prefix.** No mock can declare a route starting with it.
+- **Load errors are noisy but not fatal.** An invalid file reports its error and withdraws only its own endpoints; the rest keeps being served.
+- **No request ever hangs.** Every resolution path ends in an HTTP response, errors included (v1 defect C).
+- **The loaded response object is never mutated.** Every served body is a copy (v1 defect A).
+- **The traceability header is exactly `X-Laqi-Resolved: <name> (<layer>)`**, with `<layer>` ∈ `header | state | scenario | default`. No exceptions — the panel prints that string verbatim.
+- Commits use Conventional Commits (`feat:`, `fix:`, `test:`, `chore:`).
 
-## Notas para el ejecutor
+## Notes for the executor
 
-Este plan se ejecuta tarea por tarea con subagentes en un modelo económico. Reglas:
+This plan is executed task by task by subagents running an economical model. Rules:
 
-- **Copia el código de los bloques tal cual.** No "mejores" nombres, tipos ni
-  estructura. Si un bloque no compila, el error es del plan: repórtalo en vez de
-  improvisar una alternativa.
-- **No cambies versiones de dependencias** ni añadas dependencias nuevas.
-- **No debilites un test para que pase.** Si un test falla por una razón distinta
-  a la esperada en el paso "verificar que falla", detente y repórtalo.
-- Corre los tests filtrados que indica cada paso; antes de cada commit corre
-  además `bun run test` completo y `bun run check-types`.
-- Los mensajes de commit son exactamente los del plan.
-- Las APIs de terceros que usa este plan (Zod 4.3.6, Hono 4.12.3, chokidar 4,
-  @hono/node-server 1.19) **fueron verificadas ejecutándolas** antes de escribir
-  el plan, incluidos el patrón de hot-swap, el watch de la raíz con poda y los
-  formatos de error de `JSON.parse`. No consultes documentación externa para
-  "corregirlas".
+- **Copy the code blocks as they are.** Don't "improve" names, types, or
+  structure. If a block doesn't compile, the plan is at fault: report it
+  instead of improvising an alternative.
+- **Don't change dependency versions** or add new dependencies.
+- **Don't weaken a test to make it pass.** If a test fails for a reason
+  different from what's expected at the "confirm it fails" step, stop and
+  report it.
+- Run the filtered tests each step indicates; before every commit also run
+  the full `bun run test` and `bun run check-types`.
+- Commit messages are exactly the plan's.
+- The third-party APIs this plan uses (Zod 4.3.6, Hono 4.12.3, chokidar 4,
+  @hono/node-server 1.19) **were verified by running them** before writing
+  this plan, including the hot-swap pattern, root watching with pruning,
+  and `JSON.parse`'s error formats. Do not consult external documentation to
+  "correct" them.
 
-## Nota de reconciliación
+## Reconciliation note
 
-`docs/conceptos/resolucion-de-estado.md` dice que un `X-Laqi-Scenario` reporta origen `scenario:<nombre>`. El diseño (`STATE-MODEL.md`) define **cuatro palabras de capa y sólo cuatro**, porque el panel mapea cada una a un color.
+`docs/conceptos/resolucion-de-estado.md` says an `X-Laqi-Scenario` reports origin `scenario:<name>`. The design (`STATE-MODEL.md`) defines **four layer words and only four**, because the panel maps each one to a color.
 
-**Manda el diseño:** `X-Laqi-Scenario` resuelve usando el mapa del escenario pero reporta capa **`header`**, porque no persiste nada. La Tarea 8 corrige el documento del concepto.
+**The design wins:** `X-Laqi-Scenario` resolves using the scenario's map but reports layer **`header`**, because it persists nothing. Task 8 fixes the concept document.
 
 ---
 
-## Estructura de archivos
+## File structure
 
 ```
 laqi/
-├── package.json                     workspaces + catalog + scripts raíz
-├── turbo.json                       pipeline de tareas
-├── vitest.config.ts                 un solo runner para todo el monorepo
-├── tsconfig.json                    referencias
+├── package.json                     workspaces + catalog + root scripts
+├── turbo.json                       task pipeline
+├── vitest.config.ts                 a single runner for the whole monorepo
+├── tsconfig.json                    references
 ├── .oxlintrc.json / .oxfmtrc.json
-├── .gitignore                       incluye .laqi/
+├── .gitignore                       includes .laqi/
 ├── packages/
 │   ├── config/
-│   │   └── tsconfig.base.json       compilerOptions compartidos
-│   ├── schema/                      SIN dependencias salvo zod
+│   │   └── tsconfig.base.json       shared compilerOptions
+│   ├── schema/                      NO dependencies except zod
 │   │   ├── package.json
 │   │   └── src/
 │   │       ├── index.ts             re-exports
@@ -78,35 +79,35 @@ laqi/
 │   │       ├── scenarios.ts         ScenariosSchema
 │   │       ├── state.ts             StateSchema
 │   │       └── config.ts            ConfigSchema
-│   ├── core/                        depende de schema + node:fs
+│   ├── core/                        depends on schema + node:fs
 │   │   ├── package.json
 │   │   └── src/
 │   │       ├── index.ts
-│   │       ├── json-position.ts     posición → línea/columna + extracto
-│   │       ├── loader.ts            lee y valida archivos, tolerante por archivo
-│   │       ├── route-table.ts       construye la tabla, detecta colisiones
-│   │       ├── state-store.ts       lee/escribe .laqi/state.json
-│   │       └── resolve.ts           las cuatro capas
-│   └── server/                      depende de schema + core (sólo tipos) + hono
+│   │       ├── json-position.ts     position → line/column + excerpt
+│   │       ├── loader.ts            reads and validates files, fault-tolerant per file
+│   │       ├── route-table.ts       builds the table, detects collisions
+│   │       ├── state-store.ts       reads/writes .laqi/state.json
+│   │       └── resolve.ts           the four layers
+│   └── server/                      depends on schema + core (types only) + hono
 │       ├── package.json
 │       └── src/
 │           ├── index.ts
 │           └── mock-app.ts          createMockApp(getRuntime)
 └── apps/
-    └── cli/                         depende de todo
+    └── cli/                         depends on everything
         ├── package.json
         └── src/
-            ├── index.ts             entry point, dispatch de comandos
-            ├── serve.ts             comando por defecto: carga, sirve, observa
-            ├── watcher.ts           watcher con debounce
-            └── migrate.ts           comando `laqi migrate`
+            ├── index.ts             entry point, command dispatch
+            ├── serve.ts             default command: load, serve, watch
+            ├── watcher.ts           debounced watcher
+            └── migrate.ts           the `laqi migrate` command
 ```
 
-**Por qué esta división:** `schema` no depende de nada, así que lo pueden importar el editor (navegador), el MCP y el CLI sin arrastrar Node. `server` no toca disco, que es lo que lo hace desplegable al edge. `core` es el único que sabe de archivos.
+**Why this split:** `schema` depends on nothing, so the editor (browser), the MCP server and the CLI can all import it without dragging in Node. `server` never touches disk, which is what makes it deployable to the edge. `core` is the only one that knows about files.
 
 ---
 
-## Task 1: Andamiaje del monorepo
+## Task 1: Monorepo scaffolding
 
 **Files:**
 
@@ -114,21 +115,21 @@ laqi/
 
 **Interfaces:**
 
-- Consumes: nada
-- Produces: los scripts `bun run test`, `bun run check-types`, `bun run lint`; el catalog con `hono`, `zod`, `typescript`, `tsdown`
+- Consumes: nothing
+- Produces: the `bun run test`, `bun run check-types`, `bun run lint` scripts; the catalog with `hono`, `zod`, `typescript`, `tsdown`
 
-**Excepción de TDD:** esta tarea es configuración pura, permitida por la política. Igual termina con una verificación ejecutable.
+**TDD exception:** this task is pure configuration, allowed by policy. It still ends with a runnable verification.
 
-- [ ] **Step 1: Borrar v1**
+- [ ] **Step 1: Remove v1**
 
 ```bash
 git rm -r --cached src cli.js mock-data mock.config.json .env.example package-lock.json
 rm -rf src cli.js mock-data mock.config.json .env.example package-lock.json node_modules
 ```
 
-`README.md`, `LICENSE.md`, `documentacion/` y `docs/` se quedan.
+`README.md`, `LICENSE.md`, `documentacion/` and `docs/` stay.
 
-- [ ] **Step 2: `package.json` raíz**
+- [ ] **Step 2: Root `package.json`**
 
 ```json
 {
@@ -180,7 +181,7 @@ rm -rf src cli.js mock-data mock.config.json .env.example package-lock.json node
 }
 ```
 
-- [ ] **Step 4: `vitest.config.ts` y `tsconfig.json` raíz**
+- [ ] **Step 4: Root `vitest.config.ts` and `tsconfig.json`**
 
 ```ts
 // vitest.config.ts
@@ -256,7 +257,7 @@ dist
 { "singleQuote": true, "semi": false, "printWidth": 100 }
 ```
 
-- [ ] **Step 7: Verificar**
+- [ ] **Step 7: Verify**
 
 ```bash
 bun install
@@ -264,7 +265,7 @@ bun run check-types
 bun run lint
 ```
 
-Esperado: los tres terminan sin error. `bun run test` dice "No test files found", que es correcto — todavía no hay ninguno.
+Expected: all three finish with no error. `bun run test` says "No test files found", which is correct — there aren't any yet.
 
 - [ ] **Step 8: Commit**
 
@@ -275,7 +276,7 @@ git commit -m "chore: scaffold v2 monorepo, remove v1 source"
 
 ---
 
-## Task 2: `packages/schema` — esquema de respuesta
+## Task 2: `packages/schema` — response schema
 
 **Files:**
 
@@ -283,10 +284,10 @@ git commit -m "chore: scaffold v2 monorepo, remove v1 source"
 
 **Interfaces:**
 
-- Consumes: nada
+- Consumes: nothing
 - Produces: `HTTP_METHODS: readonly HttpMethod[]`, `type HttpMethod`, `ResponseSchema: z.ZodType`, `type MockResponse = { status: number; body?: unknown; delay?: number; headers?: Record<string,string>; description?: string }`
 
-- [ ] **Step 1: `package.json` del paquete**
+- [ ] **Step 1: Package `package.json`**
 
 ```json
 {
@@ -299,13 +300,13 @@ git commit -m "chore: scaffold v2 monorepo, remove v1 source"
 }
 ```
 
-Y `packages/schema/tsconfig.json`:
+And `packages/schema/tsconfig.json`:
 
 ```json
 { "extends": "../config/tsconfig.base.json", "include": ["src/**/*"] }
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [ ] **Step 2: Write the failing test**
 
 ```ts
 // packages/schema/src/response.test.ts
@@ -348,12 +349,12 @@ describe('ResponseSchema', () => {
 })
 ```
 
-- [ ] **Step 3: Correr el test y verificar que falla**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `bun run test -- response`
 Expected: FAIL — `Failed to resolve import "./response"`
 
-- [ ] **Step 4: Implementar**
+- [ ] **Step 4: Implement**
 
 ```ts
 // packages/schema/src/method.ts
@@ -370,7 +371,7 @@ export function isHttpMethod(value: string): value is HttpMethod {
 // packages/schema/src/response.ts
 import { z } from 'zod'
 
-/** Un mock nunca debería tardar más de un minuto; más allá es un typo. */
+/** A mock should never take more than a minute; beyond that it's a typo. */
 export const MAX_DELAY_MS = 60_000
 
 export const ResponseSchema = z.object({
@@ -390,7 +391,7 @@ export * from './method'
 export * from './response'
 ```
 
-- [ ] **Step 5: Correr el test y verificar que pasa**
+- [ ] **Step 5: Run the test and confirm it passes**
 
 Run: `bun run test -- response`
 Expected: PASS, 6 tests.
@@ -404,9 +405,9 @@ git commit -m "feat(schema): add response schema with numeric status codes"
 
 ---
 
-## Task 3: `packages/schema` — parseo de la clave de endpoint
+## Task 3: `packages/schema` — parsing the endpoint key
 
-Es lo que entierra el hack `(get)files/:id` de v1 y lo que hace cumplir el prefijo reservado (hallazgo H7).
+This is what buries v1's `(get)files/:id` hack and what enforces the reserved prefix (finding H7).
 
 **Files:**
 
@@ -415,10 +416,10 @@ Es lo que entierra el hack `(get)files/:id` de v1 y lo que hace cumplir el prefi
 
 **Interfaces:**
 
-- Consumes: `HttpMethod`, `HTTP_METHODS`, `isHttpMethod` (Tarea 2)
+- Consumes: `HttpMethod`, `HTTP_METHODS`, `isHttpMethod` (Task 2)
 - Produces: `RESERVED_PREFIX = '/__laqi'`, `parseEndpointKey(key: string): ParseKeyResult`, `formatEndpointId(method, path): string`, `type ParsedKey = { method: HttpMethod; path: string }`, `type ParseKeyResult = { ok: true; value: ParsedKey } | { ok: false; error: string }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/schema/src/endpoint-key.test.ts
@@ -496,18 +497,18 @@ describe('formatEndpointId', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- endpoint-key`
 Expected: FAIL — `Failed to resolve import "./endpoint-key"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/schema/src/endpoint-key.ts
 import { HTTP_METHODS, isHttpMethod, type HttpMethod } from './method'
 
-/** Prefijo del control panel. Ningún mock puede declarar rutas acá debajo. */
+/** The control panel's prefix. No mock can declare routes under here. */
 export const RESERVED_PREFIX = '/__laqi'
 
 export type ParsedKey = { method: HttpMethod; path: string }
@@ -556,12 +557,12 @@ export function formatEndpointId(method: HttpMethod, path: string): string {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- endpoint-key`
 Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Exportar desde el índice**
+- [ ] **Step 5: Export from the index**
 
 ```ts
 // packages/schema/src/index.ts
@@ -579,7 +580,7 @@ git commit -m "feat(schema): parse \"METHOD /path\" endpoint keys, reject reserv
 
 ---
 
-## Task 4: `packages/schema` — endpoint, escenarios, estado y config
+## Task 4: `packages/schema` — endpoint, scenarios, state and config
 
 **Files:**
 
@@ -588,10 +589,10 @@ git commit -m "feat(schema): parse \"METHOD /path\" endpoint keys, reject reserv
 
 **Interfaces:**
 
-- Consumes: `ResponseSchema`, `MockResponse` (Tarea 2)
+- Consumes: `ResponseSchema`, `MockResponse` (Task 2)
 - Produces: `EndpointSchema`, `type EndpointDefinition = { description?: string; default: string; responses: Record<string, MockResponse> }`, `MockFileSchema`, `ScenariosSchema`, `type Scenarios = Record<string, Record<string,string>>`, `StateSchema`, `type LaqiState = { scenario: string | null; overrides: Record<string,string> }`, `ConfigSchema`, `type LaqiConfig`, `DEFAULT_STATE: LaqiState`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/schema/src/endpoint.test.ts
@@ -692,12 +693,12 @@ describe('ConfigSchema', () => {
 })
 ```
 
-- [ ] **Step 2: Correr los tests y verificar que fallan**
+- [ ] **Step 2: Run the tests and confirm they fail**
 
 Run: `bun run test -- endpoint state`
-Expected: FAIL — imports sin resolver.
+Expected: FAIL — unresolved imports.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/schema/src/endpoint.ts
@@ -762,16 +763,16 @@ export const DEFAULT_STATE: LaqiState = { scenario: null, overrides: {} }
 import { z } from 'zod'
 
 export const ConfigSchema = z.object({
-  /** 0 = puerto efímero asignado por el SO; lo usan los tests. */
+  /** 0 = ephemeral port assigned by the OS; used by the tests. */
   port: z.number().int().min(0).max(65535).default(8000),
   host: z.string().default('127.0.0.1'),
-  /** Carpeta de mocks (modo carpeta). */
+  /** Mocks folder (folder mode). */
   dir: z.string().default('laqi'),
-  /** Archivo único (modo archivo). Se usa si `dir` no existe. */
+  /** Single file (file mode). Used if `dir` doesn't exist. */
   file: z.string().default('laqi.json'),
-  /** '*' o una lista blanca de orígenes. Nunca '*' con --share (ADR-0007). */
+  /** '*' or a whitelist of origins. Never '*' with --share (ADR-0007). */
   cors: z.union([z.literal('*'), z.array(z.string())]).default('*'),
-  /** Preferencias del panel (hallazgo H12). */
+  /** Panel preferences (finding H12). */
   density: z.enum(['regular', 'compact']).default('regular'),
   showDescriptions: z.boolean().default(true),
 })
@@ -779,12 +780,12 @@ export const ConfigSchema = z.object({
 export type LaqiConfig = z.infer<typeof ConfigSchema>
 ```
 
-- [ ] **Step 4: Correr los tests y verificar que pasan**
+- [ ] **Step 4: Run the tests and confirm they pass**
 
 Run: `bun run test -- endpoint state`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Exportar todo**
+- [ ] **Step 5: Export everything**
 
 ```ts
 // packages/schema/src/index.ts
@@ -806,9 +807,9 @@ git commit -m "feat(schema): add endpoint, scenarios, state and config schemas"
 
 ---
 
-## Task 5: `packages/core` — posición en JSON y extracto de fuente
+## Task 5: `packages/core` — JSON position and source excerpt
 
-Alimenta la banda de error del panel (flujo F8): archivo, línea, columna y tres líneas de contexto con un caret.
+Feeds the panel's error band (flow F8): file, line, column, and three lines of context with a caret.
 
 **Files:**
 
@@ -816,10 +817,10 @@ Alimenta la banda de error del panel (flujo F8): archivo, línea, columna y tres
 
 **Interfaces:**
 
-- Consumes: nada
-- Produces: `offsetToPosition(source: string, offset: number): { line: number; col: number }`, `buildExcerpt(source: string, line: number, col: number): string`, `parseJsonWithPosition(source: string): JsonParseResult` donde `JsonParseResult = { ok: true; value: unknown } | { ok: false; message: string; line: number; col: number; excerpt: string }`
+- Consumes: nothing
+- Produces: `offsetToPosition(source: string, offset: number): { line: number; col: number }`, `buildExcerpt(source: string, line: number, col: number): string`, `parseJsonWithPosition(source: string): JsonParseResult` where `JsonParseResult = { ok: true; value: unknown } | { ok: false; message: string; line: number; col: number; excerpt: string }`
 
-- [ ] **Step 1: `package.json` y `tsconfig.json` del paquete**
+- [ ] **Step 1: Package `package.json` and `tsconfig.json`**
 
 ```json
 {
@@ -837,7 +838,7 @@ Alimenta la banda de error del panel (flujo F8): archivo, línea, columna y tres
 { "extends": "../config/tsconfig.base.json", "include": ["src/**/*"] }
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [ ] **Step 2: Write the failing test**
 
 ```ts
 // packages/core/src/json-position.test.ts
@@ -904,12 +905,12 @@ describe('parseJsonWithPosition', () => {
 })
 ```
 
-- [ ] **Step 3: Correr el test y verificar que falla**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `bun run test -- json-position`
 Expected: FAIL — `Failed to resolve import "./json-position"`
 
-- [ ] **Step 4: Implementar**
+- [ ] **Step 4: Implement**
 
 ```ts
 // packages/core/src/json-position.ts
@@ -920,7 +921,7 @@ export type JsonParseResult =
   | { ok: true; value: unknown }
   | { ok: false; message: string; line: number; col: number; excerpt: string }
 
-/** Convierte un offset de caracteres en línea/columna 1-based. */
+/** Converts a character offset into 1-based line/column. */
 export function offsetToPosition(source: string, offset: number): Position {
   const clamped = Math.max(0, Math.min(offset, source.length))
   let line = 1
@@ -937,8 +938,8 @@ export function offsetToPosition(source: string, offset: number): Position {
 }
 
 /**
- * Tres líneas de contexto con un caret bajo la columna que falla.
- * El formato lo consume tal cual la banda de error del panel (F8).
+ * Three lines of context with a caret under the failing column.
+ * Consumed verbatim by the panel's error band (F8) in this exact format.
  */
 export function buildExcerpt(source: string, line: number, col: number): string {
   const lines = source.split('\n')
@@ -958,10 +959,11 @@ export function buildExcerpt(source: string, line: number, col: number): string 
 }
 
 /**
- * V8 (Node) incluye la posición en el mensaje — formato viejo `at position N` y
- * formato nuevo `(line N column N)`. JavaScriptCore (Bun) no incluye ninguna.
- * El CLI publicado corre en Node, así que producción siempre tiene posición;
- * bajo Bun (desarrollo) se degrada a línea 1 con el mensaje completo.
+ * V8 (Node) includes the position in the message — the old `at position N`
+ * format and the new `(line N column N)` format. JavaScriptCore (Bun)
+ * includes neither. The published CLI runs on Node, so production always
+ * has a position; under Bun (development) it degrades to line 1 with the
+ * full message.
  */
 const OFFSET_PATTERN = /at position (\d+)/
 const LINE_COL_PATTERN = /\(line (\d+) column (\d+)\)/
@@ -979,7 +981,7 @@ export function parseJsonWithPosition(source: string): JsonParseResult {
 
     return {
       ok: false,
-      // Quitamos la coletilla de posición: la línea y columna van en sus campos.
+      // Strip the position tail: line and column go in their own fields.
       message: raw.replace(/\s*in JSON at position \d+.*$/, '').trim() || raw,
       line,
       col,
@@ -989,7 +991,7 @@ export function parseJsonWithPosition(source: string): JsonParseResult {
 }
 ```
 
-- [ ] **Step 5: Correr el test y verificar que pasa**
+- [ ] **Step 5: Run the test and confirm it passes**
 
 Run: `bun run test -- json-position`
 Expected: PASS, 9 tests.
@@ -1003,9 +1005,9 @@ git commit -m "feat(core): locate JSON parse errors with line, column and excerp
 
 ---
 
-## Task 6: `packages/core` — cargador tolerante a fallos por archivo
+## Task 6: `packages/core` — loader, fault-tolerant per file
 
-Implementa el hallazgo H3: ruidoso pero no fatal. Un archivo roto reporta su error y retira sólo sus endpoints.
+Implements finding H3: noisy but not fatal. A broken file reports its error and withdraws only its own endpoints.
 
 **Files:**
 
@@ -1013,14 +1015,14 @@ Implementa el hallazgo H3: ruidoso pero no fatal. Un archivo roto reporta su err
 
 **Interfaces:**
 
-- Consumes: `parseJsonWithPosition`, `buildExcerpt` (Tarea 5); `EndpointSchema`, `parseEndpointKey`, `formatEndpointId`, `ScenariosSchema` (Tareas 3–4)
+- Consumes: `parseJsonWithPosition`, `buildExcerpt` (Task 5); `EndpointSchema`, `parseEndpointKey`, `formatEndpointId`, `ScenariosSchema` (Tasks 3–4)
 - Produces:
   - `type LoadError = { file: string; line?: number; col?: number; message: string; excerpt?: string }`
   - `type LoadedEndpoint = { id: string; method: HttpMethod; path: string; description?: string; default: string; responses: Record<string, MockResponse>; file: string; line: number }`
   - `type LoadResult = { endpoints: LoadedEndpoint[]; scenarios: Scenarios; errors: LoadError[]; source: 'dir' | 'file' | 'none' }`
   - `loadMocks(options: { root: string; dir: string; file: string }): LoadResult`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/loader.test.ts
@@ -1163,12 +1165,12 @@ describe('loadMocks', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- loader`
 Expected: FAIL — `Failed to resolve import "./loader"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/loader.ts
@@ -1229,7 +1231,7 @@ export function loadMocks(options: { root: string; dir: string; file: string }):
   return { endpoints: [], scenarios: {}, errors: [], source: 'none' }
 }
 
-/** Recorre la carpeta saltando dotfiles y dotdirs, en orden alfabético estable. */
+/** Walks the folder skipping dotfiles and dotdirs, in stable alphabetical order. */
 function collectJsonFiles(dirPath: string): string[] {
   const found: string[] = []
 
@@ -1256,7 +1258,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
     const raw = readFileSync(path, 'utf8')
     const parsed = parseJsonWithPosition(raw)
 
-    // Un error de parseo invalida el archivo entero: no hay nada que rescatar.
+    // A parse error invalidates the whole file: there is nothing to rescue.
     if (!parsed.ok) {
       errors.push({
         file: displayPath,
@@ -1280,7 +1282,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
       continue
     }
 
-    // Validación por clave, para que un endpoint inválido no tumbe a sus vecinos.
+    // Validated key by key, so one invalid endpoint doesn't take down its neighbours.
     for (const [key, definition] of Object.entries(parsed.value as Record<string, unknown>)) {
       const line = findKeyLine(raw, key)
       const parsedKey = parseEndpointKey(key)
@@ -1322,7 +1324,7 @@ function formatZodMessage(issues: readonly { path: PropertyKey[]; message: strin
     .join('; ')
 }
 
-/** Localiza la línea donde se declara una clave, para el mensaje de error. */
+/** Locates the line where a key is declared, for the error message. */
 function findKeyLine(source: string, key: string): number {
   const index = source.indexOf(JSON.stringify(key))
   if (index < 0) return 1
@@ -1330,7 +1332,7 @@ function findKeyLine(source: string, key: string): number {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- loader`
 Expected: PASS, 12 tests.
@@ -1344,14 +1346,14 @@ git commit -m "feat(core): load mock files with per-file and per-endpoint fault 
 
 ---
 
-## Task 7: `packages/core` — tabla de rutas y detección de colisiones
+## Task 7: `packages/core` — route table and collision detection
 
-Es la contrapartida del ADR-0008: como los archivos ya no impiden la colisión, la detección tiene que estar y ser ruidosa. Sin este test, el ADR-0008 es peor que la decisión que reemplazó.
+The counterpart to ADR-0008: since files no longer prevent collisions, detection has to exist and be loud. Without this, ADR-0008 would be worse than the decision it replaced.
 
-> **Limitación conocida:** dos claves idénticas **dentro del mismo archivo** las
-> deduplica `JSON.parse` en silencio (gana la última) antes de que el loader las
-> vea — es inherente a JSON. La detección de acá aplica entre archivos.
-> Documentar la limitación en el Plan 5.
+> **Known limitation:** two identical keys **within the same file** get
+> silently deduplicated by `JSON.parse` (the last one wins) before the loader
+> ever sees them — inherent to JSON. The detection here applies across
+> files. Document the limitation in Plan 5.
 
 **Files:**
 
@@ -1359,10 +1361,10 @@ Es la contrapartida del ADR-0008: como los archivos ya no impiden la colisión, 
 
 **Interfaces:**
 
-- Consumes: `LoadedEndpoint`, `LoadError` (Tarea 6)
+- Consumes: `LoadedEndpoint`, `LoadError` (Task 6)
 - Produces: `type RouteTable = { endpoints: LoadedEndpoint[]; byId: Map<string, LoadedEndpoint> }`, `buildRouteTable(endpoints: LoadedEndpoint[]): { table: RouteTable; errors: LoadError[] }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/route-table.test.ts
@@ -1445,19 +1447,19 @@ describe('buildRouteTable', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- route-table`
 Expected: FAIL — `Failed to resolve import "./route-table"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/route-table.ts
 import type { LoadedEndpoint, LoadError } from './loader'
 
 export type RouteTable = {
-  /** En orden de archivo — el panel depende de que sea estable. */
+  /** In file order — the panel depends on it being stable. */
   endpoints: LoadedEndpoint[]
   byId: Map<string, LoadedEndpoint>
 }
@@ -1485,7 +1487,7 @@ export function buildRouteTable(endpoints: LoadedEndpoint[]): {
       continue
     }
 
-    // Ninguno gana: elegir uno sería adivinar, y el desarrollador no vería cuál.
+    // Neither wins: picking one would be guessing, and the developer wouldn't see which.
     const where = group.map((e) => `${e.file}:${e.line}`).join(' and ')
     errors.push({
       file: first?.file ?? '',
@@ -1503,7 +1505,7 @@ export function buildRouteTable(endpoints: LoadedEndpoint[]): {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- route-table`
 Expected: PASS, 6 tests.
@@ -1517,9 +1519,9 @@ git commit -m "feat(core): build route table and reject duplicate routes loudly"
 
 ---
 
-## Task 8: `packages/core` — store de estado
+## Task 8: `packages/core` — state store
 
-Escribe `.laqi/state.json`, gitignored ([ADR-0004](/decisions/0004-state-outside-git/)). Es un archivo que genera la máquina: si está corrupto se descarta y se empieza de cero, nunca se cae el servidor.
+Writes `.laqi/state.json`, gitignored ([ADR-0004](/decisions/0004-state-outside-git/)). It's a machine-generated file: if it's corrupted it's discarded and started fresh, the server never goes down over it.
 
 **Files:**
 
@@ -1527,10 +1529,10 @@ Escribe `.laqi/state.json`, gitignored ([ADR-0004](/decisions/0004-state-outside
 
 **Interfaces:**
 
-- Consumes: `StateSchema`, `DEFAULT_STATE`, `LaqiState` (Tarea 4)
+- Consumes: `StateSchema`, `DEFAULT_STATE`, `LaqiState` (Task 4)
 - Produces: `STATE_DIR = '.laqi'`, `class StateStore { constructor(root: string); read(): LaqiState; write(state: LaqiState): void; path: string }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/state-store.test.ts
@@ -1591,12 +1593,12 @@ describe('StateStore', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- state-store`
 Expected: FAIL — `Failed to resolve import "./state-store"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/state-store.ts
@@ -1615,8 +1617,8 @@ export class StateStore {
   }
 
   /**
-   * Lo genera la máquina, así que cualquier daño se descarta en silencio:
-   * perder el estado de una sesión es preferible a no arrancar.
+   * Machine-generated, so any damage is discarded silently: losing one
+   * session's state is preferable to not starting up.
    */
   read(): LaqiState {
     if (!existsSync(this.path)) return { ...DEFAULT_STATE }
@@ -1636,7 +1638,7 @@ export class StateStore {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- state-store`
 Expected: PASS, 6 tests.
@@ -1650,9 +1652,9 @@ git commit -m "feat(core): persist active state in gitignored .laqi/state.json"
 
 ---
 
-## Task 9: `packages/core` — resolución de las cuatro capas
+## Task 9: `packages/core` — resolving the four layers
 
-El corazón del producto. Ver [`docs/diseno/STATE-MODEL.md`](/design/state-model/).
+The product's heart. See [`docs/diseno/STATE-MODEL.md`](/design/state-model/).
 
 **Files:**
 
@@ -1661,14 +1663,14 @@ El corazón del producto. Ver [`docs/diseno/STATE-MODEL.md`](/design/state-model
 
 **Interfaces:**
 
-- Consumes: `LoadedEndpoint` (Tarea 6), `LaqiState`, `Scenarios`, `MockResponse` (Tarea 4)
+- Consumes: `LoadedEndpoint` (Task 6), `LaqiState`, `Scenarios`, `MockResponse` (Task 4)
 - Produces:
   - `type Layer = 'header' | 'state' | 'scenario' | 'default'`
   - `type Resolution = { ok: true; name: string; layer: Layer; response: MockResponse } | { ok: false; name: string; layer: Layer; message: string }`
   - `resolveResponse(input: { endpoint: LoadedEndpoint; state: LaqiState; scenarios: Scenarios; headerResponse?: string; headerScenario?: string }): Resolution`
   - `formatResolvedHeader(resolution: Resolution): string`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/resolve.test.ts
@@ -1800,19 +1802,19 @@ describe('formatResolvedHeader', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- resolve`
 Expected: FAIL — `Failed to resolve import "./resolve"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/resolve.ts
 import type { LaqiState, MockResponse, Scenarios } from '@laqi/schema'
 import type { LoadedEndpoint } from './loader'
 
-/** Las cuatro únicas palabras de capa. El panel mapea cada una a un color. */
+/** The only four layer words. The panel maps each one to a color. */
 export type Layer = 'header' | 'state' | 'scenario' | 'default'
 
 export type Resolution =
@@ -1829,8 +1831,8 @@ export function resolveResponse(input: {
   const { endpoint, state, scenarios, headerResponse, headerScenario } = input
   const { name, layer } = selectName()
 
-  // Object.hasOwn: "toString" u otra clave heredada del prototipo no es una
-  // respuesta declarada, aunque `responses[name]` devuelva algo truthy.
+  // Object.hasOwn: "toString" or another prototype-inherited key is not a
+  // declared response, even though `responses[name]` would return something truthy.
   const response = Object.hasOwn(endpoint.responses, name) ? endpoint.responses[name] : undefined
   if (!response) {
     return {
@@ -1844,31 +1846,31 @@ export function resolveResponse(input: {
   return { ok: true, name, layer, response }
 
   function selectName(): { name: string; layer: Layer } {
-    // 1. Header explícito. No persiste nada.
+    // 1. Explicit header. Persists nothing.
     if (headerResponse) return { name: headerResponse, layer: 'header' }
 
-    // 2. Escenario pedido por header: también capa `header`, por lo mismo.
+    // 2. Scenario requested by header: also layer `header`, for the same reason.
     if (headerScenario) {
       const fromHeaderScenario = scenarios[headerScenario]?.[endpoint.id]
       if (fromHeaderScenario) return { name: fromHeaderScenario, layer: 'header' }
     }
 
-    // 3. Override por endpoint, escrito por el panel o el MCP.
+    // 3. Per-endpoint override, written by the panel or the MCP.
     const override = state.overrides[endpoint.id]
     if (override) return { name: override, layer: 'state' }
 
-    // 4. Escenario activo — más general que un override, por eso va después.
+    // 4. Active scenario — more general than an override, hence it comes after.
     if (state.scenario) {
       const fromScenario = scenarios[state.scenario]?.[endpoint.id]
       if (fromScenario) return { name: fromScenario, layer: 'scenario' }
     }
 
-    // 5. La baseline del archivo.
+    // 5. The file's baseline.
     return { name: endpoint.default, layer: 'default' }
   }
 }
 
-/** El valor exacto de `X-Laqi-Resolved`. El log del panel lo imprime verbatim. */
+/** The exact value of `X-Laqi-Resolved`. The panel's log prints it verbatim. */
 export function formatResolvedHeader(resolution: Resolution): string {
   return `${resolution.name} (${resolution.layer})`
 }
@@ -1883,26 +1885,26 @@ export * from './state-store'
 export * from './resolve'
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- resolve`
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Corregir el documento del concepto**
+- [ ] **Step 5: Fix the concept document**
 
-En `docs/conceptos/resolucion-de-estado.md`, reemplazar la línea del algoritmo
+In `docs/conceptos/resolucion-de-estado.md`, replace the algorithm's line
 
 ```
     si request tiene X-Laqi-Scenario  -> la del escenario,    origen "scenario:<n>"
 ```
 
-por
+with
 
 ```
     si request tiene X-Laqi-Scenario  -> la del escenario,    origen "header"
 ```
 
-y añadir debajo del bloque de código:
+and add below the code block:
 
 ```markdown
 > Las palabras de capa son exactamente cuatro: `header`, `state`, `scenario` y
@@ -1919,7 +1921,7 @@ git commit -m "feat(core): resolve the live response across the four layers"
 
 ---
 
-## Task 10: `packages/server` — servir los mocks
+## Task 10: `packages/server` — serving the mocks
 
 **Files:**
 
@@ -1927,12 +1929,12 @@ git commit -m "feat(core): resolve the live response across the four layers"
 
 **Interfaces:**
 
-- Consumes: `RouteTable`, `resolveResponse`, `formatResolvedHeader` (Tareas 7, 9); `LaqiState`, `Scenarios`, `LaqiConfig` (Tarea 4)
+- Consumes: `RouteTable`, `resolveResponse`, `formatResolvedHeader` (Tasks 7, 9); `LaqiState`, `Scenarios`, `LaqiConfig` (Task 4)
 - Produces: `type MockRuntime = { table: RouteTable; scenarios: Scenarios; getState: () => LaqiState; cors: LaqiConfig['cors'] }`, `createMockApp(runtime: MockRuntime): Hono`
 
-**Restricción:** este archivo no puede importar nada de `node:`. Es lo que lo hace desplegable a Cloudflare Workers en el Plan 4.
+**Restriction:** this file cannot import anything from `node:`. This is what makes it deployable to Cloudflare Workers in Plan 4.
 
-- [ ] **Step 1: `package.json` y `tsconfig.json`**
+- [ ] **Step 1: `package.json` and `tsconfig.json`**
 
 ```json
 {
@@ -1953,7 +1955,7 @@ git commit -m "feat(core): resolve the live response across the four layers"
 { "extends": "../config/tsconfig.base.json", "include": ["src/**/*"] }
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [ ] **Step 2: Write the failing test**
 
 ```ts
 // packages/server/src/mock-app.test.ts
@@ -2062,12 +2064,12 @@ describe('createMockApp', () => {
 })
 ```
 
-- [ ] **Step 3: Correr el test y verificar que falla**
+- [ ] **Step 3: Run the test and confirm it fails**
 
 Run: `bun run test -- mock-app`
 Expected: FAIL — `Failed to resolve import "./mock-app"`
 
-- [ ] **Step 4: Implementar**
+- [ ] **Step 4: Implement**
 
 ```ts
 // packages/server/src/mock-app.ts
@@ -2080,7 +2082,7 @@ import type { ContentfulStatusCode, StatusCode } from 'hono/utils/http-status'
 export type MockRuntime = {
   table: RouteTable
   scenarios: Scenarios
-  /** Función, no valor: el estado cambia sin que cambie la tabla de rutas. */
+  /** A function, not a value: state changes without the route table changing. */
   getState: () => LaqiState
   cors: LaqiConfig['cors']
 }
@@ -2113,7 +2115,7 @@ export function createMockApp(runtime: MockRuntime): Hono {
 
       c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
 
-      // Un selector inexistente es un 500 explícito. Jamás una request colgada.
+      // A selector that doesn't exist is an explicit 500. Never a hanging request.
       if (!resolution.ok) {
         return c.json({ error: 'laqi', endpoint: endpoint.id, message: resolution.message }, 500)
       }
@@ -2132,7 +2134,7 @@ export function createMockApp(runtime: MockRuntime): Hono {
         return c.body(null, response.status as StatusCode)
       }
 
-      // structuredClone: el cuerpo servido nunca es la referencia cargada.
+      // structuredClone: the served body is never the loaded reference.
       return c.json(structuredClone(response.body), response.status as ContentfulStatusCode)
     })
   }
@@ -2146,10 +2148,10 @@ export function createMockApp(runtime: MockRuntime): Hono {
 export * from './mock-app'
 ```
 
-- [ ] **Step 5: Correr el test y verificar que pasa**
+- [ ] **Step 5: Run the test and confirm it passes**
 
 Run: `bun run test -- mock-app`
-Expected: PASS, 10 tests. El test `does not answer a method it was not declared for` pasa porque Hono devuelve 404 por defecto; la Tarea 11 le da cuerpo a esa respuesta.
+Expected: PASS, 10 tests. The `does not answer a method it was not declared for` test passes because Hono returns 404 by default; Task 11 gives that response a body.
 
 - [ ] **Step 6: Commit**
 
@@ -2160,9 +2162,9 @@ git commit -m "feat(server): serve mocks over Hono with immutable bodies and res
 
 ---
 
-## Task 11: `packages/server` — overrides por header y 404 con explicación
+## Task 11: `packages/server` — header overrides and an explained 404
 
-El 404 sin ruta es la confusión número uno del producto (flujo F3), así que tiene que explicarse solo.
+The routeless 404 is the product's number-one confusion (flow F3), so it has to explain itself.
 
 **Files:**
 
@@ -2171,10 +2173,10 @@ El 404 sin ruta es la confusión número uno del producto (flujo F3), así que t
 
 **Interfaces:**
 
-- Consumes: lo de la Tarea 10
-- Produces: sin exports nuevos; `createMockApp` gana el handler catch-all
+- Consumes: Task 10's
+- Produces: no new exports; `createMockApp` gains the catch-all handler
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/server/src/no-route.test.ts
@@ -2274,17 +2276,17 @@ describe('no matching route', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- no-route`
-Expected: FAIL — los tests de `X-Laqi-Response` pasan (ya implementado en la Tarea 10), los de `no matching route` fallan porque el 404 de Hono no trae cuerpo JSON.
+Expected: FAIL — the `X-Laqi-Response` tests pass (already implemented in Task 10); the `no matching route` ones fail because Hono's 404 carries no JSON body.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-En `packages/server/src/mock-app.ts`, añadir antes del `return app`:
+In `packages/server/src/mock-app.ts`, add before `return app`:
 
 ```ts
-  /** Cap de rutas listadas: útil para un typo, inmanejable con cien endpoints. */
+  /** Cap on listed routes: useful for a typo, unmanageable with a hundred endpoints. */
   const MAX_SUGGESTIONS = 20
 
   app.all('*', (c) =>
@@ -2302,10 +2304,10 @@ En `packages/server/src/mock-app.ts`, añadir antes del `return app`:
   )
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- no-route mock-app`
-Expected: PASS, todos.
+Expected: PASS, all of them.
 
 - [ ] **Step 5: Commit**
 
@@ -2316,9 +2318,9 @@ git commit -m "feat(server): explain no-matching-route with method, path and sug
 
 ---
 
-## Task 12: `apps/cli` — servir con recarga en caliente
+## Task 12: `apps/cli` — serving with hot-reload
 
-Arregla el defecto H de v1 y el hallazgo H6: el proceso y el socket **nunca** se reinician. Sólo se reemplaza la app Hono detrás del handler. Si el servidor se reiniciara, en el Plan 2 se cortaría el SSE y el panel quedaría en blanco en cada guardado.
+Fixes v1 defect H and finding H6: the process and the socket **never** restart. Only the Hono app behind the handler gets replaced. If the server restarted, in Plan 2 the SSE stream would drop and the panel would go blank on every save.
 
 **Files:**
 
@@ -2326,7 +2328,7 @@ Arregla el defecto H de v1 y el hallazgo H6: el proceso y el socket **nunca** se
 
 **Interfaces:**
 
-- Consumes: `loadMocks`, `buildRouteTable`, `StateStore` (Tareas 6–8); `createMockApp` (Tarea 10); `ConfigSchema` (Tarea 4)
+- Consumes: `loadMocks`, `buildRouteTable`, `StateStore` (Tasks 6–8); `createMockApp` (Task 10); `ConfigSchema` (Task 4)
 - Produces:
   - `type Runtime = { table: RouteTable; scenarios: Scenarios; errors: LoadError[]; source: LoadResult['source'] }`
   - `buildRuntime(root: string, config: LaqiConfig): Runtime`
@@ -2334,7 +2336,7 @@ Arregla el defecto H de v1 y el hallazgo H6: el proceso y el socket **nunca** se
   - `startServer(options: { root: string; config: LaqiConfig }): Promise<ServeHandle>`
   - `watchMocks(options: { paths: string[]; onChange: () => void; debounceMs?: number }): { close: () => Promise<void> }`
 
-- [ ] **Step 1: `package.json` y `tsconfig.json`**
+- [ ] **Step 1: `package.json` and `tsconfig.json`**
 
 ```json
 {
@@ -2362,7 +2364,7 @@ Arregla el defecto H de v1 y el hallazgo H6: el proceso y el socket **nunca** se
 }
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [ ] **Step 2: Write the failing test**
 
 ```ts
 // apps/cli/src/serve.test.ts
@@ -2550,12 +2552,12 @@ describe('watchMocks', () => {
 })
 ```
 
-- [ ] **Step 3: Correr los tests y verificar que fallan**
+- [ ] **Step 3: Run the tests and confirm they fail**
 
 Run: `bun run test -- serve watcher`
-Expected: FAIL — imports sin resolver.
+Expected: FAIL — unresolved imports.
 
-- [ ] **Step 4: Implementar**
+- [ ] **Step 4: Implement**
 
 ```ts
 // apps/cli/src/runtime.ts
@@ -2600,7 +2602,7 @@ import { buildRuntime, type Runtime } from './runtime'
 export type ServeHandle = {
   port: number
   host: string
-  /** Reconstruye la app Hono. El proceso y el socket NO se tocan. */
+  /** Rebuilds the Hono app. The process and the socket are NOT touched. */
   reload: () => Runtime
   current: () => Runtime
   close: () => Promise<void>
@@ -2620,7 +2622,7 @@ export async function startServer(options: {
     return createMockApp({
       table: runtime.table,
       scenarios: runtime.scenarios,
-      // Se lee en cada request: el panel cambia el estado sin tocar archivos.
+      // Read on every request: the panel changes state without touching files.
       getState: () => store.read(),
       cors: config.cors,
     })
@@ -2629,7 +2631,7 @@ export async function startServer(options: {
   const server: ServerType = await new Promise((resolve) => {
     const instance = serve(
       {
-        // La indirección es el punto: `app` es mutable, el servidor no.
+        // The indirection is the point: `app` is mutable, the server is not.
         fetch: (request: Request) => app.fetch(request),
         port: config.port,
         hostname: config.host,
@@ -2672,17 +2674,17 @@ export function watchMocks(options: {
 }): { close: () => Promise<void> } {
   const { root, dir, file, onChange, debounceMs = 60 } = options
 
-  // chokidar 4 no observa rutas que todavía no existen, así que observamos la
-  // raíz del proyecto y PODAMOS todo lo que no sea la carpeta o el archivo de
-  // mocks. Así un proyecto fresco (F9) detecta `laqi/` cuando se crea, sin
-  // indexar src/ ni node_modules.
+  // chokidar 4 doesn't watch paths that don't exist yet, so we watch the
+  // project root and PRUNE everything that isn't the mocks folder or file.
+  // This way a fresh project (F9) detects `laqi/` when it's created, without
+  // indexing src/ or node_modules.
   const watcher: FSWatcher = watch(root, {
     ignoreInitial: true,
     ignored: (path: string) => {
       if (path === root) return false
       const parts = relative(root, path).split(sep)
-      // Los dotfiles incluyen .laqi/state.json, que escribimos nosotros:
-      // observarlo sería un bucle de recarga infinito.
+      // Dotfiles include .laqi/state.json, which we write ourselves:
+      // watching it would be an infinite reload loop.
       if (parts.some((part) => part.startsWith('.'))) return true
       return parts[0] !== dir && parts[0] !== file
     },
@@ -2690,13 +2692,13 @@ export function watchMocks(options: {
 
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  // Un guardado dispara varios eventos; sin debounce se recargaría de más.
+  // A save fires several events; without debouncing it would over-reload.
   const schedule = () => {
     if (timer) clearTimeout(timer)
     timer = setTimeout(onChange, debounceMs)
   }
 
-  // v1 sólo escuchaba 'change', así que crear o borrar archivos no recargaba.
+  // v1 only listened to 'change', so creating or deleting files didn't reload.
   watcher.on('add', schedule).on('change', schedule).on('unlink', schedule)
 
   return {
@@ -2708,16 +2710,16 @@ export function watchMocks(options: {
 }
 ```
 
-- [ ] **Step 5: Correr los tests y verificar que pasan**
+- [ ] **Step 5: Run the tests and confirm they pass**
 
 Run: `bun run test -- serve watcher`
 Expected: PASS, 11 tests.
 
-- [ ] **Step 6: Escribir el entry point del CLI**
+- [ ] **Step 6: Write the CLI entry point**
 
 ```ts
 #!/usr/bin/env node
-// apps/cli/src/index.ts — el shebang DEBE quedar como primera línea del archivo
+// apps/cli/src/index.ts — the shebang MUST stay as the file's first line
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
@@ -2728,11 +2730,11 @@ import { watchMocks } from './watcher'
 
 const CONFIG_FILE = 'laqi.config.json'
 
-// NOTA para quien implemente esta tarea: la USAGE de abajo ya anuncia
-// `laqi migrate`, pero el comando en sí (el import de `runMigrate` y su
-// bloque `if (positionals[0] === 'migrate')`) los añade la Tarea 13, que crea
-// `migrate.ts`. Hasta entonces `laqi migrate` cae en el "unknown command" de
-// más abajo — es el comportamiento esperado de ESTA tarea, no un bug.
+// NOTE for whoever implements this task: the USAGE below already announces
+// `laqi migrate`, but the command itself (importing `runMigrate` and its
+// `if (positionals[0] === 'migrate')` block) is added by Task 13, which
+// creates `migrate.ts`. Until then `laqi migrate` falls into the "unknown
+// command" branch below — that is THIS task's expected behavior, not a bug.
 const USAGE = `
 laqi — mock server for frontend development
 
@@ -2805,9 +2807,9 @@ async function main(): Promise<void> {
     file: values.file,
   })
 
-  // La rama `migrate` la añade la Tarea 13 (Modify: index.ts), justo aquí,
-  // antes del chequeo de "unknown command" de abajo. No la agregues en esta
-  // tarea — `./migrate` todavía no existe.
+  // The `migrate` branch is added by Task 13 (Modify: index.ts), right here,
+  // before the "unknown command" check below. Don't add it in this
+  // task — `./migrate` doesn't exist yet.
 
   if (positionals[0] !== undefined) {
     console.error(`✖ unknown command ${JSON.stringify(positionals[0])}\n`)
@@ -2854,7 +2856,7 @@ main().catch((error: unknown) => {
 })
 ```
 
-- [ ] **Step 7: Probarlo a mano**
+- [ ] **Step 7: Try it by hand**
 
 ```bash
 mkdir -p /tmp/laqi-smoke/laqi && cd /tmp/laqi-smoke
@@ -2869,10 +2871,10 @@ cat > laqi/api.json <<'JSON'
   }
 }
 JSON
-bun <ruta-al-repo>/apps/cli/src/index.ts
+bun <path-to-repo>/apps/cli/src/index.ts
 ```
 
-En otra terminal:
+In another terminal:
 
 ```bash
 curl -i localhost:8000/users
@@ -2880,7 +2882,7 @@ curl -i -H 'X-Laqi-Response: boom' localhost:8000/users
 curl -i localhost:8000/typo
 ```
 
-Esperado: 200 con `X-Laqi-Resolved: ok (default)`; 500 con `boom (header)`; 404 con `available: ["GET /users"]`. Editar `laqi/api.json` y volver a hacer curl sin reiniciar nada.
+Expected: 200 with `X-Laqi-Resolved: ok (default)`; 500 with `boom (header)`; 404 with `available: ["GET /users"]`. Edit `laqi/api.json` and curl again without restarting anything.
 
 - [ ] **Step 8: Commit**
 
@@ -2893,19 +2895,19 @@ git commit -m "feat(cli): serve mocks with hot-swap reload that never restarts t
 
 ## Task 13: `apps/cli` — `laqi migrate`
 
-Convierte el formato de v1, incluido el hack `(get)files/:id`. Es lo que hace del [ADR-0001](/decisions/0001-rewrite-v2/) una migración y no una ruptura.
+Converts the v1 format, including the `(get)files/:id` hack. This is what makes [ADR-0001](/decisions/0001-rewrite-v2/) a migration instead of a break.
 
 **Files:**
 
 - Create: `apps/cli/src/migrate.ts`, `apps/cli/src/migrate.test.ts`
-- Modify: `apps/cli/src/index.ts` (la Tarea 12 dejó la rama `migrate` sin conectar a propósito — ver Step 7 de esta tarea)
+- Modify: `apps/cli/src/index.ts` (Task 12 deliberately left the `migrate` branch unwired — see Step 7 of this task)
 
 **Interfaces:**
 
-- Consumes: `HTTP_METHODS`, `isHttpMethod`, `formatEndpointId`, `EndpointDefinition` (Tareas 2–4); `type Runtime`, `startServer`, `report` — el `main()` de `apps/cli/src/index.ts` (Tarea 12)
+- Consumes: `HTTP_METHODS`, `isHttpMethod`, `formatEndpointId`, `EndpointDefinition` (Tasks 2–4); `type Runtime`, `startServer`, `report` — `apps/cli/src/index.ts`'s `main()` (Task 12)
 - Produces: `type MigrationResult = { output: Record<string, EndpointDefinition>; warnings: string[] }`, `migrateV1(input: unknown): MigrationResult`, `runMigrate(options: { root: string; config: LaqiConfig; dryRun: boolean }): boolean`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // apps/cli/src/migrate.test.ts
@@ -3034,12 +3036,12 @@ describe('migrateV1', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- migrate`
 Expected: FAIL — `Failed to resolve import "./migrate"`
 
-- [ ] **Step 3: Implementar la conversión**
+- [ ] **Step 3: Implement the conversion**
 
 ```ts
 // apps/cli/src/migrate.ts
@@ -3058,7 +3060,7 @@ export type MigrationResult = {
   warnings: string[]
 }
 
-/** El hack de v1 para meter varios métodos bajo la misma clave JSON. */
+/** v1's hack for packing several methods under the same JSON key. */
 const METHOD_PREFIX = /^\((\w+)\)(.*)$/
 
 type V1Response = { statusCode?: unknown; selectorCode?: unknown; body?: unknown }
@@ -3138,17 +3140,17 @@ export function migrateV1(input: unknown): MigrationResult {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- migrate`
 Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Añadir el comando que lee y escribe archivos**
+- [ ] **Step 5: Add the command that reads and writes files**
 
-Al final de `apps/cli/src/migrate.ts`:
+At the end of `apps/cli/src/migrate.ts`:
 
 ```ts
-/** Devuelve true si hubo algún fallo, para que el CLI ponga exit code 1. */
+/** Returns true if anything failed, so the CLI sets exit code 1. */
 export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: boolean }): boolean {
   const { root, config, dryRun } = options
   const sources = findV1Sources(root, config)
@@ -3190,7 +3192,7 @@ export function runMigrate(options: { root: string; config: LaqiConfig; dryRun: 
 }
 
 function findV1Sources(root: string, config: LaqiConfig): string[] {
-  // v1 leía `path` de mock.config.json, con 'mock-data' por defecto.
+  // v1 read `path` from mock.config.json, defaulting to 'mock-data'.
   let dir = 'mock-data'
   const legacyConfig = join(root, 'mock.config.json')
 
@@ -3199,7 +3201,7 @@ function findV1Sources(root: string, config: LaqiConfig): string[] {
       const parsed = JSON.parse(readFileSync(legacyConfig, 'utf8')) as { path?: unknown }
       if (typeof parsed.path === 'string') dir = parsed.path
     } catch {
-      // Config ilegible: seguimos con el default de v1.
+      // Unreadable config: fall back to v1's default.
     }
   }
 
@@ -3223,11 +3225,11 @@ function findV1Sources(root: string, config: LaqiConfig): string[] {
 }
 ```
 
-- [ ] **Step 6: Conectar el comando en `index.ts`**
+- [ ] **Step 6: Wire up the command in `index.ts`**
 
-La Tarea 12 dejó `laqi migrate` sin conectar a propósito (`./migrate` todavía no existía). Ahora sí existe: conectarlo.
+Task 12 deliberately left `laqi migrate` unwired (`./migrate` didn't exist yet). It exists now: wire it up.
 
-En `apps/cli/src/index.ts`, añadir el import junto a los demás:
+In `apps/cli/src/index.ts`, add the import alongside the others:
 
 ```ts
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
@@ -3235,17 +3237,17 @@ import { runMigrate } from './migrate'
 import type { Runtime } from './runtime'
 ```
 
-Y reemplazar el comentario que la Tarea 12 dejó como marcador:
+And replace the comment Task 12 left as a marker:
 
 ```ts
-  // La rama `migrate` la añade la Tarea 13 (Modify: index.ts), justo aquí,
-  // antes del chequeo de "unknown command" de abajo. No la agregues en esta
-  // tarea — `./migrate` todavía no existe.
+  // The `migrate` branch is added by Task 13 (Modify: index.ts), right here,
+  // before the "unknown command" check below. Don't add it in this
+  // task — `./migrate` doesn't exist yet.
 
   if (positionals[0] !== undefined) {
 ```
 
-por la rama real:
+with the real branch:
 
 ```ts
   if (positionals[0] === 'migrate') {
@@ -3257,22 +3259,22 @@ por la rama real:
   if (positionals[0] !== undefined) {
 ```
 
-- [ ] **Step 7: Probarlo contra los mocks reales de v1**
+- [ ] **Step 7: Try it against real v1 mocks**
 
 ```bash
 mkdir -p /tmp/laqi-migrate && cd /tmp/laqi-migrate
-git -C <ruta-al-repo> show efd99f7:mock-data/multi-endpoint.json > /dev/null 2>&1 \
+git -C <path-to-repo> show efd99f7:mock-data/multi-endpoint.json > /dev/null 2>&1 \
   && mkdir -p mock-data \
-  && git -C <ruta-al-repo> show efd99f7:mock-data/multi-endpoint.json > mock-data/multi-endpoint.json
-bun <ruta-al-repo>/apps/cli/src/index.ts migrate --dry-run
+  && git -C <path-to-repo> show efd99f7:mock-data/multi-endpoint.json > mock-data/multi-endpoint.json
+bun <path-to-repo>/apps/cli/src/index.ts migrate --dry-run
 ```
 
-Esperado: las cinco claves `(get)files/:id`, `(post)files/:id`, etc. salen como `GET /files/:id`, `POST /files/:id`… y `files` como `GET /files`. Sin avisos de colisión.
+Expected: the five `(get)files/:id`, `(post)files/:id`, etc. keys come out as `GET /files/:id`, `POST /files/:id`… and `files` as `GET /files`. No collision warnings.
 
-- [ ] **Step 8: Correr todo el conjunto de tests y verificar tipos**
+- [ ] **Step 8: Run the full test suite and check types**
 
 Run: `bun run test && bun run check-types`
-Expected: todo verde — este es el paso que habría fallado si `index.ts` se hubiera dejado sin conectar.
+Expected: all green — this is the step that would have failed if `index.ts` had been left unwired.
 
 - [ ] **Step 9: Commit**
 
@@ -3283,36 +3285,36 @@ git commit -m "feat(cli): migrate v1 mock files to the v2 format"
 
 ---
 
-## Fuera del alcance de este plan
+## Out of scope for this plan
 
-Anotado para que no se pierda:
+Noted so it doesn't get lost:
 
-- **Templating `{{uuid}}` / `{{name}}`** ([ADR-0003](/decisions/0003-declarative-json/)). v1 tenía `(generate:uid)` sin implementar; v2 lo implementa, pero en un plan posterior.
-- **v2 no hace eco de `params`, `query` ni `body`** en la respuesta. v1 sí lo hacía, pero como efecto colateral del bug de mutación (defecto A) — no era una feature, era el bug. El reemplazo deliberado es el templating.
-- **Control plane, SSE, editor web** → Plan 2. **MCP** → Plan 3. **`--share`** → Plan 4. **Documentación** → Plan 5.
-- **Escape hatch en TypeScript** para endpoints con lógica ([ADR-0003](/decisions/0003-declarative-json/)): sin plan asignado todavía.
-- **Empaquetado para npm.** El `bin` apunta a `src/index.ts`, que corre con Bun en desarrollo pero no con Node desde un `npx`. El build con tsdown a `dist/` y la verificación de que `npx laqi` funciona en Node limpio van en el Plan 5, junto con la publicación.
+- **Templating `{{uuid}}` / `{{name}}`** ([ADR-0003](/decisions/0003-declarative-json/)). v1 had `(generate:uid)` unimplemented; v2 implements it, but in a later plan.
+- **v2 does not echo back `params`, `query` or `body`** in the response. v1 did, but as a side effect of the mutation bug (defect A) — it wasn't a feature, it was the bug. The deliberate replacement is templating.
+- **Control plane, SSE, web editor** → Plan 2. **MCP** → Plan 3. **`--share`** → Plan 4. **Documentation** → Plan 5.
+- **TypeScript escape hatch** for endpoints with logic ([ADR-0003](/decisions/0003-declarative-json/)): no plan assigned yet.
+- **Packaging for npm.** `bin` points at `src/index.ts`, which runs under Bun in development but not under Node from an `npx`. The tsdown build to `dist/` and verifying `npx laqi` works on plain Node happen in Plan 5, alongside publishing.
 
-## Hallazgos de la revisión de diseño cubiertos acá
+## Design-review findings covered here
 
-| Hallazgo                                  | Dónde se resuelve |
-| ----------------------------------------- | ----------------- |
-| H2 — colisión entre archivos              | Tarea 7           |
-| H3 — carga parcial, no fatal              | Tareas 6 y 12     |
-| H5 — errores semánticos con superficie    | Tarea 6           |
-| H6 — hot-reload sin reiniciar el servidor | Tarea 12          |
-| H7 — `/__laqi` reservado                  | Tarea 3           |
-| H10 — nombres `laqi/` y `laqi.json`       | Tarea 4           |
+| Finding                                       | Where it's resolved |
+| --------------------------------------------- | ------------------- |
+| H2 — cross-file collision                     | Task 7              |
+| H3 — partial load, not fatal                  | Tasks 6 and 12      |
+| H5 — semantic errors with surface             | Task 6              |
+| H6 — hot-reload without restarting the server | Task 12             |
+| H7 — `/__laqi` reserved                       | Task 3              |
+| H10 — `laqi/` and `laqi.json` names           | Task 4              |
 
-**H1** (404 de `/__laqi` por el túnel), **H4** (header en la caja editable), **H8** (`DELETE` de endpoint), **H9** (curl en modo compartido), **H11** (fuentes) y **H12/H13** (props y cosméticos del prototipo) corresponden a los planes 2 y 4.
+**H1** (`/__laqi`'s 404 through the tunnel), **H4** (header in the editable box), **H8** (endpoint `DELETE`), **H9** (curl in shared mode), **H11** (fonts) and **H12/H13** (prototype props and cosmetics) belong to Plans 2 and 4.
 
-## Definición de terminado
+## Definition of done
 
-- [ ] `bun run test` verde: 13 tareas, ~95 tests
-- [ ] `bun run check-types` y `bun run lint` sin errores
-- [ ] `laqi` sirve mocks desde `laqi/` y desde `laqi.json`
-- [ ] Editar un mock recarga sin reiniciar el proceso
-- [ ] Un archivo roto muestra su error y no tumba a los demás
-- [ ] `X-Laqi-Resolved` sale en toda respuesta con el formato `<name> (<layer>)`
-- [ ] `laqi migrate` convierte los mocks de v1, incluido el hack `(get)`
-- [ ] Ninguna request cuelga jamás, en ningún camino
+- [ ] `bun run test` green: 13 tasks, ~95 tests
+- [ ] `bun run check-types` and `bun run lint` with no errors
+- [ ] `laqi` serves mocks from `laqi/` and from `laqi.json`
+- [ ] Editing a mock reloads without restarting the process
+- [ ] A broken file shows its error and doesn't take down the others
+- [ ] `X-Laqi-Resolved` appears on every response in the format `<name> (<layer>)`
+- [ ] `laqi migrate` converts v1 mocks, including the `(get)` hack
+- [ ] No request ever hangs, on any path

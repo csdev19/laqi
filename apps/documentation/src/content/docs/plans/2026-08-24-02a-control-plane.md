@@ -6,61 +6,61 @@ title: "laqi v2 — Plan 2a: Control plane"
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Un control plane HTTP + SSE completo bajo `/__laqi/api/*` y `/__laqi/events` — leer y crear/editar/borrar endpoints (escribiendo de vuelta a los archivos de mock), leer y mutar el estado activo, leer escenarios y estado del servidor, y un stream en vivo de requests/recargas/errores. Es la API que el editor web (Plan 2b) y el servidor MCP (Plan 3) van a consumir.
+**Goal:** A complete HTTP + SSE control plane under `/__laqi/api/*` and `/__laqi/events` — read and create/edit/delete endpoints (writing back to the mock files), read and mutate active state, read scenarios and server state, and a live stream of requests/reloads/errors. This is the API the web editor (Plan 2b) and the MCP server (Plan 3) will consume.
 
-**Architecture:** Dos apps Hono separadas, compuestas en una: `createMockApp()` (Plan 1, sin tocar) sirve los mocks; `createControlPlaneApp()` (nuevo) sirve `/__laqi/api/*` y el SSE, y se monta aparte para que el Plan 4 pueda excluirlo del túnel sin tocar el mock-app. `packages/core` gana un escritor de archivos (`writer.ts`, lee-modifica-escribe JSON preservando el resto del archivo) y un bus de eventos tipado (`events.ts`). `apps/cli/serve.ts` compone ambas apps, conecta el bus, y hace que toda escritura recargue el runtime de inmediato — reusando el hot-swap del Plan 1 sin tocarlo.
+**Architecture:** Two separate Hono apps, composed into one: `createMockApp()` (Plan 1, untouched) serves the mocks; `createControlPlaneApp()` (new) serves `/__laqi/api/*` and the SSE, and is mounted separately so Plan 4 can exclude it from the tunnel without touching the mock-app. `packages/core` gains a file writer (`writer.ts`, read-modify-write JSON preserving the rest of the file) and a typed event bus (`events.ts`). `apps/cli/serve.ts` composes both apps, wires up the bus, and makes every write reload the runtime immediately — reusing Plan 1's hot-swap without touching it.
 
-**Tech Stack:** El mismo del Plan 1 (Bun, TypeScript, Hono 4.12, Zod 4.3, Vitest). Suma `hono/streaming` (`streamSSE`) para el SSE.
+**Tech Stack:** Same as Plan 1 (Bun, TypeScript, Hono 4.12, Zod 4.3, Vitest). Adds `hono/streaming` (`streamSSE`) for SSE.
 
-**Spec:** [`docs/diseno/DESIGN.md`](/design/design/) sección 7 (contratos de API, con la corrección de `DELETE` del hallazgo H8), [`docs/diseno/STATE-MODEL.md`](/design/state-model/), [`docs/diseno/revision-vs-decisiones.md`](/design/review-vs-decisions/) (H1, H4, H5, H7, H8, H9), [`docs/decisiones/0006-servidor-mcp.md`](/decisions/0006-mcp-server/), [`docs/decisiones/0007-url-publica.md`](/decisions/0007-public-url/).
+**Spec:** [`docs/diseno/DESIGN.md`](/design/design/) section 7 (API contracts, with the `DELETE` fix from finding H8), [`docs/diseno/STATE-MODEL.md`](/design/state-model/), [`docs/diseno/revision-vs-decisiones.md`](/design/review-vs-decisions/) (H1, H4, H5, H7, H8, H9), [`docs/decisiones/0006-servidor-mcp.md`](/decisions/0006-mcp-server/), [`docs/decisiones/0007-url-publica.md`](/decisions/0007-public-url/).
 
 ## Global Constraints
 
-- **TDD obligatorio.** Ningún código de producción sin un test que falle primero.
-- **TypeScript estricto**, ESM. Nada de CommonJS.
-- El control plane vive en un **Hono app separado** del mock-app (`createControlPlaneApp()` ≠ `createMockApp()`), montados juntos sólo en `apps/cli`. Nunca fusionar sus rutas en un solo archivo — es la separación que el Plan 4 necesita para poder excluir `/__laqi` del túnel sin tocar el código de mocks.
-- **Este plan NO implementa el bloqueo del túnel.** Eso es responsabilidad del Plan 4 (que decide cómo evitar que `/__laqi/*` salga por la URL pública). Este plan sólo entrega la separación estructural que lo hace posible.
-- `/__laqi` sigue siendo prefijo reservado (Plan 1, `RESERVED_PREFIX` en `@laqi/schema`) — ningún mock puede ocuparlo. Ya está enforced end-to-end; este plan no lo toca.
-- **Toda escritura al disco valida contra el esquema Zod correspondiente antes de escribir.** Nunca se persiste una definición de endpoint inválida.
-- **Toda escritura recarga el runtime de inmediato**, en el mismo request que la originó — nunca depender sólo del watcher de archivos (que además la recoge, de forma redundante e inofensiva, unos milisegundos después).
-- El bus de eventos es un tipo cerrado: `request | endpoints-changed | error`. No agregar `share-changed` — eso pertenece al Plan 4, que aún no existe.
-- Commits con Conventional Commits.
+- **TDD is mandatory.** No production code without a failing test first.
+- **Strict TypeScript**, ESM. No CommonJS.
+- The control plane lives in a **separate Hono app** from the mock-app (`createControlPlaneApp()` ≠ `createMockApp()`), mounted together only in `apps/cli`. Never merge their routes into a single file — this is the separation Plan 4 needs so it can exclude `/__laqi` from the tunnel without touching the mocks code.
+- **This plan does NOT implement the tunnel block.** That is Plan 4's responsibility (which decides how to keep `/__laqi/*` off the public URL). This plan only delivers the structural separation that makes it possible.
+- `/__laqi` remains a reserved prefix (Plan 1, `RESERVED_PREFIX` in `@laqi/schema`) — no mock can occupy it. It's already enforced end-to-end; this plan doesn't touch it.
+- **Every disk write validates against the corresponding Zod schema before writing.** An invalid endpoint definition is never persisted.
+- **Every write reloads the runtime immediately**, in the same request that caused it — never rely solely on the file watcher (which also picks it up, redundantly and harmlessly, a few milliseconds later).
+- The event bus is a closed type: `request | endpoints-changed | error`. Do not add `share-changed` — that belongs to Plan 4, which doesn't exist yet.
+- Commits use Conventional Commits.
 
-## Nota de verificación previa
+## Pre-verification note
 
-Antes de escribir este plan se verificó, ejecutando código real:
+Before writing this plan, the following was verified by running real code:
 
-- `streamSSE` de `hono/streaming` funciona correctamente sobre `@hono/node-server`: content-type correcto, eventos entregados en orden, y **el cleanup del listener al desconectar el cliente (`onAbort`) sí dispara bajo Node real** — bajo Bun puro NO dispara (fuga de listener), pero **los tests de este repo (`bun run test` → vitest) corren en un proceso Node real** (`process.versions.node` presente, `typeof Bun === 'undefined'` dentro del test), así que el test de cleanup del SSE es válido tal como está escrito abajo.
-- Componer dos apps Hono con `top.route('/__laqi', controlPlaneApp); top.route('/', mockApp)` funciona: las rutas de cada una responden correctamente, y un typo bajo `/__laqi/*` que ninguna de las dos rutas reconoce cae en el catch-all del mock-app (no es un hueco de seguridad, porque `/__laqi/*` ya está prohibido para cualquier mock — pero el control-plane-app se lleva su propio catch-all de todos modos, para un mensaje de error más claro).
-- Un id compuesto como `"GET /users/:id/orders/:orderId"` viaja correctamente como un único path param `:id` si se codifica con `encodeURIComponent` en el cliente y se decodifica con `decodeURIComponent` en el servidor — verificado el round-trip exacto.
+- `hono/streaming`'s `streamSSE` works correctly on `@hono/node-server`: correct content-type, events delivered in order, and **the listener cleanup on client disconnect (`onAbort`) does fire under real Node** — under plain Bun it does NOT fire (listener leak), but **this repo's tests (`bun run test` → vitest) run in a real Node process** (`process.versions.node` present, `typeof Bun === 'undefined'` inside the test), so the SSE cleanup test below is valid as written.
+- Composing two Hono apps with `top.route('/__laqi', controlPlaneApp); top.route('/', mockApp)` works: each one's routes respond correctly, and a typo under `/__laqi/*` that neither route recognizes falls through to the mock-app's catch-all (this is not a security hole, because `/__laqi/*` is already forbidden to any mock — but the control-plane-app also gets its own catch-all regardless, for a clearer error message).
+- A composite id like `"GET /users/:id/orders/:orderId"` travels correctly as a single `:id` path param if encoded with `encodeURIComponent` on the client and decoded with `decodeURIComponent` on the server — the exact round-trip was verified.
 
 ---
 
-## Estructura de archivos
+## File structure
 
 ```
 packages/core/src/
-├── events.ts                 NUEVO — LaqiEvent, EventBus
+├── events.ts                 NEW — LaqiEvent, EventBus
 ├── events.test.ts
-├── writer.ts                 NUEVO — updateEndpointInFile, createEndpointInFile, deleteEndpointFromFile
+├── writer.ts                 NEW — updateEndpointInFile, createEndpointInFile, deleteEndpointFromFile
 ├── writer.test.ts
-└── index.ts                  MODIFICAR — exportar events y writer
+└── index.ts                  MODIFY — export events and writer
 
 packages/server/src/
-├── control-plane-app.ts      NUEVO — createControlPlaneApp(runtime): Hono
+├── control-plane-app.ts      NEW — createControlPlaneApp(runtime): Hono
 ├── control-plane-app.test.ts
-├── mock-app.ts                MODIFICAR — MockRuntime gana onRequest opcional
-├── mock-app.test.ts           MODIFICAR — test de que onRequest se dispara
-└── index.ts                   MODIFICAR — exportar control-plane-app
+├── mock-app.ts                MODIFY — MockRuntime gains an optional onRequest
+├── mock-app.test.ts           MODIFY — test that onRequest fires
+└── index.ts                   MODIFY — export control-plane-app
 
 apps/cli/src/
-├── serve.ts            MODIFICAR — compone control-plane + mock app, conecta el bus, escrituras con reload inmediato
-└── serve.test.ts       MODIFICAR — tests de integración: crear/editar/borrar vía HTTP, SSE end-to-end
+├── serve.ts            MODIFY — composes control-plane + mock app, wires up the bus, writes trigger an immediate reload
+└── serve.test.ts       MODIFY — integration tests: create/edit/delete over HTTP, end-to-end SSE
 ```
 
 ---
 
-## Task 1: `packages/core` — bus de eventos
+## Task 1: `packages/core` — event bus
 
 **Files:**
 
@@ -69,10 +69,10 @@ apps/cli/src/
 
 **Interfaces:**
 
-- Consumes: `LoadError` (Plan 1, ya en `@laqi/core`)
+- Consumes: `LoadError` (Plan 1, already in `@laqi/core`)
 - Produces: `type LaqiEvent = { type: 'request'; method: string; path: string; status: number; resolvedName: string; resolvedLayer: string; ms: number } | { type: 'endpoints-changed'; endpointCount: number } | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }`, `class EventBus { emit(event: LaqiEvent): void; subscribe(listener: (event: LaqiEvent) => void): () => void }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/events.test.ts
@@ -182,12 +182,12 @@ describe('EventBus', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- events`
 Expected: FAIL — `Failed to resolve import "./events"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/events.ts
@@ -206,9 +206,9 @@ export type LaqiEvent =
   | { type: 'error'; file: string; line?: number; col?: number; message: string; excerpt?: string }
 
 /**
- * Un bus en memoria, un solo proceso. No hay cola ni persistencia: un
- * suscriptor que no está conectado cuando algo pasa, se lo pierde — eso está
- * bien, es exactamente lo que el flujo F3 (mirar requests en vivo) espera.
+ * An in-memory, single-process bus. There is no queue or persistence: a
+ * subscriber that isn't connected when something happens misses it — that's
+ * fine, it's exactly what flow F3 (watching requests live) expects.
  */
 export class EventBus {
   private listeners = new Set<(event: LaqiEvent) => void>()
@@ -218,7 +218,7 @@ export class EventBus {
       try {
         listener(event)
       } catch {
-        // Un suscriptor roto no debe tumbar a los demás ni al emisor.
+        // A broken subscriber must not take down the others or the emitter.
       }
     }
   }
@@ -230,12 +230,12 @@ export class EventBus {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- events`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Exportar desde el índice**
+- [ ] **Step 5: Export from the index**
 
 ```ts
 // packages/core/src/index.ts
@@ -256,7 +256,7 @@ git commit -m "feat(core): add typed in-memory event bus for the control plane"
 
 ---
 
-## Task 2: `packages/core` — escritor de archivos: actualizar y borrar
+## Task 2: `packages/core` — file writer: update and delete
 
 **Files:**
 
@@ -267,7 +267,7 @@ git commit -m "feat(core): add typed in-memory event bus for the control plane"
 - Consumes: `EndpointSchema`, `type EndpointDefinition` (Plan 1, `@laqi/schema`)
 - Produces: `type WriteResult = { ok: true } | { ok: false; error: string }`, `updateEndpointInFile(params: { root: string; file: string; id: string; definition: EndpointDefinition }): WriteResult`, `deleteEndpointFromFile(params: { root: string; file: string; id: string }): WriteResult`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/core/src/writer.test.ts
@@ -372,12 +372,12 @@ describe('deleteEndpointFromFile', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- writer`
 Expected: FAIL — `Failed to resolve import "./writer"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/core/src/writer.ts
@@ -445,7 +445,7 @@ export function createEndpointInFile(params: {
     return { ok: false, error: validated.error.issues.map((i) => i.message).join('; ') }
   }
 
-  // El archivo puede no existir todavía (primer endpoint creado desde el panel).
+  // The file may not exist yet (the first endpoint created from the panel).
   const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
   if (!read.ok) return read
 
@@ -475,10 +475,10 @@ export function deleteEndpointFromFile(params: { root: string; file: string; id:
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- writer`
-Expected: PASS, 7 tests (los de `updateEndpointInFile` y `deleteEndpointFromFile`; `createEndpointInFile` se testea en la Tarea 3, aunque su implementación ya queda escrita acá porque comparte el mismo archivo y las mismas funciones internas).
+Expected: PASS, 7 tests (`updateEndpointInFile` and `deleteEndpointFromFile`; `createEndpointInFile` is tested in Task 3, though its implementation is already written here since it shares the same file and the same internal functions).
 
 - [ ] **Step 5: Commit**
 
@@ -489,7 +489,7 @@ git commit -m "feat(core): write endpoint updates and deletions back to mock fil
 
 ---
 
-## Task 3: `packages/core` — escritor de archivos: crear
+## Task 3: `packages/core` — file writer: create
 
 **Files:**
 
@@ -497,12 +497,12 @@ git commit -m "feat(core): write endpoint updates and deletions back to mock fil
 
 **Interfaces:**
 
-- Consumes: `createEndpointInFile` (ya implementada en la Tarea 2, sin tests todavía)
-- Produces: sin símbolos nuevos — esta tarea sólo agrega cobertura y la exportación
+- Consumes: `createEndpointInFile` (already implemented in Task 2, not yet tested)
+- Produces: no new symbols — this task only adds coverage and the export
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir al final de `packages/core/src/writer.test.ts` (después del bloque `describe('deleteEndpointFromFile', ...)`):
+Add to the end of `packages/core/src/writer.test.ts` (after the `describe('deleteEndpointFromFile', ...)` block):
 
 ```ts
 describe('createEndpointInFile', () => {
@@ -547,20 +547,20 @@ describe('createEndpointInFile', () => {
 })
 ```
 
-Y añadir `existsSync` al import de `node:fs` al inicio del archivo de test:
+And add `existsSync` to the `node:fs` import at the top of the test file:
 
 ```ts
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- writer`
-Expected: FAIL — `existsSync` no importado todavía en el test causa un error de referencia antes de siquiera correr, o (si ya se agregó el import) los 4 tests nuevos de `createEndpointInFile` pasan de una porque la implementación de la Tarea 2 ya la incluye. **Si los 4 tests nuevos pasan de inmediato, eso es correcto** — la implementación se escribió completa en la Tarea 2 porque las tres funciones comparten el mismo archivo; esta tarea es la que la pone bajo test explícito. Confirmar igual con el comando de abajo.
+Expected: FAIL — `existsSync` not yet imported in the test causes a reference error before it even runs, or (if the import was already added) the 4 new `createEndpointInFile` tests pass right away because Task 2's implementation already includes it. **If the 4 new tests pass immediately, that is correct** — the implementation was written in full in Task 2 because the three functions share the same file; this task is what puts it under explicit test. Confirm anyway with the command below.
 
-- [ ] **Step 3: Confirmar y exportar desde el índice**
+- [ ] **Step 3: Confirm and export from the index**
 
-`packages/core/src/writer.ts` no cambia. Sólo falta exportarlo:
+`packages/core/src/writer.ts` does not change. It just needs exporting:
 
 ```ts
 // packages/core/src/index.ts
@@ -573,10 +573,10 @@ export * from './events'
 export * from './writer'
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- writer`
-Expected: PASS, 11 tests en total (7 de la Tarea 2 + 4 nuevos).
+Expected: PASS, 11 tests total (7 from Task 2 + 4 new).
 
 - [ ] **Step 5: Commit**
 
@@ -585,9 +585,9 @@ git add packages/core
 git commit -m "test(core): cover createEndpointInFile, export writer from @laqi/core"
 ```
 
-## Task 4: `packages/server` — control plane: leer endpoints, leer/mutar estado
+## Task 4: `packages/server` — control plane: reading endpoints, reading/mutating state
 
-Arranca el archivo `control-plane-app.ts`. Establece la forma completa de la app (con su propio catch-all al final) para que las tareas 5–8 sólo inserten rutas nuevas antes de ese catch-all, con un punto de inserción exacto — el mismo patrón que ya funcionó en el Plan 1 para `mock-app.ts`.
+Starts the `control-plane-app.ts` file. Establishes the app's full shape (with its own catch-all at the end) so Tasks 5–8 only insert new routes before that catch-all, at an exact insertion point — the same pattern that already worked in Plan 1 for `mock-app.ts`.
 
 **Files:**
 
@@ -596,9 +596,9 @@ Arranca el archivo `control-plane-app.ts`. Establece la forma completa de la app
 **Interfaces:**
 
 - Consumes: `type LoadedEndpoint` (`@laqi/core`); `StateSchema`, `type LaqiState` (`@laqi/schema`)
-- Produces: `type ControlPlaneRuntime = { getEndpoints: () => LoadedEndpoint[]; getState: () => LaqiState; setState: (state: LaqiState) => void; ... }` (el tipo se completa en tareas posteriores, pero el nombre y estos dos primeros campos quedan fijos desde acá), `createControlPlaneApp(runtime: ControlPlaneRuntime): Hono`
+- Produces: `type ControlPlaneRuntime = { getEndpoints: () => LoadedEndpoint[]; getState: () => LaqiState; setState: (state: LaqiState) => void; ... }` (the type is completed in later tasks, but the name and these first two fields are fixed from here on), `createControlPlaneApp(runtime: ControlPlaneRuntime): Hono`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
 ```ts
 // packages/server/src/control-plane-app.test.ts
@@ -714,12 +714,12 @@ describe('unmatched /__laqi paths', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- control-plane-app`
 Expected: FAIL — `Failed to resolve import "./control-plane-app"`
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
 ```ts
 // packages/server/src/control-plane-app.ts
@@ -728,9 +728,9 @@ import { StateSchema, type LaqiState } from '@laqi/schema'
 import { Hono } from 'hono'
 
 /**
- * Todo lo que el control plane necesita del proceso que lo hospeda. Cada
- * tarea de este plan agrega los campos que sus rutas necesitan — este tipo
- * es el contrato completo recién al final de la Tarea 8.
+ * Everything the control plane needs from the process hosting it. Each
+ * task in this plan adds the fields its routes need — this type becomes
+ * the complete contract only at the end of Task 8.
  */
 export type ControlPlaneRuntime = {
   getEndpoints: () => LoadedEndpoint[]
@@ -765,8 +765,8 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.json(parsed.data)
   })
 
-  // Punto de inserción para las tareas 5–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 5–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
     c.json({ error: 'laqi-control-plane', message: 'no matching route', path: c.req.path }, 404),
   )
@@ -775,7 +775,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- control-plane-app`
 Expected: PASS, 7 tests.
@@ -789,7 +789,7 @@ git commit -m "feat(server): control plane — read endpoints, read/write state"
 
 ---
 
-## Task 5: `packages/server` — control plane: escenarios y estado del servidor
+## Task 5: `packages/server` — control plane: scenarios and server status
 
 **Files:**
 
@@ -798,11 +798,11 @@ git commit -m "feat(server): control plane — read endpoints, read/write state"
 **Interfaces:**
 
 - Consumes: `type Scenarios` (`@laqi/schema`); `type LoadError` (`@laqi/core`)
-- Produces: `ControlPlaneRuntime` gana `getScenarios: () => Scenarios` y `getStatus: () => { watching: string; endpointCount: number; address: string; errors: LoadError[] }`
+- Produces: `ControlPlaneRuntime` gains `getScenarios: () => Scenarios` and `getStatus: () => { watching: string; endpointCount: number; address: string; errors: LoadError[] }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `packages/server/src/control-plane-app.test.ts`, después del `describe('unmatched /__laqi paths', ...)`:
+Add to `packages/server/src/control-plane-app.test.ts`, after `describe('unmatched /__laqi paths', ...)`:
 
 ```ts
 describe('GET /api/scenarios', () => {
@@ -858,14 +858,14 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
 }
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- control-plane-app`
-Expected: FAIL — `TypeError: runtime.getScenarios is not a function` (o similar), porque `createControlPlaneApp` todavía no expone esas rutas.
+Expected: FAIL — `TypeError: runtime.getScenarios is not a function` (or similar), because `createControlPlaneApp` does not expose those routes yet.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-En `packages/server/src/control-plane-app.ts`, agregar los dos campos al tipo:
+In `packages/server/src/control-plane-app.ts`, add the two fields to the type:
 
 ```ts
 export type ControlPlaneRuntime = {
@@ -877,43 +877,43 @@ export type ControlPlaneRuntime = {
 }
 ```
 
-Reemplazar las dos líneas de import del inicio del archivo (las que escribió la Tarea 4):
+Replace the two import lines at the top of the file (the ones Task 4 wrote):
 
 ```ts
 import type { LoadedEndpoint } from '@laqi/core'
 import { StateSchema, type LaqiState } from '@laqi/schema'
 ```
 
-por:
+with:
 
 ```ts
 import type { LoadedEndpoint, LoadError } from '@laqi/core'
 import { StateSchema, type LaqiState, type Scenarios } from '@laqi/schema'
 ```
 
-(La tercera línea, `import { Hono } from 'hono'`, no cambia — dejarla como está.)
+(The third line, `import { Hono } from 'hono'`, doesn't change — leave it as is.)
 
-Reemplazar:
+Replace:
 
 ```ts
-  // Punto de inserción para las tareas 5–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 5–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-por:
+with:
 
 ```ts
   app.get('/api/scenarios', (c) => c.json(runtime.getScenarios()))
 
   app.get('/api/status', (c) => c.json(runtime.getStatus()))
 
-  // Punto de inserción para las tareas 6–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 6–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- control-plane-app`
 Expected: PASS, 9 tests.
@@ -925,7 +925,7 @@ git add packages/server/src/control-plane-app.ts packages/server/src/control-pla
 git commit -m "feat(server): control plane — read scenarios and server status"
 ```
 
-## Task 6: `packages/server` — control plane: crear endpoint
+## Task 6: `packages/server` — control plane: creating an endpoint
 
 **Files:**
 
@@ -934,11 +934,11 @@ git commit -m "feat(server): control plane — read scenarios and server status"
 **Interfaces:**
 
 - Consumes: `isHttpMethod`, `formatEndpointId`, `type HttpMethod`, `EndpointSchema` (`@laqi/schema`, Plan 1)
-- Produces: `ControlPlaneRuntime` gana `createEndpoint: (input: { method: HttpMethod; path: string; description?: string; default: string; responses: Record<string, unknown> }) => { ok: true; id: string } | { ok: false; error: string }`
+- Produces: `ControlPlaneRuntime` gains `createEndpoint: (input: { method: HttpMethod; path: string; description?: string; default: string; responses: Record<string, unknown> }) => { ok: true; id: string } | { ok: false; error: string }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `packages/server/src/control-plane-app.test.ts`:
+Add to `packages/server/src/control-plane-app.test.ts`:
 
 ```ts
 describe('POST /api/endpoints', () => {
@@ -1027,7 +1027,7 @@ describe('POST /api/endpoints', () => {
 })
 ```
 
-Y agregar `createEndpoint` al `makeRuntime` default:
+And add `createEndpoint` to the `makeRuntime` default:
 
 ```ts
     getScenarios: () => ({}),
@@ -1036,14 +1036,14 @@ Y agregar `createEndpoint` al `makeRuntime` default:
     ...overrides,
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- control-plane-app`
-Expected: FAIL — `POST /api/endpoints` no existe todavía, cae en el catch-all (404, no 201/400/409).
+Expected: FAIL — `POST /api/endpoints` doesn't exist yet, falls through to the catch-all (404, not 201/400/409).
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-En `packages/server/src/control-plane-app.ts`, agregar al tipo:
+In `packages/server/src/control-plane-app.ts`, add to the type:
 
 ```ts
 export type ControlPlaneRuntime = {
@@ -1062,31 +1062,31 @@ export type ControlPlaneRuntime = {
 }
 ```
 
-Reemplazar las dos líneas de import del inicio del archivo (tal como quedaron tras la Tarea 5):
+Replace the two import lines at the top of the file (as they stood after Task 5):
 
 ```ts
 import type { LoadedEndpoint, LoadError } from '@laqi/core'
 import { StateSchema, type LaqiState, type Scenarios } from '@laqi/schema'
 ```
 
-por:
+with:
 
 ```ts
 import type { LoadedEndpoint, LoadError } from '@laqi/core'
 import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiState, type Scenarios } from '@laqi/schema'
 ```
 
-(La línea de `Hono` no cambia.)
+(The `Hono` line doesn't change.)
 
-Reemplazar el marcador de inserción:
+Replace the insertion marker:
 
 ```ts
-  // Punto de inserción para las tareas 6–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 6–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-por:
+with:
 
 ```ts
   app.post('/api/endpoints', async (c) => {
@@ -1136,12 +1136,12 @@ por:
     return c.json({ id: result.id }, 201)
   })
 
-  // Punto de inserción para las tareas 7–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 7–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- control-plane-app`
 Expected: PASS, 14 tests.
@@ -1155,9 +1155,9 @@ git commit -m "feat(server): control plane — create an endpoint"
 
 ---
 
-## Task 7: `packages/server` — control plane: editar y borrar endpoint
+## Task 7: `packages/server` — control plane: editing and deleting an endpoint
 
-El id compuesto (`"GET /users/:id"`) viaja como un único path param `:id`, codificado con `encodeURIComponent` — verificado que `decodeURIComponent(c.req.param('id'))` lo recupera exacto.
+The composite id (`"GET /users/:id"`) travels as a single `:id` path param, encoded with `encodeURIComponent` — verified that `decodeURIComponent(c.req.param('id'))` recovers it exactly.
 
 **Files:**
 
@@ -1165,12 +1165,12 @@ El id compuesto (`"GET /users/:id"`) viaja como un único path param `:id`, codi
 
 **Interfaces:**
 
-- Consumes: nada nuevo
-- Produces: `ControlPlaneRuntime` gana `updateEndpoint: (id: string, definition: { description?: string; default: string; responses: Record<string, unknown> }) => { ok: true } | { ok: false; error: string }` y `deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }`
+- Consumes: nothing new
+- Produces: `ControlPlaneRuntime` gains `updateEndpoint: (id: string, definition: { description?: string; default: string; responses: Record<string, unknown> }) => { ok: true } | { ok: false; error: string }` and `deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `packages/server/src/control-plane-app.test.ts`:
+Add to `packages/server/src/control-plane-app.test.ts`:
 
 ```ts
 describe('PUT /api/endpoints/:id', () => {
@@ -1241,7 +1241,7 @@ describe('DELETE /api/endpoints/:id', () => {
 })
 ```
 
-Y agregar `updateEndpoint`/`deleteEndpoint` al `makeRuntime` default:
+And add `updateEndpoint`/`deleteEndpoint` to the `makeRuntime` default:
 
 ```ts
     createEndpoint: () => ({ ok: true, id: 'GET /new' }),
@@ -1250,14 +1250,14 @@ Y agregar `updateEndpoint`/`deleteEndpoint` al `makeRuntime` default:
     ...overrides,
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- control-plane-app`
-Expected: FAIL — ninguna de las dos rutas existe todavía.
+Expected: FAIL — neither route exists yet.
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-Agregar al tipo:
+Add to the type:
 
 ```ts
   updateEndpoint: (
@@ -1267,15 +1267,15 @@ Agregar al tipo:
   deleteEndpoint: (id: string) => { ok: true } | { ok: false; error: string }
 ```
 
-Reemplazar el marcador de inserción:
+Replace the insertion marker:
 
 ```ts
-  // Punto de inserción para las tareas 7–8: las rutas nuevas van ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Tasks 7–8: new routes go HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-por:
+with:
 
 ```ts
   app.put('/api/endpoints/:id', async (c) => {
@@ -1315,29 +1315,29 @@ por:
     return c.body(null, 204)
   })
 
-  // Punto de inserción para la Tarea 8 (SSE): la ruta nueva va ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Task 8 (SSE): the new route goes HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-> Nota: no hace falta `.pick()`. `EndpointSchema` (Plan 1,
-> `packages/schema/src/endpoint.ts`) ya tiene exactamente esta forma —
-> `{ description?, default, responses }` — porque `method`/`path` nunca
-> fueron parte de ese schema (viajan en la URL, no en la definición). Usar
-> `EndpointSchema.safeParse(raw)` directo además mantiene viva la validación
-> cruzada del `.superRefine` (que `default` exista entre `responses`) para
-> el body del PUT, que es estrictamente mejor.
+> Note: `.pick()` isn't needed here. `EndpointSchema` (Plan 1,
+> `packages/schema/src/endpoint.ts`) already has exactly this shape —
+> `{ description?, default, responses }` — because `method`/`path` were
+> never part of that schema (they travel in the URL, not the definition).
+> Using `EndpointSchema.safeParse(raw)` directly also keeps the
+> `.superRefine`'s cross-field validation alive (that `default` exists among
+> `responses`) for the PUT body, which is strictly better.
 >
-> **Se verificó, ejecutando Zod 4.3.6 de verdad, que `.pick()` NO es una
-> opción acá**: sobre un schema construido con `z.object({...}).superRefine(...)`,
-> `.pick()` **lanza una excepción** ("`.pick()` cannot be used on object
-> schemas containing refinements"), no silenciosamente pierde la validación
-> cruzada como podría parecer razonable asumir. Si algún cambio futuro
-> necesitara un subconjunto de campos de un schema con `.superRefine()`
-> encadenado, la solución es definir un schema aparte para ese subconjunto,
-> nunca `.pick()`.
+> **It was verified, by running real Zod 4.3.6, that `.pick()` is NOT an
+> option here**: on a schema built with `z.object({...}).superRefine(...)`,
+> `.pick()` **throws an exception** ("`.pick()` cannot be used on object
+> schemas containing refinements"), it does not silently lose the
+> cross-field validation as might seem reasonable to assume. If some future
+> change needed a subset of fields from a schema with `.superRefine()`
+> chained onto it, the solution is to define a separate schema for that
+> subset, never `.pick()`.
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- control-plane-app`
 Expected: PASS, 19 tests.
@@ -1349,9 +1349,9 @@ git add packages/server/src/control-plane-app.ts packages/server/src/control-pla
 git commit -m "feat(server): control plane — update and delete an endpoint"
 ```
 
-## Task 8: `packages/server` — control plane: stream de eventos (SSE)
+## Task 8: `packages/server` — control plane: event stream (SSE)
 
-Verificado antes de escribir este plan: `streamSSE` de `hono/streaming` entrega los eventos correctamente sobre `@hono/node-server`, y `stream.onAbort()` limpia el listener del bus al desconectar el cliente — confirmado bajo Node real, que es donde corren los tests de este repo.
+Verified before writing this plan: `hono/streaming`'s `streamSSE` delivers events correctly on `@hono/node-server`, and `stream.onAbort()` cleans up the bus listener on client disconnect — confirmed under real Node, which is where this repo's tests run.
 
 **Files:**
 
@@ -1359,12 +1359,12 @@ Verificado antes de escribir este plan: `streamSSE` de `hono/streaming` entrega 
 
 **Interfaces:**
 
-- Consumes: `type LaqiEvent` (`@laqi/core`, Tarea 1)
-- Produces: `ControlPlaneRuntime` gana `subscribe: (listener: (event: LaqiEvent) => void) => () => void`
+- Consumes: `type LaqiEvent` (`@laqi/core`, Task 1)
+- Produces: `ControlPlaneRuntime` gains `subscribe: (listener: (event: LaqiEvent) => void) => () => void`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `packages/server/src/control-plane-app.test.ts`:
+Add to `packages/server/src/control-plane-app.test.ts`:
 
 ```ts
 describe('GET /events (SSE)', () => {
@@ -1388,8 +1388,8 @@ describe('GET /events (SSE)', () => {
     const reader = res.body!.getReader()
     const decoder = new TextDecoder()
 
-    // El handler recién queda "conectado" cuando terminó de registrar el
-    // listener — darle una vuelta de microtask antes de emitir.
+    // The handler only becomes "connected" once it has finished registering
+    // the listener — give it one microtask turn before emitting.
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(emit).toBeDefined()
 
@@ -1418,8 +1418,8 @@ describe('GET /events (SSE)', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     await reader.cancel()
-    // 150ms: 5x el intervalo de poll de 30ms del handler SSE, margen de
-    // sobra para no ser un test frágil por estar justo en el borde.
+    // 150ms: 5x the SSE handler's 30ms poll interval, plenty of margin so
+    // this isn't a flaky test from sitting right at the edge.
     await new Promise((resolve) => setTimeout(resolve, 150))
 
     expect(unsubscribed).toBe(true)
@@ -1427,7 +1427,7 @@ describe('GET /events (SSE)', () => {
 })
 ```
 
-Y agregar `subscribe` al `makeRuntime` default e importar `LaqiEvent`:
+And add `subscribe` to the `makeRuntime` default and import `LaqiEvent`:
 
 ```ts
 import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
@@ -1440,14 +1440,14 @@ import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
     ...overrides,
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- control-plane-app`
-Expected: FAIL — `/events` no existe, cae en el catch-all (404, no 200 con `text/event-stream`).
+Expected: FAIL — `/events` doesn't exist, falls through to the catch-all (404, not 200 with `text/event-stream`).
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-Reemplazar las dos líneas de import del inicio del archivo (tal como quedaron tras la Tarea 6):
+Replace the two import lines at the top of the file (as they stood after Task 6):
 
 ```ts
 import type { LoadedEndpoint, LoadError } from '@laqi/core'
@@ -1455,7 +1455,7 @@ import { EndpointSchema, isHttpMethod, StateSchema, type HttpMethod, type LaqiSt
 import { Hono } from 'hono'
 ```
 
-por (agrega `LaqiEvent` al primer import, y una línea nueva para `streamSSE`):
+with (adds `LaqiEvent` to the first import, and a new line for `streamSSE`):
 
 ```ts
 import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
@@ -1464,21 +1464,21 @@ import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 ```
 
-Agregar al tipo:
+Add to the type:
 
 ```ts
   subscribe: (listener: (event: LaqiEvent) => void) => () => void
 ```
 
-Reemplazar el marcador de inserción:
+Replace the insertion marker:
 
 ```ts
-  // Punto de inserción para la Tarea 8 (SSE): la ruta nueva va ACÁ,
-  // antes de este catch-all — nunca después.
+  // Insertion point for Task 8 (SSE): the new route goes HERE,
+  // before this catch-all — never after.
   app.all('*', (c) =>
 ```
 
-por:
+with:
 
 ```ts
   app.get('/events', (c) =>
@@ -1493,13 +1493,13 @@ por:
       })
 
       try {
-        // 30ms, no 1000ms: el loop existe sólo para mantener vivo el
-        // generador mientras la conexión sigue abierta; el intervalo es la
-        // latencia máxima antes de notar un abort y desuscribirse. Verificado
-        // durante la ejecución: a 1000ms, el test de desconexión (que sólo
-        // espera 150ms tras el cancel) fallaba de forma determinista aunque
-        // onAbort disparaba correctamente — el cleanup real ocurría, sólo
-        // que tarde.
+        // 30ms, not 1000ms: the loop exists only to keep the generator
+        // alive while the connection stays open; the interval is the
+        // maximum latency before noticing an abort and unsubscribing.
+        // Verified while running it: at 1000ms, the disconnect test (which
+        // only waits 150ms after the cancel) failed deterministically even
+        // though onAbort fired correctly — the real cleanup happened, just
+        // late.
         while (!closed) {
           await stream.sleep(30)
         }
@@ -1509,12 +1509,12 @@ por:
     }),
   )
 
-  // Punto de inserción para futuras rutas: van ACÁ, antes de este
-  // catch-all — nunca después.
+  // Insertion point for future routes: they go HERE, before this
+  // catch-all — never after.
   app.all('*', (c) =>
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- control-plane-app`
 Expected: PASS, 21 tests.
@@ -1528,7 +1528,7 @@ git commit -m "feat(server): control plane — live SSE stream of requests, relo
 
 ---
 
-## Task 9: `packages/server` — `mock-app.ts` emite eventos de request
+## Task 9: `packages/server` — `mock-app.ts` emits request events
 
 **Files:**
 
@@ -1536,12 +1536,12 @@ git commit -m "feat(server): control plane — live SSE stream of requests, relo
 
 **Interfaces:**
 
-- Consumes: `type LaqiEvent` (`@laqi/core`, Tarea 1)
-- Produces: `MockRuntime` gana `onRequest?: (event: LaqiEvent) => void`, llamado tras resolver cada respuesta (éxito o 500), nunca en el 404 del catch-all (ese no corresponde a ningún endpoint declarado)
+- Consumes: `type LaqiEvent` (`@laqi/core`, Task 1)
+- Produces: `MockRuntime` gains `onRequest?: (event: LaqiEvent) => void`, called after resolving every response (success or 500), never on the catch-all's 404 (that one doesn't correspond to any declared endpoint)
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `packages/server/src/mock-app.test.ts`:
+Add to `packages/server/src/mock-app.test.ts`:
 
 ```ts
 describe('onRequest', () => {
@@ -1593,7 +1593,7 @@ describe('onRequest', () => {
 })
 ```
 
-En `packages/server/src/mock-app.test.ts`, reemplazar el helper `makeApp` (línea 41 del archivo actual):
+In `packages/server/src/mock-app.test.ts`, replace the `makeApp` helper (line 41 of the current file):
 
 ```ts
 function makeApp(state: LaqiState = { scenario: null, overrides: {} }, scenarios: Scenarios = {}) {
@@ -1603,7 +1603,7 @@ function makeApp(state: LaqiState = { scenario: null, overrides: {} }, scenarios
 }
 ```
 
-por:
+with:
 
 ```ts
 function makeApp(
@@ -1617,16 +1617,16 @@ function makeApp(
 }
 ```
 
-Todos los call-sites existentes (`makeApp()`, `makeApp(state)`, `makeApp(state, scenarios)`) siguen funcionando igual, porque `overrides` es opcional con default `{}`.
+Every existing call site (`makeApp()`, `makeApp(state)`, `makeApp(state, scenarios)`) keeps working the same, because `overrides` is optional with a default of `{}`.
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- mock-app`
-Expected: FAIL — `onRequest` no es un campo reconocido, o simplemente nunca se llama (los `expect(onRequest).toHaveBeenCalledTimes(1)` fallan con 0 llamadas).
+Expected: FAIL — `onRequest` isn't a recognized field, or it's simply never called (the `expect(onRequest).toHaveBeenCalledTimes(1)` calls fail with 0 calls).
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-En `packages/server/src/mock-app.ts`, agregar el import y el campo al tipo:
+In `packages/server/src/mock-app.ts`, add the import and the field on the type:
 
 ```ts
 import type { LaqiEvent } from '@laqi/core'
@@ -1636,15 +1636,15 @@ import type { LaqiEvent } from '@laqi/core'
 export type MockRuntime = {
   table: RouteTable
   scenarios: Scenarios
-  /** Función, no valor: el estado cambia sin que cambie la tabla de rutas. */
+  /** A function, not a value: state changes without the route table changing. */
   getState: () => LaqiState
   cors: LaqiConfig['cors']
-  /** Opcional: si está, se llama tras resolver cada respuesta (éxito o 500). */
+  /** Optional: if present, called after resolving every response (success or 500). */
   onRequest?: (event: LaqiEvent) => void
 }
 ```
 
-Reemplazar el cuerpo completo de `registerEndpoint` (el handler que registra cada endpoint, sin tocar nada de lo que está antes o después en el archivo — el split OPTIONS/cors y el catch-all de 404 quedan intactos). El bloque actual es:
+Replace the full body of `registerEndpoint` (the handler that registers each endpoint, without touching anything before or after it in the file — the OPTIONS/cors split and the 404 catch-all stay untouched). The current block is:
 
 ```ts
   const registerEndpoint = (endpoint: LoadedEndpoint) => {
@@ -1657,7 +1657,7 @@ Reemplazar el cuerpo completo de `registerEndpoint` (el handler que registra cad
         headerScenario: c.req.header(SCENARIO_HEADER),
       })
 
-      // Un selector inexistente es un 500 explícito. Jamás una request colgada.
+      // A selector that doesn't exist is an explicit 500. Never a hanging request.
       if (!resolution.ok) {
         c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
         return c.json({ error: 'laqi', endpoint: endpoint.id, message: resolution.message }, 500)
@@ -1673,21 +1673,21 @@ Reemplazar el cuerpo completo de `registerEndpoint` (el handler que registra cad
         c.header(name, value)
       }
 
-      // Se fija DESPUÉS de los headers del mock: uno declarado como
-      // "X-Laqi-Resolved" nunca puede mentir sobre la capa que decidió.
+      // Set AFTER the mock's headers: one declared as
+      // "X-Laqi-Resolved" can never lie about which layer decided.
       c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
 
       if (response.body === undefined) {
         return c.body(null, response.status as StatusCode)
       }
 
-      // structuredClone: el cuerpo servido nunca es la referencia cargada.
+      // structuredClone: the served body is never the loaded reference.
       return c.json(structuredClone(response.body), response.status as ContentfulStatusCode)
     })
   }
 ```
 
-Reemplazarlo por:
+Replace it with:
 
 ```ts
   const registerEndpoint = (endpoint: LoadedEndpoint) => {
@@ -1713,7 +1713,7 @@ Reemplazarlo por:
         })
       }
 
-      // Un selector inexistente es un 500 explícito. Jamás una request colgada.
+      // A selector that doesn't exist is an explicit 500. Never a hanging request.
       if (!resolution.ok) {
         c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
         emit(500)
@@ -1730,8 +1730,8 @@ Reemplazarlo por:
         c.header(name, value)
       }
 
-      // Se fija DESPUÉS de los headers del mock: uno declarado como
-      // "X-Laqi-Resolved" nunca puede mentir sobre la capa que decidió.
+      // Set AFTER the mock's headers: one declared as
+      // "X-Laqi-Resolved" can never lie about which layer decided.
       c.header(RESOLVED_HEADER, formatResolvedHeader(resolution))
       emit(response.status)
 
@@ -1739,18 +1739,18 @@ Reemplazarlo por:
         return c.body(null, response.status as StatusCode)
       }
 
-      // structuredClone: el cuerpo servido nunca es la referencia cargada.
+      // structuredClone: the served body is never the loaded reference.
       return c.json(structuredClone(response.body), response.status as ContentfulStatusCode)
     })
   }
 ```
 
-El resto del archivo (el split OPTIONS/cors del Plan 1, el catch-all de 404) no cambia.
+The rest of the file (Plan 1's OPTIONS/cors split, the 404 catch-all) doesn't change.
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- mock-app`
-Expected: PASS. Confirmar además que el resto de los tests de `mock-app.test.ts` (los del Plan 1) siguen pasando sin tocarlos.
+Expected: PASS. Also confirm the rest of `mock-app.test.ts`'s tests (Plan 1's) still pass, untouched.
 
 - [ ] **Step 5: Commit**
 
@@ -1759,7 +1759,7 @@ git add packages/server/src/mock-app.ts packages/server/src/mock-app.test.ts
 git commit -m "feat(server): mock-app emits a request event after resolving every response"
 ```
 
-- [ ] **Step 6: Exportar `control-plane-app` desde el índice del paquete**
+- [ ] **Step 6: Export `control-plane-app` from the package index**
 
 ```ts
 // packages/server/src/index.ts
@@ -1774,9 +1774,9 @@ git add packages/server/src/index.ts
 git commit -m "feat(server): export the control plane app from @laqi/server"
 ```
 
-## Task 10: `apps/cli` — componer control plane + mock app, conectar el bus
+## Task 10: `apps/cli` — composing control plane + mock app, wiring up the bus
 
-Esta es la tarea de integración: junta todo lo anterior en el servidor real. Reusa el hot-swap del Plan 1 sin tocar su forma — sólo hace que `buildApp()` construya dos apps en vez de una, y que `reload()` también emita eventos.
+This is the integration task: it brings everything above together in the real server. It reuses Plan 1's hot-swap without touching its shape — it just makes `buildApp()` build two apps instead of one, and `reload()` also emit events.
 
 **Files:**
 
@@ -1784,12 +1784,12 @@ Esta es la tarea de integración: junta todo lo anterior en el servidor real. Re
 
 **Interfaces:**
 
-- Consumes: `EventBus`, `type LaqiEvent`, `createEndpointInFile`, `updateEndpointInFile`, `deleteEndpointFromFile`, `type WriteResult` (`@laqi/core`, Tareas 1–3); `createControlPlaneApp`, `type ControlPlaneRuntime`, `createMockApp` (`@laqi/server`, Tareas 4–9); `formatEndpointId`, `type HttpMethod` (`@laqi/schema`, Plan 1)
-- Produces: `ServeHandle` no cambia de forma (mismos campos: `port`, `host`, `reload`, `current`, `close`) — pero ahora `app` (interno, no exportado) sirve mocks y control plane a la vez
+- Consumes: `EventBus`, `type LaqiEvent`, `createEndpointInFile`, `updateEndpointInFile`, `deleteEndpointFromFile`, `type WriteResult` (`@laqi/core`, Tasks 1–3); `createControlPlaneApp`, `type ControlPlaneRuntime`, `createMockApp` (`@laqi/server`, Tasks 4–9); `formatEndpointId`, `type HttpMethod` (`@laqi/schema`, Plan 1)
+- Produces: `ServeHandle`'s shape doesn't change (same fields: `port`, `host`, `reload`, `current`, `close`) — but now `app` (internal, not exported) serves mocks and control plane at once
 
-- [ ] **Step 1: Escribir el test que falla**
+- [ ] **Step 1: Write the failing test**
 
-Añadir a `apps/cli/src/serve.test.ts` (después de los tests existentes del Plan 1):
+Add to `apps/cli/src/serve.test.ts` (after Plan 1's existing tests):
 
 ```ts
 describe('control plane, mounted under /__laqi', () => {
@@ -1914,10 +1914,10 @@ describe('control plane, mounted under /__laqi', () => {
       }),
     })
 
-    // La ruta de creación en sí no valida el prefijo reservado (eso lo hace
-    // parseEndpointKey al CARGAR, Plan 1) — pero el archivo sí queda escrito,
-    // y la recarga inmediata debe reportar el error de LOAD FAILED en vez
-    // de registrar el endpoint.
+    // The creation route itself does not validate the reserved prefix (that's
+    // parseEndpointKey's job, at LOAD time, Plan 1) — but the file does get
+    // written, and the immediate reload must report the LOAD FAILED error
+    // instead of registering the endpoint.
     expect(post.status).toBe(201)
     const status = await (await get('/__laqi/api/status')).json()
     expect((status as { errors: unknown[] }).errors.length).toBeGreaterThan(0)
@@ -1926,14 +1926,14 @@ describe('control plane, mounted under /__laqi', () => {
 })
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [ ] **Step 2: Run the test and confirm it fails**
 
 Run: `bun run test -- serve`
-Expected: FAIL — todas las requests a `/__laqi/*` devuelven 404 (el `app.all('*', ...)` del mock-app, porque el control plane todavía no está montado).
+Expected: FAIL — every request to `/__laqi/*` returns 404 (the mock-app's `app.all('*', ...)`, because the control plane isn't mounted yet).
 
-- [ ] **Step 3: Implementar**
+- [ ] **Step 3: Implement**
 
-Reemplazar el contenido completo de `apps/cli/src/serve.ts`:
+Replace the full contents of `apps/cli/src/serve.ts`:
 
 ```ts
 // apps/cli/src/serve.ts
@@ -1955,7 +1955,7 @@ import { buildRuntime, type Runtime } from './runtime'
 export type ServeHandle = {
   port: number
   host: string
-  /** Reconstruye la app Hono. El proceso y el socket NO se tocan. */
+  /** Rebuilds the Hono app. The process and the socket are NOT touched. */
   reload: () => Runtime
   current: () => Runtime
   close: () => Promise<void>
@@ -1997,7 +1997,7 @@ export async function startServer(options: {
     const mockApp = createMockApp({
       table: runtime.table,
       scenarios: runtime.scenarios,
-      // Se lee en cada request: el panel cambia el estado sin tocar archivos.
+      // Read on every request: the panel changes state without touching files.
       getState: () => store.read(),
       cors: config.cors,
       onRequest: (event) => bus.emit(event),
@@ -2059,15 +2059,15 @@ export async function startServer(options: {
   const server: ServerType = await new Promise((resolve, reject) => {
     const instance = serve(
       {
-        // La indirección es el punto: `app` es mutable, el servidor no.
+        // The indirection is the point: `app` is mutable, the server is not.
         fetch: (request: Request) => app.fetch(request),
         port: config.port,
         hostname: config.host,
       },
       () => resolve(instance),
     )
-    // Sin esto, un puerto ocupado (EADDRINUSE) nunca dispara el callback de
-    // éxito y la promesa cuelga para siempre, en silencio.
+    // Without this, a port already in use (EADDRINUSE) never fires the
+    // success callback and the promise hangs forever, silently.
     instance.on('error', reject)
   })
 
@@ -2087,25 +2087,25 @@ export async function startServer(options: {
 }
 ```
 
-> Nota sobre la Tarea 9's `onRequest`: `createMockApp` ya lo declara opcional
-> (`onRequest?: (event: LaqiEvent) => void`) — pasarlo acá como
-> `(event) => bus.emit(event)` es válido porque `LaqiEvent` (el tipo que
-> emite `mock-app.ts`) y el que espera `EventBus.emit` son el mismo tipo,
-> reexportado desde `@laqi/core`.
+> Note on Task 9's `onRequest`: `createMockApp` already declares it optional
+> (`onRequest?: (event: LaqiEvent) => void`) — passing it here as
+> `(event) => bus.emit(event)` is valid because `LaqiEvent` (the type
+> `mock-app.ts` emits) and the one `EventBus.emit` expects are the same
+> type, re-exported from `@laqi/core`.
 
-> Nota sobre el test "no puede crearse bajo `/__laqi`": la ruta de creación
-> del control plane (Tarea 6) no valida el prefijo reservado — sólo
-> `parseEndpointKey`, que corre al CARGAR (`loadMocks`, Plan 1), lo hace.
-> Es intencional: la validación vive en un solo lugar (el loader), no
-> duplicada en cada escritor. El resultado es el mismo — el endpoint nunca
-> queda servible — pero el error aparece en `/api/status`, no en la
-> respuesta del `POST`. El Plan 2b debe mostrar ese error en la banda roja
-> (F8) si el usuario intenta esto desde el editor.
+> Note on the "cannot be created under `/__laqi`" test: the control plane's
+> creation route (Task 6) does not validate the reserved prefix — only
+> `parseEndpointKey`, which runs at LOAD time (`loadMocks`, Plan 1), does.
+> This is intentional: validation lives in one place (the loader), not
+> duplicated in every writer. The result is the same — the endpoint never
+> ends up servable — but the error surfaces in `/api/status`, not in the
+> `POST` response. Plan 2b must show that error in the red band (F8) if the
+> user tries this from the editor.
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [ ] **Step 4: Run the test and confirm it passes**
 
 Run: `bun run test -- serve`
-Expected: PASS. Correr también la suite completa: `bun run test` (unfiltered) y `bun run check-types`, ya que esta tarea modifica un archivo que otras partes del sistema ya usan (`apps/cli/src/index.ts` importa `startServer` sin cambios en su firma, así que no debería romper nada — confirmarlo).
+Expected: PASS. Also run the full suite: `bun run test` (unfiltered) and `bun run check-types`, since this task modifies a file other parts of the system already use (`apps/cli/src/index.ts` imports `startServer` with no change to its signature, so nothing should break — confirm it).
 
 - [ ] **Step 5: Commit**
 
@@ -2114,13 +2114,13 @@ git add apps/cli/src/serve.ts apps/cli/src/serve.test.ts
 git commit -m "feat(cli): mount the control plane alongside the mock server, wire the event bus"
 ```
 
-## Task 11: Smoke test manual de punta a punta
+## Task 11: Manual end-to-end smoke test
 
-Sin cambios de código — es la verificación final, a mano, de que todo el control plane funciona junto en un servidor real, incluido el SSE recibiendo eventos de un cliente `curl` real mientras otro cliente dispara requests.
+No code changes — this is the final, by-hand verification that the whole control plane works together on a real server, including SSE receiving events from a real `curl` client while another client fires requests.
 
-**Files:** ninguno.
+**Files:** none.
 
-- [ ] **Step 1: Levantar un proyecto de prueba**
+- [ ] **Step 1: Spin up a test project**
 
 ```bash
 mkdir -p /tmp/laqi-cp-smoke/laqi && cd /tmp/laqi-cp-smoke
@@ -2135,88 +2135,88 @@ cat > laqi/api.json <<'JSON'
   }
 }
 JSON
-bun <ruta-al-repo>/apps/cli/src/index.ts &
+bun <path-to-repo>/apps/cli/src/index.ts &
 ```
 
-- [ ] **Step 2: Conectar al SSE en una terminal y dejarlo corriendo**
+- [ ] **Step 2: Connect to the SSE stream in one terminal and leave it running**
 
 ```bash
 curl -N http://127.0.0.1:8000/__laqi/events
 ```
 
-- [ ] **Step 3: En otra terminal, ejercitar el control plane**
+- [ ] **Step 3: In another terminal, exercise the control plane**
 
 ```bash
-# leer
+# read
 curl -s http://127.0.0.1:8000/__laqi/api/endpoints | jq
 curl -s http://127.0.0.1:8000/__laqi/api/state | jq
 
-# flipear el estado
+# flip the state
 curl -s -X PUT http://127.0.0.1:8000/__laqi/api/state \
   -H 'content-type: application/json' \
   -d '{"scenario":null,"overrides":{"GET /users":"boom"}}'
 curl -i http://127.0.0.1:8000/users   # -> 500, X-Laqi-Resolved: boom (state)
 
-# crear
+# create
 curl -s -X POST http://127.0.0.1:8000/__laqi/api/endpoints \
   -H 'content-type: application/json' \
   -d '{"method":"GET","path":"/orders","default":"ok","responses":{"ok":{"status":200,"body":[]}}}'
-curl -i http://127.0.0.1:8000/orders   # -> 200, sin reiniciar el proceso
+curl -i http://127.0.0.1:8000/orders   # -> 200, without restarting the process
 
-# editar
+# edit
 curl -s -X PUT "http://127.0.0.1:8000/__laqi/api/endpoints/GET%20%2Forders" \
   -H 'content-type: application/json' \
   -d '{"default":"ok","responses":{"ok":{"status":200,"body":[{"n":1}]}}}'
 curl -s http://127.0.0.1:8000/orders   # -> [{"n":1}]
 
-# borrar
+# delete
 curl -i -X DELETE "http://127.0.0.1:8000/__laqi/api/endpoints/GET%20%2Forders"
 curl -i http://127.0.0.1:8000/orders   # -> 404
 ```
 
-- [ ] **Step 4: Verificar en la terminal del SSE (Step 2)**
+- [ ] **Step 4: Check the SSE terminal (Step 2)**
 
-Esperado: por cada `curl /users` y `/orders` de arriba, una línea `event: request` con el path y el status correctos; por cada create/update/delete, una línea `event: endpoints-changed` con el `endpointCount` actualizado.
+Expected: for every `curl /users` and `/orders` above, a `event: request` line with the correct path and status; for every create/update/delete, a `event: endpoints-changed` line with the updated `endpointCount`.
 
-- [ ] **Step 5: Confirmar que nada rompió el hot-reload de archivos**
+- [ ] **Step 5: Confirm nothing broke the file hot-reload**
 
 ```bash
 echo '{"GET /health":{"default":"ok","responses":{"ok":{"status":200,"body":{}}}}}' > laqi/health.json
 sleep 1
-curl -i http://127.0.0.1:8000/health   # -> 200, sin haber pasado por el control plane
+curl -i http://127.0.0.1:8000/health   # -> 200, without having gone through the control plane
 ```
 
-- [ ] **Step 6: Apagar el servidor limpio**
+- [ ] **Step 6: Shut the server down cleanly**
 
 ```bash
 kill %1
 ```
 
-- [ ] **Step 7: Correr toda la suite una última vez**
+- [ ] **Step 7: Run the full suite one last time**
 
 ```bash
-cd <ruta-al-repo>
+cd <path-to-repo>
 bun run test && bun run check-types && bun run lint
 ```
 
-Expected: todo verde.
+Expected: all green.
 
 ---
 
-## Fuera del alcance de este plan
+## Out of scope for this plan
 
-- **El bloqueo del túnel** (que `/__laqi/*` nunca salga por la URL pública). Este plan sólo entrega la separación estructural (`createControlPlaneApp` ≠ `createMockApp`) que lo hace posible. El mecanismo real (cloudflared, proxy, lo que sea) es el Plan 4.
-- **`share-changed`** como evento del bus — pertenece al Plan 4, no existe todavía nada que lo emita.
-- **Autenticación del control plane.** Cualquiera que llegue al control plane puede leer y escribir mocks — no tiene token ni login. Se mitigan las dos formas concretas de llegar sin querer: **(a) `--host` no-loopback** (LAN/mobile testing, un caso real desde el Plan 1) — el control plane no se monta a menos que `config.host` sea `127.0.0.1`/`localhost`; el servidor de mocks sigue escuchando en el host configurado, sólo `/__laqi` queda retirado. **(b) un request cross-origin desde el navegador** — una página cualquiera que el developer visite mientras `laqi` corre puede intentar un `POST` "simple request" de CORS (sin preflight) contra `127.0.0.1:PORT/__laqi/api/endpoints`; el control plane rechaza cualquier escritura cuyo header `Origin` no coincida con el propio origen del servidor. _(Nota: la redacción original de este ítem decía "es aceptable porque hoy sólo escucha en local" — esa premisa era falsa en las dos formas de arriba, encontradas y corregidas en la revisión final de este plan; ver el ledger de la sesión para el detalle.)_ Ninguna de las dos mitigaciones es autenticación real — el Plan 4, al agregar `--share`, sigue siendo quien decide si el control plane necesita su propio token cuando el modo compartido está activo (ADR-0007 ya lo exige para el servidor de mocks; el control plane nunca debería ni siquiera ser alcanzable desde ahí).
-- **Autoría de escenarios** (crear/editar `scenarios.json`) — el [ADR-0008](/decisions/0008-multifile-and-names/) ya decidió que eso es a mano o vía MCP (Plan 3), nunca desde el panel. `GET /api/scenarios` es de sólo lectura a propósito.
-- **El editor web en sí** (`packages/editor`) — es el Plan 2b, consume esta API.
+- **The tunnel block** (making sure `/__laqi/*` never reaches the public URL). This plan only delivers the structural separation (`createControlPlaneApp` ≠ `createMockApp`) that makes it possible. The actual mechanism (cloudflared, a proxy, whatever) is Plan 4.
+- **`share-changed`** as a bus event — belongs to Plan 4; nothing exists yet to emit it.
+- **Control plane authentication.** Anyone who reaches the control plane can read and write mocks — it has no token, no login. The two concrete ways of reaching it unintentionally are mitigated: **(a) a non-loopback `--host`** (LAN/mobile testing, a real case since Plan 1) — the control plane is not mounted unless `config.host` is `127.0.0.1`/`localhost`; the mock server keeps listening on the configured host, only `/__laqi` is withdrawn. **(b) a cross-origin request from the browser** — any page the developer visits while `laqi` is running could attempt a "simple request" CORS `POST` (no preflight) against `127.0.0.1:PORT/__laqi/api/endpoints`; the control plane rejects any write whose `Origin` header doesn't match the server's own origin. _(Note: this item's original wording said "acceptable because it currently only listens locally" — that premise was false in both ways above, found and fixed in this plan's final review; see the session ledger for detail.)_ Neither mitigation is real authentication — Plan 4, when it adds `--share`, is still the one that decides whether the control plane needs its own token when sharing mode is active (ADR-0007 already requires one for the mock server; the control plane should never even be reachable from there).
+- **Authoring scenarios** (creating/editing `scenarios.json`) — [ADR-0008](/decisions/0008-multifile-and-names/) already decided that's done by hand or via MCP (Plan 3), never from the panel. `GET /api/scenarios` is deliberately read-only.
+- **The web editor itself** (`packages/editor`) — that's Plan 2b, which consumes this API.
 
-## Definición de terminado
+## Definition of done
 
-- [ ] `bun run test` verde: 11 tareas, 50 tests nuevos (7 events + 11 writer + 21 control-plane-app + 4 mock-app + 7 serve) sobre los 122 que ya existían — 172 en total
-- [ ] `bun run check-types` y `bun run lint` sin errores
-- [ ] `GET /__laqi/api/endpoints`, `GET`/`PUT /__laqi/api/state`, `GET /__laqi/api/scenarios`, `GET /__laqi/api/status` responden correctamente montados junto al mock server
-- [ ] `POST`/`PUT`/`DELETE /__laqi/api/endpoints[/:id]` escriben de vuelta a los archivos y el cambio es servible **sin reiniciar el proceso**
-- [ ] `GET /__laqi/events` entrega SSE en vivo: `request` por cada mock servido, `endpoints-changed` y `error` tras cada recarga (ya sea por escritura del control plane o por edición manual de un archivo)
-- [ ] Ningún mock puede registrarse bajo `/__laqi` (ya garantizado desde el Plan 1, verificado de nuevo acá con un test de integración)
-- [ ] `createControlPlaneApp` y `createMockApp` siguen siendo dos apps Hono genuinamente separadas — nunca fusionadas en un solo archivo de rutas
+- [ ] `bun run test` green: 11 tasks, 50 new tests (7 events + 11 writer + 21 control-plane-app + 4 mock-app + 7 serve) on top of the 122 that already existed — 172 total
+- [ ] `bun run check-types` and `bun run lint` with no errors
+- [ ] `GET /__laqi/api/endpoints`, `GET`/`PUT /__laqi/api/state`, `GET /__laqi/api/scenarios`, `GET /__laqi/api/status` respond correctly, mounted alongside the mock server
+- [ ] `POST`/`PUT`/`DELETE /__laqi/api/endpoints[/:id]` write back to the files and the change is servable **without restarting the process**
+- [ ] `GET /__laqi/events` delivers live SSE: `request` for every mock served, `endpoints-changed` and `error` after every reload (whether from a control-plane write or a manual file edit)
+- [ ] No mock can register under `/__laqi` (already guaranteed since Plan 1, re-verified here with an integration test)
+- [ ] `createControlPlaneApp` and `createMockApp` remain two genuinely separate Hono apps — never merged into a single routes file

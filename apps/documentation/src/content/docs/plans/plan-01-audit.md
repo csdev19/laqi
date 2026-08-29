@@ -1,123 +1,128 @@
 ---
-title: Auditoría del Plan 1
+title: Plan 1 audit
 ---
 
-# Auditoría del Plan 1
+# Plan 1 audit
 
-**Fecha:** 2026-08-24
-**Método:** las suposiciones de API del plan se verificaron **ejecutando código
-real** contra las versiones exactas que el plan fija (Zod 4.3.6, Hono 4.12.3,
-chokidar 4, @hono/node-server 1.19), en un sandbox con Bun 1.3. No es una
-revisión de lectura: cada afirmación de abajo tiene un experimento detrás.
+**Date:** 2026-08-24
+**Method:** the plan's API assumptions were verified by **running real code**
+against the exact versions the plan pins (Zod 4.3.6, Hono 4.12.3,
+chokidar 4, @hono/node-server 1.19), in a sandbox with Bun 1.3. This is not a
+reading review: every claim below has an experiment behind it.
 
-**Contexto:** el plan lo ejecutarán subagentes con un modelo económico que
-copiará el código verbatim. Por eso el estándar de la auditoría es "cero
-improvisación necesaria": todo bug del plan sería un bug del producto.
+**Context:** the plan will be executed by subagents running an economical
+model that will copy the code verbatim. That is why the audit's standard is
+"zero improvisation required": any bug in the plan would become a bug in the
+product.
 
-**Resultado: 3 bugs reales encontrados y corregidos, 4 mejoras de robustez, y
-todo lo verificado quedó anotado en el plan para que el ejecutor no lo
-re-derive.** El plan ya está corregido; esta es la bitácora.
+**Result: 3 real bugs found and fixed, 4 robustness improvements, and
+everything verified was noted in the plan so the executor does not re-derive
+it.** The plan is already corrected; this is the log.
 
 ---
 
-## Bugs encontrados (ya corregidos en el plan)
+## Bugs found (already fixed in the plan)
 
-### 1. El test de `serve` no podía pasar: `port: 0` vs `min(1)`
+### 1. The `serve` test could not pass: `port: 0` vs `min(1)`
 
-`serve.test.ts` usa `ConfigSchema.parse({ port: 0 })` para pedir un puerto
-efímero, pero `ConfigSchema` declaraba `port: z.number().int().min(1)`. El
-primer test de la Tarea 12 habría lanzado en el `beforeEach`, y un ejecutor
-económico habría "arreglado" cualquiera de los dos lados a ciegas.
+`serve.test.ts` uses `ConfigSchema.parse({ port: 0 })` to request an ephemeral
+port, but `ConfigSchema` declared `port: z.number().int().min(1)`. The first
+test in Task 12 would have thrown in `beforeEach`, and an economical executor
+would have "fixed" either side blindly.
 
-**Corrección:** `min(0)` con comentario (`0` = puerto efímero del SO), y el test
-de rechazo de rango usa `-1` en vez de `0`.
+**Fix:** `min(0)` with a comment (`0` = OS-assigned ephemeral port), and the
+range-rejection test uses `-1` instead of `0`.
 
-### 2. `parseJsonWithPosition` dependía del formato de error de V8
+### 2. `parseJsonWithPosition` depended on V8's error format
 
-Verificado ejecutando el mismo JSON roto en ambos motores:
+Verified by running the same broken JSON on both engines:
 
 ```
 Node 22:  Expected double-quoted property name in JSON at position 22 (line 4 column 1)
 Bun 1.3:  JSON Parse error: Property name must be a string literal
 ```
 
-El plan extraía la posición con `/at position (\d+)/`. En Bun (JavaScriptCore)
-**no hay posición en absoluto**, y en Node moderno el dato más directo es el
-sufijo `(line N column N)`. Consecuencia: la banda de error del F8 habría
-apuntado a la línea 1 siempre que el CLI corriera bajo Bun en desarrollo.
+The plan extracted the position with `/at position (\d+)/`. On Bun
+(JavaScriptCore) **there is no position at all**, and on modern Node the most
+direct data is the `(line N column N)` suffix. Consequence: the F8 error band
+would have pointed at line 1 whenever the CLI ran under Bun in development.
 
-**Corrección:** se intenta primero `(line N column N)`, después `at position N`,
-y se documenta la degradación bajo Bun (el CLI publicado con `npx` corre en
-Node, así que producción siempre tiene posición). Los tests corren bajo Vitest
-(Node), así que son deterministas.
+**Fix:** try `(line N column N)` first, then `at position N`, and document
+the degradation under Bun (the CLI published via `npx` runs on Node, so
+production always has a position). The tests run under Vitest (Node), so
+they are deterministic.
 
-### 3. Prototype chain: `X-Laqi-Response: toString` servía basura
+### 3. Prototype chain: `X-Laqi-Response: toString` served garbage
 
-Verificado: `'toString' in {}` es `true`. En `resolve.ts`,
-`endpoint.responses[name]` con `name = 'toString'` devuelve la función heredada
-de `Object.prototype` — truthy — así que pasaba el check `if (!response)` y el
-handler intentaba servirla: `response.status` undefined → crash del handler en
-runtime, disparable por cualquier cliente con un header.
+Verified: `'toString' in {}` is `true`. In `resolve.ts`,
+`endpoint.responses[name]` with `name = 'toString'` returns the function
+inherited from `Object.prototype` — truthy — so it passed the
+`if (!response)` check and the handler tried to serve it: `response.status`
+undefined → runtime handler crash, triggerable by any client sending a
+header.
 
-**Corrección:** `Object.hasOwn` en el lookup de `resolve.ts` y en los dos
-puntos análogos de `migrate.ts`, más un test nuevo
+**Fix:** `Object.hasOwn` in the lookup in `resolve.ts` and in the two
+analogous spots in `migrate.ts`, plus a new test
 (`rejects a prototype-chain name like "toString"`).
 
 ---
 
-## Mejoras de robustez (ya aplicadas)
+## Robustness improvements (already applied)
 
-### 4. chokidar 4 no observa rutas inexistentes → F9 roto
+### 4. chokidar 4 does not watch nonexistent paths → F9 broken
 
-Verificado: con `watch([ruta-que-no-existe])`, crear la carpeta después **no
-dispara ningún evento** (chokidar 4 eliminó esa capacidad de v3). El plan
-filtraba las rutas con `existsSync` al arrancar, así que en un proyecto fresco
-(flujo F9: cero mocks) la lista quedaba vacía y crear `laqi/` jamás recargaba.
+Verified: with `watch([nonexistent-path])`, creating the folder afterward
+**triggers no event at all** (chokidar 4 removed that capability from v3).
+The plan filtered paths with `existsSync` at startup, so in a fresh project
+(flow F9: zero mocks) the list stayed empty and creating `laqi/` never
+triggered a reload.
 
-**Corrección:** `watchMocks` ahora observa **la raíz del proyecto podando** todo
-lo que no sea `laqi/` o `laqi.json` (la función `ignored` corta la descida, así
-que no se indexa `src/` ni `node_modules`). El patrón se verificó ejecutándolo:
-ruido filtrado, y `laqi/` creado tarde detectado. Firma nueva
-(`{ root, dir, file, onChange }`) y un test nuevo para el caso F9.
+**Fix:** `watchMocks` now watches **the project root, pruning** everything
+that is not `laqi/` or `laqi.json` (the `ignored` function cuts descent
+short, so `src/` and `node_modules` are not indexed). The pattern was
+verified by running it: noise filtered out, and `laqi/` created later
+detected. New signature (`{ root, dir, file, onChange }`) and a new test for
+the F9 case.
 
-### 5. Shebang en la línea 2
+### 5. Shebang on line 2
 
-El bloque de `index.ts` tenía el comentario de ruta encima de
-`#!/usr/bin/env node`. Copiado verbatim, el shebang no funciona. Corregido el
-orden con nota explícita.
+The `index.ts` block had the path comment above
+`#!/usr/bin/env node`. Copied verbatim, the shebang does not work. The order
+was fixed with an explicit note.
 
-### 6. Pin de `@hono/node-server`
+### 6. Pinning `@hono/node-server`
 
-El plan pedía `^1.13.7`; hoy `bun add` sin pin instala la 2.x. Se verificó el
-patrón completo del plan (serve con `port: 0`, `address()`, hot-swap de la app
-sin soltar el socket, `close()`) contra **1.19.7** y se fijó esa versión.
+The plan called for `^1.13.7`; today `bun add` without a pin installs 2.x.
+The plan's full pattern was verified (serve with `port: 0`, `address()`,
+hot-swapping the app without releasing the socket, `close()`) against
+**1.19.7**, and that version was pinned.
 
-### 7. Menores
+### 7. Minor
 
-- `report()` decía `watching ./laqi/` incluso en modo archivo único; ahora
-  distingue por `runtime.source`.
-- Anotada la limitación de que dos claves duplicadas **dentro del mismo
-  archivo** las deduplica `JSON.parse` antes de que el loader las vea (gana la
-  última) — inherente a JSON, la detección del ADR-0008 es entre archivos.
-  Queda documentarla en el Plan 5.
+- `report()` said `watching ./laqi/` even in single-file mode; it now
+  distinguishes by `runtime.source`.
+- Noted the limitation that two duplicate keys **within the same file** get
+  deduplicated by `JSON.parse` before the loader ever sees them (the last one
+  wins) — inherent to JSON; ADR-0008's detection is across files. Still needs
+  documenting in Plan 5.
 
-## Verificado y correcto (sin cambios)
+## Verified and correct (no changes)
 
-Para que el ejecutor no lo dude ni lo re-verifique:
+So the executor neither doubts it nor re-verifies it:
 
-| Suposición del plan                                                                                                                              | Resultado                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| Zod 4.3.6: `superRefine` + `ctx.addIssue({ code: 'custom', path })`                                                                              | ✔ funciona, mensaje y path como esperan los tests  |
-| Zod 4.3.6: `z.record(k, v)` de dos argumentos, `.default({})`, `.nullable().default(null)`                                                       | ✔                                                  |
-| Hono 4.12.3: `app.on(method, path)`, `c.json(body, status)`, `c.body(null, 204)`, `app.all('*')` como 404, `hono/cors`, `hono/utils/http-status` | ✔ todo, incluido el 404 para métodos no declarados |
-| `@hono/node-server` 1.19: `serve({fetch, port: 0})` + `address().port` + reemplazo de la app sin reiniciar el socket                             | ✔ hot-swap confirmado en vivo                      |
-| chokidar 4: `import { watch }` nombrado, `ignored` como función, poda de dotfiles                                                                | ✔                                                  |
-| `bun run test -- <filtro>` reenvía el filtro a vitest                                                                                            | ✔ (con y sin `--`)                                 |
+| Plan assumption                                                                                                                                | Result                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Zod 4.3.6: `superRefine` + `ctx.addIssue({ code: 'custom', path })`                                                                            | ✔ works, message and path as the tests expect         |
+| Zod 4.3.6: two-argument `z.record(k, v)`, `.default({})`, `.nullable().default(null)`                                                          | ✔                                                     |
+| Hono 4.12.3: `app.on(method, path)`, `c.json(body, status)`, `c.body(null, 204)`, `app.all('*')` as 404, `hono/cors`, `hono/utils/http-status` | ✔ all of it, including the 404 for undeclared methods |
+| `@hono/node-server` 1.19: `serve({fetch, port: 0})` + `address().port` + replacing the app without restarting the socket                       | ✔ hot-swap confirmed live                             |
+| chokidar 4: named `import { watch }`, `ignored` as a function, dotfile pruning                                                                 | ✔                                                     |
+| `bun run test -- <filter>` forwards the filter to vitest                                                                                       | ✔ (with and without `--`)                             |
 
-## Cambios al plan derivados
+## Changes derived to the plan
 
-- Sección nueva **"Notas para el ejecutor"** con las reglas para el modelo
-  económico: copiar verbatim, no cambiar versiones, no debilitar tests, correr
-  `bun run test` + `check-types` completos antes de cada commit, y no
-  "corregir" APIs consultando documentación externa (ya están verificadas).
-- Conteos de tests actualizados: resolve 13, serve+watcher 11, total ~95.
+- New section **"Notes for the executor"** with the rules for the economical
+  model: copy verbatim, do not change versions, do not weaken tests, run the
+  full `bun run test` + `check-types` before every commit, and do not "fix"
+  APIs by consulting external documentation (they are already verified).
+- Updated test counts: resolve 13, serve+watcher 11, total ~95.
