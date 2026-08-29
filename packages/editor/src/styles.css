@@ -72,6 +72,33 @@ button {
   outline-offset: 2px;
 }
 
+/* La selección por defecto del navegador es texto oscuro sobre un highlight
+   claro: sobre --bg casi negro, invisible. Mismo par que .btn-primary:hover
+   (violeta de marca + blanco), así que no es un color nuevo, y el input/
+   textarea de abajo dejan explícito que también aplica ahí, que es donde se
+   notó. */
+::selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+::-moz-selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+input::selection,
+textarea::selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+input::-moz-selection,
+textarea::-moz-selection {
+  background: var(--vio);
+  color: #fff;
+}
+
 .mono {
   font-family: var(--mono);
 }
@@ -1211,6 +1238,70 @@ button.log-path:hover {
   gap: 14px;
   padding: 8px 14px;
   border-top: 1px solid var(--line);
+}
+
+/* ── Dialog ─────────────────────────────────────────────────────────────
+   shadcn's *pattern* (overlay, centred card, right-aligned actions), laqi's
+   own skin: --panel + 1px --line2 + 2px radius + mono title, not a rounded
+   neutral-grey card. */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.dialog {
+  width: min(420px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  padding: 16px;
+}
+
+.dialog-title {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.dialog-description {
+  margin: 0 0 12px;
+  color: var(--dim);
+  font-style: italic;
+  font-size: 12.5px;
+}
+
+.dialog-body {
+  margin-bottom: 16px;
+}
+
+.dialog-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  padding: 6px 9px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.dialog-input:focus {
+  outline: none;
+  border-color: var(--viol);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */

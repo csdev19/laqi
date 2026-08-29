@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Endpoint } from '../types'
 import { EndpointDetail } from './EndpointDetail'
@@ -116,6 +116,136 @@ describe('the draft survives an unrelated reload', () => {
     )
 
     await waitFor(() => expect(body().value).not.toContain('mine'))
+  })
+})
+
+describe('serving a response', () => {
+  it('shows a primary "Serve this" action for a response that is not live, and calls onFlip', () => {
+    const { onFlip } = renderDetail(endpoint())
+
+    // `ok` is the default and starts live, so switch to `boom` first.
+    fireEvent.click(screen.getByRole('button', { name: /boom/i }))
+    const serve = screen.getByRole('button', { name: 'Serve this' })
+    fireEvent.click(serve)
+
+    expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: 'GET /users' }), 'boom')
+  })
+
+  it('renders the live response as a Serving state pill instead of a clickable button', () => {
+    renderDetail(endpoint())
+
+    // `ok` is the default, so it starts live/selected.
+    expect(screen.getByText('Serving')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /serve this/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^live now$/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^set live$/i })).toBeNull()
+  })
+})
+
+describe('renaming a response (no window.prompt)', () => {
+  it('opens a dialog pre-filled with the current name, focused, instead of window.prompt', () => {
+    const promptSpy = vi.spyOn(window, 'prompt')
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+
+    const input = screen.getByLabelText('new name') as HTMLInputElement
+    expect(input.value).toBe('ok')
+    expect(document.activeElement).toBe(input)
+    expect(promptSpy).not.toHaveBeenCalled()
+  })
+
+  it('renames the response and selects it on confirm', () => {
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+    const input = screen.getByLabelText('new name')
+    fireEvent.change(input, { target: { value: 'success' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^rename$/i }))
+
+    expect(screen.queryByLabelText('new name')).toBeNull()
+    expect(screen.getByText('success')).toBeTruthy()
+  })
+
+  it('confirms on Enter from the input', () => {
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+    const input = screen.getByLabelText('new name')
+    fireEvent.change(input, { target: { value: 'success' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+
+    expect(screen.queryByLabelText('new name')).toBeNull()
+    expect(screen.getByText('success')).toBeTruthy()
+  })
+
+  it('closes on Escape without renaming, and returns focus to the Rename trigger', () => {
+    renderDetail(endpoint())
+
+    const trigger = screen.getByRole('button', { name: /^rename$/i })
+    // A real click focuses a button; jsdom's fireEvent.click does not, so
+    // this is done explicitly to reproduce what the browser does on its own.
+    trigger.focus()
+    fireEvent.click(trigger)
+    const input = screen.getByLabelText('new name')
+    fireEvent.change(input, { target: { value: 'should-not-apply' } })
+    fireEvent.keyDown(input, { key: 'Escape', code: 'Escape' })
+
+    expect(screen.queryByLabelText('new name')).toBeNull()
+    expect(screen.queryByText('should-not-apply')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('cancels on a click on the overlay but not on a click inside the card', () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+
+    fireEvent.mouseDown(screen.getByRole('dialog'))
+    expect(screen.getByLabelText('new name')).toBeTruthy()
+
+    const backdrop = document.querySelector('.dialog-backdrop')!
+    fireEvent.mouseDown(backdrop)
+    expect(screen.queryByLabelText('new name')).toBeNull()
+  })
+
+  it('disables confirm for an empty name, the unchanged name, or a name already in use', () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+    const input = screen.getByLabelText('new name')
+    const confirm = () =>
+      within(screen.getByRole('dialog')).getByRole('button', { name: /^rename$/i })
+
+    fireEvent.change(input, { target: { value: '' } })
+    expect(confirm().hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(input, { target: { value: 'ok' } })
+    expect(confirm().hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(input, { target: { value: 'boom' } })
+    expect(confirm().hasAttribute('disabled')).toBe(true)
+
+    fireEvent.change(input, { target: { value: 'success' } })
+    expect(confirm().hasAttribute('disabled')).toBe(false)
+  })
+
+  it('traps Tab focus inside the dialog', () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /^rename$/i }))
+
+    const dialog = screen.getByRole('dialog')
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>('input, button:not([disabled])'),
+    )
+    const first = focusable[0]!
+    const last = focusable[focusable.length - 1]!
+
+    last.focus()
+    fireEvent.keyDown(dialog, { key: 'Tab', code: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    first.focus()
+    fireEvent.keyDown(dialog, { key: 'Tab', code: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
   })
 })
 

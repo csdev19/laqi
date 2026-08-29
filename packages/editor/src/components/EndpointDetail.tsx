@@ -4,6 +4,7 @@ import { checkJson } from '../highlight'
 import { statusClass } from '../log'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
+import { Dialog } from './Dialog'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
 import { WarningBand } from './WarningBand'
 
@@ -48,6 +49,7 @@ export function EndpointDetail(props: {
   ])
   const [actionError, setActionError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
+  const [renameValue, setRenameValue] = useState<string | null>(null)
 
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
@@ -202,14 +204,23 @@ export function EndpointDetail(props: {
           <div className="editor-toolbar">
             <ValidityReadout source={bodySource || 'null'} />
             <div className="header-actions">
-              <button
-                type="button"
-                className="btn"
-                disabled={live.name === selected}
-                onClick={() => props.onFlip(endpoint, selected)}
-              >
-                {live.name === selected ? 'Live now' : 'Set live'}
-              </button>
+              {live.name === selected ? (
+                // Currently being served is a *state*, not a disabled
+                // action — reuse the live-pill/live-dot idiom the panel
+                // already has instead of a greyed-out button that still
+                // looks (uselessly) clickable.
+                <span className={`live-pill layer-${live.layer}`}>
+                  <span className="live-dot" aria-hidden="true" /> Serving
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => props.onFlip(endpoint, selected)}
+                >
+                  Serve this
+                </button>
+              )}
               <button
                 type="button"
                 className="btn"
@@ -241,16 +252,7 @@ export function EndpointDetail(props: {
               >
                 Regenerate
               </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  const next = window.prompt('Rename response', selected)
-                  if (!next || next === selected || next in draft.responses) return
-                  setDraft((previous) => renameResponse(previous, selected, next))
-                  setSelected(next)
-                }}
-              >
+              <button type="button" className="btn" onClick={() => setRenameValue(selected)}>
                 Rename
               </button>
               <button
@@ -376,6 +378,37 @@ export function EndpointDetail(props: {
           ) : null}
         </div>
       </div>
+
+      {renameValue !== null ? (
+        <Dialog
+          title="Rename response"
+          description={`Renaming "${selected}"`}
+          confirmLabel="Rename"
+          confirmDisabled={
+            renameValue.trim() === '' ||
+            renameValue.trim() === selected ||
+            renameValue.trim() in draft.responses
+          }
+          onCancel={() => setRenameValue(null)}
+          onConfirm={() => {
+            const next = renameValue.trim()
+            if (next === '' || next === selected || next in draft.responses) return
+            setDraft((previous) => renameResponse(previous, selected, next))
+            setSelected(next)
+            setRenameValue(null)
+          }}
+        >
+          <label className="micro" htmlFor="rename-input">
+            new name
+          </label>
+          <input
+            id="rename-input"
+            className="dialog-input"
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.target.value)}
+          />
+        </Dialog>
+      ) : null}
     </div>
   )
 }
