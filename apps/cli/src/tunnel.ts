@@ -6,18 +6,19 @@ export type Tunnel = {
 }
 
 /**
- * La capa de compartición como interfaz enchufable, desde el día uno
- * ([ADR-0007](../decisiones/0007-url-publica.md)). `CloudflaredProvider` es la
- * fase 1; el relay propio en Workers entra por acá sin reescribir nada.
+ * The sharing layer as a pluggable interface, from day one
+ * ([ADR-0007](../decisiones/0007-url-publica.md)). `CloudflaredProvider` is
+ * phase 1; a self-hosted relay on Workers slots in here without rewriting
+ * anything.
  */
 export type TunnelProvider = {
   name: string
-  /** Por qué no se puede usar ahora, o `null` si está listo. */
+  /** Why it can't be used right now, or `null` if it's ready. */
   unavailable: () => Promise<string | null>
   start: (options: { port: number; signal?: AbortSignal }) => Promise<Tunnel>
 }
 
-/** Inyectable para poder testear sin el binario instalado. */
+/** Injectable so it can be tested without the binary installed. */
 export type Spawner = (command: string, args: string[]) => ChildProcess
 
 const TRYCLOUDFLARE = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i
@@ -32,7 +33,7 @@ export const CLOUDFLARED_MISSING = [
   'No account or login is required for a quick tunnel.',
 ].join('\n')
 
-/** Cuánto se espera la URL antes de rendirse. */
+/** How long to wait for the URL before giving up. */
 export const URL_TIMEOUT_MS = 30_000
 
 export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): TunnelProvider {
@@ -67,11 +68,12 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
         ])
 
         let settled = false
-        // cloudflared imprime la URL en un banner ASCII partido en varias
-        // escrituras, así que hay que acumular en vez de mirar chunk a chunk.
+        // cloudflared prints the URL in an ASCII banner split across
+        // several writes, so we have to accumulate instead of looking at
+        // each chunk in isolation.
         let buffered = ''
 
-        /** Vacía el pipe sin guardar nada. Ver el comentario en `finish`. */
+        /** Drains the pipe without keeping anything. See the comment in `finish`. */
         const drain = () => {}
 
         const onChunk = (chunk: Buffer | string) => {
@@ -96,15 +98,15 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
           if (settled) return
           settled = true
           clearTimeout(timer)
-          // Se deja de ACUMULAR, pero se sigue drenando.
+          // We stop ACCUMULATING, but keep draining.
           //
-          // cloudflared loguea sin parar mientras el túnel vive, así que
-          // guardarlo todo hacía crecer `buffered` sin límite y re-correr el
-          // regex sobre una cadena cada vez más larga. Pero quitar los
-          // listeners y ya está pausa el stream: Node deja de vaciar el pipe,
-          // el pipe se llena, y cloudflared —que escribe a stderr de forma
-          // bloqueante— se traba para siempre en su próximo log. Verificado:
-          // el hijo se congelaba ~1.1MB después de resolver.
+          // cloudflared keeps logging nonstop while the tunnel is alive, so
+          // keeping it all would make `buffered` grow without bound and
+          // re-run the regex over an ever-longer string. But just removing
+          // the listeners pauses the stream: Node stops draining the pipe,
+          // the pipe fills up, and cloudflared — which writes to stderr
+          // blockingly — hangs forever on its next log line. Verified: the
+          // child process froze at ~1.1MB after resolving.
           child.stdout?.off('data', onChunk)
           child.stderr?.off('data', onChunk)
           child.stdout?.on('data', drain)
@@ -120,7 +122,7 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
           })
         }, URL_TIMEOUT_MS)
 
-        // La URL sale por stderr, pero no en todas las versiones — mirar los dos.
+        // The URL comes out on stderr, but not in every version — watch both.
         child.stdout?.on('data', onChunk)
         child.stderr?.on('data', onChunk)
 
@@ -131,9 +133,10 @@ export function createCloudflaredProvider(options: { spawner?: Spawner } = {}): 
           ),
         )
 
-        // Matar y NO settlear dejaría la promesa colgada para siempre, y
-        // como `finish` marca settled, el `exit` que viene después tampoco
-        // podría rechazarla. Abortar tiene que terminar el await del CLI.
+        // Killing without settling would leave the promise hanging
+        // forever, and since `finish` marks it settled, the `exit` that
+        // follows couldn't reject it either. Aborting has to end the
+        // CLI's await.
         signal?.addEventListener(
           'abort',
           () =>

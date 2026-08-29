@@ -1,5 +1,5 @@
-/* Los mismos acentos del panel de laqi, para que el ejemplo se sienta parte
-   del producto sin copiar su densidad — esto es una app, no una herramienta. */
+/* The same accents as the laqi panel, so the example feels part of the
+   product without copying its density — this is an app, not a tool. */
 :root {
   --bg: #0b0a0f;
   --panel: #14121d;

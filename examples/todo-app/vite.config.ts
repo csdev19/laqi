@@ -14,14 +14,14 @@ export default defineConfig({
     // backend problem rather than "that port is taken". laqi itself refuses
     // to start on a busy port for the same reason.
     strictPort: true,
-    // Proxy y no llamadas cross-origin a propósito: es como se ve un dev
-    // setup real, y deja el navegador sin CORS de por medio. El front pide
-    // /api/todos y laqi ve /todos.
+    // Proxy, not cross-origin calls, on purpose: it's what a real dev
+    // setup looks like, and it leaves the browser with no CORS in the
+    // way. The front asks for /api/todos and laqi sees /todos.
     proxy: {
       '/api': { target: LAQI, changeOrigin: true, rewrite: (path) => path.replace(/^\/api/, '') },
     },
   },
-  // El orden importa: tanstackStart genera el route tree y el entry, react()
-  // compila el JSX que sale de ahí.
+  // Order matters: tanstackStart generates the route tree and the entry,
+  // react() compiles the JSX that comes out of it.
   plugins: [tanstackStart(), react()],
 })

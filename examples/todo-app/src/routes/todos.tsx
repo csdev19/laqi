@@ -24,11 +24,12 @@ function TodoList() {
   const todos = useQuery({ queryKey: key, queryFn: () => api.todos() })
 
   /**
-   * Updates optimistas, y no por lujo: laqi devuelve respuestas enlatadas y
-   * NO guarda nada. `POST /todos` contesta un "created" fijo. El frontend se
-   * escribe como si el backend fuera real — la cache es la que sostiene el
-   * estado — y el día que exista el backend, este código no cambia. Ése es
-   * el punto de desarrollar contra un mock.
+   * Optimistic updates, and not for the sake of it: laqi returns canned
+   * responses and does NOT save anything. `POST /todos` answers with a
+   * fixed "created". The frontend is written as if the backend were real
+   * — the cache is what carries the state — and the day the backend
+   * exists, this code doesn't change. That's the point of developing
+   * against a mock.
    */
   const patch = (change: (previous: TodoList) => TodoList) => {
     queryClient.setQueryData<TodoList>(key, (previous) => (previous ? change(previous) : previous))
@@ -37,9 +38,10 @@ function TodoList() {
   const create = useMutation({
     mutationFn: (value: string) => api.createTodo(value),
     onSuccess: (created, value) => {
-      // El título sale de lo que escribió el usuario, no de `created.title`:
-      // el mock siempre devuelve el mismo texto enlatado, y un backend real
-      // devolvería el que mandaste. Del server sólo se toma la forma.
+      // The title comes from what the user typed, not from
+      // `created.title`: the mock always returns the same canned text,
+      // and a real backend would return what you sent. Only the shape is
+      // taken from the server.
       patch((previous) => ({
         items: [{ ...created, id: Date.now(), title: value }, ...previous.items],
       }))
@@ -70,8 +72,8 @@ function TodoList() {
 
   const all = todos.data?.items ?? []
   const lastPage = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
-  // Crear o borrar cambia cuántas páginas hay: sin esto se puede quedar
-  // mirando una página que ya no existe.
+  // Creating or deleting changes how many pages there are: without this
+  // you can end up staring at a page that no longer exists.
   const current = Math.min(page, lastPage)
   const visible = all.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
 

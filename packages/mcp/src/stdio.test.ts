@@ -40,7 +40,7 @@ beforeEach(async () => {
   })
   writeMocks({ offline: { 'GET /users': 'boom' } }, 'laqi/scenarios.json')
 
-  // El servidor real, arrancado como lo arrancaría un agente.
+  // The real server, started the way an agent would start it.
   transport = new StdioClientTransport({ command: 'bun', args: [CLI, 'mcp'], cwd: root })
   client = new Client({ name: 'test', version: '1.0.0' })
   await client.connect(transport)
@@ -148,7 +148,7 @@ describe('laqi mcp over stdio', () => {
       expect(result.isError).toBe(true)
     }
 
-    // Y el archivo del usuario queda byte por byte como estaba.
+    // And the user's file stays byte for byte as it was.
     expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
   })
 

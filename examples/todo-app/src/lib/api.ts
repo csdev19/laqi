@@ -2,9 +2,9 @@ import { readSession } from './auth'
 import type { Session, User } from './auth'
 
 /**
- * `/api` lo proxea Vite hacia laqi (ver vite.config.ts), así que desde el
- * navegador todo es same-origin y no hay CORS de por medio — igual que un
- * setup de desarrollo real contra un backend propio.
+ * `/api` is proxied by Vite to laqi (see vite.config.ts), so from the
+ * browser everything is same-origin and there's no CORS in the way — just
+ * like a real dev setup against your own backend.
  */
 const BASE = '/api'
 
@@ -26,16 +26,15 @@ async function request<T>(
 
   const headers: Record<string, string> = {}
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
-  // La forma de producción: el token viaja en cada request. laqi lo ignora,
-  // pero el día que haya backend real esto ya está puesto.
+  // The production shape: the token travels on every request. laqi
+  // ignores it, but the day there's a real backend this is already in place.
   if (session) headers.Authorization = `Bearer ${session.token}`
 
-  // Deliberadamente NO se manda `X-Laqi-Response`. Es la capa de mayor
-  // precedencia de laqi: le gana a los overrides del panel y a los
-  // escenarios. Si la app la usara para pedir cosas de rutina, se estaría
-  // pisando a sí misma los flips del panel — que es justo lo que uno quiere
-  // poder hacer mientras la app corre. Esa capa es para vos desde curl, no
-  // para que la app la ocupe.
+  // Deliberately NOT sending `X-Laqi-Response`. It's laqi's highest-precedence
+  // layer: it beats the panel's overrides and the scenarios. If the app
+  // used it for routine requests, it would be stepping on its own panel
+  // flips — which is exactly what you want to be able to do while the app
+  // runs. That layer is for you from curl, not for the app to use.
 
   const response = await fetch(`${BASE}${path}`, {
     method: options.method ?? 'GET',
@@ -49,7 +48,7 @@ async function request<T>(
       const body = (await response.json()) as { message?: unknown }
       if (typeof body.message === 'string') message = body.message
     } catch {
-      // El cuerpo no era JSON; el status solo ya dice algo.
+      // The body wasn't JSON; the status alone already says something.
     }
     throw new ApiError(message, response.status)
   }
@@ -72,12 +71,13 @@ export const api = {
   profile: () => request<Profile>('/profile'),
 
   /**
-   * La lista entera. La app la pagina del lado del cliente.
+   * The whole list. The app paginates it client-side.
    *
-   * Un backend real paginaría en el servidor, pero laqi ignora el query
-   * string: `?page=2` devolvería exactamente lo mismo que `?page=1`. La
-   * alternativa era pedir cada página con `X-Laqi-Response: page-2`, y eso
-   * rompe algo peor — ver el comentario en `request`.
+   * A real backend would paginate server-side, but laqi ignores the query
+   * string: `?page=2` would return exactly the same thing as `?page=1`.
+   * The alternative was requesting each page with
+   * `X-Laqi-Response: page-2`, and that breaks something worse — see the
+   * comment in `request`.
    */
   todos: () => request<TodoList>('/todos'),
 

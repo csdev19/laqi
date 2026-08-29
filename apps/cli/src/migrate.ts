@@ -15,7 +15,7 @@ export type MigrationResult = {
   warnings: string[]
 }
 
-/** El hack de v1 para meter varios métodos bajo la misma clave JSON. */
+/** v1's hack for packing several methods under the same JSON key. */
 const METHOD_PREFIX = /^\((\w+)\)(.*)$/
 
 type V1Response = { statusCode?: unknown; selectorCode?: unknown; body?: unknown }
@@ -100,9 +100,9 @@ export function migrateV1(input: unknown): MigrationResult {
 }
 
 /**
- * Devuelve true si hubo algún fallo. El código de salida exacto (2, 4, o el 1
- * por defecto) lo pone esta misma función vía `process.exitCode`, porque sólo
- * ella sabe cuál de sus ramas de fallo corrió.
+ * Returns true if there was any failure. The exact exit code (2, 4, or the
+ * default 1) is set by this same function via `process.exitCode`, because
+ * only it knows which of its failure branches ran.
  */
 export function runMigrate(options: {
   root: string
@@ -192,7 +192,7 @@ export function runMigrate(options: {
 }
 
 function findV1Sources(root: string): string[] {
-  // v1 leía `path` de mock.config.json, con 'mock-data' por defecto.
+  // v1 read `path` from mock.config.json, defaulting to 'mock-data'.
   let dir = 'mock-data'
   const legacyConfig = join(root, 'mock.config.json')
 
@@ -201,9 +201,10 @@ function findV1Sources(root: string): string[] {
       const parsed = JSON.parse(readFileSync(legacyConfig, 'utf8')) as { path?: unknown }
       if (typeof parsed.path === 'string') dir = parsed.path
     } catch (error) {
-      // Config ilegible: seguimos con el default de v1. Mismo tratamiento que
-      // el laqi.config.json ilegible en index.ts: un archivo de config que no
-      // parsea, laqi sigue con defaults, el usuario tiene que enterarse.
+      // Unreadable config: fall back to v1's default. Same treatment as the
+      // unreadable laqi.config.json in index.ts: a config file that
+      // doesn't parse, laqi carries on with defaults, and the user needs
+      // to find out.
       console.error(
         renderFailure(
           {

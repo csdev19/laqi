@@ -14,14 +14,14 @@ import { createEditorApp } from './editor-assets'
 import { buildRuntime, type Runtime } from './runtime'
 
 /**
- * Lo que hace falta para levantar la superficie pública. Es un SEGUNDO
- * listener, no una ruta del primero: el control plane no se monta ahí, así
- * que el túnel no puede alcanzarlo ni equivocándose. Ésa es la resolución
- * estructural del hallazgo H1.
+ * What's needed to bring up the public surface. It's a SECOND listener,
+ * not a route on the first one: the control plane isn't mounted there, so
+ * the tunnel can't reach it even by mistake. That's the structural
+ * resolution of finding H1.
  */
 export type ShareOptions = {
   port: number
-  /** `null` sólo con --public, y ya se advirtió. */
+  /** `null` only with --public, and it's already been warned about. */
   token: string | null
   origins: string[]
 }
@@ -29,20 +29,20 @@ export type ShareOptions = {
 export type ServeHandle = {
   port: number
   host: string
-  /** El puerto local al que apunta el túnel, si --share está activo. */
+  /** The local port the tunnel points at, if --share is active. */
   publicPort?: number
-  /** Reconstruye la app Hono. El proceso y el socket NO se tocan. */
+  /** Rebuilds the Hono app. The process and the socket are NOT touched. */
   reload: () => Runtime
   current: () => Runtime
-  /** Lo que el panel muestra en la banda magenta. */
+  /** What the panel shows in the magenta band. */
   setShareUrl: (url: string | null) => void
   close: () => Promise<void>
 }
 
 /**
- * Las direcciones que son sólo esta máquina. `::1` y sus formas escritas
- * cuentan: es loopback IPv6, y dejarlo afuera apagaba el panel en silencio
- * para quien arrancara con `--host ::1`.
+ * The addresses that mean only this machine. `::1` and its written forms
+ * count: it's loopback IPv6, and leaving it out silently disabled the
+ * panel for anyone starting with `--host ::1`.
  */
 export function isLoopback(host: string): boolean {
   const normalised = host.toLowerCase().replace(/^\[|\]$/g, '')
@@ -50,7 +50,7 @@ export function isLoopback(host: string): boolean {
     normalised === 'localhost' ||
     normalised === '::1' ||
     normalised === '0:0:0:0:0:0:0:1' ||
-    // Todo 127.0.0.0/8 es loopback, no sólo 127.0.0.1.
+    // All of 127.0.0.0/8 is loopback, not just 127.0.0.1.
     /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalised)
   )
 }
@@ -77,30 +77,30 @@ export async function startServer(options: {
     bus.emit(event)
     if (event.type === 'request') counters.recordRequest(event.endpointId !== null)
   }
-  // Fuera de buildPublicApp a propósito: la app se reconstruye en cada
-  // reload, y si los contadores se reconstruyeran con ella, guardar un
-  // archivo local le devolvería la cuota a un cliente limitado en el túnel.
+  // Kept outside buildPublicApp on purpose: the app is rebuilt on every
+  // reload, and if the counters were rebuilt with it, saving a local file
+  // would hand the quota back to a client rate-limited over the tunnel.
   const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
 
   let runtime = buildRuntime(root, config)
-  // Con --port 0 el puerto real lo asigna el SO. Se rellena cuando el
-  // listener está arriba; hasta entonces vale el configurado. Sin esto el
-  // panel muestra "127.0.0.1:0" y el curl que ofrece copiar no funciona.
+  // With --port 0 the OS assigns the real port. It gets filled in once
+  // the listener is up; until then the configured one holds. Without this
+  // the panel shows "127.0.0.1:0" and the curl it offers to copy doesn't work.
   let boundPort = config.port
   let app: Hono = buildApp()
-  // Se reconstruye en cada reload igual que la local: el hot-reload tiene
-  // que valer también para lo que sale por el túnel.
+  // Rebuilt on every reload just like the local one: hot-reload has to
+  // hold for what goes out through the tunnel too.
   let publicApp: Hono | null = share ? buildPublicApp(share) : null
 
   function reload(): Runtime {
     runtime = buildRuntime(root, config)
     app = buildApp()
     if (share) publicApp = buildPublicApp(share)
-    // Un solo evento por recarga. Antes se emitía un `endpoints-changed`
-    // MÁS un `error` por archivo roto, y el panel hace un refresh completo
-    // por evento: con tres archivos rotos, un guardado disparaba cuatro
-    // refreshes y dieciséis GETs. Los errores viajan adentro del evento; el
-    // panel igual los relee de /api/status, que es la fuente de verdad.
+    // A single event per reload. It used to emit an `endpoints-changed`
+    // PLUS an `error` per broken file, and the panel does a full refresh
+    // per event: with three broken files, one save fired four refreshes
+    // and sixteen GETs. The errors travel inside the event; the panel
+    // still re-reads them from /api/status, which is the source of truth.
     bus.emit({
       type: 'endpoints-changed',
       endpointCount: runtime.table.endpoints.length,
@@ -127,7 +127,7 @@ export async function startServer(options: {
     const mockApp = createMockApp({
       table: runtime.table,
       scenarios: runtime.scenarios,
-      // Se lee en cada request: el panel cambia el estado sin tocar archivos.
+      // Read on every request: the panel changes state without touching files.
       getState: () => store.read(),
       cors: config.cors,
       onRequest: recordRequest,
@@ -151,29 +151,29 @@ export async function startServer(options: {
         share: share
           ? {
               url: shareUrl,
-              // El token viaja al panel a propósito: es local-only y es
-              // donde el developer lo va a copiar.
+              // The token travels to the panel on purpose: it's local-only
+              // and it's where the developer is going to copy it from.
               token: share.token,
-              // Lo que el hallazgo H1 pide hacer visible: la garantía deja
-              // de ser invisible y pasa a estar escrita en la banda.
+              // What finding H1 asks to make visible: the guarantee stops
+              // being invisible and gets written into the band.
               exposed: 'mocks only — the panel and the control plane are not exposed',
             }
           : null,
       }),
-      // Las tres escrituras delegan en Project, que es la MISMA
-      // implementación que usa el servidor MCP. Antes había una copia acá
-      // que ya había divergido: le faltaba la validación de la clave (un
-      // POST con un path inválido escribía un endpoint muerto y devolvía
-      // 201) y la limpieza del override al borrar. Una sola implementación
-      // no puede driftear.
+      // All three writes delegate to Project, which is the SAME
+      // implementation the MCP server uses. There used to be a copy here
+      // that had already diverged: it was missing the key validation (a
+      // POST with an invalid path wrote a dead endpoint and returned
+      // 201) and the override cleanup on delete. A single implementation
+      // can't drift.
       createEndpoint: (input) => {
         const result = project.createEndpoint({
           method: input.method,
           path: input.path,
           description: input.description,
-          // Ya validado por EndpointSchema en control-plane-app.ts; el cast
-          // sólo reconcilia los dos contratos de tipos, y Project lo vuelve
-          // a validar antes de escribir.
+          // Already validated by EndpointSchema in control-plane-app.ts;
+          // the cast only reconciles the two type contracts, and Project
+          // validates it again before writing.
           default: input.default,
           responses: input.responses as EndpointDefinition['responses'],
         })
@@ -287,14 +287,14 @@ export async function startServer(options: {
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 
     const top = new Hono()
-    // El panel y el control plane sólo se montan cuando el server escucha en
-    // loopback — con --host 0.0.0.0 (la feature intencional de LAN/mobile
-    // testing de un plan anterior) montarlos acá los expondría a cualquiera
-    // en la red local. Sin estos mounts, /__laqi/* simplemente cae al 404 del
-    // mock app, como cualquier otra ruta no encontrada.
+    // The panel and the control plane are only mounted when the server
+    // listens on loopback — with --host 0.0.0.0 (the intentional LAN/mobile
+    // testing feature from an earlier plan) mounting them here would expose
+    // them to anyone on the local network. Without these mounts, /__laqi/*
+    // simply falls through to the mock app's 404, like any other unmatched route.
     if (isLoopback(config.host)) {
-      // El panel va PRIMERO: el control plane termina en un catch-all que
-      // se comería /__laqi y /__laqi/assets/*.
+      // The panel goes FIRST: the control plane ends in a catch-all that
+      // would swallow /__laqi and /__laqi/assets/*.
       top.route('/', createEditorApp())
       top.route('/__laqi', controlPlaneApp)
     }
@@ -305,15 +305,15 @@ export async function startServer(options: {
   const server: ServerType = await new Promise((resolve, reject) => {
     const instance = serve(
       {
-        // La indirección es el punto: `app` es mutable, el servidor no.
+        // The indirection is the point: `app` is mutable, the server isn't.
         fetch: (request: Request) => app.fetch(request),
         port: config.port,
         hostname: config.host,
       },
       () => resolve(instance),
     )
-    // Sin esto, un puerto ocupado (EADDRINUSE) nunca dispara el callback de
-    // éxito y la promesa cuelga para siempre, en silencio.
+    // Without this, a busy port (EADDRINUSE) never fires the success
+    // callback and the promise hangs forever, silently.
     instance.on('error', reject)
   })
 
@@ -331,9 +331,9 @@ export async function startServer(options: {
           {
             fetch: (request: Request) => publicApp!.fetch(request),
             port: share.port,
-            // Loopback también: cloudflared corre en esta máquina y se conecta
-            // localmente. Bindear a 0.0.0.0 expondría la superficie pública a
-            // la LAN además del túnel, sin que nadie lo haya pedido.
+            // Loopback too: cloudflared runs on this machine and connects
+            // locally. Binding to 0.0.0.0 would expose the public surface
+            // to the LAN as well as the tunnel, without anyone having asked for it.
             hostname: '127.0.0.1',
           },
           () => resolve(instance),
@@ -341,14 +341,14 @@ export async function startServer(options: {
         instance.on('error', reject)
       })
     } catch (error) {
-      // El listener principal ya está arriba. Sin cerrarlo, el throw deja un
-      // socket huérfano que mantiene vivo el event loop: el CLI dice que
-      // falló, no termina nunca, y sigue sirviendo mocks igual.
+      // The primary listener is already up. Without closing it, the throw
+      // leaves an orphan socket that keeps the event loop alive: the CLI
+      // says it failed, never terminates, and keeps serving mocks anyway.
       await new Promise<void>((resolve) => server.close(() => resolve()))
-      // Se marca acá qué listener falló. Deducirlo después leyendo el texto
-      // del error se equivocaba en las dos direcciones: bajo Bun el mensaje
-      // no trae ":puerto", y bajo Node un puerto que empieza con los mismos
-      // dígitos que el otro lo confundía.
+      // Which listener failed is marked here. Deducing it later by
+      // reading the error's text got it wrong in both directions: under
+      // Bun the message doesn't carry ":port", and under Node a port that
+      // starts with the same digits as the other one got confused for it.
       throw Object.assign(error as Error, { laqiListener: 'share' as const })
     }
 
@@ -374,14 +374,14 @@ export async function startServer(options: {
             (instance) =>
               new Promise<void>((resolve, reject) => {
                 instance.close((error) => (error ? reject(error) : resolve()))
-                // http.Server#close deja de aceptar conexiones nuevas pero
-                // espera a que terminen las abiertas — y el stream de
-                // /__laqi/events no termina nunca por su cuenta: vive hasta
-                // que el cliente corta. Con el panel abierto en el
-                // navegador, close() no resolvía jamás. Cortar las
-                // conexiones vivas es lo que hace que termine.
-                // El tipo de @hono/node-server es una unión con Http2Server,
-                // que no lo declara. En la práctica es siempre un http.Server.
+                // http.Server#close stops accepting new connections but
+                // waits for the open ones to finish — and the
+                // /__laqi/events stream never ends on its own: it lives
+                // until the client cuts it off. With the panel open in
+                // the browser, close() never resolved. Cutting the live
+                // connections is what makes it terminate.
+                // @hono/node-server's type is a union with Http2Server,
+                // which doesn't declare it. In practice it's always an http.Server.
                 ;(instance as { closeAllConnections?: () => void }).closeAllConnections?.()
               }),
           ),

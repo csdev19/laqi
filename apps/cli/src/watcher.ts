@@ -2,8 +2,8 @@
 import { relative, sep } from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
 
-// ¿`relativePath` es el propio target, un ancestro suyo (para poder bajar
-// hasta él) o algo dentro de él?
+// Is `relativePath` the target itself, an ancestor of it (so we can walk
+// down into it), or something inside it?
 function matchesTarget(relativePath: string, target: string): boolean {
   return (
     relativePath === target ||
@@ -21,13 +21,13 @@ export function watchMocks(options: {
 }): { close: () => Promise<void> } {
   const { root, dir, file, onChange, debounceMs = 60 } = options
 
-  // chokidar 4 no observa rutas que todavía no existen, así que observamos la
-  // raíz del proyecto y PODAMOS todo lo que no sea la carpeta o el archivo de
-  // mocks. Así un proyecto fresco (F9) detecta `laqi/` cuando se crea, sin
-  // indexar src/ ni node_modules.
-  // dir/file pueden ser rutas anidadas ("config/mocks"): comparar sólo el
-  // primer segmento las podaba enteras. Normalizamos a separadores del SO
-  // para comparar contra `relative()`, que ya usa `sep`.
+  // chokidar 4 doesn't watch paths that don't exist yet, so we watch the
+  // project root and PRUNE everything that isn't the mocks folder or file.
+  // That way a fresh project (F9) detects `laqi/` when it gets created,
+  // without indexing src/ or node_modules.
+  // dir/file can be nested paths ("config/mocks"): comparing only the
+  // first segment pruned them whole. We normalize to OS separators to
+  // compare against `relative()`, which already uses `sep`.
   const normalizedDir = dir.split('/').join(sep)
   const normalizedFile = file.split('/').join(sep)
 
@@ -36,8 +36,8 @@ export function watchMocks(options: {
     ignored: (path: string) => {
       if (path === root) return false
       const relativePath = relative(root, path)
-      // Los dotfiles incluyen .laqi/state.json, que escribimos nosotros:
-      // observarlo sería un bucle de recarga infinito.
+      // Dotfiles include .laqi/state.json, which we write ourselves:
+      // watching it would be an infinite reload loop.
       if (relativePath.split(sep).some((part) => part.startsWith('.'))) return true
       return (
         !matchesTarget(relativePath, normalizedDir) && !matchesTarget(relativePath, normalizedFile)
@@ -47,13 +47,14 @@ export function watchMocks(options: {
 
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  // Un guardado dispara varios eventos; sin debounce se recargaría de más.
+  // A single save fires several events; without debounce it would reload
+  // more than necessary.
   const schedule = () => {
     if (timer) clearTimeout(timer)
     timer = setTimeout(onChange, debounceMs)
   }
 
-  // v1 sólo escuchaba 'change', así que crear o borrar archivos no recargaba.
+  // v1 only listened for 'change', so creating or deleting files didn't reload.
   watcher.on('add', schedule).on('change', schedule).on('unlink', schedule)
 
   return {

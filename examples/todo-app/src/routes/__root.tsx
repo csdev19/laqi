@@ -38,10 +38,10 @@ function RootDocument() {
 
 function Shell() {
   const router = useRouter()
-  // useSession y no readSession(): leer la cookie durante el render daba
-  // `null` en SSR y la sesión real al hidratar, o sea un mismatch en cada
-  // carga de alguien logueado. El store devuelve null en el servidor a
-  // propósito y avisa después de montar.
+  // useSession and not readSession(): reading the cookie during render
+  // gave `null` in SSR and the real session on hydration, i.e. a mismatch
+  // on every page load for someone logged in. The store returns null on
+  // the server on purpose and reports the real value after mounting.
   const { session } = useSession()
 
   return (

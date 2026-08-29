@@ -7,10 +7,10 @@ export { Project, type EndpointView, type ProjectResult } from '@laqi/core'
 export { createMcpServer } from './server'
 
 /**
- * Arranca el servidor MCP sobre stdio.
+ * Starts the MCP server over stdio.
  *
- * stdout es el canal del protocolo: cualquier `console.log` suelto lo
- * corrompe. Todo lo que quiera decirse va a stderr.
+ * stdout is the protocol channel: any stray `console.log` corrupts it.
+ * Anything that needs to say something goes to stderr.
  */
 export async function startMcpStdio(options: { root: string; config: LaqiConfig }): Promise<void> {
   const server = createMcpServer(options)
