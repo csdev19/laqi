@@ -1,0 +1,35 @@
+@import '@fontsource/source-serif-4/400.css';
+@import '@fontsource/source-serif-4/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@laqi/tokens/tokens.css';
+
+/* Starlight's own theme hooks — remapped onto our tokens so the docs
+   section (/docs/*) reads as the same product as the landing page and
+   the CLI's control panel, not a different, generic doc site. */
+:root {
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--panel);
+  --sl-color-bg-sidebar: var(--bg);
+  --sl-color-text: var(--fg);
+  --sl-color-text-accent: var(--viol);
+  --sl-color-accent: var(--vio);
+  --sl-color-hairline: var(--line);
+  --sl-color-hairline-light: var(--line2);
+  --sl-font: var(--mono);
+  --sl-font-mono: var(--mono);
+}
+
+/* Prose headings inside docs content use the display serif — Starlight's
+   own default keeps everything on --sl-font (mono), which is right for
+   labels and code but not for a page's own H1/H2/H3. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: var(--serif);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
