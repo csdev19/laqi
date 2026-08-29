@@ -2,7 +2,22 @@
 @import '@fontsource/source-serif-4/600.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
 @import '@laqi/tokens/tokens.css';
+
+/* Every heading on this site (h1-h3, .card h3, and Starlight's own prose
+   headings below) uses --serif with no explicit font-weight, so it falls
+   back to the browser's default bold for heading elements — a weight
+   this site never actually loaded a real face for (400 and 600 are
+   imported, not 700). The browser fakes the missing weight by smearing
+   the outline (synthetic/faux bold), which is exactly the jagged,
+   "cut-off" look reported in review. Every heading below is pinned to
+   600 explicitly, the weight this site actually ships a real face for. */
+h1,
+h2,
+h3 {
+  font-weight: 600;
+}
 
 /* Starlight's own theme hooks — remapped onto our tokens so the docs
    section (/docs/*) reads as the same product as the landing page and

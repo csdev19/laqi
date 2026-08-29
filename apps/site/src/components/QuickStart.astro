@@ -1,10 +1,22 @@
 ---
 // apps/site/src/components/QuickStart.astro
+import { Code } from 'astro:components'
+// Astro's <Code> component only recognizes a theme *by name* if it was
+// pre-bundled at build time, and none was in this project (every named
+// preset — including the component's own documented default — fails
+// with "Theme X is not included in this bundle"). Importing the theme
+// object directly sidesteps that name-lookup path entirely.
+import vitesseDark from 'shiki/themes/vitesse-dark.mjs'
+
+// `as const` on each `lang` value, not the array as a whole: Astro's <Code>
+// wants a literal from its own CodeLanguage union, and without this each
+// object literal's `lang` widens to plain `string` during array inference.
 const steps = [
   {
     n: '01',
     title: 'Describe an endpoint',
     body: 'A JSON file in ./laqi/. One key per route, a named response for each state you care about.',
+    lang: 'json' as const,
     code: `{
   "GET /todos": {
     "default": "ok",
@@ -21,6 +33,7 @@ const steps = [
     n: '02',
     title: 'Start it',
     body: 'One command. The panel opens with it, and the folder is watched from then on.',
+    lang: 'shellsession' as const,
     code: `$ laqi start
 
 ⚡ laqi 2.0.0
@@ -32,6 +45,7 @@ watching  ./laqi/  7 endpoints`,
     n: '03',
     title: 'Point your app at it',
     body: 'Change one base URL. Everything else — states, errors, latency — now happens in the panel.',
+    lang: 'js' as const,
     code: `// .env.local
 VITE_API_URL=http://127.0.0.1:8000
 
@@ -51,7 +65,7 @@ fetch("/todos", {
         <p class="n">{step.n}</p>
         <h3>{step.title}</h3>
         <p class="body">{step.body}</p>
-        <pre><code>{step.code}</code></pre>
+        <Code code={step.code} lang={step.lang} theme={vitesseDark} class="step-code" />
       </div>
     ))}
   </div>
@@ -97,18 +111,18 @@ fetch("/todos", {
     font-size: 0.95rem;
     margin: 0 0 1rem;
   }
-  .step pre {
-    margin: 0;
-    padding: 1rem;
-    background: var(--panel);
+  /* Astro's <Code> component (Shiki) renders its own <pre>/<code> outside
+     this component's scoping boundary, and Shiki sets the background via
+     an inline style — `!important` is what it takes to override that with
+     our own token instead of the highlight theme's default background. */
+  :global(.step-code) {
+    margin: 0 !important;
+    padding: 1rem !important;
+    background: var(--panel) !important;
     border: 1px solid var(--line);
     border-radius: 6px;
     overflow-x: auto;
-  }
-  .step code {
     font-family: var(--mono);
     font-size: 0.8rem;
-    color: var(--fg);
-    white-space: pre;
   }
 </style>
