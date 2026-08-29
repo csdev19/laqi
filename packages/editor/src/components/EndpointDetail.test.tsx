@@ -119,6 +119,29 @@ describe('the draft survives an unrelated reload', () => {
   })
 })
 
+describe('serving a response', () => {
+  it('shows a primary "Serve this" action for a response that is not live, and calls onFlip', () => {
+    const { onFlip } = renderDetail(endpoint())
+
+    // `ok` is the default and starts live, so switch to `boom` first.
+    fireEvent.click(screen.getByRole('button', { name: /boom/i }))
+    const serve = screen.getByRole('button', { name: 'Serve this' })
+    fireEvent.click(serve)
+
+    expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: 'GET /users' }), 'boom')
+  })
+
+  it('renders the live response as a Serving state pill instead of a clickable button', () => {
+    renderDetail(endpoint())
+
+    // `ok` is the default, so it starts live/selected.
+    expect(screen.getByText('Serving')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /serve this/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^live now$/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^set live$/i })).toBeNull()
+  })
+})
+
 describe('renaming a response (no window.prompt)', () => {
   it('opens a dialog pre-filled with the current name, focused, instead of window.prompt', () => {
     const promptSpy = vi.spyOn(window, 'prompt')
