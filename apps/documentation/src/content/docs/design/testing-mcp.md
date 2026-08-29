@@ -39,8 +39,8 @@ exchange — nothing else may write there. `apps/cli/src/index.ts` sends its
 one startup line to stderr instead, with the reason next to the code:
 
 ```ts
-// stdout es el canal del protocolo MCP: nada puede escribir ahí salvo
-// el transport. El banner de arranque va a stderr.
+// stdout is the MCP protocol channel: nothing can write there except
+// the transport. The startup banner goes to stderr.
 console.error(`laqi mcp — serving ${root}`)
 ```
 

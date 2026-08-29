@@ -1,43 +1,43 @@
 ---
-title: Diseño del control panel
+title: Control panel design
 ---
 
-# Diseño del control panel
+# Control panel design
 
-Diseño de `packages/editor`, producido con Claude Design a partir del brief en
+Design of `packages/editor`, produced with Claude Design from the brief in
 [prompt-editor-web](/web-editor-prompt/).
 
-> **Antes de implementar, leer [review-vs-decisions](/design/review-vs-decisions/).**
-> Trece hallazgos, uno de ellos un agujero de seguridad bloqueante (`/__laqi`
-> quedaría expuesto por el túnel) y otro que ya cambió una decisión
+> **Before implementing, read [review-vs-decisions](/design/review-vs-decisions/).**
+> Thirteen findings, one of them a blocking security hole (`/__laqi` would be
+> exposed through the tunnel) and another that already changed a decision
 > ([ADR-0008](/decisions/0008-multifile-and-names/)).
 
-## Contenido
+## Contents
 
-| Archivo                                             | Qué contiene                                                    |
+| File                                                | What it contains                                                |
 | --------------------------------------------------- | --------------------------------------------------------------- |
-| [design](/design/design/)                           | Tokens, paleta, tipografía, layout, contratos de API            |
-| [screens](/design/screens/)                         | Qué hay en cada pantalla y región, y por qué                    |
-| [interactions](/design/interactions/)               | Inventario de elementos interactivos, estados y mapa de teclado |
-| [state-model](/design/state-model/)                 | Las cuatro capas de resolución y sus reglas de precedencia      |
-| [flows/](/design/flows/)                            | Un archivo por flujo (F1–F9): trigger, pasos, estados, fallos   |
-| [review-vs-decisions](/design/review-vs-decisions/) | La revisión contra los ADRs                                     |
+| [design](/design/design/)                           | Tokens, palette, typography, layout, API contracts              |
+| [screens](/design/screens/)                         | What's in each screen and region, and why                       |
+| [interactions](/design/interactions/)               | Inventory of interactive elements, states, and the keyboard map |
+| [state-model](/design/state-model/)                 | The four resolution layers and their precedence rules           |
+| [flows/](/design/flows/)                            | One file per flow (F1–F9): trigger, steps, states, failures     |
+| [review-vs-decisions](/design/review-vs-decisions/) | The review against the ADRs                                     |
 
-**Falta traer:** `Laqi Control Panel.dc.html`, el prototipo interactivo de
-referencia. Está en el proyecto de diseño y no se puede reconstruir desde acá —
-cópialo a esta carpeta cuando puedas, porque [design](/design/design/) lo cita
-como la fuente de los valores exactos.
+**Still needs to be brought over:** `Laqi Control Panel.dc.html`, the reference
+interactive prototype. It lives in the design project and can't be
+reconstructed from here — copy it into this folder when you can, because
+[design](/design/design/) cites it as the source of the exact values.
 
-## Correcciones ya conocidas
+## Corrections already known
 
-Los documentos están **verbatim como se entregaron**. Estas correcciones ya
-están decididas y hay que aplicarlas al implementar — no se editaron acá para
-que el registro de lo entregado quede intacto:
+The documents are **verbatim as delivered**. These corrections are already
+decided and need to be applied during implementation — they weren't edited
+here so the record of what was delivered stays intact:
 
-| Dónde                                       | Corrección                                                           | Origen                                           |
-| ------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
-| Header, banda de error, F6, F8, F9, SCREENS | `./mocks/` → `./laqi/`, `mocks/api.json` → `laqi/api.json`           | [ADR-0008](/decisions/0008-multifile-and-names/) |
-| Contratos de API                            | Todo `/__laqi/*` devuelve 404 por el túnel                           | H1                                               |
-| Contratos de API                            | Falta `DELETE /__laqi/api/endpoints/:id`                             | H8                                               |
-| Detalle, caja HEADERS                       | `x-laqi-resolved` sale de los headers editables, y lleva `(<layer>)` | H4                                               |
-| Banda de error                              | También para errores semánticos, no sólo de parseo                   | H5                                               |
+| Where                                     | Correction                                                                   | Source                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------ |
+| Header, error banner, F6, F8, F9, SCREENS | `./mocks/` → `./laqi/`, `mocks/api.json` → `laqi/api.json`                   | [ADR-0008](/decisions/0008-multifile-and-names/) |
+| API contracts                             | Every `/__laqi/*` returns 404 through the tunnel                             | H1                                               |
+| API contracts                             | Missing `DELETE /__laqi/api/endpoints/:id`                                   | H8                                               |
+| Detail, HEADERS box                       | `x-laqi-resolved` moves out of the editable headers, and carries `(<layer>)` | H4                                               |
+| Error banner                              | Also for semantic errors, not just parsing errors                            | H5                                               |

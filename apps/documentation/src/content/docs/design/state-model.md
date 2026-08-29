@@ -48,8 +48,8 @@ prints exactly that string, so the panel and the network tab never disagree.
 Colour alone never carries it: the word (`default` / `state` / `scenario`) is
 always present next to the colour, for colour-blind users and for screenshots.
 
-> **Corrección pendiente (H4)** — el prototipo muestra `"x-laqi-resolved": "ok"`
-> dentro de la caja de headers **editables** del detalle. Dos problemas: el valor
-> va sin la capa (rompe la promesa de "verbatim" del F3), y lo genera laqi, así
-> que no puede vivir en un campo que el usuario edita. Ver
+> **Pending correction (H4)** — the prototype shows `"x-laqi-resolved": "ok"`
+> inside the detail view's **editable** headers box. Two problems: the value
+> is missing the layer (breaking F3's "verbatim" promise), and it's generated
+> by laqi, so it can't live in a field the user edits. See
 > [review-vs-decisions.md](/design/review-vs-decisions/).

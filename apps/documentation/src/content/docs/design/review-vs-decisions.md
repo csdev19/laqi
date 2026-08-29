@@ -1,288 +1,293 @@
 ---
-title: Revisión del diseño contra las decisiones
+title: Design review against the decisions
 ---
 
-# Revisión del diseño contra las decisiones
+# Design review against the decisions
 
-**Fecha:** 2026-08-24
-**Revisado:** `DESIGN.md`, `SCREENS.md`, `INTERACTIONS.md`, `STATE-MODEL.md`,
-flujos F1–F9, y las siete capturas del prototipo.
+**Date:** 2026-08-24
+**Reviewed:** `DESIGN.md`, `SCREENS.md`, `INTERACTIONS.md`, `STATE-MODEL.md`,
+flows F1–F9, and the seven prototype screenshots.
 
-El diseño es sólido y coherente con casi todo lo decidido. Lo que sigue es lo
-que **no** cierra: un agujero de seguridad, una contradicción con el ADR-0003,
-una inconsistencia interna del propio diseño, y varios huecos menores.
+The design is solid and consistent with almost everything decided. What
+follows is what **doesn't** close: a security hole, a contradiction with
+ADR-0003, an internal inconsistency in the design itself, and several minor
+gaps.
 
 ---
 
-## Lo que confirma las decisiones
+## What confirms the decisions
 
-Vale la pena registrarlo porque valida los ADRs con una segunda cabeza:
+Worth recording, because it validates the ADRs with a second pair of eyes:
 
-- **El modelo de estado coincide exactamente** con
-  [resolución de estado](/concepts/state-resolution/): cuatro capas,
-  `state` gana sobre `scenario`, y `header` **nunca muta estado** — sólo aparece
-  en el log, nunca cambia un chip. Esa asimetría la dedujo el diseño por su
-  cuenta y es correcta.
-- **El control plane que define es la superficie del MCP.** `GET/PUT
+- **The state model matches exactly** what's in
+  [state resolution](/concepts/state-resolution/): four layers, `state`
+  beats `scenario`, and `header` **never mutates state** — it only shows up in
+  the log, never changes a chip. That asymmetry was worked out by the design on
+  its own, and it's correct.
+- **The control plane it defines is the MCP surface.** `GET/PUT
 /__laqi/api/state`, `GET/POST/PUT /__laqi/api/endpoints`, `GET
-/__laqi/api/scenarios` mapean casi 1:1 contra las herramientas del
-  [ADR-0006](/decisions/0006-mcp-server/). Confirma la tesis de que se
-  implementa una vez y se expone por tres superficies.
-- **`"GET /users"` como ID de endpoint** es exactamente el formato del
-  [ADR-0003](/decisions/0003-declarative-json/). Las capturas muestran
-  `GET /users` y `POST /users` como filas separadas: el hack `(get)` de v1 queda
-  enterrado.
-- **Compartir apagado por defecto, cada sesión, y token enmascarado** coincide
-  con el [ADR-0007](/decisions/0007-public-url/).
+/__laqi/api/scenarios` map almost 1:1 onto the tools from
+  [ADR-0006](/decisions/0006-mcp-server/). It confirms the thesis that it gets
+  implemented once and exposed through three surfaces.
+- **`"GET /users"` as the endpoint ID** is exactly the format from
+  [ADR-0003](/decisions/0003-declarative-json/). The screenshots show
+  `GET /users` and `POST /users` as separate rows: v1's `(get)` hack stays
+  buried.
+- **Sharing off by default, per session, with a masked token** matches
+  [ADR-0007](/decisions/0007-public-url/).
 
-Y una cosa que el diseño resolvió **mejor** de lo que estaba especificado — ver
-H3 abajo.
-
----
-
-## Hallazgos
-
-| #   | Hallazgo                                                   | Severidad                  |
-| --- | ---------------------------------------------------------- | -------------------------- |
-| H1  | El túnel expondría el control plane                        | **Bloqueante — seguridad** |
-| H2  | Vuelve la colisión entre archivos; contradice el ADR-0003  | **Alta — estructural**     |
-| H3  | Carga parcial vs fallo al arrancar (el diseño acierta)     | Alta — refina el ADR-0003  |
-| H4  | `X-Laqi-Resolved` inconsistente y editable por el usuario  | Media                      |
-| H5  | Los errores semánticos no tienen superficie                | Media                      |
-| H6  | El hot-reload no puede reiniciar el servidor               | Media — implementación     |
-| H7  | `/__laqi` es un prefijo reservado y no está declarado      | Media                      |
-| H8  | Falta `DELETE` de endpoint en el contrato                  | Baja                       |
-| H9  | El `curl` del detalle no contempla el modo compartido      | Baja                       |
-| H10 | Nombre de la carpeta: `mocks/` vs `laqi/`                  | Baja — decisión            |
-| H11 | Dos webfonts dentro de un binario que se instala con `npx` | Baja                       |
-| H12 | Props del prototipo sin hogar definitivo                   | Baja                       |
-| H13 | Inconsistencias del prototipo (estado fresh, log vacío)    | Cosmética                  |
+And one thing the design resolved **better** than it was specified — see H3
+below.
 
 ---
 
-### H1 — El túnel expondría el control plane · **bloqueante**
+## Findings
 
-F7 levanta una URL pública que apunta al servidor. El diseño **nunca dice que
-`/__laqi` deba quedar fuera del túnel.** Si el proxy pasa todo:
-
-- `PUT /__laqi/api/endpoints/:id` → cualquiera con la URL **reescribe tus
-  archivos de mock en tu disco**.
-- `GET /__laqi/api/status` → filtra la ruta local del proyecto.
-- `POST /__laqi/api/share` → un tercero controla el túnel.
-- El propio panel queda navegable desde internet.
-
-El [ADR-0007](/decisions/0007-public-url/) ya lo exige ("el editor web y
-el MCP no se exponen"), pero el diseño no lo encodea y es el tipo de cosa que se
-implementa mal por omisión.
-
-**Resolución:** el control plane se monta en un router aparte que sólo escucha
-en la interfaz local. Lo que sale por el túnel es exclusivamente la superficie
-de mocks; `/__laqi/*` devuelve 404 a través del relay — 404 y no 403, para no
-confirmar que existe. Debe haber un test que lo verifique.
-
-Además: el panel debería **decirlo** en la banda magenta. Una línea del tipo
-`mocks only — the panel is not exposed` convierte una garantía invisible en algo
-que el usuario ve.
+| #   | Finding                                                        | Severity                |
+| --- | -------------------------------------------------------------- | ----------------------- |
+| H1  | The tunnel would expose the control plane                      | **Blocking — security** |
+| H2  | Cross-file collision returns; contradicts ADR-0003             | **High — structural**   |
+| H3  | Partial load vs. failing on startup (the design gets it right) | High — refines ADR-0003 |
+| H4  | `X-Laqi-Resolved` is inconsistent and user-editable            | Medium                  |
+| H5  | Semantic errors have no surface                                | Medium                  |
+| H6  | Hot reload can't restart the server                            | Medium — implementation |
+| H7  | `/__laqi` is a reserved prefix and it's not declared           | Medium                  |
+| H8  | Endpoint `DELETE` is missing from the contract                 | Low                     |
+| H9  | The detail view's `curl` doesn't account for shared mode       | Low                     |
+| H10 | Folder name: `mocks/` vs `laqi/`                               | Low — decision          |
+| H11 | Two webfonts inside a binary installed with `npx`              | Low                     |
+| H12 | Prototype props with no permanent home                         | Low                     |
+| H13 | Prototype inconsistencies (fresh state, empty log)             | Cosmetic                |
 
 ---
 
-### H2 — Vuelve la colisión entre archivos · **alta**
+### H1 — The tunnel would expose the control plane · **blocking**
 
-El diseño asume una carpeta `mocks/` con **varios archivos** (`api.json`,
-`orders.json` — visibles en la banda de error y en F6), y cada archivo usa
-claves `"METHOD /path"`.
+F7 stands up a public URL that points at the server. The design **never says
+that `/__laqi` must stay outside the tunnel.** If the proxy passes everything
+through:
 
-Eso significa que `api.json` y `orders.json` pueden **ambos** definir
-`"GET /users"`. Es el defecto D de v1 volviendo por la puerta de atrás.
+- `PUT /__laqi/api/endpoints/:id` → anyone with the URL **rewrites your mock
+  files on your disk**.
+- `GET /__laqi/api/status` → leaks the project's local path.
+- `POST /__laqi/api/share` → a third party controls the tunnel.
+- The panel itself becomes browsable from the internet.
 
-El [ADR-0003](/decisions/0003-declarative-json/) lo había resuelto haciendo
-que el modo carpeta usara routing por filesystem (`laqi/users/[id].json`), donde
-la colisión es imposible por construcción.
+[ADR-0007](/decisions/0007-public-url/) already requires this ("the web editor
+and the MCP are not exposed"), but the design doesn't encode it, and this is
+exactly the kind of thing that gets implemented wrong by omission.
 
-**Recomendación: adoptar el modelo del diseño y resolver la colisión con
-validación, no con estructura.** Razones:
+**Resolution:** the control plane mounts on a separate router that only
+listens on the local interface. What goes out through the tunnel is
+exclusively the mocks surface; `/__laqi/*` returns 404 through the relay —
+404, not 403, so as not to confirm it exists. There must be a test that
+verifies this.
 
-1. Un solo formato de clave en todos lados es más simple que dos modos con
-   sintaxis distinta.
-2. **La banda de error ya existe** y maneja exactamente esta clase de problema.
-   Una colisión es un error de carga con archivo y línea, igual que un JSON roto.
-3. El routing por filesystem obliga a carpetas profundas
-   (`mocks/api/v1/users/[id]/orders/[orderId].json`) para APIs profundas.
-4. Cada endpoint ya lleva su `file` de origen en el contrato, así que el mensaje
-   de error puede nombrar los dos archivos en conflicto.
-5. El objetivo real del ADR-0003 era que **no hubiera colisiones silenciosas**.
-   La estructura era un medio; la validación logra lo mismo y es más flexible.
-
-Esto supera parte del ADR-0003 → **hace falta un ADR-0008**. Pendiente de tu
-aprobación antes de escribirlo.
+Also: the panel should **say so** in the magenta band. A line like
+`mocks only — the panel is not exposed` turns an invisible guarantee into
+something the user sees.
 
 ---
 
-### H3 — Carga parcial en vez de fallo al arrancar · el diseño acierta
+### H2 — Cross-file collision returns · **high**
 
-F8 dice: un archivo roto muestra la banda y **"el resto del mock se sigue
-sirviendo"**, con el contador en `26 (+1 file failed)`.
+The design assumes a `mocks/` folder with **several files** (`api.json`,
+`orders.json` — visible in the error band and in F6), and each file uses
+`"METHOD /path"` keys.
 
-Eso es **mejor** que lo que dejé escrito en
-[three-writers](/concepts/three-writers/), que dice "falla ruidosamente
-al arrancar" y se puede leer como _fail-fast_. Reiniciar todo el mock porque un
-archivo tiene una coma de más es hostil.
+That means `api.json` and `orders.json` can **both** define `"GET /users"`.
+It's v1's defect D coming back in through the back door.
 
-**Resolución:** la semántica correcta es **ruidoso pero no fatal, por archivo**.
-El cargador es tolerante a fallos a nivel de archivo; cada archivo que falla
-produce un error visible y retira sólo sus endpoints. Hay que corregir la
-redacción del concepto.
+[ADR-0003](/decisions/0003-declarative-json/) had resolved this by having
+folder mode use filesystem routing (`laqi/users/[id].json`), where the
+collision is impossible by construction.
 
----
+**Recommendation: adopt the design's model and resolve the collision with
+validation, not structure.** Reasons:
 
-### H4 — `X-Laqi-Resolved` inconsistente y editable
+1. One key format everywhere is simpler than two modes with different syntax.
+2. **The error band already exists** and handles exactly this class of
+   problem. A collision is a load error with a file and a line, same as a
+   broken JSON.
+3. Filesystem routing forces deep folders
+   (`mocks/api/v1/users/[id]/orders/[orderId].json`) for deep APIs.
+4. Every endpoint already carries its origin `file` in the contract, so the
+   error message can name both conflicting files.
+5. ADR-0003's actual goal was **no silent collisions**. Structure was a means;
+   validation achieves the same thing and is more flexible.
 
-Dos problemas en el mismo panel:
-
-1. **Formato.** `STATE-MODEL.md` dice que el valor es `<name> (<layer>)` y F3
-   dice que el log imprime ese string verbatim. Pero la captura del detalle
-   muestra `"x-laqi-resolved": "ok"` — sin la capa. Si el header no lleva la
-   capa, el log no puede imprimirla verbatim y se rompe la promesa de que el
-   panel es verificable contra el network tab.
-2. **Editabilidad.** Aparece dentro de la caja `HEADERS`, que es un campo que el
-   usuario edita. `x-laqi-resolved` lo **genera laqi**: no puede vivir ahí. Si
-   el usuario lo edita, miente. Si laqi lo sobreescribe, la edición se pierde en
-   silencio.
-
-**Resolución:** el header se emite siempre como `<name> (<layer>)`, se calcula en
-runtime, y la caja `HEADERS` sólo contiene los headers declarados por el usuario.
-Los headers generados por laqi se muestran aparte y en sólo lectura.
+This supersedes part of ADR-0003 → **an ADR-0008 is needed**. Pending your
+approval before writing it.
 
 ---
 
-### H5 — Los errores semánticos no tienen superficie
+### H3 — Partial load instead of failing on startup · the design gets it right
 
-F8 cubre errores de **parseo** de JSON. No cubre archivos que parsean bien pero
-son inválidos:
+F8 says: a broken file shows the band and **"the rest of the mock keeps being
+served"**, with the counter reading `26 (+1 file failed)`.
 
-- `default` apunta a una respuesta que no existe (el defecto C de v1, el que
-  colgaba la request)
-- método HTTP inválido (defecto G de v1)
-- ruta duplicada entre archivos (H2)
-- `status` fuera de rango, `delay` negativo
-- una ruta bajo el prefijo reservado `/__laqi` (H7)
+That's **better** than what I left written in
+[three-writers](/concepts/three-writers/), which says "fails loudly on
+startup" and can be read as _fail-fast_. Restarting the whole mock because one
+file has an extra comma is hostile.
 
-**Resolución:** la misma banda, con la misma anatomía (archivo, línea, causa en
-palabras, extracto). El diseño ya tiene el componente; sólo hay que alimentarlo
-con los errores de Zod además de los de `JSON.parse`.
-
----
-
-### H6 — El hot-reload no puede reiniciar el servidor
-
-En v1 cada cambio de archivo mataba el servidor y volvía a escuchar (defecto H).
-Con el panel abierto eso ahora **corta el SSE y deja la UI en blanco** en cada
-guardado.
-
-F5 pide "diff, don't remount" para la UI. Lo mismo tiene que valer del lado del
-servidor: **la tabla de rutas se reemplaza en caliente**, el proceso y el socket
-siguen vivos, y el cambio sale como evento `endpoints-changed`. Nunca un
-`listen()` nuevo.
-
-Es una restricción dura sobre `packages/core` y `packages/server`.
+**Resolution:** the correct semantics are **loud but not fatal, per file**.
+The loader is fault-tolerant at the file level; every file that fails
+produces a visible error and pulls out only its own endpoints. The concept's
+wording needs to be corrected.
 
 ---
 
-### H7 — `/__laqi` es un prefijo reservado
+### H4 — `X-Laqi-Resolved` is inconsistent and editable
 
-El panel, su API y el SSE viven bajo `/__laqi`. Eso significa que **el usuario no
-puede mockear nada bajo esa ruta**. No está declarado en ningún lado.
+Two problems in the same panel:
 
-**Resolución:** documentarlo, y que el validador rechace con mensaje claro
-cualquier endpoint que empiece con `/__laqi`. Ojo que es exactamente el tipo de
-cosa que rompe a alguien mockeando un backend real que use `__` como prefijo.
+1. **Format.** `STATE-MODEL.md` says the value is `<name> (<layer>)` and F3
+   says the log prints that string verbatim. But the detail screenshot shows
+   `"x-laqi-resolved": "ok"` — without the layer. If the header doesn't carry
+   the layer, the log can't print it verbatim, and the promise that the panel
+   is verifiable against the network tab breaks.
+2. **Editability.** It appears inside the `HEADERS` box, which is a field the
+   user edits. `x-laqi-resolved` is **generated by laqi**: it can't live
+   there. If the user edits it, it lies. If laqi overwrites it, the edit is
+   silently lost.
 
----
-
-### H8 — Falta borrar endpoints
-
-El contrato tiene `POST` y `PUT` de endpoints, y el detalle permite `Delete` de
-una **respuesta**. No hay forma de borrar un **endpoint**.
-
-**Resolución:** agregar `DELETE /__laqi/api/endpoints/:id` al contrato, y decidir
-si el panel lo expone (probablemente en el detalle, junto a la ruta) o si se
-borra sólo editando el archivo.
+**Resolution:** the header is always emitted as `<name> (<layer>)`, computed
+at runtime, and the `HEADERS` box only contains headers declared by the user.
+Headers generated by laqi are shown separately and read-only.
 
 ---
 
-### H9 — El `curl` del detalle ignora el modo compartido
+### H5 — Semantic errors have no surface
 
-F7 hace bien: `Copy curl` de la banda incluye `Authorization: Bearer <token>`.
-Pero el `curl` por respuesta de F5 es siempre
+F8 covers JSON **parsing** errors. It doesn't cover files that parse fine but
+are invalid:
+
+- `default` points to a response that doesn't exist (v1's defect C, the one
+  that hung the request)
+- invalid HTTP method (defect G in v1)
+- duplicate route across files (H2)
+- `status` out of range, negative `delay`
+- a route under the reserved `/__laqi` prefix (H7)
+
+**Resolution:** the same band, with the same anatomy (file, line, cause in
+words, excerpt). The design already has the component; it just needs to be
+fed Zod errors in addition to `JSON.parse` errors.
+
+---
+
+### H6 — Hot reload can't restart the server
+
+In v1, every file change killed the server and it went back to listening
+(defect H). With the panel open, that now **cuts the SSE and leaves the UI
+blank** on every save.
+
+F5 calls for "diff, don't remount" for the UI. The same has to hold on the
+server side: **the route table is swapped hot**, the process and the socket
+stay alive, and the change goes out as an `endpoints-changed` event. Never a
+new `listen()`.
+
+This is a hard constraint on `packages/core` and `packages/server`.
+
+---
+
+### H7 — `/__laqi` is a reserved prefix
+
+The panel, its API, and the SSE all live under `/__laqi`. That means **the
+user can't mock anything under that route.** It's not declared anywhere.
+
+**Resolution:** document it, and have the validator reject with a clear
+message any endpoint that starts with `/__laqi`. Note that this is exactly
+the kind of thing that breaks for someone mocking a real backend that uses
+`__` as a prefix.
+
+---
+
+### H8 — Deleting endpoints is missing
+
+The contract has `POST` and `PUT` for endpoints, and the detail view allows
+`Delete` on a **response**. There's no way to delete an **endpoint**.
+
+**Resolution:** add `DELETE /__laqi/api/endpoints/:id` to the contract, and
+decide whether the panel exposes it (probably in the detail view, next to the
+route) or whether it's deleted only by editing the file.
+
+---
+
+### H9 — The detail view's `curl` ignores shared mode
+
+F7 gets it right: `Copy curl` from the band includes
+`Authorization: Bearer <token>`. But the per-response `curl` in F5 is always
 `curl -H 'X-Laqi-Response: ok' localhost:8000/users`.
 
-Con el túnel activo, ese comando no sirve para probar desde otro dispositivo —
-que es justo cuando lo necesitas.
+With the tunnel active, that command is useless for testing from another
+device — which is exactly when you need it.
 
-**Resolución:** cuando compartir está activo, el `curl` del detalle usa la URL
-pública y el bearer. O muestra las dos variantes.
+**Resolution:** when sharing is active, the detail view's `curl` uses the
+public URL and the bearer token. Or it shows both variants.
 
 ---
 
 ### H10 — `mocks/` vs `laqi/`
 
-El diseño usa `./mocks/` y `mocks/api.json`. El
-[ADR-0003](/decisions/0003-declarative-json/) decía `laqi.json` o `laqi/`.
+The design uses `./mocks/` and `mocks/api.json`. [ADR-0003](/decisions/0003-declarative-json/) said
+`laqi.json` or `laqi/`.
 
-**Recomendación: quedarse con `mocks/`.** Le dice a alguien que abre el repo por
-primera vez qué hay dentro; `laqi/` sólo dice qué herramienta lo lee. El archivo
-único puede seguir siendo `laqi.json` en la raíz, o `mocks.json` por simetría —
-hay que elegir y que el ADR-0008 lo registre.
-
----
-
-### H11 — Dos webfonts dentro de un `npx`
-
-`Source Serif 4` + `JetBrains Mono` empaquetadas en un binario que se instala
-con `npx` es peso real, y el ADR-0005 pide mantener el bundle modesto.
-
-**Resolución:** subsetear a los glifos que se usan (el panel no necesita el juego
-completo), formato `woff2`, y una pila de fallback del sistema decente para que
-la primera pintura no dependa de la fuente. Nada de traerlas de Google Fonts en
-runtime: el panel tiene que funcionar sin internet.
+**Recommendation: keep `mocks/`.** It tells someone opening the repo for the
+first time what's inside; `laqi/` only says which tool reads it. The single
+file can still be `laqi.json` at the root, or `mocks.json` for symmetry — one
+needs to be chosen, and ADR-0008 should record it.
 
 ---
 
-### H12 — Props del prototipo sin hogar
+### H11 — Two webfonts inside an `npx`
 
-`density` y `showDescriptions` son preferencias reales; `accent` y `logRate` son
-sólo del prototipo.
+`Source Serif 4` + `JetBrains Mono` bundled into a binary that installs via
+`npx` is real weight, and ADR-0005 asks that the bundle stay modest.
 
-El diseño dice que los settings van en el archivo de config, no en una pantalla.
-Coherente. **Resolución:** `density` y `showDescriptions` a `laqi.config.json`;
-`accent` y `logRate` se descartan. Y la barra `PROTOTYPE STATES` no existe en
-`packages/editor` — el propio `SCREENS.md` ya lo dice.
+**Resolution:** subset to the glyphs actually used (the panel doesn't need
+the full character set), `woff2` format, and a decent system fallback stack
+so first paint doesn't depend on the font. No pulling them from Google Fonts
+at runtime: the panel has to work without internet.
 
 ---
 
-### H13 — Inconsistencias del prototipo
+### H12 — Prototype props with no home
 
-Cosméticas, pero conviene no copiarlas:
+`density` and `showDescriptions` are real preferences; `accent` and `logRate`
+are prototype-only.
 
-- **Fresh project** muestra los cinco escenarios con 0 endpoints cargados. Un
-  escenario referencia endpoints; con cero endpoints la tira debería estar vacía
-  o ausente.
-- **Log vacío** muestra `Resume` (o sea, pausado) mientras dice "Waiting for
-  requests…". Si está pausado no está esperando.
-- El log muestra `2221ms` para la respuesta `slow`, que está declarada con
+The design says settings belong in the config file, not in a screen.
+Consistent. **Resolution:** `density` and `showDescriptions` go into
+`laqi.config.json`; `accent` and `logRate` are dropped. And the
+`PROTOTYPE STATES` bar doesn't exist in `packages/editor` — `SCREENS.md`
+itself already says so.
+
+---
+
+### H13 — Prototype inconsistencies
+
+Cosmetic, but worth not copying:
+
+- **Fresh project** shows the five scenarios with 0 endpoints loaded. A
+  scenario references endpoints; with zero endpoints the strip should be
+  empty or absent.
+- **Empty log** shows `Resume` (i.e., paused) while saying "Waiting for
+  requests…". If it's paused, it isn't waiting.
+- The log shows `2221ms` for the `slow` response, which is declared with
   `delay: 3000`.
 
 ---
 
-## Preguntas abiertas
+## Open questions
 
-1. **H2** — ¿se adopta multi-archivo con claves `"METHOD /path"` + detección de
-   colisión, y se escribe el ADR-0008? Es la única que bloquea empezar.
-2. **H10** — ¿`mocks/` como nombre de carpeta? ¿Y el archivo único se llama
-   `laqi.json` o `mocks.json`?
-3. **H8** — ¿borrar endpoints desde el panel, o sólo editando el archivo?
-4. **Autoría de escenarios** — F4 la deja explícitamente fuera del panel ("viven
-   en el archivo de config"). Decisión razonable, pero entonces hay que definir
-   dónde sí: ¿sólo a mano, o también por MCP y CLI? Se inclina a que el MCP
-   tenga `create_scenario`, ya que el agente es quien mejor sabe qué endpoints
-   toca un escenario.
+1. **H2** — do we adopt multi-file with `"METHOD /path"` keys + collision
+   detection, and write ADR-0008? This is the only one that blocks starting.
+2. **H10** — `mocks/` as the folder name? And is the single file called
+   `laqi.json` or `mocks.json`?
+3. **H8** — delete endpoints from the panel, or only by editing the file?
+4. **Scenario authoring** — F4 explicitly leaves it out of the panel ("they
+   live in the config file"). A reasonable decision, but then it needs to be
+   defined where authoring does happen: only by hand, or also through MCP and
+   the CLI? Leaning toward the MCP having a `create_scenario`, since the
+   agent is best positioned to know which endpoints a scenario touches.

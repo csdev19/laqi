@@ -41,7 +41,7 @@ follows from that:
 --dim:     #8E88A8   /* secondary text        */
 --dim2:    #5C5678   /* labels, inactive      */
 
-/* accents — "cumbia amazónica" */
+/* accents — "Amazonian cumbia" */
 --vio:     #7A00FF   /* primary interactive, scenarios          */
 --viol:    #A366FF   /* violet on dark: POST, scenario layer     */
 --mag:     #FF00A0   /* state layer = "I changed this", sharing  */
@@ -191,9 +191,9 @@ GET    /__laqi/events               → SSE: request | endpoints-changed | error
 
 Latency is same-machine: paint optimistically, reconcile on the event.
 
-> **Correcciones pendientes** — ver [review-vs-decisions.md](/design/review-vs-decisions/):
-> falta `DELETE /__laqi/api/endpoints/:id` (H8), y **todo `/__laqi/*` debe
-> devolver 404 a través del túnel** (H1, bloqueante de seguridad).
+> **Pending corrections** — see [review-vs-decisions.md](/design/review-vs-decisions/):
+> `DELETE /__laqi/api/endpoints/:id` is missing (H8), and **every `/__laqi/*`
+> must return 404 through the tunnel** (H1, a blocking security issue).
 
 ---
 

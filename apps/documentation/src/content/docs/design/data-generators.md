@@ -85,7 +85,7 @@ parameter makes output reproducible — same seed, same data — which is also
 what makes the generator snapshot-testable. Default array length: 3,
 overridable per request.
 
-An own dictionary was rejected because "regenerate" would then produce the
+A hand-rolled dictionary was rejected because "regenerate" would then produce the
 same values forever — variety on regeneration is the point of faker.
 
 ### Type output: quicktype as the printer, via a JSON Schema bridge
