@@ -72,6 +72,33 @@ button {
   outline-offset: 2px;
 }
 
+/* La selección por defecto del navegador es texto oscuro sobre un highlight
+   claro: sobre --bg casi negro, invisible. Mismo par que .btn-primary:hover
+   (violeta de marca + blanco), así que no es un color nuevo, y el input/
+   textarea de abajo dejan explícito que también aplica ahí, que es donde se
+   notó. */
+::selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+::-moz-selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+input::selection,
+textarea::selection {
+  background: var(--vio);
+  color: #fff;
+}
+
+input::-moz-selection,
+textarea::-moz-selection {
+  background: var(--vio);
+  color: #fff;
+}
+
 .mono {
   font-family: var(--mono);
 }
