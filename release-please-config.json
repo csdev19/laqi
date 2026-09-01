@@ -5,11 +5,7 @@
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
-      "exclude-paths": [
-        "apps/documentation",
-        "apps/site",
-        "examples"
-      ],
+      "exclude-paths": ["apps/documentation", "apps/site", "examples"],
       "extra-files": [
         {
           "type": "json",
