@@ -4,6 +4,8 @@
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "check-types": { "dependsOn": ["^build"] },
-    "dev": { "cache": false, "persistent": true }
+    "dev": { "cache": false, "persistent": true },
+    "@laqi/editor#dev": { "cache": false, "persistent": true, "with": ["laqi#dev"] },
+    "@laqi/example-todo-app#dev": { "cache": false, "persistent": true, "with": ["laqi#dev"] }
   }
 }

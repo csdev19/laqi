@@ -7,6 +7,10 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'laqi',
+      logo: {
+        dark: './src/assets/icon.svg',
+        light: './src/assets/icon-light.svg',
+      },
       lastUpdated: true,
       defaultLocale: 'en',
       locales: {
@@ -17,6 +21,10 @@ export default defineConfig({
         {
           label: 'Start',
           items: [{ slug: 'index' }, { slug: 'trying-v2' }, { slug: 'the-name' }],
+        },
+        {
+          label: 'Product',
+          autogenerate: { directory: 'product' },
         },
         {
           label: 'Context',

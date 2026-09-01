@@ -19,6 +19,7 @@
   },
   "type": "module",
   "scripts": {
+    "dev": "turbo run dev",
     "lint": "oxlint",
     "format": "oxfmt --write .",
     "check": "bun run lint && bun run format",
