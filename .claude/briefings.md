@@ -12,15 +12,18 @@ relative to the repo root.
 
 ## Briefings in this repo
 
-| Briefing       | File                 | Notes                                          |
-| -------------- | -------------------- | ---------------------------------------------- |
-| index          | `index.md`           | one line per briefing, reader-first            |
-| pitch          | `pitch.md`           |                                                |
-| ai-briefing    | `ai-briefing.md`     | self-contained; carries a "current as of" date |
-| stack          | `stack.md`           | one table per layer, each row states the why   |
-| roadmap        | `roadmap.md`         | carries "Last reviewed"                        |
-| design brief   | `ai-design-brief.md` | self-contained; values mirror `tokens.css`     |
-| business brief | —                    | not created; founder not yet interviewed       |
+Canonical names on the left (what a scoped run is invoked with); this
+repo's filenames on the right.
+
+| Briefing         | File                 | Notes                                          |
+| ---------------- | -------------------- | ---------------------------------------------- |
+| `index`          | `index.md`           | one line per briefing, reader-first            |
+| `pitch`          | `pitch.md`           |                                                |
+| `ai-briefing`    | `ai-briefing.md`     | self-contained; carries a "current as of" date |
+| `stack`          | `stack.md`           | one table per layer, each row states the why   |
+| `roadmap`        | `roadmap.md`         | carries "Last reviewed"                        |
+| `design-brief`   | `ai-design-brief.md` | self-contained; values mirror `tokens.css`     |
+| `business-brief` | —                    | not created; founder not yet interviewed       |
 
 ## Sources of truth
 
