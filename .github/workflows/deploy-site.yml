@@ -24,6 +24,10 @@ jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
+    # The Cloudflare secrets live in the `production` environment, not at
+    # repo level — a job only sees an environment's secrets when it
+    # declares that environment (same reason release-please.yml does).
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
