@@ -63,5 +63,9 @@ jobs:
         # language selector). Absolute https://laqi.dev self-references
         # (canonical, og:image, llms.txt) are skipped — before the first
         # deploy the domain does not answer, and every one of them has a
-        # relative twin that this crawl does validate.
-        run: bunx --bun linkinator . --server-root apps/site/dist --recurse --silent --skip "^https://laqi\.dev"
+        # relative twin that this crawl does validate. The panel link on the
+        # quick start (127.0.0.1:8000) only answers on a reader's machine
+        # with laqi running — but the skip must name the port: linkinator's
+        # own static server also lives on 127.0.0.1, and a portless pattern
+        # skips the crawl's starting URL itself, "passing" with 0 links.
+        run: bunx --bun linkinator . --server-root apps/site/dist --recurse --silent --skip "^https://laqi\.dev" --skip "^http://127\.0\.0\.1:8000"
