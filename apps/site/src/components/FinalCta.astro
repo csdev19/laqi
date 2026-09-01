@@ -1,0 +1,78 @@
+---
+// apps/site/src/components/FinalCta.astro
+import InstallCommand from './InstallCommand.astro'
+---
+<section class="final-cta">
+  <h2>Build your first controllable API</h2>
+  <p class="lede">
+    A JSON file, one command, one base URL — and every state your
+    frontend needs to handle is a click away.
+  </p>
+  <div class="cta-row">
+    <a href="/docs/quick-start/" class="btn-primary">Quick start</a>
+    <a href="/docs/" class="btn-secondary">Read the docs</a>
+    <InstallCommand />
+  </div>
+  <p class="proof">
+    Plain JSON in your repo · runs on your machine · the panel stays
+    local — <code>--share</code> exposes only mock responses, never the
+    control plane.
+  </p>
+</section>
+
+<style>
+  .final-cta {
+    max-width: 56rem;
+    margin: 0 auto;
+    padding: 5rem 1.5rem;
+    text-align: center;
+    background: radial-gradient(ellipse at bottom, color-mix(in srgb, var(--vio) 10%, transparent), transparent 60%);
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4.5vw, 2.75rem);
+    color: var(--fg);
+    margin: 0 0 1rem;
+  }
+  .lede {
+    max-width: 38rem;
+    margin: 0 auto 2rem;
+    color: var(--dim);
+    font-size: 1.05rem;
+    line-height: 1.6;
+  }
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .btn-primary {
+    padding: 0.85rem 1.5rem;
+    background: var(--vio);
+    color: var(--fg);
+    border-radius: 6px;
+    text-decoration: none;
+    font-family: var(--mono);
+    font-weight: 600;
+  }
+  .btn-secondary {
+    padding: 0.85rem 1.5rem;
+    border: 1px solid var(--line2);
+    color: var(--fg);
+    border-radius: 6px;
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+  .proof {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--dim2);
+    margin: 0;
+  }
+  .proof code {
+    color: var(--dim);
+  }
+</style>

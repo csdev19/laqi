@@ -1,0 +1,13 @@
+{
+  "name": "laqi",
+  "short_name": "laqi",
+  "description": "Your backend isn't ready. Your frontend can be.",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#7a00ff",
+  "background_color": "#0b0a0f",
+  "display": "browser",
+  "start_url": "/"
+}

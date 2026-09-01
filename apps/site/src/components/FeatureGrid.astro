@@ -1,0 +1,92 @@
+---
+// apps/site/src/components/FeatureGrid.astro
+import DemoPlaceholder from './DemoPlaceholder.astro'
+
+const features = [
+  { kicker: 'one click', color: 'var(--mint)', title: 'Put one endpoint in any state', body: 'Make the next request succeed, fail, return empty data, or wait — without a rebuild or restart.' },
+  { kicker: 'scenarios', color: 'var(--vio)', title: 'Move the whole API together', body: 'Activate a named situation — logged out, checkout broken, offline — and change multiple endpoints in one move.' },
+  { kicker: 'live log', color: 'var(--mint)', title: 'See what your app actually requested', body: 'Every request is visible, including unmatched ones. Find out why a mock is not answering instead of guessing.' },
+  { kicker: 'latency', color: 'var(--mag)', title: 'Design slow states on purpose', body: 'Add delay to any response and test the loading experience users will actually see.' },
+  { kicker: 'plain files', color: 'var(--dim)', title: 'Keep the API contract in your repo', body: 'Mocks are ordinary JSON files: editable, reviewable, and shareable with the team.' },
+  { kicker: 'real HTTP', color: 'var(--warn)', title: 'Use it wherever HTTP reaches', body: 'Connect web, mobile, devices, curl, and other clients — not just an intercepted browser request.' },
+]
+---
+<section class="feature-grid">
+  <p class="eyebrow">what you get</p>
+  <h2>Built for the fifty times a day you ask "what if this fails?"</h2>
+  <div class="grid">
+    {features.map((f) => (
+      <div class="card">
+        <p class="kicker" style={`color: ${f.color}`}>{f.kicker}</p>
+        <h3>{f.title}</h3>
+        <p class="body">{f.body}</p>
+      </div>
+    ))}
+  </div>
+  <div class="demos">
+    <DemoPlaceholder caption="30-second demo poster — activate scenario 'checkout-broken': empty cart, payment error, visible delay — one click, several endpoints" />
+    <DemoPlaceholder caption="30-second demo poster — paste a TypeScript Order interface, generate seeded data, a working UI appears on localhost" />
+  </div>
+</section>
+
+<style>
+  .feature-grid {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 2rem;
+    color: var(--fg);
+    max-width: 40rem;
+    margin: 0 0 2.5rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 3rem;
+  }
+  .card {
+    padding: 1.5rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: lowercase;
+    margin: 0 0 0.75rem;
+  }
+  .card h3 {
+    font-family: var(--serif);
+    color: var(--fg);
+    margin: 0 0 0.5rem;
+  }
+  .card .body {
+    color: var(--dim);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .demos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 48rem) {
+    .demos {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

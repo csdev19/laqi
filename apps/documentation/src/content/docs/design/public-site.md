@@ -32,6 +32,15 @@ override anything below that says otherwise:
 4. **The new app hosts both the landing and the docs** — one Astro app,
    public, separate from `apps/documentation` (internal, never deployed).
 
+## Deploy target: Cloudflare Pages, not Workers
+
+§14 named Cloudflare Workers. This first slice ships a fully static
+build — no SSR, no edge functions, nothing the deferred transport
+extraction or live demo island would need. Cloudflare Pages is the
+standard target for a static Astro site: no runtime bundle, and its
+GitHub Actions deploy step is simpler than Wrangler's Workers path.
+Revisit Workers if a later slice adds a server-side requirement.
+
 ## Two decisions the spec left open are already settled
 
 **The npm name (§17.2).** The spec says to verify `laqi` is free before

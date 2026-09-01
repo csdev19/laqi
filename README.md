@@ -1,4 +1,7 @@
-# LAQI
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="assets/brand/logo-light.png">
+  <img src="assets/brand/logo.png" alt="laqi" width="320">
+</picture>
 
 ⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
 

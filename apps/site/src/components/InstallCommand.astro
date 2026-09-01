@@ -1,0 +1,52 @@
+---
+// apps/site/src/components/InstallCommand.astro
+---
+<div class="install-command">
+  <span class="prompt">$</span>
+  <code>npm i -g laqi@2</code>
+  <button type="button" class="copy" data-copy="npm i -g laqi@2">copy</button>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.install-command .copy')) {
+    button.addEventListener('click', () => {
+      const text = button.dataset.copy ?? ''
+      navigator.clipboard.writeText(text)
+      const original = button.textContent
+      button.textContent = 'copied'
+      setTimeout(() => {
+        button.textContent = original
+      }, 1500)
+    })
+  }
+</script>
+
+<style>
+  .install-command {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-family: var(--mono);
+  }
+  .prompt {
+    color: var(--dim);
+  }
+  code {
+    color: var(--fg);
+  }
+  .copy {
+    background: none;
+    border: none;
+    color: var(--mint);
+    font-family: var(--mono);
+    cursor: pointer;
+    padding: 0;
+  }
+  .copy:hover {
+    color: var(--palem);
+  }
+</style>

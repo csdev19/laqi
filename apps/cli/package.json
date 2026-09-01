@@ -30,6 +30,7 @@
     "access": "public"
   },
   "scripts": {
+    "dev": "bun src/index.ts --dir ../../examples/todo-app/laqi",
     "check-types": "tsc --noEmit -p .",
     "build": "tsdown"
   },

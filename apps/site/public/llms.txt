@@ -1,0 +1,49 @@
+# laqi
+
+> laqi is a local mock server with a control panel. Point your app at it
+> and put your API into any state — empty, slow, unauthorized, on fire —
+> without touching a line of code. Mocks are plain JSON files in your
+> repo; laqi serves them, watches them, and lets a person or an agent
+> flip which response is live with no restart.
+
+Install: `npm i -g laqi@2`. Run `laqi` (or `laqi start`) from a project
+with mock files — `laqi init` scaffolds one. The panel is at `/__laqi`
+on the port it serves (default 8000). Fastest path:
+[Quick start](https://laqi.dev/docs/quick-start/).
+
+## Core concepts
+
+- [Mock files](https://laqi.dev/docs/mock-files/): the JSON format —
+  one file (or folder) per project, `"METHOD /path"` keys, named
+  responses, scenarios that move several endpoints at once.
+- [Resolution layers](https://laqi.dev/docs/concepts/resolution-layers/):
+  the one concept that decides every response — header beats state beats
+  scenario beats default, always reported back in an `X-Laqi-Resolved`
+  header.
+
+## Features
+
+- [The control panel](https://laqi.dev/docs/panel/): flip a response in
+  one click, activate a scenario, watch the live request log, reach any
+  endpoint by name with `⌘K`, share a public URL with `laqi --share`.
+- [Realistic data and types](https://laqi.dev/docs/data-generators/):
+  paste a TypeScript model and get seeded fake data back (`email` fields
+  get emails, `createdAt` gets dates); derive types from a live response
+  in twenty-five languages, including TypeScript, Python, Go, Rust,
+  Swift, Kotlin, and Zod/Effect Schema validators.
+
+## For AI agents
+
+- [Using laqi with AI agents](https://laqi.dev/docs/ai-agents/): `laqi mcp`
+  runs a Model Context Protocol server over stdio with eleven typed
+  tools — `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
+  `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
+  `import_openapi`, `get_types`, `generate_data`. Prefer a tool call over
+  hand-writing a mock file.
+
+## More
+
+- [Quick start](https://laqi.dev/docs/quick-start/)
+- [Installation](https://laqi.dev/docs/installation/)
+- [GitHub](https://github.com/csdev19/laqi): source, issues, the full
+  README.

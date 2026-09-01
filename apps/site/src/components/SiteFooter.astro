@@ -1,0 +1,51 @@
+---
+// apps/site/src/components/SiteFooter.astro
+---
+<footer class="site-footer">
+  <a href="/" class="brand">
+    <img src="/logo.png" alt="laqi" height="28" />
+  </a>
+  <nav>
+    <a href="/docs/">Docs</a>
+    <a href="https://github.com/csdev19/laqi">GitHub</a>
+    <a href="/llms.txt" class="llms">For AI agents — llms.txt</a>
+  </nav>
+</footer>
+
+<style>
+  .site-footer {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    border-top: 1px solid var(--line);
+  }
+  .brand {
+    display: inline-block;
+    margin-bottom: 1.25rem;
+  }
+  .brand img {
+    height: 28px;
+    width: auto;
+    display: block;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  nav a {
+    color: var(--dim);
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--fg);
+  }
+  .llms {
+    color: var(--mint);
+  }
+  .llms:hover {
+    color: var(--palem);
+  }
+</style>
