@@ -1,5 +1,7 @@
 ---
 // apps/site/src/components/ResolutionLayers.astro
+// The order of these four layers is product truth — header beats state
+// beats scenario beats default. Do not reorder for layout reasons.
 const layers = [
   { name: 'header', color: 'var(--mint)', desc: 'X-Laqi-Response on one request', meta: 'changes nothing' },
   { name: 'state', color: 'var(--mag)', desc: 'you clicked a chip in the panel', meta: 'persists' },
@@ -9,15 +11,18 @@ const layers = [
 ---
 <section class="resolution-layers">
   <div class="prose">
-    <p class="eyebrow">the one concept</p>
-    <h2>Four layers decide every response</h2>
+    <p class="eyebrow">predictable by design</p>
+    <h2>Every response has an explanation.</h2>
     <p>
-      A per-request header beats a panel flip, which beats an active
-      scenario, which beats the file's default. laqi always tells you
-      which one won — in the panel, in the terminal, and in an
-      <code>X-Laqi-Resolved</code> header on every response.
+      A request header, a one-off panel choice, an active scenario, or
+      the file default: laqi resolves responses in a clear order and
+      tells you which layer won.
     </p>
-    <p>That is the whole mental model. There is nothing else to learn.</p>
+    <p>
+      You always know why a response won — the panel shows it, the
+      terminal logs it, and every response carries it in an
+      <code>X-Laqi-Resolved</code> header.
+    </p>
     <a href="/docs/concepts/resolution-layers/" class="link">Concepts → Resolution →</a>
   </div>
   <ol class="layers">
@@ -42,6 +47,11 @@ const layers = [
     margin: 0 auto;
     padding: 4rem 1.5rem;
     background: var(--panel2);
+  }
+  @media (max-width: 48rem) {
+    .resolution-layers {
+      grid-template-columns: 1fr;
+    }
   }
   .eyebrow {
     font-family: var(--mono);

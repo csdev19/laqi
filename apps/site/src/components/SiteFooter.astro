@@ -2,6 +2,9 @@
 // apps/site/src/components/SiteFooter.astro
 ---
 <footer class="site-footer">
+  <a href="/" class="brand">
+    <img src="/logo.png" alt="laqi" height="28" />
+  </a>
   <nav>
     <a href="/docs/">Docs</a>
     <a href="https://github.com/csdev19/laqi">GitHub</a>
@@ -15,6 +18,15 @@
     margin: 0 auto;
     padding: 2rem 1.5rem 4rem;
     border-top: 1px solid var(--line);
+  }
+  .brand {
+    display: inline-block;
+    margin-bottom: 1.25rem;
+  }
+  .brand img {
+    height: 28px;
+    width: auto;
+    display: block;
   }
   nav {
     display: flex;

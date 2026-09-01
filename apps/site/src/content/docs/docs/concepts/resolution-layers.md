@@ -1,7 +1,11 @@
 ---
 title: Resolution layers
-description: The four layers that decide every response.
+description: One predictable rule for every API state — the four layers that decide every response.
 ---
+
+**One predictable rule for every API state.** laqi does not just let you
+manipulate responses — it always makes clear why a response was the one
+that arrived.
 
 Every request laqi answers passes through four layers. The first one that
 has an opinion wins, and the winner is reported back to you in three

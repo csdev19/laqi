@@ -1,0 +1,153 @@
+---
+// apps/site/src/components/ForWhom.astro
+const audiences = [
+  {
+    label: 'frontend',
+    color: 'var(--vio)',
+    title: 'Ship the interface before the backend arrives',
+    body: 'Start from a JSON contract, an OpenAPI file, or a TypeScript model. Point your app at laqi and keep building while the real API is still in progress.',
+    proof: 'model → seeded data → local endpoint → working UI',
+  },
+  {
+    label: 'quality',
+    color: 'var(--mag)',
+    title: 'Make edge cases routine',
+    body: 'Force an empty state, a 401, a 500, or slow loading whenever you need it. Reproduce the state precisely instead of waiting for an unstable environment or lucky timing.',
+    proof: 'empty · slow · unauthorized · error',
+  },
+  {
+    label: 'agents',
+    color: 'var(--mint)',
+    title: 'Give coding agents an API they can control',
+    body: 'With MCP, an agent can create endpoints, generate data, import OpenAPI, and switch responses — while you see the result in a real frontend.',
+    proof: 'model / OpenAPI → agent → mock files → panel',
+  },
+]
+
+const compact = {
+  label: 'real HTTP',
+  color: 'var(--warn)',
+  title: 'Test beyond one browser tab',
+  body: 'Use the same mocks from a physical phone, another machine, React Native, or curl. laqi serves real HTTP responses.',
+}
+---
+<section class="for-whom">
+  <p class="eyebrow">for whom</p>
+  <h2>One local API. Different ways to move faster.</h2>
+  <p class="intro">
+    laqi is for the moments when an API is missing, unreliable,
+    inconvenient, or simply not behaving the way you need to test.
+  </p>
+  <div class="grid">
+    {audiences.map((a) => (
+      <div class="card">
+        <p class="label" style={`color: ${a.color}`}>{a.label}</p>
+        <h3>{a.title}</h3>
+        <p class="body">{a.body}</p>
+        <p class="proof">{a.proof}</p>
+      </div>
+    ))}
+  </div>
+  <div class="compact">
+    <p class="label" style={`color: ${compact.color}`}>{compact.label}</p>
+    <div>
+      <h3>{compact.title}</h3>
+      <p class="body">{compact.body}</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .for-whom {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--viol);
+    margin-bottom: 0.75rem;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 2.25rem;
+    color: var(--fg);
+    margin: 0 0 1rem;
+  }
+  .intro {
+    max-width: 44rem;
+    color: var(--dim);
+    line-height: 1.6;
+    margin: 0 0 2.5rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.75rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .label {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: lowercase;
+    margin: 0 0 0.75rem;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    color: var(--fg);
+    margin: 0 0 0.75rem;
+  }
+  .body {
+    color: var(--dim);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .card .body {
+    flex: 1;
+    margin-bottom: 1.25rem;
+  }
+  .proof {
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--dim2);
+  }
+  .compact {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 1.25rem 1.75rem;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .compact h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.35rem;
+  }
+  .compact .label {
+    margin: 0;
+    white-space: nowrap;
+  }
+  @media (max-width: 40rem) {
+    .compact {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+</style>

@@ -6,8 +6,10 @@
 > repo; laqi serves them, watches them, and lets a person or an agent
 > flip which response is live with no restart.
 
-Install: `npm i -g laqi`. Run `laqi start` from a project with mock
-files. The panel is at `/__laqi` on the port it serves.
+Install: `npm i -g laqi@2`. Run `laqi` (or `laqi start`) from a project
+with mock files — `laqi init` scaffolds one. The panel is at `/__laqi`
+on the port it serves (default 8000). Fastest path:
+[Quick start](https://laqi.dev/docs/quick-start/).
 
 ## Core concepts
 
@@ -41,6 +43,7 @@ files. The panel is at `/__laqi` on the port it serves.
 
 ## More
 
+- [Quick start](https://laqi.dev/docs/quick-start/)
 - [Installation](https://laqi.dev/docs/installation/)
 - [GitHub](https://github.com/csdev19/laqi): source, issues, the full
   README.

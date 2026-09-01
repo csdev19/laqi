@@ -1,6 +1,7 @@
 ---
 // apps/site/src/components/QuickStart.astro
 import { Code } from 'astro:components'
+import InstallCommand from './InstallCommand.astro'
 // Astro's <Code> component only recognizes a theme *by name* if it was
 // pre-bundled at build time, and none was in this project (every named
 // preset — including the component's own documented default — fails
@@ -11,27 +12,38 @@ import vitesseDark from 'shiki/themes/vitesse-dark.mjs'
 // `as const` on each `lang` value, not the array as a whole: Astro's <Code>
 // wants a literal from its own CodeLanguage union, and without this each
 // object literal's `lang` widens to plain `string` during array inference.
+//
+// The JSON sample must stay valid against packages/schema — `status` is
+// required on every response — and every line must fit an 18rem column
+// without horizontal scroll, so responses are formatted one field per line.
 const steps = [
   {
     n: '01',
-    title: 'Describe an endpoint',
-    body: 'A JSON file in ./laqi/. One key per route, a named response for each state you care about.',
+    title: 'Write the contract',
+    body: 'A JSON file in ./laqi/. One key per route, a named response for each state you care about. Add "delay": 2400 to any of them and you have built the slow state too.',
     lang: 'json' as const,
     code: `{
   "GET /todos": {
     "default": "ok",
     "responses": {
-      "ok": { "body": [{ "id": 1 }] },
-      "empty": { "body": [] },
-      "slow": { "delay": 2400, "body": [] },
-      "error": { "status": 500 }
+      "ok": {
+        "status": 200,
+        "body": [{ "id": 1 }]
+      },
+      "empty": {
+        "status": 200,
+        "body": []
+      },
+      "error": {
+        "status": 500
+      }
     }
   }
 }`,
   },
   {
     n: '02',
-    title: 'Start it',
+    title: 'Run it',
     body: 'One command. The panel opens with it, and the folder is watched from then on.',
     lang: 'shellsession' as const,
     code: `$ laqi start
@@ -51,14 +63,19 @@ VITE_API_URL=http://127.0.0.1:8000
 
 // or per-request, no state change:
 fetch("/todos", {
-  headers: { "X-Laqi-Response": "error" }
+  headers: {
+    "X-Laqi-Response": "error"
+  }
 })`,
   },
 ]
 ---
 <section class="quick-start">
   <p class="eyebrow">quick start</p>
-  <h2>Three steps, about a minute</h2>
+  <h2>Contract, run, point your app</h2>
+  <div class="install-row">
+    <InstallCommand />
+  </div>
   <div class="steps">
     {steps.map((step) => (
       <div class="step">
@@ -89,27 +106,31 @@ fetch("/todos", {
     font-family: var(--serif);
     font-size: 2.25rem;
     color: var(--fg);
-    margin: 0 0 2.5rem;
+    margin: 0 0 1.75rem;
+  }
+  .install-row {
+    margin-bottom: 3.5rem;
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-    gap: 2rem;
+    gap: 2.5rem;
   }
   .step .n {
     font-family: var(--mono);
     color: var(--vio);
     font-weight: 600;
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
   }
   .step h3 {
     color: var(--fg);
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.75rem;
   }
   .step .body {
     color: var(--dim);
     font-size: 0.95rem;
-    margin: 0 0 1rem;
+    line-height: 1.6;
+    margin: 0 0 1.25rem;
   }
   /* Astro's <Code> component (Shiki) renders its own <pre>/<code> outside
      this component's scoping boundary, and Shiki sets the background via
