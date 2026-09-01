@@ -36,9 +36,13 @@ jobs:
       - name: Build
         run: bun run build --filter=@laqi/site
 
-      - name: Deploy to Cloudflare Pages
+      # Workers static assets, not Pages: apps/site/wrangler.jsonc holds the
+      # whole deployment shape — including the laqi.dev custom domain, which
+      # Pages could only bind from the dashboard.
+      - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/site/dist --project-name=laqi-dev
+          workingDirectory: apps/site
+          command: deploy

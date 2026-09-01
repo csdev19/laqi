@@ -1,0 +1,29 @@
+// Cloudflare Workers config for laqi.dev — the Astro site deployed as
+// static assets (the modern replacement for Cloudflare Pages; Pages
+// cannot bind a custom domain from config, Workers can).
+//
+// First deploy from a fresh Cloudflare account needs two things set up
+// once: the laqi.dev zone added to the account, and an API token with
+// "Edit Cloudflare Workers" permissions (plus the account id) stored as
+// CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID repo secrets for CI.
+// The custom_domain routes below then create their own DNS records on
+// the first deploy — no manual DNS step.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "laqi-dev",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    // Astro's build output. `404-page` serves Astro's own dist/404.html
+    // for unknown paths instead of a bare Workers 404.
+    "directory": "./dist",
+    "not_found_handling": "404-page",
+  },
+  // The site answers only on the real domain — no *.workers.dev twin
+  // competing with it in search results.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "laqi.dev", "custom_domain": true },
+    { "pattern": "www.laqi.dev", "custom_domain": true },
+  ],
+}

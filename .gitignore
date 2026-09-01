@@ -9,3 +9,7 @@ dist
 # Generated directories below must be listed here to prevent oxfmt from reformatting them.
 .astro/
 .tanstack/
+
+# local scratch, never published
+workspace-temp/
+.DS_Store
