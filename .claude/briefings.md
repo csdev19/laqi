@@ -12,28 +12,28 @@ relative to the repo root.
 
 ## Briefings in this repo
 
-| Briefing | File | Notes |
-| --- | --- | --- |
-| index | `index.md` | one line per briefing, reader-first |
-| pitch | `pitch.md` | |
-| ai-briefing | `ai-briefing.md` | self-contained; carries a "current as of" date |
-| stack | `stack.md` | one table per layer, each row states the why |
-| roadmap | `roadmap.md` | carries "Last reviewed" |
-| design brief | `ai-design-brief.md` | self-contained; values mirror `tokens.css` |
-| business brief | — | not created; founder not yet interviewed |
+| Briefing       | File                 | Notes                                          |
+| -------------- | -------------------- | ---------------------------------------------- |
+| index          | `index.md`           | one line per briefing, reader-first            |
+| pitch          | `pitch.md`           |                                                |
+| ai-briefing    | `ai-briefing.md`     | self-contained; carries a "current as of" date |
+| stack          | `stack.md`           | one table per layer, each row states the why   |
+| roadmap        | `roadmap.md`         | carries "Last reviewed"                        |
+| design brief   | `ai-design-brief.md` | self-contained; values mirror `tokens.css`     |
+| business brief | —                    | not created; founder not yet interviewed       |
 
 ## Sources of truth
 
-| For | Read |
-| --- | --- |
-| shipped / in flight | `gh pr list --state merged --limit 100`, `gh pr list --state open` |
-| CLI commands and flags | `apps/cli/src/index.ts` (the usage block is authoritative) |
-| mock file format | `packages/schema/src/` (`response.ts`, `endpoint.ts`, `config.ts`) |
-| MCP tools | `packages/mcp/src/server.ts` |
-| stack | every `package.json` under `apps/` and `packages/` + `apps/documentation/src/content/docs/decisions/` |
-| design values | `packages/tokens/src/tokens.css` (authoritative), `apps/documentation/src/content/docs/design/design.md`, `assets/brand/README.md` |
-| site copy / positioning | `apps/site/src/components/`, `apps/site/public/llms.txt` |
-| published version | `npm view laqi version` vs `apps/cli/package.json` |
+| For                     | Read                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| shipped / in flight     | `gh pr list --state merged --limit 100`, `gh pr list --state open`                                                                 |
+| CLI commands and flags  | `apps/cli/src/index.ts` (the usage block is authoritative)                                                                         |
+| mock file format        | `packages/schema/src/` (`response.ts`, `endpoint.ts`, `config.ts`)                                                                 |
+| MCP tools               | `packages/mcp/src/server.ts`                                                                                                       |
+| stack                   | every `package.json` under `apps/` and `packages/` + `apps/documentation/src/content/docs/decisions/`                              |
+| design values           | `packages/tokens/src/tokens.css` (authoritative), `apps/documentation/src/content/docs/design/design.md`, `assets/brand/README.md` |
+| site copy / positioning | `apps/site/src/components/`, `apps/site/public/llms.txt`                                                                           |
+| published version       | `npm view laqi version` vs `apps/cli/package.json`                                                                                 |
 
 ## Repo rules
 
