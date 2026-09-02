@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseTypes } from './parse-types'
+import { MAX_SOURCE_LENGTH, parseTypes } from './parse-types'
 import { primitive, type Shape } from './shape'
 
 /** The MGM-style fixture: extends, Pick & intersection, absent import. */
@@ -213,5 +213,66 @@ describe('parseTypes', () => {
     const shape = result.shape as Shape & { kind: 'object' }
     expect(shape.fields.map((f) => f.name)).toEqual(['id'])
     expect(result.warnings.some((w) => w.includes('Loose') && w.includes('index'))).toBe(true)
+  })
+})
+
+describe('parseTypes syntax rejection', () => {
+  it('rejects an interface whose closing brace is missing instead of parsing the recovered AST', async () => {
+    const result = await parseTypes('export interface User { name: string', 'User')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a failure')
+    expect(result.error).toMatch(/syntax/i)
+  })
+
+  it('rejects source containing invalid tokens', async () => {
+    const result = await parseTypes('export interface User { name: string } @@@', 'User')
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects a type alias truncated mid-union', async () => {
+    const result = await parseTypes("export type Tag = 'a' |", 'Tag')
+    expect(result.ok).toBe(false)
+  })
+
+  it('reports the line of the first syntax error so the caller can locate it', async () => {
+    const result = await parseTypes(
+      'export interface A { a: string }\nexport interface B { b:',
+      'A',
+    )
+    if (result.ok) throw new Error('expected a failure')
+    expect(result.error).toContain('line 2')
+  })
+
+  it('still accepts source whose only problem is a semantic one, such as an absent import', async () => {
+    const result = await parseTypes(
+      "import { Money } from '@absent/pkg'\nexport interface Wallet { balance: Money }",
+      'Wallet',
+    )
+    expect(result.ok).toBe(true)
+  })
+})
+
+describe('parseTypes input budget', () => {
+  it('refuses source past the size limit instead of handing it to the compiler', async () => {
+    const huge = `export interface Big {\n${'  a: string\n'.repeat(60_000)}}`
+    expect(huge.length).toBeGreaterThan(MAX_SOURCE_LENGTH)
+
+    const result = await parseTypes(huge, 'Big')
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected a failure')
+    expect(result.error).toContain(String(MAX_SOURCE_LENGTH))
+  })
+
+  it('accepts source right up to the size limit', async () => {
+    const head = 'export interface Big {\n'
+    const field = '  a: string\n'
+    const tail = '}'
+    const filler = '  // pad\n'
+    const room = MAX_SOURCE_LENGTH - head.length - field.length - tail.length
+    const source = `${head}${filler.repeat(Math.floor(room / filler.length))}${field}${tail}`
+    expect(source.length).toBeLessThanOrEqual(MAX_SOURCE_LENGTH)
+
+    const result = await parseTypes(source, 'Big')
+    expect(result.ok).toBe(true)
   })
 })

@@ -445,3 +445,38 @@ describe('field-name heuristics — known gap', () => {
     expect(ruleFor('itemCount', 'number')).toBe('quantity')
   })
 })
+
+describe('generate rejects a shape it cannot honour', () => {
+  it('refuses an empty literal union instead of producing undefined', async () => {
+    await expect(generate({ kind: 'literals', values: [] })).rejects.toThrow(/literals/)
+  })
+
+  it('refuses a shape kind it does not know, naming it', async () => {
+    await expect(generate({ kind: 'enum', values: ['a'] } as never)).rejects.toThrow(/enum/)
+  })
+
+  it('refuses an invalid shape nested inside a valid one, naming its path', async () => {
+    const shape = {
+      kind: 'object',
+      fields: [{ name: 'status', shape: { kind: 'literals', values: [] }, optional: false }],
+    } as never
+
+    await expect(generate(shape)).rejects.toThrow(/status/)
+  })
+
+  it('still generates from every valid shape kind', async () => {
+    const value = (await generate(
+      {
+        kind: 'object',
+        fields: [
+          { name: 'id', shape: primitive('integer'), optional: false },
+          { name: 'state', shape: { kind: 'literals', values: ['on', 'off'] }, optional: false },
+          { name: 'meta', shape: { kind: 'record', values: primitive('string') }, optional: false },
+        ],
+      },
+      { seed: 1 },
+    )) as Record<string, unknown>
+
+    expect(JSON.parse(JSON.stringify(value))).toEqual(value)
+  })
+})

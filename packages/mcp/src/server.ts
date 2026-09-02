@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { ResponseSchema, type EndpointDefinition, type LaqiConfig } from '@laqi/schema'
 import { z } from 'zod'
+import { MAX_SOURCE_LENGTH } from '@laqi/generate'
 import { importOpenapi } from './openapi'
 import { Project, type ProjectResult } from '@laqi/core'
 
@@ -291,7 +292,14 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       description:
         'Use this for a realistic body — an array of users, a paginated list — instead of hand-writing fake values: generate from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
       inputSchema: {
-        model: z.string().optional().describe('TypeScript source containing the interface/type'),
+        // Declared here as well as enforced inside parseTypes, so the limit
+        // is part of the advertised schema: an agent reads it before
+        // streaming a whole file down the pipe, instead of after.
+        model: z
+          .string()
+          .max(MAX_SOURCE_LENGTH)
+          .optional()
+          .describe('TypeScript source containing the interface/type'),
         typeName: z
           .string()
           .optional()

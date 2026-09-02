@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import { GenerateError } from './errors'
-import type { PrimitiveType, Shape } from './shape'
+import { validateShape, type PrimitiveType, type Shape } from './shape'
 
 /** Fixed reference date: with a seed, output must be byte-reproducible. */
 const REF_DATE = '2026-01-01T00:00:00.000Z'
@@ -241,6 +241,16 @@ export const generateEffect = (
   options: { seed?: number; arrayLength?: number } = {},
 ): Effect.Effect<unknown, GenerateError> =>
   Effect.gen(function* () {
+    // `Shape` is a compile-time union only. This is the last boundary
+    // before values are produced, and the contract downstream is plain
+    // JSON — so the shape is checked for real here rather than trusted.
+    // A JS consumer, a future JSON boundary, or a hand-built shape would
+    // otherwise reach faker and fail opaquely (an empty literal union) or
+    // silently (an unrecognised kind, which falls off the switch as
+    // `undefined`).
+    const invalid = validateShape(shape)
+    if (invalid) return yield* Effect.fail(new GenerateError({ message: invalid }))
+
     const { Faker, en } = yield* Effect.tryPromise({
       try: () => import('@faker-js/faker'),
       catch: (e) => new GenerateError({ message: String(e) }),

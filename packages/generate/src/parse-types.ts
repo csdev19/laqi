@@ -10,6 +10,20 @@ const VIRTUAL_FILE = '__laqi_pasted__.ts'
 const MAX_DEPTH = 10
 
 /**
+ * Ceiling on the pasted source handed to the compiler. `createProgram` plus
+ * a full checker walk is superlinear in source size, and this runs on the
+ * same single thread as the mock server — a multi-megabyte paste (or an
+ * agent looping a file into `generate_data`) would stall every other
+ * request. 200k characters is far past any hand-pasted model (a large API
+ * model file is tens of KB) and cheap to reject before the 23 MB compiler
+ * is even loaded.
+ */
+export const MAX_SOURCE_LENGTH = 200_000
+
+/** The readable half of an unknown thrown value, for a user-facing message. */
+const reason = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause))
+
+/**
  * Pasted TS source → Shape, using the real TypeScript checker.
  *
  * The real compiler and not a hand-rolled parser, on purpose: real-world
@@ -25,7 +39,21 @@ export const parseTypesEffect = (
   typeName?: string,
 ): Effect.Effect<{ shape: Shape; typeName: string; warnings: string[] }, ParseError> =>
   Effect.gen(function* () {
-    const ts = yield* Effect.promise(() => import('typescript').then((m) => m.default))
+    if (source.length > MAX_SOURCE_LENGTH) {
+      return yield* Effect.fail(
+        new ParseError({
+          message:
+            `the pasted source is ${source.length} characters; ` +
+            `the limit is ${MAX_SOURCE_LENGTH} — paste just the model you want to generate`,
+        }),
+      )
+    }
+
+    const ts = yield* Effect.tryPromise({
+      try: () => import('typescript').then((m) => m.default),
+      catch: (cause) =>
+        new ParseError({ message: `could not load the TypeScript compiler: ${reason(cause)}` }),
+    })
 
     const options: import('typescript').CompilerOptions = {
       strict: true,
@@ -52,6 +80,23 @@ export const parseTypesEffect = (
     const file = program.getSourceFile(VIRTUAL_FILE)
     if (!file)
       return yield* Effect.fail(new ParseError({ message: 'could not parse the pasted source' }))
+
+    // Syntactic diagnostics only, and BEFORE any declaration is inspected.
+    // The compiler recovers an AST from broken source — a truncated
+    // interface still yields declarations — so without this a corrupt or
+    // half-pasted model would silently generate mocks from whatever the
+    // recovery happened to salvage. Semantic diagnostics are deliberately
+    // NOT consulted: an import we cannot resolve is the normal case here
+    // and degrades to `unknown` plus a warning further down.
+    const syntaxErrors = program.getSyntacticDiagnostics(file)
+    const firstSyntaxError = syntaxErrors[0]
+    if (firstSyntaxError) {
+      const { line } = file.getLineAndCharacterOfPosition(firstSyntaxError.start ?? 0)
+      const detail = ts.flattenDiagnosticMessageText(firstSyntaxError.messageText, ' ')
+      return yield* Effect.fail(
+        new ParseError({ message: `syntax error at line ${line + 1}: ${detail}` }),
+      )
+    }
 
     type Declaration =
       | import('typescript').InterfaceDeclaration
@@ -202,7 +247,21 @@ export const parseTypesEffect = (
     const rootType = checker.getTypeAtLocation(target.name)
     const shape = toShape(rootType, target.name.text, 0)
     return { shape, typeName: target.name.text, warnings }
-  })
+  }).pipe(
+    // Everything between the import and the returned shape is plain
+    // synchronous compiler work: `createProgram`, the checker, and the
+    // `toShape` recursion. A throw from any of it is an Effect *defect* —
+    // invisible to `catchTag('ParseError')` and surfacing to the caller as
+    // a raw FiberFailure, which would make the declared `ParseError` error
+    // channel a lie. Failing to parse is exactly what this function is for,
+    // so a defect here is converted into the one error it is allowed to
+    // have rather than left to escape.
+    Effect.catchAllDefect((defect) =>
+      Effect.fail(
+        new ParseError({ message: `could not parse the pasted source: ${reason(defect)}` }),
+      ),
+    ),
+  )
 
 /**
  * Promise facade preserving today's exact contract: `{ok:true,...}` on
