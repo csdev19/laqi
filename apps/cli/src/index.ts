@@ -8,6 +8,7 @@ import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
 import { paint, renderFailure, row, startScreen, type Failure } from '@laqi/tui'
 import { renderGoodbye } from './goodbye'
+import { CLI_ARGS_CONFIG } from './cli-surface'
 import { runInit } from './init/run'
 import { runMigrate } from './migrate'
 import { laqiVersion, outputLevel } from './output'
@@ -109,20 +110,7 @@ async function main(): Promise<void> {
     return
   }
 
-  const argsConfig = {
-    allowPositionals: true,
-    options: {
-      port: { type: 'string' },
-      host: { type: 'string' },
-      dir: { type: 'string' },
-      file: { type: 'string' },
-      share: { type: 'boolean' },
-      public: { type: 'boolean' },
-      'share-port': { type: 'string' },
-      'dry-run': { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-    },
-  } as const
+  const argsConfig = CLI_ARGS_CONFIG
 
   // parseArgs throws — a raw TypeError — on an unknown flag. Left uncaught,
   // that fell through to main().catch() below and read as `laqi crashed`
