@@ -2,7 +2,6 @@
 
 ## [0.1.0](https://github.com/csdev19/laqi/compare/site-v0.0.1...site-v0.1.0) (2026-09-01)
 
-
 ### Features
 
-* **site:** laqi.dev — public landing page and docs, first slice ([#33](https://github.com/csdev19/laqi/issues/33)) ([937a1ec](https://github.com/csdev19/laqi/commit/937a1ec7e675fb8c204b43cb6547b2ccd34ffd1d))
+- **site:** laqi.dev — public landing page and docs, first slice ([#33](https://github.com/csdev19/laqi/issues/33)) ([937a1ec](https://github.com/csdev19/laqi/commit/937a1ec7e675fb8c204b43cb6547b2ccd34ffd1d))
