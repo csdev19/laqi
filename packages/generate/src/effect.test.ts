@@ -2,6 +2,8 @@ import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { generate, generateEffect } from './generate'
 import { parseTypes, parseTypesEffect } from './parse-types'
+import { TypeScriptCompilerLive } from './services/compiler'
+import { FakerFactoryLive } from './services/faker'
 import type { Shape } from './shape'
 import { primitive } from './shape'
 
@@ -18,7 +20,9 @@ const user: Shape = {
 
 describe('parseTypesEffect', () => {
   it('succeeds on a valid interface', async () => {
-    const result = await Effect.runPromise(parseTypesEffect(VALID_SOURCE))
+    const result = await Effect.runPromise(
+      parseTypesEffect(VALID_SOURCE).pipe(Effect.provide(TypeScriptCompilerLive)),
+    )
     expect(result.shape.kind).toBe('object')
     expect(result.typeName).toBe('User')
     expect(result.warnings).toEqual([])
@@ -27,6 +31,7 @@ describe('parseTypesEffect', () => {
   it('fails with a tagged error catchable via catchTag', async () => {
     const caught = await Effect.runPromise(
       parseTypesEffect(INVALID_SOURCE).pipe(
+        Effect.provide(TypeScriptCompilerLive),
         Effect.catchTag('ParseError', (e) => Effect.succeed(`caught: ${e.message}`)),
       ),
     )
@@ -34,9 +39,11 @@ describe('parseTypesEffect', () => {
   })
 
   it('rejects the raw promise with the typed error message when uncaught', async () => {
-    await expect(Effect.runPromise(parseTypesEffect(INVALID_SOURCE))).rejects.toThrow(
-      /no interface/,
-    )
+    await expect(
+      Effect.runPromise(
+        parseTypesEffect(INVALID_SOURCE).pipe(Effect.provide(TypeScriptCompilerLive)),
+      ),
+    ).rejects.toThrow(/no interface/)
   })
 
   it('facade equivalence: parseTypes matches the hand-built {ok,...} mapping for good and bad sources', async () => {
@@ -44,6 +51,7 @@ describe('parseTypesEffect', () => {
       const facadeResult = await parseTypes(source)
       const handBuilt = await Effect.runPromise(
         parseTypesEffect(source).pipe(
+          Effect.provide(TypeScriptCompilerLive),
           Effect.map((value) => ({ ok: true as const, ...value })),
           Effect.catchTag('ParseError', (e) =>
             Effect.succeed({ ok: false as const, error: e.message }),
@@ -57,8 +65,10 @@ describe('parseTypesEffect', () => {
 
 describe('generateEffect', () => {
   it('is byte-reproducible under a seed through the Effect program', async () => {
-    const a = await Effect.runPromise(generateEffect(user, { seed: 42 }))
-    const b = await Effect.runPromise(generateEffect(user, { seed: 42 }))
+    const run = () =>
+      Effect.runPromise(generateEffect(user, { seed: 42 }).pipe(Effect.provide(FakerFactoryLive)))
+    const a = await run()
+    const b = await run()
     expect(a).toEqual(b)
   })
 

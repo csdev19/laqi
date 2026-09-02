@@ -31,6 +31,9 @@ and ends with the single question whose answer changes the outcome.
 - [Effect adoption](/adversarial/effect-adoption/) — how far Effect should reach
   across the monorepo, what each level of reach buys, and what a project that
   installs the CLI would feel.
+- [Effect migration handoff](/adversarial/effect-migration-handoff/) — the Level 1
+  implementation slices, lazy-loading constraint, and review notes for the active
+  migration.
 
 Once an analysis here produces a decision, the decision moves to an
 [ADR](/decisions/) and the standing rules move to

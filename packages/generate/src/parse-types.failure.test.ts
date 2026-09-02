@@ -1,66 +1,70 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Effect, Layer } from 'effect'
+import { describe, expect, it } from 'vitest'
+import { DependencyLoadError } from './errors'
+import { parseTypesEffect } from './parse-types'
+import { TypeScriptCompiler } from './services/compiler'
 
 /**
- * The compiler is loaded through a dynamic `import('typescript')`, and the
- * whole checker walk that follows is plain synchronous JavaScript. Neither
- * is covered by the `ParseError` channel unless it is explicitly wired
- * there — a rejected import or a throwing checker would otherwise escape
- * as an Effect defect, invisible to `catchTag('ParseError')` and surfacing
- * to the caller as a raw FiberFailure. These tests pin that down.
+ * The compiler is a service, and everything it does afterwards is plain
+ * synchronous JavaScript. Neither is covered by the `ParseError` channel
+ * unless it is explicitly wired there — a failed load or a throwing checker
+ * would otherwise escape as an Effect defect, invisible to
+ * `catchTag('ParseError')` and surfacing as a raw FiberFailure.
+ *
+ * These used to mock the Node module loader with `vi.doMock`, which meant
+ * the tests exercised vitest's interception rather than the package's own
+ * seams. A test layer says the same thing with none of that.
  */
-afterEach(() => {
-  vi.doUnmock('typescript')
-  vi.resetModules()
-})
+const compilerThatFailsToLoad = Layer.succeed(
+  TypeScriptCompiler,
+  Effect.fail(new DependencyLoadError({ dependency: 'typescript', message: 'ENOENT' })),
+)
+
+/** The real compiler with one function replaced by a throw. */
+const compilerThrowingFrom = (method: 'createProgram' | 'createSourceFile') =>
+  Layer.effect(
+    TypeScriptCompiler,
+    Effect.cached(
+      Effect.promise(async () => {
+        const actual = (await import('typescript')).default
+        return {
+          ...actual,
+          [method]: () => {
+            throw new Error(`${method} exploded`)
+          },
+        } as typeof actual
+      }),
+    ),
+  )
+
+const messageOf = (layer: Layer.Layer<TypeScriptCompiler>) =>
+  Effect.runPromise(
+    parseTypesEffect('export interface User { name: string }', 'User').pipe(
+      Effect.provide(layer),
+      Effect.catchTag('ParseError', (e) => Effect.succeed(e.message)),
+    ),
+  )
 
 describe('parseTypes when the compiler itself fails', () => {
-  it('reports a failed compiler import as a parse failure, not a rejected promise', async () => {
-    vi.doMock('typescript', () => {
-      throw new Error('cannot find module typescript')
-    })
-    vi.resetModules()
-    const { parseTypes } = await import('./parse-types')
-
-    const result = await parseTypes('export interface User { name: string }', 'User')
-    expect(result.ok).toBe(false)
-    if (result.ok) throw new Error('expected a failure')
-    expect(result.error).toMatch(/typescript/i)
-  })
-
-  it('reports a compiler import failure through the typed ParseError channel', async () => {
-    vi.doMock('typescript', () => {
-      throw new Error('cannot find module typescript')
-    })
-    vi.resetModules()
-    const { Effect } = await import('effect')
-    const { parseTypesEffect } = await import('./parse-types')
-
-    const caught = await Effect.runPromise(
-      parseTypesEffect('export interface User { name: string }', 'User').pipe(
-        Effect.catchTag('ParseError', (e) => Effect.succeed(`caught: ${e.message}`)),
-      ),
+  it('reports a compiler that cannot load through the typed ParseError channel', async () => {
+    expect(await messageOf(compilerThatFailsToLoad)).toMatch(
+      /could not load the TypeScript compiler/,
     )
-    expect(caught).toMatch(/^caught: /)
   })
 
-  it('reports a throwing checker as a parse failure instead of an unhandled defect', async () => {
-    vi.doMock('typescript', async () => {
-      const actual = await vi.importActual<typeof import('typescript')>('typescript')
-      return {
-        default: {
-          ...actual,
-          createProgram: () => {
-            throw new Error('checker exploded')
-          },
-        },
-      }
-    })
-    vi.resetModules()
-    const { parseTypes } = await import('./parse-types')
+  it('names the underlying load failure rather than swallowing it', async () => {
+    expect(await messageOf(compilerThatFailsToLoad)).toContain('ENOENT')
+  })
 
-    const result = await parseTypes('export interface User { name: string }', 'User')
-    expect(result.ok).toBe(false)
-    if (result.ok) throw new Error('expected a failure')
-    expect(result.error).toMatch(/checker exploded/)
+  it('reports a throwing createProgram as a parse failure, not an unhandled defect', async () => {
+    expect(await messageOf(compilerThrowingFrom('createProgram'))).toContain(
+      'createProgram exploded',
+    )
+  })
+
+  it('reports a throw from deeper inside the compiler the same way', async () => {
+    expect(await messageOf(compilerThrowingFrom('createSourceFile'))).toContain(
+      'createSourceFile exploded',
+    )
   })
 })
