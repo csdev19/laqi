@@ -1,18 +1,24 @@
 {
   "name": "laqi",
   "version": "2.0.0",
-  "description": "Mock server for frontend development: declarative JSON mocks, a web panel, an MCP server, and a public URL.",
+  "description": "A controllable local mock API server for frontend development. Flip responses, errors, latency, and scenarios from a web panel.",
   "keywords": [
-    "api",
+    "api-mocking",
     "frontend",
+    "local-development",
     "mcp",
-    "mock",
+    "mock-api",
     "mock-server",
+    "openapi",
     "react-native",
-    "rest",
     "testing"
   ],
+  "homepage": "https://laqi.dev",
+  "bugs": {
+    "url": "https://github.com/csdev19/laqi/issues"
+  },
   "license": "MIT",
+  "author": "Cristian Sotomayor (https://github.com/csdev19)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/csdev19/laqi.git"
