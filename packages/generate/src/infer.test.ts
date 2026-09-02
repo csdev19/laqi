@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inferShape, mergeShapes } from './infer'
+import { inferShape, MAX_INFERRED_VALUES, mergeShapes } from './infer'
 import { primitive } from './shape'
 
 describe('inferShape', () => {
@@ -99,6 +99,44 @@ describe('inferShape', () => {
       expect(caught).toBeInstanceOf(Error)
       expect(caught).not.toBeInstanceOf(RangeError)
       expect((caught as Error).message).toMatch(/nesting|depth/i)
+    })
+  })
+
+  describe('work budget', () => {
+    it('refuses a sample with more values than the budget instead of walking all of them', () => {
+      const huge = Array.from({ length: MAX_INFERRED_VALUES + 10 }, (_, i) => i)
+
+      expect(() => inferShape(huge)).toThrowError(new RegExp(String(MAX_INFERRED_VALUES)))
+    })
+
+    it('counts values across the whole sample, not per branch', () => {
+      const width = Math.ceil(MAX_INFERRED_VALUES / 4)
+      const wide = {
+        a: Array.from({ length: width }, (_, i) => i),
+        b: Array.from({ length: width }, (_, i) => i),
+        c: Array.from({ length: width }, (_, i) => i),
+        d: Array.from({ length: width }, (_, i) => i),
+      }
+
+      expect(() => inferShape(wide)).toThrow()
+    })
+
+    it('leaves a realistic payload well inside the budget', () => {
+      const payload = Array.from({ length: 1_000 }, (_, i) => ({
+        id: i,
+        name: 'Ada',
+        tags: ['a', 'b'],
+      }))
+
+      expect(inferShape(payload).kind).toBe('array')
+    })
+
+    it('starts a fresh budget on every call rather than accumulating across them', () => {
+      const payload = Array.from({ length: 1_000 }, (_, i) => i)
+
+      for (let i = 0; i < 200; i++) inferShape(payload)
+
+      expect(inferShape(payload).kind).toBe('array')
     })
   })
 

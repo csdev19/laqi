@@ -19,6 +19,18 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2
  */
 const MAX_DEPTH = 500
 
+/**
+ * Total number of JSON values a single `inferShape` call may visit. The
+ * depth ceiling above bounds nesting but not *breadth*: a flat 5-million
+ * element array is one level deep and still walks five million values, and
+ * for an array of objects each element is additionally merged against the
+ * accumulated shape. This runs on the same single thread as the mock
+ * server, so an oversized response body would stall every other request.
+ * 100k matches `generate`'s own `MAX_GENERATED_VALUES` — generous for any
+ * real API response, fatal to a pathological one.
+ */
+export const MAX_INFERRED_VALUES = 100_000
+
 class InferDepthError extends Error {
   constructor() {
     super(
@@ -28,12 +40,33 @@ class InferDepthError extends Error {
   }
 }
 
+class InferBudgetError extends Error {
+  constructor() {
+    super(
+      `inferShape: sample contains more than ${MAX_INFERRED_VALUES} values — refusing to infer (not a realistic API response)`,
+    )
+    this.name = 'InferBudgetError'
+  }
+}
+
+/** Per-call, never module-level: concurrent requests must not share a budget. */
+type Budget = { spent: number }
+
 /**
  * JSON → Shape. Small on purpose: this powers "give me the type of this
  * response" and "regenerate from the shape the data already has".
+ *
+ * Throws (rather than degrading) when the sample is too deep or too large;
+ * every call site is already behind a try/catch, so the throw lands as a
+ * clean user-facing message instead of a stalled server or a stack overflow.
  */
-export function inferShape(value: unknown, depth = 0): Shape {
+export function inferShape(value: unknown): Shape {
+  return infer(value, 0, { spent: 0 })
+}
+
+function infer(value: unknown, depth: number, budget: Budget): Shape {
   if (depth > MAX_DEPTH) throw new InferDepthError()
+  if (++budget.spent > MAX_INFERRED_VALUES) throw new InferBudgetError()
 
   if (value === null) return primitive('null')
 
@@ -60,12 +93,12 @@ export function inferShape(value: unknown, depth = 0): Shape {
     if (value.length === 0) return { kind: 'array', items: { kind: 'unknown' } }
     return {
       kind: 'array',
-      items: value.map((item) => inferShape(item, depth + 1)).reduce(mergeShapes),
+      items: value.map((item) => infer(item, depth + 1, budget)).reduce(mergeShapes),
     }
   }
 
   const fields: ShapeField[] = Object.entries(value as Record<string, unknown>).map(
-    ([name, field]) => ({ name, shape: inferShape(field, depth + 1), optional: false }),
+    ([name, field]) => ({ name, shape: infer(field, depth + 1, budget), optional: false }),
   )
   return { kind: 'object', fields }
 }
@@ -109,18 +142,19 @@ export function mergeShapes(a: Shape, b: Shape): Shape {
   }
 
   if (a.kind === 'object' && b.kind === 'object') {
-    const names = [...new Set([...a.fields.map((f) => f.name), ...b.fields.map((f) => f.name)])]
+    // Indexed, not scanned. `mergeShapes` is folded across every element of
+    // an array, so a linear `fields.find` per name made merging an array of
+    // wide objects quadratic in the field count on every single element.
+    const left = new Map(a.fields.map((f) => [f.name, f]))
+    const right = new Map(b.fields.map((f) => [f.name, f]))
+    const names = [...new Set([...left.keys(), ...right.keys()])]
     const fields: ShapeField[] = names.map((name) => {
-      const left = a.fields.find((f) => f.name === name)
-      const right = b.fields.find((f) => f.name === name)
-      if (left && right) {
-        return {
-          name,
-          shape: mergeShapes(left.shape, right.shape),
-          optional: left.optional || right.optional,
-        }
+      const l = left.get(name)
+      const r = right.get(name)
+      if (l && r) {
+        return { name, shape: mergeShapes(l.shape, r.shape), optional: l.optional || r.optional }
       }
-      const only = (left ?? right)!
+      const only = (l ?? r)!
       return { name, shape: only.shape, optional: true }
     })
     return { kind: 'object', fields }

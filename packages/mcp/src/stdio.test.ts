@@ -282,6 +282,31 @@ describe('laqi mcp over stdio', () => {
     expect(result.text).toMatch(/nesting|depth/i)
   }, 30_000)
 
+  it('advertises the model size limit in the generate_data schema, so an agent knows it before sending', async () => {
+    const { tools } = await client.listTools()
+    const generateData = tools.find((t) => t.name === 'generate_data')!
+    const model = (generateData.inputSchema.properties as Record<string, { maxLength?: number }>)
+      .model
+
+    expect(model?.maxLength).toBe(200_000)
+  }, 30_000)
+
+  it('generate_data rejects an oversized model at the tool boundary', async () => {
+    const result = await call('generate_data', {
+      model: `export interface Big {\n${'  a: string\n'.repeat(60_000)}}`,
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toMatch(/200000|too_big|characters/i)
+  }, 30_000)
+
+  it('generate_data rejects broken TypeScript instead of mocking a recovered AST', async () => {
+    const result = await call('generate_data', {
+      model: 'export interface User { name: string',
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toMatch(/syntax/i)
+  }, 30_000)
+
   // Finding 9 (Low): get_types leaked Effect's FiberFailure wrapper into
   // user-visible text — the equivalent HTTP route already reads clean
   // through error.message.
