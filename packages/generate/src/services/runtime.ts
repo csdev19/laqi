@@ -1,8 +1,14 @@
 import { Layer, ManagedRuntime } from 'effect'
 import { TypeScriptCompilerLive } from './compiler'
+import { FakerFactoryLive } from './faker'
+import { QuicktypeLive } from './quicktype'
 
 /** Every service the package's own programs need. */
-export const GenerateServicesLive = Layer.mergeAll(TypeScriptCompilerLive)
+export const GenerateServicesLive = Layer.mergeAll(
+  TypeScriptCompilerLive,
+  FakerFactoryLive,
+  QuicktypeLive,
+)
 
 type Runtime = ManagedRuntime.ManagedRuntime<
   Layer.Layer.Success<typeof GenerateServicesLive>,

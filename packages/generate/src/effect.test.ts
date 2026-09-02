@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { generate, generateEffect } from './generate'
 import { parseTypes, parseTypesEffect } from './parse-types'
 import { TypeScriptCompilerLive } from './services/compiler'
+import { FakerFactoryLive } from './services/faker'
 import type { Shape } from './shape'
 import { primitive } from './shape'
 
@@ -64,8 +65,10 @@ describe('parseTypesEffect', () => {
 
 describe('generateEffect', () => {
   it('is byte-reproducible under a seed through the Effect program', async () => {
-    const a = await Effect.runPromise(generateEffect(user, { seed: 42 }))
-    const b = await Effect.runPromise(generateEffect(user, { seed: 42 }))
+    const run = () =>
+      Effect.runPromise(generateEffect(user, { seed: 42 }).pipe(Effect.provide(FakerFactoryLive)))
+    const a = await run()
+    const b = await run()
     expect(a).toEqual(b)
   })
 

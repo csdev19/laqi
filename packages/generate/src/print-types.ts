@@ -1,5 +1,7 @@
 import { Effect } from 'effect'
 import { PrintError } from './errors'
+import { Quicktype } from './services/quicktype'
+import { generateRuntime } from './services/runtime'
 import { shapeToJsonSchema } from './json-schema'
 import type { Shape } from './shape'
 
@@ -33,7 +35,7 @@ import type { Shape } from './shape'
 export const printTypesEffect = (
   shape: Shape,
   options: { typeName: string; lang?: string },
-): Effect.Effect<{ code: string; language: string }, PrintError> =>
+): Effect.Effect<{ code: string; language: string }, PrintError, Quicktype> =>
   Effect.gen(function* () {
     const {
       quicktype,
@@ -42,10 +44,12 @@ export const printTypesEffect = (
       FetchingJSONSchemaStore,
       defaultTargetLanguages,
       isLanguageName,
-    } = yield* Effect.tryPromise({
-      try: () => import('quicktype-core'),
-      catch: (e) => new PrintError({ message: String(e) }),
-    })
+      // quicktype arrives as a service; its load failure is mapped here so
+      // this program's error channel stays exactly `PrintError`.
+    } = yield* Effect.mapError(
+      yield* Quicktype,
+      (cause) => new PrintError({ message: cause.message }),
+    )
 
     const requested = options.lang ?? 'typescript'
     // Each language's `name` is `names[0]` (per quicktype-core's own docs), so
@@ -93,7 +97,7 @@ export async function printTypes(
   shape: Shape,
   options: { typeName: string; lang?: string },
 ): Promise<{ code: string; language: string }> {
-  return Effect.runPromise(printTypesEffect(shape, options))
+  return generateRuntime().runPromise(printTypesEffect(shape, options))
 }
 
 /** All languages quicktype can target — no meaningful failure branch, so plain async. */
