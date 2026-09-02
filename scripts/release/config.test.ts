@@ -78,16 +78,15 @@ describe('release-please-config.json', () => {
     expect(Object.keys(manifest).sort()).toEqual(Object.keys(config.packages).sort())
   })
 
-  // Seeded to the last version genuinely published, with zero git tags in
-  // the repo to collide with. From here, the `feat!` adoption commit makes
-  // release-please compute `2.0.0` — no `Release-As` footer needed.
-  it('seeds the manifest at the last version actually published', () => {
-    expect(manifest['.']).toBe('1.2.1')
-  })
-
-  // The site has never been released; seeded at its package.json version so
-  // release-please computes the first real version from the commits.
-  it('seeds the site at its unreleased package version', () => {
-    expect(manifest['apps/site']).toBe('0.0.1')
+  // These started as seed assertions pinning the bootstrap values (1.2.1 and
+  // 0.0.1). A seed is true exactly once: the first release rewrites it, so
+  // the assertion fails precisely when the pipeline works. What is durably
+  // true is the shape — plain semver, and never a prerelease, which is the
+  // 2026-08-29 ruling restated where release-please would otherwise be free
+  // to route a publish to a prerelease dist-tag.
+  it('holds a plain, non-prerelease version for every package', () => {
+    for (const [path, version] of Object.entries(manifest)) {
+      expect(version, `${path} is not plain semver`).toMatch(/^\d+\.\d+\.\d+$/)
+    }
   })
 })
