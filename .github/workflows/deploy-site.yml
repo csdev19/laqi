@@ -1,17 +1,18 @@
 # .github/workflows/deploy-site.yml
 name: Deploy site
 
-# Merge to main, not a tag: the site is content, and a typo fix must
-# reach laqi.dev without cutting a version of the CLI. Path-filtered so
-# an unrelated change elsewhere in the monorepo never triggers a deploy.
+# The site releases exactly like the CLI does: release-please opens a
+# site release PR, and merging THAT — never an ordinary merge to main —
+# cuts a site-v* tag, which is what deploys. Site and package stay
+# fully decoupled: shipping one never ships the other. The tag is cut
+# with RELEASE_PLEASE_TOKEN (a PAT), so this push event does fire —
+# tags created with the default GITHUB_TOKEN would be suppressed.
+# workflow_dispatch is the manual escape hatch (first deploy, redeploy
+# after an incident) — it deploys whatever main currently holds.
 on:
   push:
-    branches: [main]
-    paths:
-      - 'apps/site/**'
-      - 'packages/tokens/**'
-      - 'apps/cli/package.json'
-      - '.github/workflows/deploy-site.yml'
+    tags: ['site-v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,6 +25,10 @@ jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
+    # The Cloudflare secrets live in the `production` environment, not at
+    # repo level — a job only sees an environment's secrets when it
+    # declares that environment (same reason release-please.yml does).
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
