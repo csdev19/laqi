@@ -1,5 +1,7 @@
 import { Effect } from 'effect'
 import { PrintError } from './errors'
+import { Quicktype } from './services/quicktype'
+import { generateRuntime } from './services/runtime'
 import { shapeToJsonSchema } from './json-schema'
 import type { Shape } from './shape'
 
@@ -33,7 +35,7 @@ import type { Shape } from './shape'
 export const printTypesEffect = (
   shape: Shape,
   options: { typeName: string; lang?: string },
-): Effect.Effect<{ code: string; language: string }, PrintError> =>
+): Effect.Effect<{ code: string; language: string }, PrintError, Quicktype> =>
   Effect.gen(function* () {
     const {
       quicktype,
@@ -42,10 +44,12 @@ export const printTypesEffect = (
       FetchingJSONSchemaStore,
       defaultTargetLanguages,
       isLanguageName,
-    } = yield* Effect.tryPromise({
-      try: () => import('quicktype-core'),
-      catch: (e) => new PrintError({ message: String(e) }),
-    })
+      // quicktype arrives as a service; its load failure is mapped here so
+      // this program's error channel stays exactly `PrintError`.
+    } = yield* Effect.mapError(
+      yield* Quicktype,
+      (cause) => new PrintError({ message: cause.message }),
+    )
 
     const requested = options.lang ?? 'typescript'
     // Each language's `name` is `names[0]` (per quicktype-core's own docs), so
@@ -93,11 +97,30 @@ export async function printTypes(
   shape: Shape,
   options: { typeName: string; lang?: string },
 ): Promise<{ code: string; language: string }> {
-  return Effect.runPromise(printTypesEffect(shape, options))
+  return generateRuntime().runPromise(printTypesEffect(shape, options))
 }
 
-/** All languages quicktype can target — no meaningful failure branch, so plain async. */
-export async function supportedLanguages(): Promise<{ name: string; displayName: string }[]> {
-  const { defaultTargetLanguages } = await import('quicktype-core')
+/**
+ * All languages quicktype can target.
+ *
+ * Goes through the `Quicktype` service like `printTypesEffect` does, rather
+ * than importing quicktype-core again: two load paths for one dependency
+ * would mean two caches, two failure shapes, and a test double that only
+ * covers one of them.
+ */
+export const supportedLanguagesEffect: Effect.Effect<
+  { name: string; displayName: string }[],
+  PrintError,
+  Quicktype
+> = Effect.gen(function* () {
+  const { defaultTargetLanguages } = yield* Effect.mapError(
+    yield* Quicktype,
+    (cause) => new PrintError({ message: cause.message }),
+  )
   return defaultTargetLanguages.map((l) => ({ name: l.name, displayName: l.displayName }))
+})
+
+/** Promise facade, unchanged for callers: resolves with the list, rejects on failure. */
+export async function supportedLanguages(): Promise<{ name: string; displayName: string }[]> {
+  return generateRuntime().runPromise(supportedLanguagesEffect)
 }

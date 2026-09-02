@@ -1,5 +1,7 @@
 import { Effect } from 'effect'
 import { GenerateError } from './errors'
+import { FakerFactory } from './services/faker'
+import { generateRuntime } from './services/runtime'
 import { validateShape, type PrimitiveType, type Shape } from './shape'
 
 /** Fixed reference date: with a seed, output must be byte-reproducible. */
@@ -239,7 +241,7 @@ export function ruleFor(fieldName: string, type: 'string' | 'number' | 'integer'
 export const generateEffect = (
   shape: Shape,
   options: { seed?: number; arrayLength?: number } = {},
-): Effect.Effect<unknown, GenerateError> =>
+): Effect.Effect<unknown, GenerateError, FakerFactory> =>
   Effect.gen(function* () {
     // `Shape` is a compile-time union only. This is the last boundary
     // before values are produced, and the contract downstream is plain
@@ -251,11 +253,15 @@ export const generateEffect = (
     const invalid = validateShape(shape)
     if (invalid) return yield* Effect.fail(new GenerateError({ message: invalid }))
 
-    const { Faker, en } = yield* Effect.tryPromise({
-      try: () => import('@faker-js/faker'),
-      catch: (e) => new GenerateError({ message: String(e) }),
-    })
-    const faker = new Faker({ locale: [en] })
+    // faker arrives as a service: the layer owns the dynamic import, and a
+    // test can hand this program a failing loader without touching the
+    // module loader. Its load failure is mapped here so this program's
+    // error channel stays exactly `GenerateError`.
+    const newFaker = yield* Effect.mapError(
+      yield* FakerFactory,
+      (cause) => new GenerateError({ message: cause.message }),
+    )
+    const faker = newFaker()
     if (options.seed !== undefined) {
       faker.seed(options.seed)
       faker.setDefaultRefDate(REF_DATE)
@@ -349,5 +355,5 @@ export async function generate(
   shape: Shape,
   options: { seed?: number; arrayLength?: number } = {},
 ): Promise<unknown> {
-  return Effect.runPromise(generateEffect(shape, options))
+  return generateRuntime().runPromise(generateEffect(shape, options))
 }
