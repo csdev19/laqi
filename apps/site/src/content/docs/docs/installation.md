@@ -21,7 +21,15 @@ version.
 ## Verify
 
 ```sh
-laqi --version
+laqi --help
+```
+
+That prints the command list. laqi has no `--version` flag — the version
+is in the startup banner every time you run it:
+
+```
+⚡ laqi 2.0.0
+serving   127.0.0.1:8000
 ```
 
 ## Next step
