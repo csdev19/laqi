@@ -5,7 +5,7 @@ title: Effect migration — implementation handoff
 # Effect migration — implementation handoff
 
 **Date:** 2026-09-02  
-**Status:** implementation in progress in another model/session  
+**Status:** Level 1 implemented — see "Outcome" below  
 **Companion:** [Effect adoption](/adversarial/effect-adoption/)
 
 ## Current recommendation
@@ -47,10 +47,13 @@ work. The import must remain inside a lazy `Layer`/effect (for example,
 `Effect.tryPromise`), never as a static top-level import. The startup test is the
 first test to write, before the service extraction.
 
-The existing `parseTypesEffect` uses `Effect.promise` for its compiler import;
-the extracted layer should instead use `Effect.tryPromise` and map import failures
-to `ParseError` or a specific dependency-load error. `generate.ts` and
-`print-types.ts` already demonstrate the `tryPromise` pattern.
+The extracted layer should use `Effect.tryPromise` and map import failures to
+`ParseError` or a specific dependency-load error.
+
+(This paragraph originally said `parseTypesEffect` used `Effect.promise`. That was
+true when the handoff was written and stopped being true with the audit fixes,
+which moved it to `Effect.tryPromise` and added a `catchAllDefect` guard. As of the
+implementation it does neither: the import belongs to the layer.)
 
 ## Review notes on the proposal
 
@@ -95,3 +98,41 @@ latency problem and the package is first made asynchronous for that reason.
 - Dependency failures and domain failures remain typed and readable at the Promise
   boundary; no raw `FiberFailure` leaks to MCP or HTTP responses.
 - Test layers replace module-loader mocks for the extracted service.
+
+## Outcome
+
+Level 1 is implemented. What the completion checks turned into:
+
+- **Lazy loading holds, and is now enforced per arrow.** Parsing loads only the
+  compiler, generating only faker, printing and language-listing only quicktype.
+  Both feared regressions — a stray top-level import, and a layer importing at
+  layer-build time — were confirmed to turn the guard red before being reverted.
+- **An eagerly built `ManagedRuntime` is explicitly out of scope.** It turns out to
+  be harmless on its own: `ManagedRuntime.make` does not build its layers until
+  something runs. The guard asserts the property that matters (was the module
+  evaluated?) rather than the mechanism delivering it.
+- **The Promise API did not move.** Each service's `DependencyLoadError` is mapped
+  to the existing domain error at the point of use, so `parseTypesEffect` is still
+  `Effect<A, ParseError, TypeScriptCompiler>`.
+- **The `*Effect` programs are public API.** Publishing a program whose `R` cannot
+  be satisfied from outside the package is not a coherent surface, so the tags,
+  the `*Live` layers and `GenerateServicesLive` are exported too. `generateRuntime`
+  is not: a consumer building Effect programs should own its runtime.
+- **Test layers replaced the module-loader mocks**, and made two extra failure
+  cases cheap to add.
+
+Two review notes changed the implementation:
+
+- **No `Scope` around `ts.createProgram`.** Verified against TypeScript 5.9.3's
+  type definitions: neither `Program` nor `CompilerHost` exposes `close`, `dispose`
+  or `release`. It would have been an `acquireRelease` with an empty release.
+- **No shared `Program` or `CompilerHost`.** `Effect.cached` memoises the module
+  per runtime, and that is the only caching claim made.
+
+One thing the handoff did not anticipate: `supportedLanguages()` kept its own
+`import('quicktype-core')`, which left two load paths, two caches and two failure
+shapes for one dependency. It now goes through the `Quicktype` service as
+`supportedLanguagesEffect`, with the Promise facade on top.
+
+Level 2 remains open and unblocked. It still turns on the one question the
+companion analysis ends with: should a cancelled request actually stop the work?

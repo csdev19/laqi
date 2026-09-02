@@ -100,8 +100,27 @@ export async function printTypes(
   return generateRuntime().runPromise(printTypesEffect(shape, options))
 }
 
-/** All languages quicktype can target — no meaningful failure branch, so plain async. */
-export async function supportedLanguages(): Promise<{ name: string; displayName: string }[]> {
-  const { defaultTargetLanguages } = await import('quicktype-core')
+/**
+ * All languages quicktype can target.
+ *
+ * Goes through the `Quicktype` service like `printTypesEffect` does, rather
+ * than importing quicktype-core again: two load paths for one dependency
+ * would mean two caches, two failure shapes, and a test double that only
+ * covers one of them.
+ */
+export const supportedLanguagesEffect: Effect.Effect<
+  { name: string; displayName: string }[],
+  PrintError,
+  Quicktype
+> = Effect.gen(function* () {
+  const { defaultTargetLanguages } = yield* Effect.mapError(
+    yield* Quicktype,
+    (cause) => new PrintError({ message: cause.message }),
+  )
   return defaultTargetLanguages.map((l) => ({ name: l.name, displayName: l.displayName }))
+})
+
+/** Promise facade, unchanged for callers: resolves with the list, rejects on failure. */
+export async function supportedLanguages(): Promise<{ name: string; displayName: string }[]> {
+  return generateRuntime().runPromise(supportedLanguagesEffect)
 }

@@ -1,7 +1,12 @@
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { DependencyLoadError } from '../errors'
-import { printTypes, printTypesEffect } from '../print-types'
+import {
+  printTypes,
+  printTypesEffect,
+  supportedLanguages,
+  supportedLanguagesEffect,
+} from '../print-types'
 import { primitive, type Shape } from '../shape'
 import { Quicktype, QuicktypeLive } from './quicktype'
 
@@ -73,5 +78,49 @@ describe('Quicktype service', () => {
     const printed = await printTypes(user, { typeName: 'User' })
 
     expect(printed.code).toContain('User')
+  })
+
+  it('lists the supported languages through the same service', async () => {
+    const languages = await Effect.runPromise(
+      supportedLanguagesEffect.pipe(Effect.provide(QuicktypeLive)),
+    )
+
+    expect(languages.map((l) => l.name)).toContain('typescript')
+  })
+
+  it('surfaces a load failure when listing languages as a PrintError too', async () => {
+    const caught = await Effect.runPromise(
+      supportedLanguagesEffect.pipe(
+        Effect.provide(BrokenQuicktype),
+        Effect.catchTag('PrintError', (e) => Effect.succeed(e.message)),
+      ),
+    )
+
+    expect(caught).toContain('ENOENT')
+  })
+
+  it('shares one load between printing and listing, rather than two paths', async () => {
+    let loads = 0
+    const Counting = Layer.effect(
+      Quicktype,
+      Effect.cached(
+        Effect.promise(async () => {
+          loads++
+          return await import('quicktype-core')
+        }),
+      ),
+    )
+
+    await Effect.runPromise(
+      Effect.all([printTypesEffect(user, { typeName: 'A' }), supportedLanguagesEffect]).pipe(
+        Effect.provide(Counting),
+      ),
+    )
+
+    expect(loads).toBe(1)
+  })
+
+  it('keeps the supportedLanguages facade working with nothing provided', async () => {
+    expect((await supportedLanguages()).map((l) => l.name)).toContain('typescript')
   })
 })
