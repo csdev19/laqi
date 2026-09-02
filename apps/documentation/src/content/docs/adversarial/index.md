@@ -31,3 +31,8 @@ and ends with the single question whose answer changes the outcome.
 - [Effect adoption](/adversarial/effect-adoption/) — how far Effect should reach
   across the monorepo, what each level of reach buys, and what a project that
   installs the CLI would feel.
+
+Once an analysis here produces a decision, the decision moves to an
+[ADR](/decisions/) and the standing rules move to
+[architecture](/architecture/). The analysis stays as the record of what the
+decision had to survive.

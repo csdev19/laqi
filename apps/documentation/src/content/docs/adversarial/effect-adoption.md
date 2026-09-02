@@ -4,7 +4,7 @@ title: Effect adoption — how far it should reach
 
 # Effect adoption — how far it should reach
 
-**Status:** open — analysis complete for `@laqi/generate`, ledger open for the rest
+**Status:** resolved for `@laqi/generate` — see [ADR-0012](/decisions/0012-effect-first-in-generate/) and [Effect in laqi](/architecture/effect/); ledger open for the rest
 **Date:** 2026-09-02
 **Trigger:** finding 5 of the `@laqi/generate` audit
 
