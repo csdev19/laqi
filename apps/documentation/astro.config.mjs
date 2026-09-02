@@ -39,6 +39,10 @@ export default defineConfig({
           autogenerate: { directory: 'decisions' },
         },
         {
+          label: 'Adversarial',
+          autogenerate: { directory: 'adversarial' },
+        },
+        {
           label: 'Design',
           autogenerate: { directory: 'design' },
         },
