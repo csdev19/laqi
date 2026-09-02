@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/csdev19/laqi/compare/v2.0.0...v2.0.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **npm:** the package page told users laqi was unreleased ([#44](https://github.com/csdev19/laqi/issues/44)) ([fb8f38b](https://github.com/csdev19/laqi/commit/fb8f38bbf7e5309e15a48e3c5064e0c24032d504))
+
 ## [2.0.0](https://github.com/csdev19/laqi/compare/v1.2.1...v2.0.0) (2026-09-02)
 
 
