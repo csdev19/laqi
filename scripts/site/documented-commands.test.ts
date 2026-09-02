@@ -86,7 +86,7 @@ describe('commands documented on the public site', () => {
       const isInit = args[0] === 'init'
       for (const arg of args) {
         if (!arg.startsWith('-')) continue
-        const flag = arg.split('=')[0]
+        const flag = arg.split('=')[0] ?? arg
         const known = isInit
           ? KNOWN_INIT_FLAGS.has(flag) || KNOWN_OPTIONS.has(flag)
           : KNOWN_OPTIONS.has(flag) || SHORT_OPTIONS.has(flag)

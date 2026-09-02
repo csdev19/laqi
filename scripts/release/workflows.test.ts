@@ -104,6 +104,28 @@ describe('release topology', () => {
   })
 })
 
+describe('local verification mirrors CI', () => {
+  // The pipeline tests themselves were pushed red because `check-types` was
+  // run locally and `check-types:scripts` — a separate, stricter config —
+  // was not. Anything CI runs has to be reachable from one local command,
+  // or the next person discovers the gap the same way: from a red run.
+  it('runs every root script that validate.yml runs', () => {
+    const validate = readFileSync(join(DIR, 'validate.yml'), 'utf-8')
+    const pkg = JSON.parse(readFileSync('package.json', 'utf-8')) as {
+      scripts: Record<string, string>
+    }
+    const verify = pkg.scripts.verify
+    expect(verify, 'package.json needs a "verify" script').toBeDefined()
+
+    const inCi = new Set([...validate.matchAll(/bun run ([\w:-]+)/g)].map((m) => m[1] ?? ''))
+    const missing = [...inCi].filter((script) => !(verify ?? '').includes(script))
+    expect(
+      missing,
+      `validate.yml runs these but \`bun run verify\` does not: ${missing.join(', ')}`,
+    ).toEqual([])
+  })
+})
+
 describe('generated files', () => {
   // release-please rewrites the changelogs wholesale on every release and
   // never consults our formatter. Format-gating them turned each release

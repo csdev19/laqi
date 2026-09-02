@@ -28,7 +28,8 @@
     "check-types": "turbo run check-types",
     "check-types:scripts": "tsc --noEmit -p scripts/tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify": "bun run check:ci && bun run build && bun run check-types && bun run check-types:scripts && bun run test"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
