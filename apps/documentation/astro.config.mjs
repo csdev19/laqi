@@ -35,6 +35,10 @@ export default defineConfig({
           autogenerate: { directory: 'concepts' },
         },
         {
+          label: 'Architecture',
+          autogenerate: { directory: 'architecture' },
+        },
+        {
           label: 'Decisions',
           autogenerate: { directory: 'decisions' },
         },
