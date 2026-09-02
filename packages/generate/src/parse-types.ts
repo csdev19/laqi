@@ -1,5 +1,7 @@
 import { Effect } from 'effect'
 import { ParseError } from './errors'
+import { TypeScriptCompiler } from './services/compiler'
+import { generateRuntime } from './services/runtime'
 import { primitive, type Shape, type ShapeField } from './shape'
 
 export type ParsedModel =
@@ -37,7 +39,11 @@ const reason = (cause: unknown): string => (cause instanceof Error ? cause.messa
 export const parseTypesEffect = (
   source: string,
   typeName?: string,
-): Effect.Effect<{ shape: Shape; typeName: string; warnings: string[] }, ParseError> =>
+): Effect.Effect<
+  { shape: Shape; typeName: string; warnings: string[] },
+  ParseError,
+  TypeScriptCompiler
+> =>
   Effect.gen(function* () {
     if (source.length > MAX_SOURCE_LENGTH) {
       return yield* Effect.fail(
@@ -49,11 +55,16 @@ export const parseTypesEffect = (
       )
     }
 
-    const ts = yield* Effect.tryPromise({
-      try: () => import('typescript').then((m) => m.default),
-      catch: (cause) =>
-        new ParseError({ message: `could not load the TypeScript compiler: ${reason(cause)}` }),
-    })
+    // The compiler arrives as a service now, not a bare import: a test can
+    // hand this program a stub or a failing loader without reaching for the
+    // module loader. Its load failure is mapped here, so this program's
+    // error channel stays exactly `ParseError`.
+    const loadCompiler = yield* TypeScriptCompiler
+    const ts = yield* Effect.mapError(
+      loadCompiler,
+      (cause) =>
+        new ParseError({ message: `could not load the TypeScript compiler: ${cause.message}` }),
+    )
 
     const options: import('typescript').CompilerOptions = {
       strict: true,
@@ -269,7 +280,7 @@ export const parseTypesEffect = (
  * expected parse failure.
  */
 export async function parseTypes(source: string, typeName?: string): Promise<ParsedModel> {
-  return Effect.runPromise(
+  return generateRuntime().runPromise(
     parseTypesEffect(source, typeName).pipe(
       Effect.map((value) => ({ ok: true as const, ...value })),
       Effect.catchTag('ParseError', (e) =>
