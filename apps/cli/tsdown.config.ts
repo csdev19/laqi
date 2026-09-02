@@ -63,10 +63,15 @@ export default defineConfig({
       const target = join(here, 'dist', 'panel')
       mkdirSync(target, { recursive: true })
       cpSync(editorDist, target, { recursive: true })
-      // README and LICENSE ship INSIDE the published package. The licence
-      // isn't optional: MIT requires the copyright notice in every copy of
-      // the software, and without this the tarball carried none.
-      copyFileSync(join(here, '..', '..', 'README.md'), join(here, 'README.md'))
+      // The LICENCE ships INSIDE the published package, and isn't optional:
+      // MIT requires the copyright notice in every copy of the software,
+      // and without this the tarball carried none.
+      //
+      // The README is NOT copied from the repo root. The root one is written
+      // for contributors — monorepo layout, building from source, the release
+      // runbook — and npm renders whatever README the tarball carries. So the
+      // package keeps its own, committed at apps/cli/README.md and written for
+      // someone who just ran `npm install laqi`.
       copyFileSync(join(here, '..', '..', 'LICENSE.md'), join(here, 'LICENSE.md'))
     },
   },

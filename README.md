@@ -5,12 +5,12 @@
 
 ⚡⚡ Laqi is a mock server to speed up frontend development ⚡⚡
 
-> **Status: v2, unreleased.** Once `2.0.0` is published, `laqi` on npm is
-> this v2. Until that release, plain `laqi` is still the unrelated 1.2.1
-> from 2022. See [Releasing](#releasing) for what "once published" means.
+> **Status: v2, released.** `laqi` on npm is this v2 — `2.0.0` replaced the
+> unrelated 1.2.1 from 2022. See [Releasing](#releasing) for how a version
+> gets cut.
 >
 > ```
-> bunx laqi        # or: npx laqi — once 2.0.0 ships
+> npx laqi        # or: bunx laqi
 > ```
 
 **Want to try it?** There is a [15-minute hands-on walkthrough](apps/documentation/src/content/docs/trying-v2.md)
@@ -37,15 +37,15 @@ apps/documentation — the docs site (Astro + Starlight)
 
 ## Running it
 
-Once `2.0.0` is published (see [Releasing](#releasing)), from inside
-a project that has mock files (see below):
+From inside a project that has mock files (see below):
 
 ```
 npx laqi
 ```
 
-Until that release, `laqi` still resolves to the unrelated 1.2.1 — build it
-from this repo and use the binary it produces:
+To run the working tree instead of the published version — which is what you
+want while developing laqi itself — build it from this repo and use the
+binary it produces:
 
 ```
 bun install
@@ -81,9 +81,7 @@ root, with the same keys (`port`, `host`, `dir`, `file`, plus `cors`,
 
 ### Migrating from v1
 
-If you have an old `mock.config.json` / `mock-data/` project, run (once the
-`2.0.0` is published — see [Releasing](#releasing); until then, use the
-locally built binary as shown above with `migrate --dry-run` appended):
+If you have an old `mock.config.json` / `mock-data/` project, run:
 
 ```
 npx laqi migrate --dry-run
@@ -264,13 +262,10 @@ files there, so it works whether or not `laqi` is currently running.
 }
 ```
 
-That config works once `2.0.0` is published (see
-[Releasing](#releasing)) — before that, `laqi` still resolves to the
-unrelated 1.2.1. In Claude Code this
-goes in `.mcp.json` at your project root; Cursor uses the same shape. Right
-now, and whenever you're developing laqi itself, point `command` at the built
-binary instead (`node`, with the path to `dist/index.mjs` and `mcp` as
-args).
+In Claude Code this goes in `.mcp.json` at your project root; Cursor uses
+the same shape. Whenever you're developing laqi itself, point `command` at
+the built binary instead (`node`, with the path to `dist/index.mjs` and
+`mcp` as args).
 
 Tools: `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
 `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
@@ -325,12 +320,20 @@ and published by GitHub Actions. Nobody publishes from a laptop.
    `apps/cli/package.json`, writes `CHANGELOG.md`, and pushes a `v*` tag.
 4. The tag triggers `release-npm.yml`, which builds and publishes.
 
-**The first release is `2.0.0`.** The manifest seeds `1.2.1` (the last
-version actually published) so release-please computes forward from there,
-and the commit that adopted this pipeline (`df765c9`) is a `feat!`, so the
-first release PR proposes `2.0.0`. Merging it publishes v2 to `latest` —
-that merge is the act of going to production, and it replaces the 2022 v1
-for every `npx laqi` user. Do not merge it before meaning it.
+**`2.0.0` shipped on 2026-09-02**, replacing the 2022 v1 for every
+`npx laqi` user. The manifest had seeded `1.2.1` (the last version actually
+published) so release-please computed forward from there, and the commit
+that adopted this pipeline (`df765c9`) was a `feat!` — which is how the
+first release PR proposed `2.0.0`. Every release since is an ordinary
+merge of the rolling release PR. Do not merge one before meaning it.
+
+**The npm page is not this file.** npm renders whichever README the tarball
+carries, and it is a snapshot per version — changing this file never updates
+the package page. The published README is
+[`apps/cli/README.md`](apps/cli/README.md), committed and written for someone
+who just ran `npm install laqi`; this one is for contributors. A README-only
+change also needs a `fix:`/`feat:` commit to ride along with, because `docs:`
+is hidden in the release-please config and cuts no version.
 
 The dist-tag is derived from the version: anything with a `-` goes to its
 prerelease tag, anything else to `latest`. See
