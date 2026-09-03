@@ -15,6 +15,13 @@ export type LaqiEvent =
       /** Absent on a no-route: there was nothing to resolve. */
       resolvedName?: string
       resolvedLayer?: string
+      /**
+       * Present only on a request that arrived through the tunnel. Absent
+       * — not `'local'` — for everything else: the local case is the
+       * overwhelming majority, and every existing subscriber predates this
+       * field.
+       */
+      via?: 'public'
     }
   | {
       type: 'endpoints-changed'
