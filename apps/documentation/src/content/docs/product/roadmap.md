@@ -5,9 +5,8 @@ description: What has shipped, what is in flight, and what comes next — the si
 
 # Roadmap
 
-**Last reviewed: 2026-09-01.** Statuses here are verified against merged
-PRs, not against plan documents (the [plans index](/plans/) lags behind —
-it still lists as "Planned" work that has merged).
+**Last reviewed: 2026-09-02.** Statuses here are verified against merged
+PRs, not against plan documents.
 
 ## Shipped — in v2.0.0's scope, merged to `main`
 
@@ -24,14 +23,13 @@ it still lists as "Planned" work that has merged).
 | Terminal output: one rendering layer for start, failures, goodbye                                                   | Plan 8, PR #21      |
 | `laqi init`: scaffold from example, empty, or OpenAPI — five questions, every one with a flag                       | PR #22              |
 | English migration: code comments, docs tree, all surfaces                                                           | Plan 9, PR #32      |
+| laqi.dev: landing page, three docs pages, shared tokens, deploy on merge                                            | Plan 10, PR #33     |
+| Effect-first inside `@laqi/generate`: services, layers, a module-local runtime                                      | ADR-0012, PR #51    |
 
 ## In flight
 
-- **laqi.dev** — public landing + user docs (Plan 10, branch
-  `feat/laqi-dev-site`). Deploys to Cloudflare Pages on merge.
-- **Publishing `2.0.0`** — the release PR exists; merging it _is_ the
-  launch. Constraint: publish before or with the site, never after — a live
-  laqi.dev whose hero installs the 2022 v1 is worse than no site.
+Nothing. `2.0.1` is published, laqi.dev is live, and the Effect-first change
+set merged on 2026-09-02.
 
 ## Next — committed direction, not yet planned
 
@@ -49,7 +47,9 @@ to scaffold the usual siblings in one click —
 - `DELETE` → `deleted` (204) / `not-found`
 
 plus variants driven by the shape of the request (query params, `:id` in
-the path → a `not-found` is almost certainly wanted). Bodies come from the
+the path → a `not-found` is almost certainly wanted).
+**Planned in [Plan 11](/plans/2026-09-02-11-response-scaffolding/)**, together
+with the status select below — they share the form and the MCP surface. Bodies come from the
 existing data generators, so the scaffolded responses are realistic, not
 empty shells. Surfaces: a hint in the panel's create flow, and an MCP
 affordance so agents get the same one-call scaffold.
@@ -66,7 +66,8 @@ stack of five "or" blocks. One choice, remembered in `localStorage`,
 applied to every install snippet across the site. The site is static
 Astro, so this is a small client-side island. Before shipping: actually
 verify the global-install and runner paths on each manager (yarn classic
-vs berry differ on `global`).
+vs berry differ on `global`) — that verification is Task 1 of
+**[Plan 12](/plans/2026-09-02-12-package-manager-toggle/)**.
 
 ### Status-code select on create
 
@@ -77,7 +78,27 @@ HTTP status codes**, grouped by class and named (`200 OK`, `201 Created`,
 `404` or "not found" both reach it. Free text stays possible for exotic
 codes. This is the small sibling of "suggested responses on create" above:
 the select teaches what codes exist; the scaffold offers the family the
-method usually wants.
+method usually wants. Both are
+**[Plan 11](/plans/2026-09-02-11-response-scaffolding/)**.
+
+### Terminal output, stages 2 and 3
+
+Stage 1 shipped in Plan 8 — the start, failure and goodbye screens, and the
+session counters. What the design doc
+([terminal-output](/design/terminal-output/)) still describes as pending:
+**the request stream in the terminal** and **the four keys** (`o` panel, `s`
+share, `c` clear, `q` quit), which stage 1 deliberately did not advertise
+because none of them were bound. Then **share polish**: `via public` on
+streamed requests, and a QR for the phone case.
+
+Planned in **[Plan 13](/plans/2026-09-02-13-terminal-request-stream/)**, which
+covers the stream, the keys and `via public`. The QR is held back there: it
+needs either a new published dependency or a Reed-Solomon encoder bundled into
+`@laqi/tui`, and `apps/cli/src/package.test.ts` asserts the dependency list
+exactly — so that is an ADR, not a task.
+
+This section is new. The work existed in the design doc and in the plan index,
+and never appeared here, which is how it went unnoticed.
 
 ### WebSocket mocking
 
@@ -88,7 +109,10 @@ drive the client into any state. Design questions to settle first: what
 "resolution layers" mean for a stream, and whether the declarative JSON
 format stretches to message sequences or needs a new shape. The panel's
 SSE infrastructure is adjacent but not reusable — this is a new protocol
-surface in `packages/server`.
+surface in `packages/server`. **No plan, deliberately:** the open questions
+are written out in
+[websocket-mocking](/design/websocket-mocking/), and a plan written before
+they are answered would be inventing the answers.
 
 ## Later — deferred by explicit rulings
 
@@ -112,5 +136,7 @@ visibly wrong. The full table lives in the audit.
 
 ## Housekeeping
 
-- The [plans index](/plans/) status column is stale (plans 6–8 show
-  "Planned"/"In review" but are merged). Update it or derive it from PRs.
+- ~~The [plans index](/plans/) status column is stale.~~ Corrected on
+  2026-09-02: plans 6–8 now read Merged, and plans 9–13 are listed. The column
+  is still hand-maintained, so it will drift again — deriving it from PR state
+  is the durable fix and has not been done.
