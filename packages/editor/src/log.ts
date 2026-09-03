@@ -39,10 +39,9 @@ export function resolvedText(entry: LogEntry): string {
   return `${entry.resolvedName} (${entry.resolvedLayer})`
 }
 
-/** The status class, which is the design's second scan dimension. */
-export function statusClass(status: number): 'ok' | 'redirect' | 'client' | 'server' {
-  if (status >= 500) return 'server'
-  if (status >= 400) return 'client'
-  if (status >= 300) return 'redirect'
-  return 'ok'
-}
+/**
+ * Re-exported, not redeclared. The definition lives in `@laqi/schema` so the
+ * chip in the detail pane, the log row, and the create form cannot disagree
+ * about what colour 404 is.
+ */
+export { statusClass } from '@laqi/schema'
