@@ -752,3 +752,83 @@ describe('generation through a live server', () => {
     expect(body.message).toMatch(/more than 100000 values/)
   }, 30_000)
 })
+
+describe('the public listener, started after boot', () => {
+  const TOKEN = 'aaaabbbbccccddddeeeeffff00001111'
+  const share = { port: 0, token: TOKEN, origins: [] }
+  const auth = { Authorization: `Bearer ${TOKEN}` }
+
+  beforeEach(() => {
+    writeMocks({ 'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } } })
+  })
+
+  it('starts on a process that booted without --share', async () => {
+    handle = await startServer({ root, config })
+    expect(handle.isPublicListening()).toBe(false)
+
+    const port = await handle.startPublicListener(share)
+    expect(handle.isPublicListening()).toBe(true)
+    expect(port).toBeGreaterThan(0)
+  })
+
+  it('keeps the panel off the listener the tunnel sees', async () => {
+    // ADR-0007's guarantee, by architecture rather than by a filter. The
+    // whole reason there is a second listener at all.
+    handle = await startServer({ root, config })
+    const port = await handle.startPublicListener(share)
+
+    const panel = await fetch(`http://127.0.0.1:${port}/__laqi/api/status`, { headers: auth })
+    expect(panel.status).toBe(404)
+  })
+
+  it('serves the mocks behind the token', async () => {
+    handle = await startServer({ root, config })
+    const port = await handle.startPublicListener(share)
+
+    expect((await fetch(`http://127.0.0.1:${port}/users`)).status).toBe(401)
+    expect((await fetch(`http://127.0.0.1:${port}/users`, { headers: auth })).ok).toBe(true)
+  })
+
+  it('stops it and leaves the local listener serving', async () => {
+    handle = await startServer({ root, config })
+    const port = await handle.startPublicListener(share)
+    await handle.stopPublicListener()
+
+    expect(handle.isPublicListening()).toBe(false)
+    await expect(fetch(`http://127.0.0.1:${port}/users`, { headers: auth })).rejects.toThrow()
+    expect((await get('/users')).ok).toBe(true)
+  })
+
+  it('is idempotent — starting twice returns the same port', async () => {
+    handle = await startServer({ root, config })
+    const first = await handle.startPublicListener(share)
+    const second = await handle.startPublicListener(share)
+    expect(second).toBe(first)
+  })
+
+  it('can be started again after being stopped', async () => {
+    // `s` is a toggle, so this is the second press of it.
+    handle = await startServer({ root, config })
+    await handle.startPublicListener(share)
+    await handle.stopPublicListener()
+    const port = await handle.startPublicListener(share)
+
+    expect(handle.isPublicListening()).toBe(true)
+    expect((await fetch(`http://127.0.0.1:${port}/users`, { headers: auth })).ok).toBe(true)
+  })
+
+  it('closes the public listener when the server closes', async () => {
+    // Otherwise `q` leaves a socket bound and the next start hits EADDRINUSE.
+    const local = await startServer({ root, config })
+    const port = await local.startPublicListener(share)
+    await local.close()
+
+    await expect(fetch(`http://127.0.0.1:${port}/users`, { headers: auth })).rejects.toThrow()
+  })
+
+  it('reports the bound port through publicPort, for the EADDRINUSE branch', async () => {
+    handle = await startServer({ root, config })
+    const port = await handle.startPublicListener(share)
+    expect(handle.publicPort).toBe(port)
+  })
+})
