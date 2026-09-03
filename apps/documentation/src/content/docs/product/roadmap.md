@@ -81,24 +81,15 @@ the select teaches what codes exist; the scaffold offers the family the
 method usually wants. Both are
 **[Plan 11](/plans/2026-09-02-11-response-scaffolding/)**.
 
-### Terminal output, stages 2 and 3
+### The QR for the shared URL
 
-Stage 1 shipped in Plan 8 — the start, failure and goodbye screens, and the
-session counters. What the design doc
-([terminal-output](/design/terminal-output/)) still describes as pending:
-**the request stream in the terminal** and **the four keys** (`o` panel, `s`
-share, `c` clear, `q` quit), which stage 1 deliberately did not advertise
-because none of them were bound. Then **share polish**: `via public` on
-streamed requests, and a QR for the phone case.
-
-Planned in **[Plan 13](/plans/2026-09-02-13-terminal-request-stream/)**, which
-covers the stream, the keys and `via public`. The QR is held back there: it
-needs either a new published dependency or a Reed-Solomon encoder bundled into
-`@laqi/tui`, and `apps/cli/src/package.test.ts` asserts the dependency list
-exactly — so that is an ADR, not a task.
-
-This section is new. The work existed in the design doc and in the plan index,
-and never appeared here, which is how it went unnoticed.
+Stage 3's other half. `laqi --share` prints a URL you then have to type into
+a phone; a QR removes that. Held back from [Plan
+13](/plans/2026-09-02-13-terminal-request-stream/) because it needs a
+decision, not just work: **a new published dependency, or a Reed-Solomon
+encoder bundled into `@laqi/tui`**. `apps/cli/src/package.test.ts` asserts
+the published dependency list exactly, and laqi has taken no new runtime
+dependency since v2 — so this is an ADR.
 
 ### WebSocket mocking
 

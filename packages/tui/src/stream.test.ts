@@ -29,9 +29,9 @@ describe('requestRow', () => {
   })
 
   it('never renders the string "undefined"', () => {
-    expect(plain({ resolvedName: undefined, resolvedLayer: undefined, matched: false })).not.toContain(
-      'undefined',
-    )
+    expect(
+      plain({ resolvedName: undefined, resolvedLayer: undefined, matched: false }),
+    ).not.toContain('undefined')
   })
 
   it('aligns the columns across rows of different lengths', () => {
@@ -80,7 +80,10 @@ describe('requestRow', () => {
   })
 
   it('emits no escape codes at level none', () => {
-    expect(plain()).not.toMatch(/\u001b\[/)
+    // Built rather than typed as a regex: oxlint bans control characters
+    // in patterns, and a literal escape byte in source is invisible to
+    // whoever reads the file next.
+    expect(plain()).not.toContain(`${String.fromCharCode(27)}[`)
   })
 })
 

@@ -129,6 +129,31 @@ the tool, from the same place the name comes from.
 A second `^C` during shutdown exits immediately with no summary. With sharing
 on, the last line reads `public URL closed` instead.
 
+### 4 · The stream
+
+Not mocked up when this document was written — designed in Plan 13 and
+pasted here from a real session:
+
+```
+            o panel · s share · c clear · q quit
+21:51:57 GET    /todos           200 ok · default              0ms
+21:52:00 GET    /nope            404 no matching route         0ms
+```
+
+Same fields in the same order as the panel's log row — time, method, path,
+status, resolution, duration — so the two surfaces read as one product. Two
+rules carry it:
+
+- **The path is the only unbounded field, so it is the only one that
+  truncates.** It clamps with an ellipsis rather than wrapping, because a
+  wrapped row destroys the column alignment that makes the block scannable.
+- **The `via` column holds its place when empty.** A request that arrived
+  through the tunnel is marked `public`; without a reserved column, the
+  first shared request would shift every row after it sideways.
+
+The status is painted by class, the same second scan dimension the panel
+uses: you find the 500 by its colour before you have read the path.
+
 ## Architecture
 
 A single module owns the vocabulary; nothing else formats output.
@@ -204,9 +229,13 @@ architecture_, not by a filter: sharing starts a second listener that mounts
 only the mocks, with an explicit `/__laqi/*` 404 as defence in depth
 (ADR-0007). Requests already stream over SSE to the panel.
 
-**Not built.** A request stream in the terminal — `apps/cli/src/serve.ts`
-prints nothing per request. Raw-mode key handling. The QR. Marking a request
-`via public`. Any counter at all.
+**Not built, when this was written.** A request stream in the terminal —
+`apps/cli/src/serve.ts` printed nothing per request. Raw-mode key handling.
+The QR. Marking a request `via public`. Any counter at all.
+
+**Since:** the counters shipped in stage 1 (Plan 8); the stream, the four
+keys and `via public` shipped in stage 2 (Plan 13). **The QR is still not
+built** — see Sequencing below for the decision it waits on.
 
 That list reorders the work: **`c clear` has nothing to clear until the
 terminal streams requests**, so the stream is a prerequisite for the keys, not
@@ -221,9 +250,13 @@ a companion to them.
    be a lie.
 2. **The request stream and the four keys** — raw mode, its own tail of cases
    (no TTY, under `npm run`, signals, restoring the terminal on exit), and the
-   stream `c` acts on.
+   stream `c` acts on. **Shipped in Plan 13.**
 3. **Share polish** — the QR for the phone case, and `via public` on streamed
-   requests with the user-agent family.
+   requests with the user-agent family. `via public` **shipped in Plan 13**;
+   the QR did not. It needs either a new published dependency or a
+   Reed-Solomon encoder bundled into `@laqi/tui`, and
+   `apps/cli/src/package.test.ts` asserts the dependency list exactly — so
+   that is an ADR, not a task.
 
 ## Open questions
 
@@ -244,8 +277,10 @@ a companion to them.
    cheap, but it is new code on the request path and gets measured, not assumed
    free.
 
-4. **Does `q quit` mean the summary prints on a clean quit as well as `^C`?**
-   The mockup shows `^C`. Assume both, unless there is a reason not to.
+4. **~~Does `q quit` mean the summary prints on a clean quit as well as
+   `^C`?~~ — answered.** Both, confirmed by running it: `q`, `^C` and `^D`
+   all take the same shutdown path, and the summary counts everything from
+   the session, including requests that scrolled past a `c clear`.
 
 ## Out of scope
 

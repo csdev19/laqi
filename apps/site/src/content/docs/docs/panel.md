@@ -52,6 +52,30 @@ also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 realistic body, or copy the current response's types in twenty-five
 languages.
 
+## The terminal, while it runs
+
+Every request prints as it lands — time, method, path, status, which
+response answered and from which layer, and how long it took. A request
+that matched no route says so, which is what catches a typo'd path in the
+frontend before you go looking for it.
+
+Four keys, in a real terminal:
+
+| Key | Does                                                                   |
+| --- | ---------------------------------------------------------------------- |
+| `o` | Opens the panel in your browser.                                       |
+| `s` | Turns the public URL on, and off again.                                |
+| `c` | Clears the stream and reprints the addresses. The server is untouched. |
+| `q` | Ordered shutdown, with the session summary. Same as `^C`.              |
+
+They need a terminal. Piping the output — into a file, a task runner, or
+CI — is a supported, quieter mode: the request rows still print, without
+colour, and the keys line is not shown, because none of the keys are bound
+there.
+
+`c` clears the screen, not the session: the summary on the way out still
+counts everything, including what scrolled past.
+
 ## Sharing it publicly
 
 `localhost` is not reachable from a physical phone, from Expo Go on

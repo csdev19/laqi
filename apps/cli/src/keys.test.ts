@@ -29,7 +29,7 @@ function fakeStdin(isTTY: boolean) {
       return this as never
     },
     press(key: string) {
-      for (const listener of [...listeners]) listener(key)
+      for (const listener of listeners) listener(key)
     },
     get listenerCount() {
       return listeners.size
