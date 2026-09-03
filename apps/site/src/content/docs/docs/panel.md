@@ -52,6 +52,37 @@ also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 realistic body, or copy the current response's types in twenty-five
 languages.
 
+## The status field, and the usual siblings
+
+The status on the create form and in the detail pane is a searchable list,
+not a number you have to remember. Type `404` or `not found` — both reach
+`404 Not Found`. Codes are grouped by class and named, and anything not on
+the list is still typeable: a mock server has to be able to return `599`.
+
+Beside **+ Add response**, laqi offers the responses the endpoint probably
+wants and does not have yet. What it offers depends on the method _and_ the
+path shape:
+
+| Endpoint             | Offered                                     |
+| -------------------- | ------------------------------------------- |
+| `GET /orders`        | `ok` · `empty` · `error`                    |
+| `GET /orders/:id`    | `ok` · `not-found` · `error`                |
+| `POST /orders`       | `created` · `validation-error` · `conflict` |
+| `PUT /orders/:id`    | `ok` · `not-found` · `conflict`             |
+| `DELETE /orders/:id` | `deleted` · `not-found`                     |
+
+A collection returns an empty list; the one with an `:id` is the one that
+404s. The button names exactly what it will add, and it disappears once
+nothing is missing.
+
+It only ever **adds**. A response you already wrote keeps its body, and the
+default keeps serving whatever it was serving. The scaffolded bodies are
+placeholders — regenerate them from a pasted model with the
+[data generators](/docs/data-generators/).
+
+Agents get the same thing in one call, through the `scaffold_responses` MCP
+tool.
+
 ## Sharing it publicly
 
 `localhost` is not reachable from a physical phone, from Expo Go on

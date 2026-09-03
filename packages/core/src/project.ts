@@ -13,6 +13,7 @@ import {
   formatEndpointId,
   isHttpMethod,
   parseEndpointKey,
+  suggestResponses,
   type EndpointDefinition,
   type HttpMethod,
   type LaqiConfig,
@@ -271,6 +272,52 @@ export class Project {
 
     const result = updateEndpointInFile({ root: this.root, file: existing.file, id, definition })
     return result.ok ? ok({ id, file: existing.file }) : fail(result.error)
+  }
+
+  /**
+   * Adds the responses the endpoint probably wants and does not have yet,
+   * chosen by its method and path shape.
+   *
+   * Read-modify-write happens here, on the LOADED endpoint, because that is
+   * the only shape that carries bodies. Rebuilding the definition from
+   * `listEndpoints` would look equivalent and would silently erase every
+   * body in the file — `EndpointView.responses` is names and statuses only.
+   *
+   * Adding nothing is a success, not an error: asking twice is a reasonable
+   * thing for an agent to do, and the second call must not rewrite the file.
+   */
+  scaffoldResponses(id: string): ProjectResult<{ id: string; file: string; added: string[] }> {
+    const existing = this.load().byId.get(id)
+    if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
+
+    const missing = suggestResponses({
+      method: existing.method,
+      path: existing.path,
+      existing: Object.keys(existing.responses),
+    })
+
+    if (missing.length === 0) return ok({ id, file: existing.file, added: [] })
+
+    const result = updateEndpointInFile({
+      root: this.root,
+      file: existing.file,
+      id,
+      definition: {
+        description: existing.description,
+        // Unchanged on purpose: the scaffold adds alternatives, it does not
+        // change what the server is serving right now.
+        default: existing.default,
+        responses: {
+          ...existing.responses,
+          ...Object.fromEntries(
+            missing.map((suggestion) => [suggestion.name, suggestion.response]),
+          ),
+        },
+      },
+    })
+    if (!result.ok) return fail(result.error)
+
+    return ok({ id, file: existing.file, added: missing.map((suggestion) => suggestion.name) })
   }
 
   deleteEndpoint(id: string): ProjectResult<{ id: string; file: string }> {

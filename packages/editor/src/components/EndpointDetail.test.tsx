@@ -340,3 +340,84 @@ describe('generated types and data', () => {
     expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
   })
 })
+
+describe('the response scaffold', () => {
+  it('offers the siblings an item GET is missing, named', () => {
+    renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    expect(screen.getByRole('button', { name: /add not-found, error/ })).toBeTruthy()
+  })
+
+  it('adds them to the draft without touching what is there', () => {
+    const { onSave } = renderDetail(
+      endpoint({
+        id: 'GET /orders/:id',
+        path: '/orders/:id',
+        responses: { ok: { status: 200, body: { mine: true } } },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save to file' }))
+
+    const [, definition] = onSave.mock.calls[0]!
+    expect(Object.keys(definition.responses)).toEqual(['ok', 'not-found', 'error'])
+    expect(definition.responses.ok!.body).toEqual({ mine: true })
+    expect(definition.responses['not-found']!.status).toBe(404)
+  })
+
+  it('does not appear once the family is complete', () => {
+    renderDetail(
+      endpoint({
+        id: 'DELETE /orders/:id',
+        method: 'DELETE',
+        path: '/orders/:id',
+        default: 'deleted',
+        responses: { deleted: { status: 204 }, 'not-found': { status: 404 } },
+      }),
+    )
+    expect(screen.queryByRole('button', { name: /^\+ add / })).toBeNull()
+  })
+
+  it('does not appear for a method it has no opinion about', () => {
+    renderDetail(
+      endpoint({
+        id: 'OPTIONS /orders',
+        method: 'OPTIONS',
+        path: '/orders',
+        default: 'ok',
+        responses: { ok: { status: 204 } },
+      }),
+    )
+    expect(screen.queryByRole('button', { name: /^\+ add / })).toBeNull()
+  })
+
+  it('leaves the default response alone', () => {
+    // The scaffold adds alternatives. Silently repointing `default` at a 404
+    // would change what the server serves right now.
+    const { onSave } = renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save to file' }))
+    expect(onSave.mock.calls[0]![1].default).toBe('ok')
+  })
+
+  it('scaffolds a 204 with no body at all', () => {
+    const { onSave } = renderDetail(
+      endpoint({
+        id: 'DELETE /orders/:id',
+        method: 'DELETE',
+        path: '/orders/:id',
+        default: 'deleted',
+        responses: { 'not-found': { status: 404 } },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add deleted/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save to file' }))
+
+    const deleted = onSave.mock.calls[0]![1].responses.deleted!
+    expect(deleted.status).toBe(204)
+    expect(Object.hasOwn(deleted, 'body')).toBe(false)
+  })
+})

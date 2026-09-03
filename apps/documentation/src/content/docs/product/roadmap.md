@@ -33,27 +33,6 @@ set merged on 2026-09-02.
 
 ## Next — committed direction, not yet planned
 
-### Suggested responses on create
-
-Today a new endpoint gets exactly the responses you type. The frequent
-reality is that every endpoint wants the same family: the happy path plus
-the standard failures for its method. The feature: when an endpoint is
-created (panel, MCP, or on observing a real 200 in the request log), offer
-to scaffold the usual siblings in one click —
-
-- `GET` → `ok` / `empty` / `not-found` / `error`
-- `POST` → `created` / `validation-error` / `conflict`
-- `PUT`/`PATCH` → `ok` / `not-found` / `conflict`
-- `DELETE` → `deleted` (204) / `not-found`
-
-plus variants driven by the shape of the request (query params, `:id` in
-the path → a `not-found` is almost certainly wanted).
-**Planned in [Plan 11](/plans/2026-09-02-11-response-scaffolding/)**, together
-with the status select below — they share the form and the MCP surface. Bodies come from the
-existing data generators, so the scaffolded responses are realistic, not
-empty shells. Surfaces: a hint in the panel's create flow, and an MCP
-affordance so agents get the same one-call scaffold.
-
 ### Package-manager toggle on laqi.dev
 
 The hero's install block and the docs' installation page currently show
@@ -68,18 +47,6 @@ Astro, so this is a small client-side island. Before shipping: actually
 verify the global-install and runner paths on each manager (yarn classic
 vs berry differ on `global`) — that verification is Task 1 of
 **[Plan 12](/plans/2026-09-02-12-package-manager-toggle/)**.
-
-### Status-code select on create
-
-In the panel, the status field on the new-endpoint / new-response form is
-a free-text input. Replace it with a **select with dropdown listing the
-HTTP status codes**, grouped by class and named (`200 OK`, `201 Created`,
-`404 Not Found`, `422 Unprocessable Entity`…), with type-to-filter so
-`404` or "not found" both reach it. Free text stays possible for exotic
-codes. This is the small sibling of "suggested responses on create" above:
-the select teaches what codes exist; the scaffold offers the family the
-method usually wants. Both are
-**[Plan 11](/plans/2026-09-02-11-response-scaffolding/)**.
 
 ### Terminal output, stages 2 and 3
 
@@ -113,6 +80,14 @@ surface in `packages/server`. **No plan, deliberately:** the open questions
 are written out in
 [websocket-mocking](/design/websocket-mocking/), and a plan written before
 they are answered would be inventing the answers.
+
+### Scaffolding from the request log
+
+Plan 11 shipped the response scaffold in the panel's detail pane and as an
+MCP tool. The roadmap's original description also promised it "on observing
+a real 200 in the request log" — that trigger is **not** built. It needs an
+affordance on the log row, which is a different surface from the create
+flow.
 
 ## Later — deferred by explicit rulings
 

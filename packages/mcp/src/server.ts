@@ -163,6 +163,29 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
   )
 
   server.registerTool(
+    'scaffold_responses',
+    {
+      title: 'Scaffold the usual responses',
+      description:
+        'Add the responses this endpoint probably needs and does not have yet, chosen by its method and path shape: a GET on a collection gets an `empty`, a GET on /:id gets a `not-found`, a POST gets `validation-error` and `conflict`. Bodies are placeholders — replace them with generate_data. This only ever ADDS: existing responses keep their bodies, and the default does not move. Safe to call twice.',
+      inputSchema: { id: z.string().describe('Endpoint id, e.g. "GET /users/:id"') },
+    },
+    ({ id }) => {
+      const result = project.scaffoldResponses(id)
+      if (!result.ok) return reply(result)
+
+      if (result.value.added.length === 0) {
+        return text({
+          id,
+          added: [],
+          message: `${id} already has every response laqi would suggest.`,
+        })
+      }
+      return text(result.value)
+    },
+  )
+
+  server.registerTool(
     'update_endpoint',
     {
       title: 'Update an endpoint',

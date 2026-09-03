@@ -445,3 +445,62 @@ describe('the incoming path is normalised too, not just the file keys', () => {
     expect(result.rejected).toHaveLength(1)
   })
 })
+
+describe('scaffoldResponses', () => {
+  beforeEach(() => {
+    writeMocks({
+      'GET /orders/:id': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: { id: 1, total: 42 } } },
+      },
+      'GET /orders': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+    })
+  })
+
+  it('adds the family the endpoint is missing', () => {
+    const result = project.scaffoldResponses('GET /orders/:id')
+    expect(result.ok).toBe(true)
+
+    const written = readMocks()['GET /orders/:id'] as { responses: Record<string, unknown> }
+    expect(Object.keys(written.responses)).toEqual(['ok', 'not-found', 'error'])
+  })
+
+  it('keeps the body of a response someone already wrote', () => {
+    // The scaffold reads through the loaded endpoint, which carries bodies.
+    // Rebuilding the definition from the endpoint LIST would drop them,
+    // because that view only carries names and statuses.
+    project.scaffoldResponses('GET /orders/:id')
+
+    const written = readMocks()['GET /orders/:id'] as {
+      responses: Record<string, { body?: unknown }>
+    }
+    expect(written.responses.ok!.body).toEqual({ id: 1, total: 42 })
+  })
+
+  it('leaves the default pointing where it pointed', () => {
+    project.scaffoldResponses('GET /orders/:id')
+    expect((readMocks()['GET /orders/:id'] as { default: string }).default).toBe('ok')
+  })
+
+  it('gives a collection an empty case rather than a not-found', () => {
+    project.scaffoldResponses('GET /orders')
+    const written = readMocks()['GET /orders'] as { responses: Record<string, unknown> }
+    expect(Object.keys(written.responses)).toEqual(['ok', 'empty', 'error'])
+  })
+
+  it('reports that there is nothing to add, without rewriting the file', () => {
+    project.scaffoldResponses('GET /orders/:id')
+    const before = JSON.stringify(readMocks())
+
+    const second = project.scaffoldResponses('GET /orders/:id')
+    expect(second.ok).toBe(true)
+    if (second.ok) expect(second.value.added).toEqual([])
+    expect(JSON.stringify(readMocks())).toBe(before)
+  })
+
+  it('fails on an endpoint that does not exist', () => {
+    const result = project.scaffoldResponses('GET /nope')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.code).toBe('not-found')
+  })
+})
