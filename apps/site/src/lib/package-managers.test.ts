@@ -80,3 +80,34 @@ describe('isPackageManagerId', () => {
     }
   })
 })
+
+describe('the inline head script', () => {
+  it('knows exactly the managers this module defines', async () => {
+    // The head script has to be blocking, inline and dependency-free, so it
+    // carries its own ES5 copy of the id list. That duplication is the one
+    // thing that can silently rot: add a fifth manager here and the script
+    // would refuse to select it, leaving that tab dead.
+    const { PM_INLINE_SCRIPT } = await import('./pm-script.mjs')
+    const ids = PM_INLINE_SCRIPT.match(/var ids = \[([^\]]*)\]/)?.[1]
+    expect(ids).toBeDefined()
+
+    const inScript = ids!.split(',').map((entry) => entry.trim().replace(/'/g, ''))
+    expect(inScript).toEqual(PACKAGE_MANAGERS.map((manager) => manager.id))
+  })
+
+  it('falls back to the same default this module declares', async () => {
+    const { PM_INLINE_SCRIPT } = await import('./pm-script.mjs')
+    expect(PM_INLINE_SCRIPT).toContain(`var fallback = '${DEFAULT_MANAGER}'`)
+  })
+
+  it('guards every localStorage access, because Safari private mode throws', async () => {
+    // This runs blocking in <head>. An unguarded throw would abort the
+    // script before it stamps data-pm, and the page would render npm for
+    // everyone regardless of what they picked.
+    const { PM_INLINE_SCRIPT } = await import('./pm-script.mjs')
+    const accesses = PM_INLINE_SCRIPT.match(/localStorage\./g) ?? []
+    const catches = PM_INLINE_SCRIPT.match(/catch/g) ?? []
+    expect(accesses.length).toBeGreaterThan(0)
+    expect(catches.length).toBeGreaterThanOrEqual(accesses.length)
+  })
+})

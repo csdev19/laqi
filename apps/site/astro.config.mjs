@@ -1,6 +1,8 @@
 // @ts-check
 import { defineConfig } from 'astro/config'
+import mdx from '@astrojs/mdx'
 import starlight from '@astrojs/starlight'
+import { PM_INLINE_SCRIPT } from './src/lib/pm-script.mjs'
 
 // The landing page lives at `/`, hand-built in src/pages/index.astro,
 // entirely outside Starlight's own routing. Docs need to land at
@@ -37,6 +39,10 @@ export default defineConfig({
         { tag: 'meta', attrs: { name: 'twitter:image', content: 'https://laqi.dev/og-image.png' } },
         { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
         { tag: 'link', attrs: { rel: 'manifest', href: '/site.webmanifest' } },
+        // Blocking, and first: it stamps data-pm on <html> so the install
+        // command renders correct on the first paint instead of flickering
+        // from npm to whatever the reader picked last time.
+        { tag: 'script', content: PM_INLINE_SCRIPT },
       ],
       defaultLocale: 'root',
       locales: {
@@ -63,5 +69,12 @@ export default defineConfig({
         },
       ],
     }),
+    // AFTER starlight, never before: starlight registers
+    // astro-expressive-code, and that has to be set up first or code blocks
+    // on .mdx pages lose their highlighting. Astro errors out if reversed.
+    //
+    // MDX is here because two docs pages carry install commands, and a
+    // fenced code block cannot participate in the package-manager toggle.
+    mdx(),
   ],
 })

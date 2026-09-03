@@ -13,13 +13,13 @@ unverified cell, so this page is the gate the site's copy passes through.
 
 ## Versions under test
 
-| Tool | Version | How it was obtained            |
-| ---- | ------- | ------------------------------ |
-| Node | 22.23.2 | nvm                            |
-| npm  | 10.9.8  | bundled with Node              |
-| pnpm | 10.6.2  | corepack (not otherwise on the machine) |
-| yarn | 1.22.22 (classic) and 4.18.0 (berry) | corepack |
-| bun  | 1.3.4   | already installed              |
+| Tool | Version                              | How it was obtained                     |
+| ---- | ------------------------------------ | --------------------------------------- |
+| Node | 22.23.2                              | nvm                                     |
+| npm  | 10.9.8                               | bundled with Node                       |
+| pnpm | 10.6.2                               | corepack (not otherwise on the machine) |
+| yarn | 1.22.22 (classic) and 4.18.0 (berry) | corepack                                |
+| bun  | 1.3.4                                | already installed                       |
 
 pnpm and yarn are not installed on this machine. They were provided by
 `corepack enable --install-directory <tmp>` for the duration of the run and
@@ -28,12 +28,12 @@ the results are trustworthy and why nothing was left behind.
 
 ## The matrix
 
-| Manager | Global install | No-install runner | Dev dependency |
-| ------- | -------------- | ----------------- | -------------- |
-| **npm** | `npm i -g laqi@2` ✅ | `npx laqi@2` ✅ | `npm i -D laqi@2` ✅ |
-| **pnpm** | `pnpm add -g laqi@2` ✅ | `pnpm dlx laqi@2` ✅ | `pnpm add -D laqi@2` ✅ |
-| **yarn** | `yarn global add laqi@2` ✅ *(classic only)* | `yarn dlx laqi@2` ⚠️ *(berry; see below)* | `yarn add -D laqi@2` ✅ |
-| **bun** | `bun add -g laqi@2` ✅ | `bunx laqi@2` ✅ | `bun add -d laqi@2` ✅ |
+| Manager  | Global install                               | No-install runner                         | Dev dependency          |
+| -------- | -------------------------------------------- | ----------------------------------------- | ----------------------- |
+| **npm**  | `npm i -g laqi@2` ✅                         | `npx laqi@2` ✅                           | `npm i -D laqi@2` ✅    |
+| **pnpm** | `pnpm add -g laqi@2` ✅                      | `pnpm dlx laqi@2` ✅                      | `pnpm add -D laqi@2` ✅ |
+| **yarn** | `yarn global add laqi@2` ✅ _(classic only)_ | `yarn dlx laqi@2` ⚠️ _(berry; see below)_ | `yarn add -D laqi@2` ✅ |
+| **bun**  | `bun add -g laqi@2` ✅                       | `bunx laqi@2` ✅                          | `bun add -d laqi@2` ✅  |
 
 Every ✅ means `laqi --help` printed the command list, or
 `node_modules/.bin/laqi` existed, after that exact command.

@@ -54,33 +54,6 @@ existing data generators, so the scaffolded responses are realistic, not
 empty shells. Surfaces: a hint in the panel's create flow, and an MCP
 affordance so agents get the same one-call scaffold.
 
-### Package-manager toggle on laqi.dev
-
-The hero's install block and the docs' installation page currently show
-`npm` only. laqi is a plain npm package, so every manager already works —
-`npm i -g laqi`, `pnpm add -g laqi`, `yarn global add laqi`, `bun add -g
-laqi`, plus the no-install runners (`npx laqi`, `bunx laqi`, `pnpm dlx
-laqi`) — the site just doesn't say so. The feature: a **toggle that swaps
-the command text in place** (npm / pnpm / yarn / bun), not TanStack's
-stack of five "or" blocks. One choice, remembered in `localStorage`,
-applied to every install snippet across the site. The site is static
-Astro, so this is a small client-side island. Before shipping: actually
-verify the global-install and runner paths on each manager (yarn classic
-vs berry differ on `global`) — that verification is Task 1 of
-**[Plan 12](/plans/2026-09-02-12-package-manager-toggle/)**.
-
-### Status-code select on create
-
-In the panel, the status field on the new-endpoint / new-response form is
-a free-text input. Replace it with a **select with dropdown listing the
-HTTP status codes**, grouped by class and named (`200 OK`, `201 Created`,
-`404 Not Found`, `422 Unprocessable Entity`…), with type-to-filter so
-`404` or "not found" both reach it. Free text stays possible for exotic
-codes. This is the small sibling of "suggested responses on create" above:
-the select teaches what codes exist; the scaffold offers the family the
-method usually wants. Both are
-**[Plan 11](/plans/2026-09-02-11-response-scaffolding/)**.
-
 ### Terminal output, stages 2 and 3
 
 Stage 1 shipped in Plan 8 — the start, failure and goodbye screens, and the
