@@ -1,4 +1,7 @@
-// apps/cli/src/init/open-browser.ts
+// apps/cli/src/open-browser.ts
+//
+// Lives here, not under init/, because it has two callers: `laqi init
+// --open` and the `o` key on a running server.
 //
 // Best-effort only. `--open` on a machine with no browser (a container, CI,
 // a headless box an agent runs in) is a notice, not a failure — the caller
