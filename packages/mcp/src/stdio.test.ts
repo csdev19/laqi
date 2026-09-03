@@ -17,6 +17,12 @@ function writeMocks(contents: unknown, file = 'laqi/api.json') {
   writeFileSync(full, JSON.stringify(contents, null, 2), 'utf8')
 }
 
+function readApiFile(): Record<string, { default: string; responses: Record<string, { body?: unknown }> }> {
+  return JSON.parse(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')) as ReturnType<
+    typeof readApiFile
+  >
+}
+
 async function call(name: string, args: Record<string, unknown> = {}) {
   const result = await client.callTool({ name, arguments: args })
   const content = result.content as { type: string; text: string }[]
@@ -63,6 +69,7 @@ describe('laqi mcp over stdio', () => {
       'import_openapi',
       'list_endpoints',
       'reset_state',
+      'scaffold_responses',
       'set_response',
       'set_scenario',
       'update_endpoint',
@@ -193,7 +200,7 @@ describe('laqi mcp over stdio', () => {
     const result = await call('import_openapi', { document })
     expect(result.json()).toMatchObject({ created: [], skipped: [{ where: 'GET /users' }] })
 
-    // El original sigue intacto.
+    // The original is left intact.
     const file = JSON.parse(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')) as Record<
       string,
       { responses: Record<string, unknown> }
@@ -315,6 +322,35 @@ describe('laqi mcp over stdio', () => {
     const result = await call('get_types', { endpointId: 'GET /users', lang: 'not-a-real-lang' })
     expect(result.isError).toBe(true)
     expect(result.text).toContain('unknown language')
+    expect(result.text).not.toContain('FiberFailure')
+  }, 30_000)
+
+  it('scaffold_responses adds the family the endpoint is missing', async () => {
+    // GET /users is a collection: it gets an `empty`, never a `not-found`.
+    const result = await call('scaffold_responses', { id: 'GET /users' })
+    expect(result.isError).toBeFalsy()
+    expect(result.text).toContain('empty')
+
+    const file = readApiFile()
+    expect(Object.keys(file['GET /users']!.responses)).toEqual(['ok', 'boom', 'empty', 'error'])
+  }, 30_000)
+
+  it('scaffold_responses keeps the bodies that were already there', async () => {
+    await call('scaffold_responses', { id: 'GET /users' })
+    const file = readApiFile()
+    expect(file['GET /users']!.responses.ok!.body).toEqual([{ id: 1, name: 'Ada' }])
+  }, 30_000)
+
+  it('scaffold_responses says so rather than rewriting when nothing is missing', async () => {
+    await call('scaffold_responses', { id: 'GET /users' })
+    const second = await call('scaffold_responses', { id: 'GET /users' })
+    expect(second.isError).toBeFalsy()
+    expect(second.text).toMatch(/already has/i)
+  }, 30_000)
+
+  it('scaffold_responses reports an unknown endpoint cleanly', async () => {
+    const result = await call('scaffold_responses', { id: 'GET /nope' })
+    expect(result.isError).toBe(true)
     expect(result.text).not.toContain('FiberFailure')
   }, 30_000)
 })
