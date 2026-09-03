@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { filterStatusCodes } from '@laqi/schema'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -108,14 +109,17 @@ describe('StatusSelect', () => {
   })
 
   it('moves the highlight with the arrow keys', () => {
+    // Asserted against the same filter the component uses, rather than a
+    // hardcoded code: the point is that ArrowDown moves off the first row,
+    // not which particular row happens to be second today.
+    const [, second] = filterStatusCodes('not')
     const { input, onChange } = renderSelect()
     fireEvent.focus(input)
     fireEvent.change(input, { target: { value: 'not' } })
     onChange.mockClear()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
-    const [[picked]] = onChange.mock.calls
-    expect(picked).not.toBe('304')
+    expect(onChange).toHaveBeenCalledWith(String(second!.code))
   })
 
   it('closes on Escape without changing the value', () => {

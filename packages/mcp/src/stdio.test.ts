@@ -17,7 +17,10 @@ function writeMocks(contents: unknown, file = 'laqi/api.json') {
   writeFileSync(full, JSON.stringify(contents, null, 2), 'utf8')
 }
 
-function readApiFile(): Record<string, { default: string; responses: Record<string, { body?: unknown }> }> {
+function readApiFile(): Record<
+  string,
+  { default: string; responses: Record<string, { body?: unknown }> }
+> {
   return JSON.parse(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')) as ReturnType<
     typeof readApiFile
   >
