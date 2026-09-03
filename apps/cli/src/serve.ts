@@ -45,6 +45,12 @@ export type ServeHandle = {
   current: () => Runtime
   /** What the panel shows in the magenta band. */
   setShareUrl: (url: string | null) => void
+  /**
+   * The same bus the panel's SSE stream reads. Exposed so the terminal can
+   * print requests as they land without a second code path on the request
+   * path. Returns an unsubscribe.
+   */
+  subscribe: (listener: (event: LaqiEvent) => void) => () => void
   close: () => Promise<void>
 }
 
@@ -426,6 +432,7 @@ export async function startServer(options: {
     setShareUrl: (url) => {
       shareUrl = url
     },
+    subscribe: (listener) => bus.subscribe(listener),
     startPublicListener,
     stopPublicListener,
     isPublicListening: () => publicServer !== null,

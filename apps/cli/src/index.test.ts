@@ -168,3 +168,103 @@ describe('laqi start — alias for the default serve mode', () => {
     expect(stderr).not.toContain('"start"')
   })
 })
+
+describe('the terminal request stream', () => {
+  /** Reads the port out of the `serving http://127.0.0.1:NNNN` line. */
+  const portOf = (stdout: string): number => Number(/127\.0\.0\.1:(\d+)/.exec(stdout)![1])
+
+  /** The start of every ANSI sequence, built rather than typed: a literal
+   *  escape byte in a source file is invisible to whoever reads it next. */
+  const CSI = `${String.fromCharCode(27)}[`
+
+  /** Waits for a line to appear on a child that is already running. */
+  function waitForLine(
+    proc: ChildProcessWithoutNullStreams,
+    needle: string,
+    seen: () => string,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (seen().includes(needle)) return resolve(seen())
+      const timeout = setTimeout(
+        () => reject(new Error(`timed out waiting for ${needle} in: ${seen()}`)),
+        10_000,
+      )
+      proc.stdout.on('data', () => {
+        if (seen().includes(needle)) {
+          clearTimeout(timeout)
+          resolve(seen())
+        }
+      })
+    })
+  }
+
+  /** Starts a server and keeps accumulating its output past the first line. */
+  async function serving(): Promise<{
+    proc: ChildProcessWithoutNullStreams
+    port: number
+    output: () => string
+  }> {
+    root = makeMockRoot()
+    const { stdout, child: proc } = await runUntil(['start', '--port', '0'], root, 'serving')
+    child = proc
+
+    let output = stdout
+    proc.stdout.on('data', (chunk: Buffer) => (output += chunk.toString()))
+    return { proc, port: portOf(stdout), output: () => output }
+  }
+
+  it('prints a row for each request that lands', async () => {
+    const { proc, port, output } = await serving()
+
+    await fetch(`http://127.0.0.1:${port}/ping`)
+    const seen = await waitForLine(proc, '/ping', output)
+
+    expect(seen).toMatch(/GET\s+\/ping.*200.*ok · default/)
+  }, 20_000)
+
+  it('makes an unmatched request impossible to miss', async () => {
+    // The row that catches a typo'd path in the frontend, which is the
+    // whole reason the stream is worth printing at all.
+    const { proc, port, output } = await serving()
+
+    await fetch(`http://127.0.0.1:${port}/nope`)
+    const seen = await waitForLine(proc, '/nope', output)
+
+    expect(seen).toContain('no matching route')
+  }, 20_000)
+
+  it('does not advertise the keys when stdin is not a TTY', async () => {
+    // Spawned with pipes, so isTTY is false — the same shape as piping the
+    // output, running under a task runner, or in CI. Stage 1's invariant:
+    // never print a shortcut that is not bound.
+    const { output } = await serving()
+
+    expect(output()).not.toContain('quit')
+    expect(output()).not.toContain('clear')
+  })
+
+  it('still streams rows without a TTY, because a pipe is a log', async () => {
+    const { proc, port, output } = await serving()
+
+    await fetch(`http://127.0.0.1:${port}/ping`)
+    const seen = await waitForLine(proc, '/ping', output)
+
+    expect(seen).toContain('/ping')
+    // Colour is already off in a pipe, so the row must carry no escapes.
+    expect(seen).not.toContain(CSI)
+  }, 20_000)
+
+  it('counts the streamed requests in the goodbye summary', async () => {
+    const { proc, port, output } = await serving()
+
+    await fetch(`http://127.0.0.1:${port}/ping`)
+    await fetch(`http://127.0.0.1:${port}/nope`)
+    await waitForLine(proc, '/nope', output)
+
+    proc.kill('SIGTERM')
+    const seen = await waitForLine(proc, 'served', output)
+
+    expect(seen).toContain('2 requests')
+    expect(seen).toContain('1 unmatched')
+  }, 20_000)
+})
