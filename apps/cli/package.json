@@ -1,6 +1,6 @@
 {
   "name": "laqi",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "A controllable local mock API server for frontend development. Flip responses, errors, latency, and scenarios from a web panel.",
   "keywords": [
     "api-mocking",
