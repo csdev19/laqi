@@ -1,17 +1,87 @@
 ---
 // apps/site/src/components/InstallCommand.astro
+import { PACKAGE_MANAGERS } from '../lib/package-managers'
+
+type Props = {
+  /** Which of the three commands to show. */
+  variant?: 'global' | 'runner' | 'dev'
+  /** Lines printed under the command, unchanged by the toggle — e.g. `laqi init`. */
+  extra?: string[]
+  /** Hide the tabs where a second toggle on the same page would be noise. */
+  tabs?: boolean
+}
+
+// Every variant is rendered into the HTML and CSS picks one. That is what
+// makes the page correct with JavaScript off, and what removes the flicker
+// a text-swapping script would have.
+const { variant = 'global', extra = [], tabs = true } = Astro.props
 ---
+
 <div class="install-command">
-  <span class="prompt">$</span>
-  <code>npm i -g laqi@2</code>
-  <button type="button" class="copy" data-copy="npm i -g laqi@2">copy</button>
+  {
+    tabs && (
+      <div class="pm-tabs" role="group" aria-label="package manager">
+        {PACKAGE_MANAGERS.map((manager) => (
+          <button type="button" class="pm-tab" data-pm-id={manager.id} data-pm-pick={manager.id}>
+            {manager.name}
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  <div class="install-line">
+    <span class="prompt">$</span>
+    <code>
+      {
+        PACKAGE_MANAGERS.map((manager) => (
+          <span class="pm-variant" data-pm-id={manager.id}>
+            {manager[variant]}
+          </span>
+        ))
+      }
+    </code>
+    <button type="button" class="copy">copy</button>
+  </div>
+
+  {
+    extra.map((line) => (
+      <div class="install-line">
+        <span class="prompt">$</span>
+        <code>{line}</code>
+      </div>
+    ))
+  }
+
+  {
+    PACKAGE_MANAGERS.filter((manager) => manager.note).map((manager) => (
+      <p class="pm-note" data-pm-id={manager.id}>
+        {manager.note}
+      </p>
+    ))
+  }
 </div>
 
 <script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-pm-pick]')) {
+    button.addEventListener('click', () => {
+      window.__laqiSetPm?.(button.dataset.pmPick!)
+    })
+  }
+
+  // The copy button reads the VISIBLE variant out of the DOM rather than a
+  // data-copy attribute: with four variants in the markup, an attribute
+  // would have to be re-synced on every toggle, and what is on screen is
+  // already the only honest answer to "what did I just copy".
   for (const button of document.querySelectorAll<HTMLButtonElement>('.install-command .copy')) {
     button.addEventListener('click', () => {
-      const text = button.dataset.copy ?? ''
-      navigator.clipboard.writeText(text)
+      const line = button.closest('.install-line')
+      const visible = [...(line?.querySelectorAll<HTMLElement>('.pm-variant') ?? [])].find(
+        (span) => span.offsetParent !== null,
+      )
+      const text = (visible ?? line?.querySelector('code'))?.textContent?.trim() ?? ''
+      void navigator.clipboard.writeText(text)
+
       const original = button.textContent
       button.textContent = 'copied'
       setTimeout(() => {
@@ -24,13 +94,18 @@
 <style>
   .install-command {
     display: inline-flex;
-    align-items: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
     padding: 0.85rem 1.25rem;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 6px;
     font-family: var(--mono);
+  }
+  .install-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
   }
   .prompt {
     color: var(--dim);

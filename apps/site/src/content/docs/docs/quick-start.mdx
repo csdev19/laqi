@@ -8,10 +8,9 @@ response change. Under a minute, four steps.
 
 ## 1. Scaffold a mock API
 
-```sh
-npm i -g laqi@2
-laqi init
-```
+import InstallCommand from '../../../components/InstallCommand.astro'
+
+<InstallCommand extra={['laqi init']} />
 
 `laqi init` writes a `laqi/` folder with a small todos API — `GET /todos`,
 `POST /todos`, `POST /auth/login` — each endpoint carrying named

@@ -1,6 +1,7 @@
 ---
 // apps/site/src/pages/index.astro
 import '../styles/global.css'
+import { PM_INLINE_SCRIPT } from '../lib/pm-script.mjs'
 import SiteNav from '../components/SiteNav.astro'
 import Hero from '../components/Hero.astro'
 import ForWhom from '../components/ForWhom.astro'
@@ -14,6 +15,9 @@ import SiteFooter from '../components/SiteFooter.astro'
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!-- Blocking, before anything paints: stamps data-pm on <html> so the
+         install command is right on the first frame. -->
+    <script is:inline set:html={PM_INLINE_SCRIPT}></script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
