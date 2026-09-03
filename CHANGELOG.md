@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.1.0](https://github.com/csdev19/laqi/compare/v2.0.1...v2.1.0) (2026-09-03)
+
+
+### Features
+
+* **editor:** add a status combobox that names every code it offers ([33fac52](https://github.com/csdev19/laqi/commit/33fac52ac15661dcf9cb9692bc8a9d448ffb5d24))
+* **editor:** use the status combobox, and offer the missing response siblings ([a63fab7](https://github.com/csdev19/laqi/commit/a63fab778426f9fba99ca17ec8f1b7eb8abe0a84))
+* **mcp:** add scaffold_responses so agents get the same one call ([e5c5219](https://github.com/csdev19/laqi/commit/e5c52195d876b8bba3df5d87934649cbfd187d2f))
+* response scaffolding and a status select that names its codes ([67007bb](https://github.com/csdev19/laqi/commit/67007bba5908d619a261304ea071fe4db292fa41))
+* **schema:** add the status-code catalogue and one statusClass ([350077b](https://github.com/csdev19/laqi/commit/350077b25c9fec5c005a515878a31f4148fd9613))
+* **schema:** suggest the response family a method and path shape imply ([09cd46f](https://github.com/csdev19/laqi/commit/09cd46fac2e6968dc94e1ff162a44a51c12f6ff3))
+
+
+### Bug Fixes
+
+* **generate:** close the parse, budget and shape-validation holes ([f7cd764](https://github.com/csdev19/laqi/commit/f7cd76448f3e3de6139195508ddf9e26a73f8289))
+* **generate:** close the parse, budget and shape-validation holes ([fdf4547](https://github.com/csdev19/laqi/commit/fdf4547111e9a68cbd6cf0f2816293f1e67c3542))
+* **generate:** make the exported Effect programs actually runnable ([cb729dc](https://github.com/csdev19/laqi/commit/cb729dc20cb98a2a85067b9ccfc13c0d0949640c))
+
+
+### Code Refactoring
+
+* **generate:** make faker and quicktype services too ([720d296](https://github.com/csdev19/laqi/commit/720d296074195eedb0d22546f20abecdbc248d0d))
+* **generate:** make the heavy dependencies Effect services ([09b2250](https://github.com/csdev19/laqi/commit/09b225004e4a0e7cf11a91f4f2a81211a6334b8c))
+* **generate:** make the TypeScript compiler a service ([5fb026e](https://github.com/csdev19/laqi/commit/5fb026e8087bb7bfaaed7f988cb6db2d3805a8e7))
+
 ## [2.0.1](https://github.com/csdev19/laqi/compare/v2.0.0...v2.0.1) (2026-09-02)
 
 
