@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { StatusSelect } from './StatusSelect'
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 
@@ -85,13 +86,7 @@ export function CreateEndpointRow(props: {
             value={responseName}
             onChange={(event) => setResponseName(event.target.value)}
           />
-          <input
-            className="create-input create-status"
-            aria-label="status"
-            inputMode="numeric"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          />
+          <StatusSelect label="status" value={status} onChange={setStatus} />
         </>
       ) : null}
 

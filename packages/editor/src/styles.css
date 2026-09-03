@@ -1468,3 +1468,12 @@ button.log-path:hover {
   border: 1px solid var(--line2);
   border-radius: 2px;
 }
+
+.add-response-scaffold {
+  border-style: dotted;
+}
+
+.add-response-scaffold:hover {
+  border-color: var(--mint);
+  color: var(--palem);
+}

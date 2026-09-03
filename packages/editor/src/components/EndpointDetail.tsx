@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
+import { suggestResponses } from '@laqi/schema'
+import { StatusSelect } from './StatusSelect'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { Dialog } from './Dialog'
@@ -92,6 +94,15 @@ export function EndpointDetail(props: {
   const names = Object.keys(draft.responses)
   const current = draft.responses[selected]
   const bodySource = draft.bodies[selected] ?? ''
+
+  // The endpoint id is `METHOD /path`; both halves decide the family. Read
+  // from the draft, not the endpoint, so the button disappears the moment
+  // the responses are added rather than after the file is saved.
+  const missing = suggestResponses({
+    method: endpoint.method,
+    path: endpoint.path,
+    existing: Object.keys(draft.responses),
+  })
 
   const dirty = useMemo(() => !sameDefinition(draft, endpoint), [draft, endpoint])
 
@@ -198,6 +209,44 @@ export function EndpointDetail(props: {
           >
             + Add response
           </button>
+
+          {missing.length > 0 ? (
+            <button
+              type="button"
+              className="add-response add-response-scaffold"
+              // The names are in the label, not a tooltip: this button writes
+              // into the user's repository, so what it will do has to be
+              // readable before it is pressed, not after.
+              onClick={() => {
+                setDraft((previous) => ({
+                  ...previous,
+                  responses: {
+                    ...previous.responses,
+                    ...Object.fromEntries(
+                      missing.map((suggestion) => [suggestion.name, suggestion.response]),
+                    ),
+                  },
+                  bodies: {
+                    ...previous.bodies,
+                    ...Object.fromEntries(
+                      missing.map((suggestion) => [
+                        suggestion.name,
+                        // A 204 carries no body key at all; the editor shows
+                        // an empty string, which `save` turns back into an
+                        // omitted body rather than the string "undefined".
+                        'body' in suggestion.response
+                          ? JSON.stringify(suggestion.response.body, null, 2)
+                          : '',
+                      ]),
+                    ),
+                  },
+                }))
+                setSelected(missing[0]!.name)
+              }}
+            >
+              + add {missing.map((suggestion) => suggestion.name).join(', ')}
+            </button>
+          ) : null}
         </div>
 
         <div className="detail-body">
@@ -287,14 +336,11 @@ export function EndpointDetail(props: {
                 <label className="micro" htmlFor="meta-status">
                   status
                 </label>
-                <input
+                <StatusSelect
                   id="meta-status"
-                  className="meta-input"
-                  inputMode="numeric"
+                  label="status"
                   value={String(current.status)}
-                  onChange={(event) =>
-                    patch(selected, { status: Number(event.target.value) || current.status })
-                  }
+                  onChange={(next) => patch(selected, { status: Number(next) || current.status })}
                 />
               </div>
 

@@ -143,3 +143,26 @@ describe('CreateEndpointRow', () => {
     expect(screen.getByText('GET /todos already exists')).toBeTruthy()
   })
 })
+
+describe('the status field', () => {
+  it('offers the named codes and still submits an unlisted one', () => {
+    const { onCreate } = renderRow()
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/orders' } })
+
+    const status = screen.getByLabelText('status')
+    fireEvent.focus(status)
+    fireEvent.change(status, { target: { value: 'not found' } })
+    fireEvent.mouseDown(screen.getByRole('option', { name: /404 Not Found/ }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ status: 404 }))
+  })
+
+  it('submits a code that is not in the catalogue', () => {
+    const { onCreate } = renderRow()
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/orders' } })
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: '599' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ status: 599 }))
+  })
+})
