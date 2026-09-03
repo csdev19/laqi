@@ -1411,3 +1411,60 @@ button.log-path:hover {
   color: var(--mag);
   margin-top: 4px;
 }
+
+.status-select {
+  position: relative;
+}
+
+.status-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 15rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel2);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+}
+
+.status-group {
+  padding: 6px 8px 2px;
+  color: var(--dim2);
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.status-option.is-highlighted {
+  background: rgba(122, 0, 255, 0.2);
+}
+
+.status-label {
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.status-empty {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 15rem;
+  padding: 8px;
+  color: var(--dim2);
+  background: var(--panel2);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+}
