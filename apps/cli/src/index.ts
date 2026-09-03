@@ -6,7 +6,18 @@ import { parseArgs } from 'node:util'
 import { SessionCounters } from '@laqi/core'
 import { ConfigSchema, type LaqiConfig } from '@laqi/schema'
 import { generateToken } from '@laqi/server'
-import { paint, renderFailure, row, startScreen, type Failure } from '@laqi/tui'
+import {
+  keysLine,
+  paint,
+  renderFailure,
+  requestRow,
+  row,
+  startScreen,
+  type Failure,
+  type StartInfo,
+} from '@laqi/tui'
+import { bindKeys } from './keys'
+import { openBrowser } from './open-browser'
 import { renderGoodbye } from './goodbye'
 import { CLI_ARGS_CONFIG } from './cli-surface'
 import { runInit } from './init/run'
@@ -279,6 +290,37 @@ async function main(): Promise<void> {
     return
   }
 
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const clockTime = (at: Date) =>
+    `${pad(at.getHours())}:${pad(at.getMinutes())}:${pad(at.getSeconds())}`
+
+  // The stream is a subscriber, not a new code path: these events already
+  // travel to the panel over SSE. Rows print with or without a TTY — piped
+  // output is a supported, quieter mode, and `detectLevel` has already
+  // turned colour off there.
+  handle.subscribe((event) => {
+    if (event.type !== 'request') return
+    console.log(
+      requestRow(
+        {
+          // Read here and not inside @laqi/tui: the formatter stays pure,
+          // which is what lets the screens be tested without a terminal.
+          time: clockTime(new Date()),
+          method: event.method,
+          path: event.path,
+          status: event.status,
+          resolvedName: event.resolvedName,
+          resolvedLayer: event.resolvedLayer,
+          ms: event.ms,
+          matched: event.endpointId !== null,
+          viaPublic: event.via === 'public',
+        },
+        outputLevel(),
+        process.stdout.columns,
+      ),
+    )
+  })
+
   const watcher = watchMocks({
     root,
     dir: config.dir,
@@ -296,6 +338,10 @@ async function main(): Promise<void> {
         // leaves the same "nothing to serve" state a fresh start would —
         // same fatal treatment and exit code, not a silent, empty server.
         void (async () => {
+          // The other exit path, and the one easy to forget: a save that
+          // breaks every mock file kills the process from inside the
+          // watcher. Without this the shell is left with echo off.
+          keys.restore()
           await watcher.close().catch(() => {})
           if (tunnel) await tunnel.stop().catch(() => {})
           await handle.close().catch(() => {})
@@ -319,6 +365,9 @@ async function main(): Promise<void> {
     void (async () => {
       // Without this cloudflared outlives the CLI and the tunnel stays
       // open, pointing at a dead port.
+      // First: the summary has to land on a terminal with echo back on,
+      // and a listener left attached keeps the event loop alive.
+      keys.restore()
       await watcher.close().catch(() => {})
       if (tunnel) await tunnel.stop().catch(() => {})
       await handle.close().catch(() => {})
@@ -337,6 +386,85 @@ async function main(): Promise<void> {
   }
   process.once('SIGINT', shutdown)
   process.once('SIGTERM', shutdown)
+
+  /**
+   * `s`. Sharing is a toggle, so this both opens and closes it, and it has
+   * to work on a process that started without --share — which is why the
+   * second listener became startable after boot.
+   */
+  const toggleSharing = async (): Promise<void> => {
+    const level = outputLevel()
+
+    if (tunnel) {
+      await tunnel.stop().catch(() => {})
+      await handle.stopPublicListener().catch(() => {})
+      tunnel = undefined
+      handle.setShareUrl(null)
+      console.log(row('sharing', paint('off', 'dim', level), level))
+      console.log(keysLine(level, false))
+      return
+    }
+
+    const unavailable = await provider.unavailable()
+    if (unavailable !== null) {
+      // The same reporting path a failed --share already uses. Pressing a
+      // key must not become a second, quieter way for the same failure.
+      reportFailure({
+        severity: 'degraded',
+        headline: 'the tunnel could not open',
+        cause: unavailable,
+        outcome: 'still serving locally · sharing is off',
+      })
+      return
+    }
+
+    const options: ShareOptions = share ?? {
+      port: config.port + 1,
+      token: generateToken(),
+      // ADR-0007 forbids `*` in shared mode, exactly as at boot.
+      origins: config.cors === '*' ? [] : config.cors,
+    }
+
+    try {
+      const port = await handle.startPublicListener(options)
+      tunnel = await provider.start({ port })
+    } catch (error) {
+      // Leaving the listener bound after a failed tunnel would hold a port
+      // open with nothing watching it.
+      await handle.stopPublicListener().catch(() => {})
+      reportFailure({
+        severity: 'degraded',
+        headline: 'the tunnel could not open',
+        cause: error instanceof Error ? error.message : String(error),
+        outcome: 'still serving locally · sharing is off',
+      })
+      return
+    }
+
+    handle.setShareUrl(tunnel.url)
+    reportShare(tunnel.url, options, config)
+    console.log(keysLine(level, true))
+  }
+
+  process.stdin.setEncoding('utf8')
+
+  const keys = bindKeys({
+    onPanel: () => void openBrowser(`http://${config.host}:${handle.port}/__laqi`),
+    onShare: () => void toggleSharing(),
+    onClear: () => {
+      // Cursor home and erase: plain `clear` would take the addresses with
+      // it, and those are the thing you still need on screen.
+      process.stdout.write('\u001b[2J\u001b[H')
+      const level = outputLevel()
+      if (lastStartInfo) console.log(startScreen(lastStartInfo, level, process.stdout.columns))
+      console.log(keysLine(level, tunnel !== undefined))
+    },
+    onQuit: shutdown,
+  })
+
+  // Only when a key is actually bound. Printing `press o panel` where `o`
+  // does nothing is the lie stage 1 refused to tell.
+  if (keys.active) console.log(keysLine(outputLevel(), share !== undefined))
 
   if (share === undefined) return
 
@@ -436,6 +564,14 @@ function reportFatal(failure: Omit<Failure, 'severity'>): void {
  * running. Shared by both the initial boot and every reload, so a save that
  * empties the mocks folder gets the same verdict a fresh start would.
  */
+/**
+ * What the start screen was last rendered from. `c` reprints the header,
+ * and it has to show the CURRENT counts: a reload changes them, and
+ * reprinting the boot-time numbers would quietly lie about the file that
+ * was just saved.
+ */
+let lastStartInfo: StartInfo | undefined
+
 function report(
   runtime: Runtime,
   port: number,
@@ -479,22 +615,18 @@ function report(
     0,
   )
 
-  console.log(
-    startScreen(
-      {
-        version: laqiVersion(),
-        servingUrl: base,
-        panelUrl: `${base}/__laqi`,
-        watching: where,
-        endpoints: loaded,
-        responses,
-        scenarios: Object.keys(runtime.scenarios).length,
-        bootMs,
-      },
-      level,
-      process.stdout.columns,
-    ),
-  )
+  lastStartInfo = {
+    version: laqiVersion(),
+    servingUrl: base,
+    panelUrl: `${base}/__laqi`,
+    watching: where,
+    endpoints: loaded,
+    responses,
+    scenarios: Object.keys(runtime.scenarios).length,
+    bootMs,
+  }
+
+  console.log(startScreen(lastStartInfo, level, process.stdout.columns))
 
   // Some files parsed and some did not: degraded, not fatal — laqi keeps
   // serving the endpoints that did load.

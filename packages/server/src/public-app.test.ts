@@ -1,6 +1,7 @@
-import { buildRouteTable, type LoadedEndpoint } from '@laqi/core'
+import { buildRouteTable, type LaqiEvent, type LoadedEndpoint } from '@laqi/core'
 import { describe, expect, it } from 'vitest'
 import { createControlPlaneApp } from './control-plane-app'
+import { createMockApp } from './mock-app'
 import { createPublicApp, generateToken, MAX_BUCKETS, type PublicRuntime } from './public-app'
 
 const endpoints: LoadedEndpoint[] = [
@@ -402,5 +403,45 @@ describe('an OPTIONS mock is not a way around the token', () => {
     expect(res.status).toBe(204)
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com')
     expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+  })
+})
+
+describe('the tunnel marks what came through it', () => {
+  it('tags the requests it serves as public', async () => {
+    const events: LaqiEvent[] = []
+    const app = makeApp({ mock: { ...makeMock(), onRequest: (event) => events.push(event) } })
+
+    await app.request('/users', { headers: auth })
+
+    expect(events.find((event) => event.type === 'request')).toMatchObject({ via: 'public' })
+  })
+
+  it('tags a no-route on the tunnel too', async () => {
+    // The unmatched row is the one worth seeing, and knowing it came from
+    // outside is exactly what makes it worth seeing.
+    const events: LaqiEvent[] = []
+    const app = makeApp({ mock: { ...makeMock(), onRequest: (event) => events.push(event) } })
+
+    await app.request('/nope', { headers: auth })
+
+    expect(events.find((event) => event.type === 'request')).toMatchObject({
+      via: 'public',
+      endpointId: null,
+    })
+  })
+
+  it("leaves the local listener's events untagged", async () => {
+    // Same runtime, the plain mock app: nothing here should learn about
+    // tunnels, and a `via` on a localhost request would be a lie.
+    const events: LaqiEvent[] = []
+    const app = createMockApp({
+      ...makeMock(),
+      cors: '*',
+      onRequest: (event) => events.push(event),
+    })
+
+    await app.request('/users')
+
+    expect(events.find((event) => event.type === 'request')).not.toHaveProperty('via')
   })
 })

@@ -29,13 +29,28 @@ export type ShareOptions = {
 export type ServeHandle = {
   port: number
   host: string
-  /** The local port the tunnel points at, if --share is active. */
+  /** The local port the tunnel points at, while sharing is on. */
   publicPort?: number
+  /**
+   * Opens the second listener — the one the tunnel sees, mounting only the
+   * mocks (ADR-0007). Callable at any time, not just at boot: the `s` key
+   * has to work on a process that started without --share, or it would do
+   * nothing for half the sessions. Idempotent; resolves to the bound port.
+   */
+  startPublicListener: (options: ShareOptions) => Promise<number>
+  stopPublicListener: () => Promise<void>
+  isPublicListening: () => boolean
   /** Rebuilds the Hono app. The process and the socket are NOT touched. */
   reload: () => Runtime
   current: () => Runtime
   /** What the panel shows in the magenta band. */
   setShareUrl: (url: string | null) => void
+  /**
+   * The same bus the panel's SSE stream reads. Exposed so the terminal can
+   * print requests as they land without a second code path on the request
+   * path. Returns an unsubscribe.
+   */
+  subscribe: (listener: (event: LaqiEvent) => void) => () => void
   close: () => Promise<void>
 }
 
@@ -90,12 +105,17 @@ export async function startServer(options: {
   let app: Hono = buildApp()
   // Rebuilt on every reload just like the local one: hot-reload has to
   // hold for what goes out through the tunnel too.
+  // The options sharing is currently running with. Set at boot by --share,
+  // or by the first startPublicListener call, and kept across a stop so a
+  // second `s` reuses the token rather than invalidating a URL someone has
+  // already pasted into a phone.
+  let shareOptions: ShareOptions | undefined = share
   let publicApp: Hono | null = share ? buildPublicApp(share) : null
 
   function reload(): Runtime {
     runtime = buildRuntime(root, config)
     app = buildApp()
-    if (share) publicApp = buildPublicApp(share)
+    if (shareOptions) publicApp = buildPublicApp(shareOptions)
     // A single event per reload. It used to emit an `endpoints-changed`
     // PLUS an `error` per broken file, and the panel does a full refresh
     // per event: with three broken files, one save fired four refreshes
@@ -324,22 +344,68 @@ export async function startServer(options: {
   let publicServer: ServerType | null = null
   let publicPort: number | undefined
 
+  /**
+   * One way to open the second listener, used by --share at boot and by the
+   * `s` key at any point after it. There used to be a single construction
+   * site inside the boot branch, which is why the key could not exist.
+   */
+  const startPublicListener = async (options: ShareOptions): Promise<number> => {
+    // Idempotent: pressing `s` twice in quick succession must not bind a
+    // second socket and orphan the first.
+    if (publicServer !== null) return publicPort ?? options.port
+
+    shareOptions = options
+    publicApp = buildPublicApp(options)
+
+    publicServer = await new Promise<ServerType>((resolve, reject) => {
+      const instance = serve(
+        {
+          fetch: (request: Request) => publicApp!.fetch(request),
+          port: options.port,
+          // Loopback only: cloudflared runs on this machine and connects
+          // locally. Binding to 0.0.0.0 would expose the public surface
+          // to the LAN as well as the tunnel, without anyone having asked for it.
+          hostname: '127.0.0.1',
+        },
+        () => resolve(instance),
+      )
+      instance.on('error', reject)
+    })
+
+    const publicAddress = publicServer.address()
+    publicPort =
+      typeof publicAddress === 'object' && publicAddress ? publicAddress.port : options.port
+    return publicPort
+  }
+
+  const closeListener = (instance: ServerType): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      instance.close((error) => (error ? reject(error) : resolve()))
+      // http.Server#close stops accepting new connections but waits for
+      // the open ones to finish — and the /__laqi/events stream never ends
+      // on its own: it lives until the client cuts it off. With the panel
+      // open in the browser, close() never resolved. Cutting the live
+      // connections is what makes it terminate.
+      // @hono/node-server's type is a union with Http2Server, which
+      // doesn't declare it. In practice it's always an http.Server.
+      ;(instance as { closeAllConnections?: () => void }).closeAllConnections?.()
+    })
+
+  const stopPublicListener = async (): Promise<void> => {
+    if (publicServer === null) return
+    const instance = publicServer
+    // Cleared before awaiting: a second `s` arriving mid-close must see
+    // "not listening" rather than try to close the same socket again.
+    publicServer = null
+    publicPort = undefined
+    // shareOptions is deliberately kept, so re-sharing in one session
+    // reuses the token instead of invalidating a URL already handed out.
+    await closeListener(instance)
+  }
+
   if (share) {
     try {
-      publicServer = await new Promise<ServerType>((resolve, reject) => {
-        const instance = serve(
-          {
-            fetch: (request: Request) => publicApp!.fetch(request),
-            port: share.port,
-            // Loopback too: cloudflared runs on this machine and connects
-            // locally. Binding to 0.0.0.0 would expose the public surface
-            // to the LAN as well as the tunnel, without anyone having asked for it.
-            hostname: '127.0.0.1',
-          },
-          () => resolve(instance),
-        )
-        instance.on('error', reject)
-      })
+      await startPublicListener(share)
     } catch (error) {
       // The primary listener is already up. Without closing it, the throw
       // leaves an orphan socket that keeps the event loop alive: the CLI
@@ -351,41 +417,30 @@ export async function startServer(options: {
       // starts with the same digits as the other one got confused for it.
       throw Object.assign(error as Error, { laqiListener: 'share' as const })
     }
-
-    const publicAddress = publicServer.address()
-    publicPort =
-      typeof publicAddress === 'object' && publicAddress ? publicAddress.port : share.port
   }
 
   return {
     port,
     host: config.host,
-    publicPort,
+    // A getter, not a captured value: sharing can start after this object
+    // is built, and index.ts's EADDRINUSE branch reads it afterwards.
+    get publicPort() {
+      return publicPort
+    },
     current: () => runtime,
     reload,
     setShareUrl: (url) => {
       shareUrl = url
     },
+    subscribe: (listener) => bus.subscribe(listener),
+    startPublicListener,
+    stopPublicListener,
+    isPublicListening: () => publicServer !== null,
     close: async () => {
-      await Promise.all(
-        [server, publicServer]
-          .filter((instance) => instance !== null)
-          .map(
-            (instance) =>
-              new Promise<void>((resolve, reject) => {
-                instance.close((error) => (error ? reject(error) : resolve()))
-                // http.Server#close stops accepting new connections but
-                // waits for the open ones to finish — and the
-                // /__laqi/events stream never ends on its own: it lives
-                // until the client cuts it off. With the panel open in
-                // the browser, close() never resolved. Cutting the live
-                // connections is what makes it terminate.
-                // @hono/node-server's type is a union with Http2Server,
-                // which doesn't declare it. In practice it's always an http.Server.
-                ;(instance as { closeAllConnections?: () => void }).closeAllConnections?.()
-              }),
-          ),
-      )
+      // The public listener first: leaving it bound after close means the
+      // next start hits EADDRINUSE on a port nothing is serving.
+      await stopPublicListener()
+      await closeListener(server)
     },
   }
 }

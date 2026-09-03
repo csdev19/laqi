@@ -123,7 +123,20 @@ export function createPublicApp(runtime: PublicRuntime): Hono {
     })
   }
 
-  app.route('/', createMockApp({ ...runtime.mock, cors: runtime.origins }))
+  // The one place in the system that knows a request came over the tunnel.
+  // Tagging at the emitter, not at each subscriber, is what lets the panel
+  // and the terminal agree without either learning about cloudflared.
+  const { onRequest } = runtime.mock
+  app.route(
+    '/',
+    createMockApp({
+      ...runtime.mock,
+      cors: runtime.origins,
+      onRequest:
+        onRequest &&
+        ((event) => onRequest(event.type === 'request' ? { ...event, via: 'public' } : event)),
+    }),
+  )
   return app
 
   function consume(key: string): { ok: true } | { ok: false; retryInMs: number } {
