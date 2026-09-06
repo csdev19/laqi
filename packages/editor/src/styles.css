@@ -1067,16 +1067,20 @@ button.log-path:hover {
   color: var(--red);
 }
 
+/* Nothing here scrolls but the textarea: see CodeSurface. A second
+   scroller over the same text drifts away from it as soon as the caret
+   moves the field on its own. */
 .editor-shell {
   flex: 1;
   min-height: 0;
   display: flex;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
 }
 
 .editor-gutter {
   flex: none;
+  overflow: hidden;
   padding: 10px 8px 10px 12px;
   font-family: var(--mono);
   font-size: 12px;
@@ -1092,6 +1096,7 @@ button.log-path:hover {
   flex: 1;
   min-width: 0;
   position: relative;
+  overflow: hidden;
 }
 
 /* The real textarea sits transparent on top of the colorized <pre>, aligned
@@ -1109,21 +1114,29 @@ button.log-path:hover {
   border: 0;
 }
 
-.editor-paint {
-  pointer-events: none;
-  min-height: 100%;
-}
-
+/* Both layers are the same box, and both reserve the same scrollbar
+   gutter: where scrollbars take up space, one layer reserving it and the
+   other not would shift the text sideways against its own colors. */
+.editor-paint,
 .editor-input {
   position: absolute;
   inset: 0;
+  scrollbar-gutter: stable;
+}
+
+.editor-paint {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.editor-input {
   width: 100%;
   height: 100%;
   resize: none;
   background: transparent;
   color: transparent;
   caret-color: var(--fg);
-  overflow: hidden;
+  overflow: auto;
 }
 
 .editor-input:focus {

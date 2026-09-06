@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import { applyEdit, editForKey, type Edit } from '../edit-keys'
 import { tokenizeTypeScript, type Token } from '../highlight'
+import { CodeSurface } from './CodeSurface'
 
 /**
  * The languages a pasted model can be written in. One entry today; the
@@ -14,11 +15,9 @@ const LANGUAGES: Record<ModelLanguage, { tokenize: (source: string) => Token[] }
 }
 
 /**
- * The same illusion as JsonEditor — a transparent textarea over a painted
- * <pre> — plus the keyboard rules from `edit-keys` so that pasting and
+ * CodeSurface plus the keyboard rules from `edit-keys`, so that pasting and
  * touching up a model feels like an editor: Tab indents, Enter keeps the
- * indentation, brackets close themselves. Still no editor library: the
- * design calls for this surface to stay a textarea.
+ * indentation, brackets close themselves.
  */
 export function ModelEditor(props: {
   value: string
@@ -29,7 +28,6 @@ export function ModelEditor(props: {
   autoFocus?: boolean
 }) {
   const language = LANGUAGES[props.language ?? 'typescript']
-  const lines = props.value.split('\n')
   const input = useRef<HTMLTextAreaElement>(null)
   const pendingSelection = useRef<[number, number] | null>(null)
 
@@ -68,50 +66,29 @@ export function ModelEditor(props: {
   }
 
   return (
-    <div className="editor-shell model-editor">
-      <div className="editor-gutter" aria-hidden="true">
-        {lines.map((_, index) => (
-          <div key={index}>{index + 1}</div>
-        ))}
-      </div>
-
-      <div className="editor-area">
-        <pre className="editor-paint" aria-hidden="true">
-          {language.tokenize(props.value).map((token, index) => (
-            <span key={index} className={`tok-${token.kind}`}>
-              {token.text}
-            </span>
-          ))}
-          {props.value.endsWith('\n') ? '\n' : ''}
-        </pre>
-
-        <textarea
-          ref={input}
-          className="editor-input mono"
-          aria-label={props.label ?? 'model'}
-          placeholder={props.placeholder}
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-          autoFocus={props.autoFocus}
-          value={props.value}
-          onChange={(event) => props.onChange(event.target.value)}
-          onKeyDown={(event) => {
-            const edit = editForKey(
-              {
-                value: event.currentTarget.value,
-                start: event.currentTarget.selectionStart,
-                end: event.currentTarget.selectionEnd,
-              },
-              event,
-            )
-            if (!edit) return
-            event.preventDefault()
-            apply(event.currentTarget, edit)
-          }}
-        />
-      </div>
-    </div>
+    <CodeSurface
+      value={props.value}
+      onChange={props.onChange}
+      tokenize={language.tokenize}
+      label={props.label ?? 'model'}
+      className="model-editor"
+      placeholder={props.placeholder}
+      autoFocus={props.autoFocus}
+      textareaRef={input}
+      onKeyDown={(event) => {
+        const edit = editForKey(
+          {
+            value: event.currentTarget.value,
+            start: event.currentTarget.selectionStart,
+            end: event.currentTarget.selectionEnd,
+          },
+          event,
+        )
+        if (!edit) return
+        event.preventDefault()
+        apply(event.currentTarget, edit)
+      }}
+    />
   )
 }
 
