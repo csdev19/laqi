@@ -61,9 +61,17 @@ is declared under `./laqi/` or `./laqi.json` in your current directory, and
 watches for changes to reload automatically. The web panel is at
 `http://127.0.0.1:8000/__laqi`.
 
-During development on laqi itself you can skip the build and run the source
-directly with `bun apps/cli/src/index.ts` — the panel then needs
-`bun run build --filter=@laqi/editor` once, and says so if you forget.
+During development on laqi itself, `bun dev` runs everything from source:
+the CLI against `examples/todo-app/laqi` (restarting when its source or a
+workspace package changes), the panel in `vite build --watch` so the
+`dist/` the CLI serves on `http://127.0.0.1:8000/__laqi` is never stale
+(reload the page after a change), and the example app on :3000. No build
+step in the loop, one panel URL.
+
+When iterating on the panel itself and a reload per change is too slow,
+`bun run dev:hmr --filter=@laqi/editor` serves it with HMR on
+`http://localhost:5173/__laqi/`, proxying the control plane to the CLI on
+:8000, which must already be running.
 
 Useful flags:
 
