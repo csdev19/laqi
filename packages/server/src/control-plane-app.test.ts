@@ -674,6 +674,7 @@ describe('generation routes', () => {
       ok: true as const,
       preview: [{ id: 1 }],
       warnings: ['w'],
+      typeName: 'X',
     }))
     const app = createControlPlaneApp(makeRuntime({ generateData }))
     const res = await app.request('/api/generate/data', {
@@ -682,11 +683,29 @@ describe('generation routes', () => {
       body: JSON.stringify({ model: 'export interface X { id: number }', seed: 7 }),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: ['w'] })
+    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: ['w'], typeName: 'X' })
     expect(generateData).toHaveBeenCalledWith({
       model: 'export interface X { id: number }',
       seed: 7,
     })
+  })
+
+  // A model file declares several types and the parser picks one. Which
+  // one it picked is the difference between mocking an order and mocking
+  // the string 'viewer', so it cannot stay inside the server.
+  it('omits the type name when the request generated from an existing response', async () => {
+    const generateData = vi.fn(async () => ({
+      ok: true as const,
+      preview: [{ id: 1 }],
+      warnings: [],
+    }))
+    const app = createControlPlaneApp(makeRuntime({ generateData }))
+    const res = await app.request('/api/generate/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: { endpointId: 'GET /todos', response: 'ok' } }),
+    })
+    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: [] })
   })
 
   it('rejects a body that is neither model nor from as 400, without calling the runtime', async () => {

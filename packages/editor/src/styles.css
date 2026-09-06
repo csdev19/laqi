@@ -741,6 +741,15 @@ textarea::-moz-selection {
   margin-top: -2px;
 }
 
+.create-type {
+  width: 220px;
+}
+
+/* Pushes the examples to the far end, away from the type field. */
+.model-examples-spacer {
+  flex: 1;
+}
+
 .model-examples-label {
   font-family: var(--mono);
   font-size: 10px;

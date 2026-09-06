@@ -189,6 +189,40 @@ describe('CreateEndpointRow', () => {
     )
   })
 
+  // A model file declares several types and the parser picks one, which is
+  // rarely the one you meant: paste the medium example and it mocks `Role`
+  // — the string 'viewer' — because that is the first export.
+  it('passes the type to generate from when one is named', () => {
+    const { path, onCreateFromModel } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/projects' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'interface P { a: 1 }' } })
+    fireEvent.change(screen.getByLabelText('type'), { target: { value: '  Project  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreateFromModel).toHaveBeenCalledWith(expect.objectContaining({ typeName: 'Project' }))
+  })
+
+  it('leaves the choice to the parser when the type is left empty', () => {
+    const { path, onCreateFromModel } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/projects' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'interface P { a: 1 }' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreateFromModel).toHaveBeenCalledWith(expect.objectContaining({ typeName: undefined }))
+  })
+
+  it('offers the type field only in the model flow', () => {
+    renderRow()
+    expect(screen.queryByLabelText('type')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    expect(screen.getByLabelText('type')).toBeTruthy()
+  })
+
   it('still refuses a blank response name in the model flow', () => {
     const { path, onCreateFromModel } = renderRow()
 
@@ -299,6 +333,9 @@ describe('the example models', () => {
       method: 'GET',
       path: '/orders',
       model: exampleModel('complex').source.trim(),
+      // The example names its own root: left to the parser, `complex`
+      // would generate from `Currency` and mock the string 'PEN'.
+      typeName: 'Order',
       responseName: 'ok',
       status: 200,
     })

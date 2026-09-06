@@ -252,7 +252,7 @@ export async function startServer(options: {
             const parsed = await parseTypes(input.model, input.typeName)
             if (!parsed.ok) return { ok: false, error: parsed.error, code: 'invalid' }
             const preview = await generate(parsed.shape, generateOptions)
-            return { ok: true, preview, warnings: parsed.warnings }
+            return { ok: true, preview, warnings: parsed.warnings, typeName: parsed.typeName }
           }
 
           const endpoint = runtime.table.byId.get(input.from.endpointId)

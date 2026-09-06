@@ -18,7 +18,13 @@ export function CreateEndpointRow(props: {
   error: string | null
   onCreate: (input: CreateInput) => void
   onCreateFromModel: (
-    input: { method: string; path: string; model: string } & ResponseChoice,
+    input: {
+      method: string
+      path: string
+      model: string
+      /** Which declaration to generate from; the parser chooses when absent. */
+      typeName: string | undefined
+    } & ResponseChoice,
   ) => void
   onCancel: () => void
 }) {
@@ -28,6 +34,7 @@ export function CreateEndpointRow(props: {
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
   const [model, setModel] = useState('')
+  const [typeName, setTypeName] = useState('')
   const [complaint, setComplaint] = useState<string | null>(null)
 
   /**
@@ -57,7 +64,13 @@ export function CreateEndpointRow(props: {
     if (wrong) return
     const response = { responseName: responseName.trim(), status: Number(status) || 200 }
     if (mode === 'model') {
-      props.onCreateFromModel({ method, path: path.trim(), model: model.trim(), ...response })
+      props.onCreateFromModel({
+        method,
+        path: path.trim(),
+        model: model.trim(),
+        typeName: typeName.trim() || undefined,
+        ...response,
+      })
       return
     }
     props.onCreate({ method, path: path.trim(), ...response })
@@ -147,6 +160,17 @@ export function CreateEndpointRow(props: {
               Something to paste when you are trying laqi out, and something
               to check the parser against when you are not. */}
           <div className="model-examples">
+            {/* A model file declares several types and the parser picks one,
+                which is rarely the one you meant. Empty leaves the choice
+                to it; naming one settles it. */}
+            <input
+              className="create-input create-type"
+              aria-label="type"
+              placeholder="type to generate (optional)"
+              value={typeName}
+              onChange={(event) => setTypeName(event.target.value)}
+            />
+            <span className="model-examples-spacer" />
             <span className="model-examples-label">examples</span>
             {EXAMPLE_MODELS.map((example) => (
               <button
@@ -154,7 +178,14 @@ export function CreateEndpointRow(props: {
                 type="button"
                 className="btn btn-quiet"
                 title={example.blurb}
-                onClick={() => setModel(example.source)}
+                onClick={() => {
+                  setModel(example.source)
+                  // The example knows which of its declarations is the
+                  // interesting one; without this, `medium` would generate
+                  // from `Role` and mock the string 'viewer'.
+                  setTypeName(example.typeName)
+                  setComplaint(null)
+                }}
               >
                 {example.title}
               </button>

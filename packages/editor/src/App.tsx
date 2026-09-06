@@ -160,19 +160,35 @@ export function App() {
       method: string
       path: string
       model: string
+      typeName: string | undefined
       responseName: string
       status: number
     }) => {
       setCreateError(null)
       setWarnings([])
       try {
-        const { preview, warnings: generationWarnings } = await api.generateData({
+        const {
+          preview,
+          warnings: generationWarnings,
+          typeName,
+        } = await api.generateData({
           model: input.model,
+          ...(input.typeName ? { typeName: input.typeName } : {}),
         })
         // `create()` closes the CreateEndpointRow and opens the new
         // endpoint's detail — the warnings state lives here, not there, so
         // it survives that transition instead of unmounting with the row.
-        setWarnings(generationWarnings)
+        // Which declaration was used is not visible in the body, and a
+        // model file usually declares several: without this, pasting a file
+        // whose first export is an alias silently mocks that alias.
+        setWarnings(
+          typeName
+            ? [
+                `generated from ${typeName} — name a type in the box to pick another`,
+                ...generationWarnings,
+              ]
+            : generationWarnings,
+        )
         await create({
           method: input.method,
           path: input.path,
