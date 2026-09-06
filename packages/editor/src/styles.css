@@ -711,10 +711,34 @@ textarea::-moz-selection {
   width: 66px;
 }
 
+/* The model box is a small code editor (see ModelEditor): it takes the whole
+   row, starts at a few lines and lets the developer drag it taller. */
 .create-model {
-  resize: vertical;
+  flex-basis: 100%;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+  height: 180px;
+  min-height: 96px;
+  max-height: 60vh;
+  resize: vertical;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+}
+
+.create-model:focus-within {
+  border-color: var(--viol);
+}
+
+.create-model .editor-shell {
+  width: 100%;
+}
+
+.editor-input::placeholder {
+  color: var(--dim2);
+  opacity: 1;
 }
 
 .form-error {
@@ -1094,6 +1118,16 @@ button.log-path:hover {
 }
 .tok-plain {
   color: var(--dim);
+}
+.tok-keyword {
+  color: var(--mag);
+}
+.tok-type {
+  color: var(--palev);
+}
+.tok-comment {
+  color: var(--dim2);
+  font-style: italic;
 }
 
 .meta-field {

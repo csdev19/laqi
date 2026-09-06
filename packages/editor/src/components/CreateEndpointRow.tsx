@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ModelEditor } from './ModelEditor'
 import { StatusSelect } from './StatusSelect'
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
@@ -106,15 +107,15 @@ export function CreateEndpointRow(props: {
       </button>
 
       {mode === 'model' ? (
-        <textarea
-          className="create-input create-model"
-          aria-label="model"
-          rows={6}
-          style={{ flexBasis: '100%' }}
-          placeholder="export interface Todo { id: number; title: string }"
-          value={model}
-          onChange={(event) => setModel(event.target.value)}
-        />
+        <div className="create-model">
+          <ModelEditor
+            value={model}
+            onChange={setModel}
+            language="typescript"
+            placeholder="export interface Todo { id: number; title: string }"
+            autoFocus
+          />
+        </div>
       ) : null}
 
       {/* No toasts: the failure appears where the action was taken. */}
