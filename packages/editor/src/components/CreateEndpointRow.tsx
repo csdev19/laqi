@@ -1,4 +1,4 @@
-import { EXAMPLE_MODELS } from '@laqi/generate/examples'
+import { EXAMPLE_BODIES, EXAMPLE_MODELS } from '@laqi/generate/examples'
 import { parseStatusCode, STATUS_MAX, STATUS_MIN } from '@laqi/schema'
 import { useState } from 'react'
 import { checkJson } from '../highlight'
@@ -185,12 +185,32 @@ export function CreateEndpointRow(props: {
       </button>
 
       {mode === 'json' ? (
-        <div className="create-model">
-          <JsonEditor value={json} onChange={setJson} />
-          <div className="json-readout">
-            {json.trim().length > 0 ? <ValidityReadout source={json} /> : null}
+        <>
+          <div className="create-model">
+            <JsonEditor value={json} onChange={setJson} />
+            <div className="json-readout">
+              {json.trim().length > 0 ? <ValidityReadout source={json} /> : null}
+            </div>
           </div>
-        </div>
+          <div className="model-examples">
+            <span className="model-examples-spacer" />
+            <span className="model-examples-label">examples</span>
+            {EXAMPLE_BODIES.map((example) => (
+              <button
+                key={example.id}
+                type="button"
+                className="btn btn-quiet"
+                title={example.blurb}
+                onClick={() => {
+                  setJson(example.source)
+                  setComplaint(null)
+                }}
+              >
+                {example.title}
+              </button>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {mode === 'model' ? (

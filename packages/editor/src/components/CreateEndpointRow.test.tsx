@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { exampleModel } from '@laqi/generate/examples'
+import { exampleBody, exampleModel } from '@laqi/generate/examples'
 import { CreateEndpointRow } from './CreateEndpointRow'
 
 // This row writes into the user's repository. A malformed submission does
@@ -394,6 +394,29 @@ describe('the JSON flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ body: JSON.parse(source) }))
+  })
+
+  it('fills the box from an example body, and creates what it filled in', () => {
+    const { onCreate } = openJson()
+
+    fireEvent.click(screen.getByRole('button', { name: 'invoice' }))
+    expect((screen.getByLabelText('response body') as HTMLTextAreaElement).value).toBe(
+      exampleBody('invoice').source,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ body: JSON.parse(exampleBody('invoice').source) }),
+    )
+  })
+
+  it('offers the bodies only in this flow, and the models only in theirs', () => {
+    renderRow()
+    expect(screen.queryByRole('button', { name: 'invoice' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'from JSON' }))
+    expect(screen.getByRole('button', { name: 'invoice' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'complex' })).toBeNull()
   })
 
   it('keeps the path, name and status when moving between flows', () => {

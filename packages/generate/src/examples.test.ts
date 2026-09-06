@@ -1,6 +1,10 @@
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { EXAMPLE_MODELS, exampleModel } from './examples'
+import { EXAMPLE_BODIES, EXAMPLE_MODELS, exampleBody, exampleModel } from './examples'
+import { inferShape } from './infer'
+import { parseTypes } from './parse-types'
+import { printTypes } from './print-types'
+import type { Shape } from './shape'
 
 // These strings are offered in the panel as a starting point and pasted
 // into real projects, so "it is valid TypeScript" cannot be an assumption.
@@ -53,8 +57,8 @@ describe('the example models', () => {
     }
   })
 
-  it('offers three models, each with a title and a blurb', () => {
-    expect(EXAMPLE_MODELS.map((m) => m.id)).toEqual(['simple', 'medium', 'complex'])
+  it('offers four models, each with a title and a blurb', () => {
+    expect(EXAMPLE_MODELS.map((m) => m.id)).toEqual(['simple', 'medium', 'complex', 'flat'])
     for (const model of EXAMPLE_MODELS) {
       expect(model.title.length, model.id).toBeGreaterThan(0)
       expect(model.blurb.length, model.id).toBeGreaterThan(0)
@@ -73,5 +77,91 @@ describe('the example models', () => {
     expect(exampleModel('complex').typeName).toBe('Order')
     // @ts-expect-error the id is a union; this is the runtime guard
     expect(() => exampleModel('nope')).toThrow(/nope/)
+  })
+})
+
+describe('the flat model', () => {
+  // Its whole point is having nothing to flatten: one declaration, no
+  // extends, no aliases. If a helper type ever creeps in, the model stops
+  // testing what it was written to test.
+  it('declares exactly one type, and inherits from nothing', () => {
+    const source = exampleModel('flat').source
+
+    expect(source.match(/^(export )?(interface|type) /gm)).toHaveLength(1)
+    expect(source).not.toContain('extends')
+    expect(source).not.toContain('import')
+  })
+
+  it('parses without a warning, four levels down', async () => {
+    const result = await parseTypes(exampleModel('flat').source, 'Invoice')
+    if (!result.ok) throw new Error(result.error)
+
+    expect(result.warnings).toEqual([])
+    const at = (shape: Shape, path: string): Shape => {
+      let current = shape
+      for (const step of path.split('.')) {
+        if (current.kind === 'array') current = current.items
+        if (current.kind !== 'object') throw new Error(`${path}: ${step} is not on an object`)
+        const field = current.fields.find((f) => f.name === step)
+        if (!field) throw new Error(`${path}: no field ${step}`)
+        current = field.shape
+      }
+      return current
+    }
+
+    expect(at(result.shape, 'customer.billing.contact.preferred')).toEqual({
+      kind: 'literals',
+      values: ['email', 'phone', 'none'],
+    })
+    expect(at(result.shape, 'customer.billing.coordinates')).toEqual({
+      kind: 'tuple',
+      items: [
+        { kind: 'primitive', type: 'number' },
+        { kind: 'primitive', type: 'number' },
+      ],
+    })
+    expect(at(result.shape, 'lines.discount.percent')).toEqual({
+      kind: 'primitive',
+      type: 'number',
+    })
+  })
+})
+
+describe('the example bodies', () => {
+  it.each(EXAMPLE_BODIES.map((body) => [body.id, body.source] as const))(
+    '%s is valid JSON',
+    (_id, source) => {
+      expect(() => JSON.parse(source)).not.toThrow()
+    },
+  )
+
+  it('finds a body by id and refuses an unknown one', () => {
+    expect(exampleBody('invoice').title).toBe('invoice')
+    // @ts-expect-error the id is a union; this is the runtime guard
+    expect(() => exampleBody('nope')).toThrow(/nope/)
+  })
+
+  // The round trip the JSON flow is for: paste a body, and the endpoint can
+  // hand back the model behind it.
+  it('turns the invoice body back into the interface the flat model declares', async () => {
+    const body: unknown = JSON.parse(exampleBody('invoice').source)
+    const { code } = await printTypes(inferShape(body), { typeName: 'Invoice' })
+
+    expect(code).toContain('Invoice')
+    for (const field of ['number', 'status', 'customer', 'lines', 'totals', 'payments']) {
+      expect(code, field).toContain(field)
+    }
+  })
+
+  it('describes the same fields the flat model does', async () => {
+    const parsed = await parseTypes(exampleModel('flat').source, 'Invoice')
+    if (!parsed.ok) throw new Error(parsed.error)
+    if (parsed.shape.kind !== 'object') throw new Error('the flat model is not an object')
+
+    const inferred = inferShape(JSON.parse(exampleBody('invoice').source))
+    if (inferred.kind !== 'object') throw new Error('the invoice body is not an object')
+
+    const declared = parsed.shape.fields.map((f) => f.name).sort()
+    expect(inferred.fields.map((f) => f.name).sort()).toEqual(declared)
   })
 })

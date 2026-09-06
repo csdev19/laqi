@@ -82,12 +82,21 @@ first exported one, which is rarely the one you meant. Name the type in the
 box to settle it, or leave it empty and the panel reports which declaration
 it used. The examples fill it in for you.
 
-Three ready-made models sit in the corner of the box — **simple**,
-**medium** and **complex** — and fill it with one click, so there is
-something to paste on the first run. The complex one nests four levels deep
-and mixes unions, intersections, `Pick`/`Omit`, tuples and `readonly`,
-which is about as dirty as a real model file gets. The same three models
-are what the parser's tests run against.
+The JSON flow has its own examples, and one of them is deliberately the
+same data the **flat** model describes. Paste it, create the endpoint, then
+ask that response for its types: what comes back is the interface the model
+declares, give or take what JSON cannot carry — a date arrives as a string,
+and an absent optional field is not there to be seen. That is the way round
+from a body you already have to the model behind it.
+
+Four ready-made models sit in the corner of the box — **simple**,
+**medium**, **complex** and **flat** — and fill it with one click, so there
+is something to paste on the first run. The complex one nests four levels
+deep and mixes unions, intersections, `Pick`/`Omit`, tuples and `readonly`,
+which is about as dirty as a real model file gets. The flat one goes as
+wide without inheriting anything: one interface, no helper types, every
+level written inline. The same four models are what the parser's tests run
+against.
 
 ## The status field, and the usual siblings
 
