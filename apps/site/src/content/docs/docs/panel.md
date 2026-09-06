@@ -60,11 +60,12 @@ It highlights TypeScript and behaves the way an editor does: `Tab` indents
 between `{}`, and brackets and quotes close themselves. Native undo still
 works. TypeScript is the only language today; the box is built to grow.
 
-Three ready-made models live in the repository at
-`packages/generate/src/fixtures/models/` — `simple.ts`, `medium.ts` and
-`complex.ts` — if you want something to paste right away. The complex one
-nests four levels deep and mixes unions, intersections, `Pick`/`Omit`,
-tuples and `readonly`, which is about as dirty as a real model file gets.
+Three ready-made models sit in the corner of the box — **simple**,
+**medium** and **complex** — and fill it with one click, so there is
+something to paste on the first run. The complex one nests four levels deep
+and mixes unions, intersections, `Pick`/`Omit`, tuples and `readonly`,
+which is about as dirty as a real model file gets. The same three models
+are what the parser's tests run against.
 
 ## The status field, and the usual siblings
 

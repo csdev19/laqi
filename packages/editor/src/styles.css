@@ -732,6 +732,35 @@ textarea::-moz-selection {
   border-color: var(--viol);
 }
 
+/* Under the box, never on top of it: a model is read while it is pasted. */
+.model-examples {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -2px;
+}
+
+.model-examples-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim2);
+  padding-left: 4px;
+}
+
+.btn-quiet {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.btn-quiet:hover {
+  color: var(--fg);
+  border-color: var(--viol);
+}
+
 .create-model .editor-shell {
   width: 100%;
 }

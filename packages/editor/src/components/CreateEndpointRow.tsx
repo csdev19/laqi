@@ -1,3 +1,4 @@
+import { EXAMPLE_MODELS } from '@laqi/generate/examples'
 import { useState } from 'react'
 import { ModelEditor } from './ModelEditor'
 import { StatusSelect } from './StatusSelect'
@@ -107,15 +108,35 @@ export function CreateEndpointRow(props: {
       </button>
 
       {mode === 'model' ? (
-        <div className="create-model">
-          <ModelEditor
-            value={model}
-            onChange={setModel}
-            language="typescript"
-            placeholder="export interface Todo { id: number; title: string }"
-            autoFocus
-          />
-        </div>
+        <>
+          <div className="create-model">
+            <ModelEditor
+              value={model}
+              onChange={setModel}
+              language="typescript"
+              placeholder="export interface Todo { id: number; title: string }"
+              autoFocus
+            />
+          </div>
+          {/* Under the box, not floating on it: a model is read while it is
+              being pasted, and anything overlapping the code is in the way.
+              Something to paste when you are trying laqi out, and something
+              to check the parser against when you are not. */}
+          <div className="model-examples">
+            <span className="model-examples-label">examples</span>
+            {EXAMPLE_MODELS.map((example) => (
+              <button
+                key={example.id}
+                type="button"
+                className="btn btn-quiet"
+                title={example.blurb}
+                onClick={() => setModel(example.source)}
+              >
+                {example.title}
+              </button>
+            ))}
+          </div>
+        </>
       ) : null}
 
       {/* No toasts: the failure appears where the action was taken. */}

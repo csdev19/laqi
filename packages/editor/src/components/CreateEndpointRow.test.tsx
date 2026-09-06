@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { exampleModel } from '@laqi/generate/examples'
 import { CreateEndpointRow } from './CreateEndpointRow'
 
 // This row writes into the user's repository. A malformed submission does
@@ -164,5 +165,63 @@ describe('the status field', () => {
     fireEvent.change(screen.getByLabelText('status'), { target: { value: '599' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ status: 599 }))
+  })
+})
+
+// Something to paste when trying laqi out. The panel and the parser tests
+// read the same three models, so a button that fills the box with something
+// the parser chokes on would fail in packages/generate first.
+describe('the example models', () => {
+  function openModelMode() {
+    const row = renderRow()
+    fireEvent.change(row.path, { target: { value: '/orders' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    return row
+  }
+
+  it('offers the three models only in the model flow', () => {
+    renderRow()
+    expect(screen.queryByRole('button', { name: 'simple' })).toBeNull()
+    cleanup()
+
+    openModelMode()
+    for (const name of ['simple', 'medium', 'complex']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy()
+    }
+  })
+
+  it('fills the box with the model, and submits exactly what it filled in', () => {
+    const { onCreateFromModel } = openModelMode()
+
+    fireEvent.click(screen.getByRole('button', { name: 'complex' }))
+
+    const box = screen.getByLabelText('model') as HTMLTextAreaElement
+    expect(box.value).toBe(exampleModel('complex').source)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(onCreateFromModel).toHaveBeenCalledWith({
+      method: 'GET',
+      path: '/orders',
+      model: exampleModel('complex').source.trim(),
+    })
+  })
+
+  it('replaces one example with another', () => {
+    openModelMode()
+
+    fireEvent.click(screen.getByRole('button', { name: 'simple' }))
+    fireEvent.click(screen.getByRole('button', { name: 'medium' }))
+
+    expect((screen.getByLabelText('model') as HTMLTextAreaElement).value).toBe(
+      exampleModel('medium').source,
+    )
+  })
+
+  it('explains each model in a title, for the developer choosing one', () => {
+    openModelMode()
+
+    expect(screen.getByRole('button', { name: 'complex' }).getAttribute('title')).toContain(
+      'Four levels deep',
+    )
   })
 })

@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { readModel } from './fixtures/models'
+import { exampleModel, type ExampleModelId } from './examples'
 import { generate } from './generate'
 import { parseTypes } from './parse-types'
 import { primitive, type Shape } from './shape'
 
-// The three example models under fixtures/models are what a developer
-// pastes into the panel to try laqi, and what these tests parse. If a
+// The three example models the panel offers are what a developer pastes to
+// try laqi, and what these tests parse. If a
 // checker upgrade or a parser change alters how one of them comes out, this
 // is where it shows — at the depth and construct that changed, not as a
 // vague "the preview looks different".
 
 type ObjectShape = Shape & { kind: 'object' }
 
-async function parsed(name: 'simple' | 'medium' | 'complex', typeName?: string) {
-  const result = await parseTypes(readModel(name), typeName)
+async function parsed(name: ExampleModelId, typeName?: string) {
+  const result = await parseTypes(exampleModel(name).source, typeName)
   if (!result.ok) throw new Error(result.error)
   return result
 }
