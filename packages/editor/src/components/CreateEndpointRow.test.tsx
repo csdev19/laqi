@@ -141,7 +141,65 @@ describe('CreateEndpointRow', () => {
       method: 'GET',
       path: '/todos',
       model: 'interface Todo { id: number }',
+      responseName: 'ok',
+      status: 200,
     })
+  })
+
+  // The model decides the BODY. What the response is called and what it
+  // returns are separate questions, and hiding them behind the model flow
+  // meant every generated endpoint arrived as `ok 200` with no way to say
+  // otherwise from here.
+  it('names and numbers a generated response the same as a blank one', () => {
+    const { path, onCreateFromModel } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/orders' } })
+    fireEvent.click(screen.getByRole('button', { name: 'POST' }))
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+
+    expect(screen.getByLabelText('response name')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('response name'), { target: { value: ' created ' } })
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: '201' } })
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'interface Order { id: number }' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreateFromModel).toHaveBeenCalledWith({
+      method: 'POST',
+      path: '/orders',
+      model: 'interface Order { id: number }',
+      responseName: 'created',
+      status: 201,
+    })
+  })
+
+  it('keeps the name and status when switching between the two flows', () => {
+    const { path, onCreate } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/orders' } })
+    fireEvent.change(screen.getByLabelText('response name'), { target: { value: 'missing' } })
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: '404' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    fireEvent.click(screen.getByRole('button', { name: 'blank' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ responseName: 'missing', status: 404 }),
+    )
+  })
+
+  it('still refuses a blank response name in the model flow', () => {
+    const { path, onCreateFromModel } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/orders' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
+    fireEvent.change(screen.getByLabelText('response name'), { target: { value: '  ' } })
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'interface A { a: 1 }' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('response name')
+    expect(onCreateFromModel).not.toHaveBeenCalled()
   })
 
   it('submits on Enter from an input', () => {
@@ -241,6 +299,8 @@ describe('the example models', () => {
       method: 'GET',
       path: '/orders',
       model: exampleModel('complex').source.trim(),
+      responseName: 'ok',
+      status: 200,
     })
   })
 

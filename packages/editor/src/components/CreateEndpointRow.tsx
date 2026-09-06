@@ -5,18 +5,21 @@ import { StatusSelect } from './StatusSelect'
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 
+/** What the response is called and what it returns, in either flow. */
+export type ResponseChoice = { responseName: string; status: number }
+
 export type CreateInput = {
   method: string
   path: string
-  responseName: string
-  status: number
   body?: unknown
-}
+} & ResponseChoice
 
 export function CreateEndpointRow(props: {
   error: string | null
   onCreate: (input: CreateInput) => void
-  onCreateFromModel: (input: { method: string; path: string; model: string }) => void
+  onCreateFromModel: (
+    input: { method: string; path: string; model: string } & ResponseChoice,
+  ) => void
   onCancel: () => void
 }) {
   const [mode, setMode] = useState<'blank' | 'model'>('blank')
@@ -42,7 +45,7 @@ export function CreateEndpointRow(props: {
     if (mode === 'model' && model.trim().length === 0) {
       return 'paste a model, or switch back to blank'
     }
-    if (mode === 'blank' && responseName.trim().length === 0) {
+    if (responseName.trim().length === 0) {
       return 'a response name is needed — ok, empty, error, whatever the case is called'
     }
     return null
@@ -52,16 +55,12 @@ export function CreateEndpointRow(props: {
     const wrong = problem()
     setComplaint(wrong)
     if (wrong) return
+    const response = { responseName: responseName.trim(), status: Number(status) || 200 }
     if (mode === 'model') {
-      props.onCreateFromModel({ method, path: path.trim(), model: model.trim() })
+      props.onCreateFromModel({ method, path: path.trim(), model: model.trim(), ...response })
       return
     }
-    props.onCreate({
-      method,
-      path: path.trim(),
-      responseName: responseName.trim(),
-      status: Number(status) || 200,
-    })
+    props.onCreate({ method, path: path.trim(), ...response })
   }
 
   return (
@@ -101,20 +100,18 @@ export function CreateEndpointRow(props: {
         }}
       />
 
-      {mode === 'blank' ? (
-        <>
-          <input
-            className="create-input create-name"
-            aria-label="response name"
-            value={responseName}
-            onChange={(event) => {
-              setResponseName(event.target.value)
-              setComplaint(null)
-            }}
-          />
-          <StatusSelect label="status" value={status} onChange={setStatus} />
-        </>
-      ) : null}
+      {/* In both flows: the model decides the body, not what the response
+          is called or what it returns. */}
+      <input
+        className="create-input create-name"
+        aria-label="response name"
+        value={responseName}
+        onChange={(event) => {
+          setResponseName(event.target.value)
+          setComplaint(null)
+        }}
+      />
+      <StatusSelect label="status" value={status} onChange={setStatus} />
 
       <button
         type="button"

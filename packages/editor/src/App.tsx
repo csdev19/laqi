@@ -156,7 +156,13 @@ export function App() {
   )
 
   const createFromModel = useCallback(
-    async (input: { method: string; path: string; model: string }) => {
+    async (input: {
+      method: string
+      path: string
+      model: string
+      responseName: string
+      status: number
+    }) => {
       setCreateError(null)
       setWarnings([])
       try {
@@ -170,8 +176,8 @@ export function App() {
         await create({
           method: input.method,
           path: input.path,
-          responseName: 'ok',
-          status: 200,
+          responseName: input.responseName,
+          status: input.status,
           body: preview,
         })
       } catch (error) {
