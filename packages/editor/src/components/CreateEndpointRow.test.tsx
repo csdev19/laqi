@@ -33,27 +33,63 @@ function renderRow(props: Partial<Parameters<typeof CreateEndpointRow>[0]> = {})
 }
 
 describe('CreateEndpointRow', () => {
-  it('refuses to submit until the path looks like a path', () => {
-    const { path, create, onCreate } = renderRow()
+  // Create stays clickable whatever the form holds. A disabled button
+  // states that something is wrong without ever saying what, and a path
+  // typed without its slash is the easiest way to meet one: the button
+  // greys out and nothing on screen explains it.
+  it('says what is wrong instead of disabling the button', () => {
+    const { create, onCreate } = renderRow()
 
-    expect(create.hasAttribute('disabled')).toBe(true)
-
-    fireEvent.change(path, { target: { value: 'todos' } })
-    expect(create.hasAttribute('disabled')).toBe(true)
-
-    fireEvent.change(path, { target: { value: '/todos' } })
     expect(create.hasAttribute('disabled')).toBe(false)
 
+    fireEvent.click(create)
+    expect(screen.getByRole('alert').textContent).toContain('path')
     expect(onCreate).not.toHaveBeenCalled()
   })
 
-  it('refuses a blank response name', () => {
-    const { path, create } = renderRow()
+  it('suggests the path the developer meant when the slash is missing', () => {
+    const { path, create, onCreate } = renderRow()
+
+    fireEvent.change(path, { target: { value: 'test2' } })
+    fireEvent.click(create)
+
+    expect(screen.getByRole('alert').textContent).toContain('/test2')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('clears the complaint as soon as the path is fixed', () => {
+    const { path, create, onCreate } = renderRow()
+
+    fireEvent.change(path, { target: { value: 'todos' } })
+    fireEvent.click(create)
+    expect(screen.queryByRole('alert')).not.toBeNull()
+
+    fireEvent.change(path, { target: { value: '/todos' } })
+    expect(screen.queryByRole('alert')).toBeNull()
+
+    fireEvent.click(create)
+    expect(onCreate).toHaveBeenCalledOnce()
+  })
+
+  it('refuses a blank response name, and names that field', () => {
+    const { path, create, onCreate } = renderRow()
 
     fireEvent.change(path, { target: { value: '/todos' } })
     fireEvent.change(screen.getByLabelText('response name'), { target: { value: '   ' } })
+    fireEvent.click(create)
 
-    expect(create.hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('response name')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  // The row is where the server's refusal lands too. One complaint at a
+  // time, and the one the developer just caused wins.
+  it('shows the server rejection until the developer causes a new complaint', () => {
+    renderRow({ error: 'already exists in laqi/api.json' })
+    expect(screen.getByRole('alert').textContent).toContain('already exists')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect(screen.getByRole('alert').textContent).toContain('path')
   })
 
   it('submits trimmed values and a numeric status', () => {
@@ -92,7 +128,9 @@ describe('CreateEndpointRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'from a model' }))
 
     const create = screen.getByRole('button', { name: 'Create' })
-    expect(create.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(create)
+    expect(screen.getByRole('alert').textContent).toContain('model')
+    expect(onCreateFromModel).not.toHaveBeenCalled()
 
     fireEvent.change(screen.getByLabelText('model'), {
       target: { value: 'interface Todo { id: number }' },

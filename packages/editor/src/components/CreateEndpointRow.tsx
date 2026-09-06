@@ -25,15 +25,33 @@ export function CreateEndpointRow(props: {
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
   const [model, setModel] = useState('')
+  const [complaint, setComplaint] = useState<string | null>(null)
 
-  const pathValid = path.trim().startsWith('/')
-  const canCreate =
-    mode === 'blank'
-      ? pathValid && responseName.trim().length > 0
-      : pathValid && model.trim().length > 0
+  /**
+   * Why this form cannot be submitted yet, in the developer's words.
+   *
+   * Returned rather than used to disable Create: a disabled button says
+   * something is wrong and never says what, and the easiest way to meet one
+   * here is to type a path without its slash. The button stays clickable
+   * and the click is what explains itself.
+   */
+  const problem = (): string | null => {
+    const trimmed = path.trim()
+    if (trimmed.length === 0) return 'a path is needed, starting with a slash'
+    if (!trimmed.startsWith('/')) return `paths start with a slash — did you mean /${trimmed}?`
+    if (mode === 'model' && model.trim().length === 0) {
+      return 'paste a model, or switch back to blank'
+    }
+    if (mode === 'blank' && responseName.trim().length === 0) {
+      return 'a response name is needed — ok, empty, error, whatever the case is called'
+    }
+    return null
+  }
 
   const submit = () => {
-    if (!canCreate) return
+    const wrong = problem()
+    setComplaint(wrong)
+    if (wrong) return
     if (mode === 'model') {
       props.onCreateFromModel({ method, path: path.trim(), model: model.trim() })
       return
@@ -77,7 +95,10 @@ export function CreateEndpointRow(props: {
         aria-label="path"
         autoFocus
         value={path}
-        onChange={(event) => setPath(event.target.value)}
+        onChange={(event) => {
+          setPath(event.target.value)
+          setComplaint(null)
+        }}
       />
 
       {mode === 'blank' ? (
@@ -86,7 +107,10 @@ export function CreateEndpointRow(props: {
             className="create-input create-name"
             aria-label="response name"
             value={responseName}
-            onChange={(event) => setResponseName(event.target.value)}
+            onChange={(event) => {
+              setResponseName(event.target.value)
+              setComplaint(null)
+            }}
           />
           <StatusSelect label="status" value={status} onChange={setStatus} />
         </>
@@ -100,7 +124,7 @@ export function CreateEndpointRow(props: {
         {mode === 'blank' ? 'from a model' : 'blank'}
       </button>
 
-      <button type="button" className="btn btn-primary" disabled={!canCreate} onClick={submit}>
+      <button type="button" className="btn btn-primary" onClick={submit}>
         Create
       </button>
       <button type="button" className="btn" onClick={props.onCancel}>
@@ -112,7 +136,10 @@ export function CreateEndpointRow(props: {
           <div className="create-model">
             <ModelEditor
               value={model}
-              onChange={setModel}
+              onChange={(next) => {
+                setModel(next)
+                setComplaint(null)
+              }}
               language="typescript"
               placeholder="export interface Todo { id: number; title: string }"
               autoFocus
@@ -139,8 +166,15 @@ export function CreateEndpointRow(props: {
         </>
       ) : null}
 
-      {/* No toasts: the failure appears where the action was taken. */}
-      {props.error ? <div className="form-error">{props.error}</div> : null}
+      {/* No toasts: the failure appears where the action was taken. One at
+          a time, and the one the developer just caused wins — it is about
+          what is on screen right now, while the server's is about the last
+          attempt. */}
+      {(complaint ?? props.error) ? (
+        <div className="form-error" role="alert">
+          {complaint ?? props.error}
+        </div>
+      ) : null}
     </div>
   )
 }

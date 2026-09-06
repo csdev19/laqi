@@ -257,12 +257,14 @@ describe('creating an endpoint', () => {
     )
   })
 
-  it('refuses a path that does not start with a slash', async () => {
+  it('refuses a path that does not start with a slash, and says so', async () => {
     await renderApp()
     fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
     fireEvent.change(screen.getByLabelText('path'), { target: { value: 'health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(screen.getByRole('button', { name: 'Create' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('/health')
+    expect(createEndpoint).not.toHaveBeenCalled()
   })
 
   it('shows the server error next to the form, not in a toast', async () => {
