@@ -714,6 +714,7 @@ textarea::-moz-selection {
 /* The model box is a small code editor (see ModelEditor): it takes the whole
    row, starts at a few lines and lets the developer drag it taller. */
 .create-model {
+  position: relative;
   flex-basis: 100%;
   width: 100%;
   min-width: 0;
@@ -739,6 +740,28 @@ textarea::-moz-selection {
   align-items: center;
   gap: 4px;
   margin-top: -2px;
+}
+
+/* The three body sources, as one control: which one is on is the question,
+   and three loose buttons would not say that. */
+.mode-picker {
+  display: flex;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mode-picker .method-option + .method-option {
+  border-left: 1px solid var(--line2);
+}
+
+.json-readout {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
 }
 
 .create-type {

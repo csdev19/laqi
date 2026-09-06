@@ -52,6 +52,20 @@ also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 realistic body, or copy the current response's types in twenty-five
 languages.
 
+## Three ways to say what it returns
+
+**+ New endpoint** offers **blank**, **from a model** and **from JSON**. The
+path, the response name and the status mean the same thing in all three and
+never move; only the source of the body changes. Blank writes a placeholder,
+a model generates realistic data from your types, and JSON takes the body
+you paste, exactly as pasted. Once it exists, the endpoint detail turns that
+body back into types in twenty-five languages, and regenerates it.
+
+The status field is also the catalogue's search box, so it accepts whatever
+you type; what it will not accept is a code that is not one. `201e44` reads
+as a number to JavaScript and used to reach the mock file, coming back as a
+complaint about integer limits. It is now refused where it was typed.
+
 ## Pasting a model
 
 **+ New endpoint → from a model** opens a small code box, not a form field.

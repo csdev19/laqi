@@ -1,7 +1,18 @@
 import { EXAMPLE_MODELS } from '@laqi/generate/examples'
+import { parseStatusCode, STATUS_MAX, STATUS_MIN } from '@laqi/schema'
 import { useState } from 'react'
+import { checkJson } from '../highlight'
+import { JsonEditor, ValidityReadout } from './JsonEditor'
 import { ModelEditor } from './ModelEditor'
 import { StatusSelect } from './StatusSelect'
+
+const MODES = [
+  { id: 'blank', label: 'blank' },
+  { id: 'model', label: 'from a model' },
+  { id: 'json', label: 'from JSON' },
+] as const
+
+type Mode = (typeof MODES)[number]['id']
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 
@@ -28,13 +39,14 @@ export function CreateEndpointRow(props: {
   ) => void
   onCancel: () => void
 }) {
-  const [mode, setMode] = useState<'blank' | 'model'>('blank')
+  const [mode, setMode] = useState<Mode>('blank')
   const [method, setMethod] = useState('GET')
   const [path, setPath] = useState('')
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
   const [model, setModel] = useState('')
   const [typeName, setTypeName] = useState('')
+  const [json, setJson] = useState('')
   const [complaint, setComplaint] = useState<string | null>(null)
 
   /**
@@ -52,8 +64,18 @@ export function CreateEndpointRow(props: {
     if (mode === 'model' && model.trim().length === 0) {
       return 'paste a model, or switch back to blank'
     }
+    if (mode === 'json') {
+      if (json.trim().length === 0) return 'paste a JSON body, or switch back to blank'
+      const check = checkJson(json)
+      if (!check.valid) return `that body is not JSON: ${check.message}`
+    }
     if (responseName.trim().length === 0) {
       return 'a response name is needed — ok, empty, error, whatever the case is called'
+    }
+    // Not `Number()`: it reads `201e44` as 2.01e46, which used to reach the
+    // mock file and come back as a Zod complaint about integers.
+    if (parseStatusCode(status) === null) {
+      return `a status is a number from ${STATUS_MIN} to ${STATUS_MAX} — ${JSON.stringify(status)} is not one`
     }
     return null
   }
@@ -62,7 +84,11 @@ export function CreateEndpointRow(props: {
     const wrong = problem()
     setComplaint(wrong)
     if (wrong) return
-    const response = { responseName: responseName.trim(), status: Number(status) || 200 }
+    const response = {
+      responseName: responseName.trim(),
+      // Never null here: `problem()` above has already refused anything else.
+      status: parseStatusCode(status) ?? 200,
+    }
     if (mode === 'model') {
       props.onCreateFromModel({
         method,
@@ -73,7 +99,12 @@ export function CreateEndpointRow(props: {
       })
       return
     }
-    props.onCreate({ method, path: path.trim(), ...response })
+    props.onCreate({
+      method,
+      path: path.trim(),
+      ...response,
+      ...(mode === 'json' ? { body: JSON.parse(json) as unknown } : {}),
+    })
   }
 
   return (
@@ -126,13 +157,25 @@ export function CreateEndpointRow(props: {
       />
       <StatusSelect label="status" value={status} onChange={setStatus} />
 
-      <button
-        type="button"
-        className="btn"
-        onClick={() => setMode(mode === 'blank' ? 'model' : 'blank')}
-      >
-        {mode === 'blank' ? 'from a model' : 'blank'}
-      </button>
+      {/* Three ways to say what the endpoint returns: nothing yet, a model
+          to generate from, or the body itself. The path, the name and the
+          status mean the same thing in all three, so they never move. */}
+      <div className="mode-picker" role="group" aria-label="body source">
+        {MODES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={option.id === mode ? 'method-option is-selected' : 'method-option'}
+            aria-pressed={option.id === mode}
+            onClick={() => {
+              setMode(option.id)
+              setComplaint(null)
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       <button type="button" className="btn btn-primary" onClick={submit}>
         Create
@@ -140,6 +183,15 @@ export function CreateEndpointRow(props: {
       <button type="button" className="btn" onClick={props.onCancel}>
         Cancel
       </button>
+
+      {mode === 'json' ? (
+        <div className="create-model">
+          <JsonEditor value={json} onChange={setJson} />
+          <div className="json-readout">
+            {json.trim().length > 0 ? <ValidityReadout source={json} /> : null}
+          </div>
+        </div>
+      ) : null}
 
       {mode === 'model' ? (
         <>

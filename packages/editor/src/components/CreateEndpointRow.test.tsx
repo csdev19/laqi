@@ -110,15 +110,17 @@ describe('CreateEndpointRow', () => {
   })
 
   // A status field that has been cleared, or typed into badly, must not
-  // become NaN in a mock file.
-  it('falls back to 200 when the status is not a number', () => {
+  // become NaN in a mock file. It used to fall back to 200 quietly; the
+  // developer who cleared the field meant to type something else.
+  it('asks for a status rather than filling one in when the field is empty', () => {
     const { path, create, onCreate } = renderRow()
 
     fireEvent.change(path, { target: { value: '/todos' } })
     fireEvent.change(screen.getByLabelText('status'), { target: { value: '' } })
     fireEvent.click(create)
 
-    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
+    expect(screen.getByRole('alert').textContent).toContain('status')
+    expect(onCreate).not.toHaveBeenCalled()
   })
 
   it('switches to the model flow and needs a model before it will submit', () => {
@@ -215,6 +217,35 @@ describe('CreateEndpointRow', () => {
     expect(onCreateFromModel).toHaveBeenCalledWith(expect.objectContaining({ typeName: undefined }))
   })
 
+  // `Number('201e44')` is 2.01e46. It reached the mock file and came back
+  // as "Too big: expected int to be ≤9007199254740991", which tells the
+  // developer nothing about the field they typed into.
+  it('refuses a status that is not a code, in words the developer can act on', () => {
+    const { path, onCreate } = renderRow()
+
+    fireEvent.change(path, { target: { value: '/test' } })
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: '201e44' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    const said = screen.getByRole('alert').textContent ?? ''
+    expect(said).toContain('100')
+    expect(said).toContain('599')
+    expect(said).toContain('201e44')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('refuses a code outside the range, and a half-typed name', () => {
+    const { path, onCreate } = renderRow()
+    fireEvent.change(path, { target: { value: '/test' } })
+
+    for (const value of ['600', '99', 'not found']) {
+      fireEvent.change(screen.getByLabelText('status'), { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+      expect(screen.getByRole('alert').textContent, value).toContain('status')
+    }
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
   it('offers the type field only in the model flow', () => {
     renderRow()
     expect(screen.queryByLabelText('type')).toBeNull()
@@ -301,6 +332,90 @@ describe('the status field', () => {
 // Something to paste when trying laqi out. The panel and the parser tests
 // read the same three models, so a button that fills the box with something
 // the parser chokes on would fail in packages/generate first.
+describe('the JSON flow', () => {
+  function openJson() {
+    const row = renderRow()
+    fireEvent.change(row.path, { target: { value: '/orders' } })
+    fireEvent.click(screen.getByRole('button', { name: 'from JSON' }))
+    return row
+  }
+
+  it('offers the three flows, and shows the body box only in this one', () => {
+    renderRow()
+    expect(screen.queryByLabelText('response body')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'from JSON' }))
+    expect(screen.getByLabelText('response body')).toBeTruthy()
+    expect(screen.queryByLabelText('model')).toBeNull()
+  })
+
+  it('creates the endpoint with the pasted body, parsed', () => {
+    const { onCreate } = openJson()
+
+    fireEvent.change(screen.getByLabelText('response body'), {
+      target: { value: '{ "id": 1, "tags": ["a"] }' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreate).toHaveBeenCalledWith({
+      method: 'GET',
+      path: '/orders',
+      responseName: 'ok',
+      status: 200,
+      body: { id: 1, tags: ['a'] },
+    })
+  })
+
+  it('says what is wrong with the JSON rather than sending it', () => {
+    const { onCreate } = openJson()
+
+    fireEvent.change(screen.getByLabelText('response body'), { target: { value: '{ "id": }' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('JSON')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  it('asks for a body before it will create an empty one', () => {
+    const { onCreate } = openJson()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('JSON')
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+
+  // A body is what the endpoint returns, and `null`, `[]` and `0` are all
+  // things an endpoint returns.
+  it.each(['null', '[]', '0', '"text"'])('accepts %s as a body', (source) => {
+    const { onCreate } = openJson()
+
+    fireEvent.change(screen.getByLabelText('response body'), { target: { value: source } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ body: JSON.parse(source) }))
+  })
+
+  it('keeps the path, name and status when moving between flows', () => {
+    const { onCreate } = openJson()
+
+    fireEvent.change(screen.getByLabelText('response name'), { target: { value: 'empty' } })
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: '204' } })
+    fireEvent.change(screen.getByLabelText('response body'), { target: { value: '[]' } })
+    fireEvent.click(screen.getByRole('button', { name: 'blank' }))
+    fireEvent.click(screen.getByRole('button', { name: 'from JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(onCreate).toHaveBeenCalledWith({
+      method: 'GET',
+      path: '/orders',
+      responseName: 'empty',
+      status: 204,
+      body: [],
+    })
+  })
+})
+
 describe('the example models', () => {
   function openModelMode() {
     const row = renderRow()

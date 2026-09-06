@@ -3,6 +3,15 @@
  * `packages/editor/src/log.ts` used to carry a second copy, which is how a
  * chip and a log row could disagree about the same number.
  */
+/**
+ * The range a mock may answer with. HTTP defines 100..599; a mock server
+ * has to be able to return a code nobody named, but not one no client can
+ * read. `ResponseSchema` enforces the same two numbers — they live here so
+ * the field that types a status and the schema that stores it cannot drift.
+ */
+export const STATUS_MIN = 100
+export const STATUS_MAX = 599
+
 export type StatusClass = 'ok' | 'redirect' | 'client' | 'server'
 
 /** The five RFC classes, spelled out for the select's group headings. */
@@ -82,4 +91,20 @@ export function filterStatusCodes(query: string): readonly StatusCode[] {
     const target = `${entry.code} ${entry.label}`.toLowerCase()
     return tokens.every((token) => target.includes(token))
   })
+}
+
+/**
+ * A typed status field turned into a code, or `null` if it is not one.
+ *
+ * Strict on purpose: `Number()` alone accepts `201e44`, ` 200 ` and `0x1f4`,
+ * and the first of those reached a mock file as 2.01e46 before failing
+ * server-side with a Zod message about integers being ≤9007199254740991.
+ * The field is also the search box for the catalogue, so half of what is
+ * typed into it is a name like `not found` — that is not an error, just not
+ * a code yet.
+ */
+export function parseStatusCode(text: string): number | null {
+  if (!/^\d{3}$/.test(text.trim())) return null
+  const code = Number(text.trim())
+  return code >= STATUS_MIN && code <= STATUS_MAX ? code : null
 }

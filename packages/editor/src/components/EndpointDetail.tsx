@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
-import { suggestResponses } from '@laqi/schema'
+import { parseStatusCode, suggestResponses } from '@laqi/schema'
 import { StatusSelect } from './StatusSelect'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
@@ -340,7 +340,12 @@ export function EndpointDetail(props: {
                   id="meta-status"
                   label="status"
                   value={String(current.status)}
-                  onChange={(next) => patch(selected, { status: Number(next) || current.status })}
+                  // Same guard as the create row: `Number('201e44')` is
+                  // 2.01e46, which the file would take and the schema would
+                  // then reject with a message about integer limits.
+                  onChange={(next) =>
+                    patch(selected, { status: parseStatusCode(next) ?? current.status })
+                  }
                 />
               </div>
 
