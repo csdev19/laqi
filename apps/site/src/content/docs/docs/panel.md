@@ -52,6 +52,20 @@ also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 realistic body, or copy the current response's types in twenty-five
 languages.
 
+## Pasting a model
+
+**+ New endpoint → from a model** opens a small code box, not a form field.
+It highlights TypeScript and behaves the way an editor does: `Tab` indents
+(`Shift+Tab` outdents), `Enter` keeps the indentation and opens a block
+between `{}`, and brackets and quotes close themselves. Native undo still
+works. TypeScript is the only language today; the box is built to grow.
+
+Three ready-made models live in the repository at
+`packages/generate/src/fixtures/models/` — `simple.ts`, `medium.ts` and
+`complex.ts` — if you want something to paste right away. The complex one
+nests four levels deep and mixes unions, intersections, `Pick`/`Omit`,
+tuples and `readonly`, which is about as dirty as a real model file gets.
+
 ## The status field, and the usual siblings
 
 The status on the create form and in the detail pane is a searchable list,
