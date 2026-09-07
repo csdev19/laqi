@@ -277,10 +277,34 @@ export async function startServer(options: {
               code: 'not-found',
             }
           }
-          // Regenerate re-infers from the data the response already has: the
-          // original pasted model is never needed again, so it is never stored.
+          // The model, when the response carries one. Re-inferring from the
+          // body is a lossy fallback: one sample cannot show that a field
+          // was a literal union, that an absent optional exists, or that an
+          // array was a fixed-length tuple — regenerating a `[number,
+          // number]` from data produced three numbers. The model has all of
+          // that, so it wins whenever it is there.
+          const from = response.generatedFrom
+          if (from) {
+            const parsed = await parseTypes(from.model, from.typeName)
+            if (parsed.ok) {
+              const preview = await generate(parsed.shape, generateOptions)
+              return {
+                ok: true,
+                preview,
+                warnings: parsed.warnings,
+                typeName: parsed.typeName,
+                candidates: parsed.candidates,
+              }
+            }
+            // A model that no longer parses is not a reason to refuse: the
+            // body is still there to infer from, and the developer is told.
+          }
           const preview = await generate(inferShape(response.body ?? null), generateOptions)
-          return { ok: true, preview, warnings: [] }
+          return {
+            ok: true,
+            preview,
+            warnings: from ? ['the stored model no longer parses — regenerated from the body'] : [],
+          }
         } catch (error) {
           return {
             ok: false,

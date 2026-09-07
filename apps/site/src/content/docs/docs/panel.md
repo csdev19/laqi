@@ -98,6 +98,30 @@ wide without inheriting anything: one interface, no helper types, every
 level written inline. The same four models are what the parser's tests run
 against.
 
+## Seeing what a response is
+
+The detail pane shows the response's types, not just a button that copies
+them. What it shows depends on where the body came from, and it says which:
+
+- **Generated from a model.** The model is stored beside the body it
+  produced, so the pane shows it exactly as pasted, every declaration
+  included. That is the only place the literal unions, optional fields and
+  tuples survive: a body cannot carry them.
+- **Anything else** — a body you pasted as JSON, one you wrote by hand, an
+  endpoint that predates all this — shows the types derived from the body.
+  Ask for a language other than TypeScript and you get the derived form
+  too, since a stored model can only be TypeScript.
+
+Because the model is kept, **Regenerate** uses it rather than guessing the
+shape back out of one sample. Guessing is what turned a `[number, number]`
+into three numbers and a four-way literal union into a random string. When
+there is no model, it still infers from the body, which is the old
+behaviour.
+
+The model is a copy taken when you pasted it. It records where the body came
+from, not what the body is now: edit the body by hand and the model stays as
+it was. See [ADR-0013](https://laqi.dev/decisions/0013-mocks-remember-their-model/).
+
 ## The status field, and the usual siblings
 
 The status on the create form and in the detail pane is a searchable list,

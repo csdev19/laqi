@@ -4,6 +4,7 @@ import { checkJson } from '../highlight'
 import { statusClass } from '../log'
 import { parseStatusCode, suggestResponses } from '@laqi/schema'
 import { StatusSelect } from './StatusSelect'
+import { TypesPanel } from './TypesPanel'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { Dialog } from './Dialog'
@@ -45,10 +46,6 @@ export function EndpointDetail(props: {
   const { endpoint, state, scenarios } = props
   const [draft, setDraft] = useState<Draft>(() => toDraft(endpoint))
   const [selected, setSelected] = useState<string>(endpoint.default)
-  const [typesLang, setTypesLang] = useState('typescript')
-  const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
-    { name: 'typescript', displayName: 'TypeScript' },
-  ])
   const [actionError, setActionError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const [renameValue, setRenameValue] = useState<string | null>(null)
@@ -60,15 +57,6 @@ export function EndpointDetail(props: {
   // not depend on the component unmounting — a reload rerenders the same
   // instance.
   const epochRef = useRef(0)
-
-  // Without this list the panel keeps working with the TypeScript default:
-  // not worth blocking the screen on a fetch that can fail.
-  useEffect(() => {
-    api
-      .getLanguages()
-      .then(setLanguages)
-      .catch(() => {})
-  }, [])
 
   // The watcher can reload the endpoint out from under you (someone edited
   // the file by hand). Rebuild the draft from the new definition.
@@ -386,38 +374,12 @@ export function EndpointDetail(props: {
                 <pre className="meta-curl">{curlFor(endpoint, selected, props.address)}</pre>
               </div>
 
-              <div className="meta-field">
-                <span className="micro">types</span>
-                <div className="detail-actions">
-                  <select
-                    className="meta-input"
-                    aria-label="types language"
-                    value={typesLang}
-                    onChange={(event) => setTypesLang(event.target.value)}
-                  >
-                    {languages.map((language) => (
-                      <option key={language.name} value={language.name}>
-                        {language.displayName}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      setActionError(null)
-                      void api
-                        .getTypes(endpoint.id, { response: selected, lang: typesLang })
-                        .then(({ code }) => navigator.clipboard?.writeText(code))
-                        .catch((error: unknown) =>
-                          setActionError(error instanceof Error ? error.message : String(error)),
-                        )
-                    }}
-                  >
-                    Copy types
-                  </button>
-                </div>
-              </div>
+              <TypesPanel
+                endpointId={endpoint.id}
+                responseName={selected}
+                response={endpoint.responses[selected]}
+                revision={fingerprint}
+              />
 
               <div className="meta-field">
                 <span className="micro">declared in</span>
