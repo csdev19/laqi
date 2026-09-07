@@ -94,7 +94,14 @@ export type ControlPlaneRuntime = {
       // mocking an order and mocking the string 'viewer' — the caller cannot
       // tell from the preview alone. Absent when generating from a response
       // that already exists, where there is no model and no choice to report.
-      | { ok: true; preview: unknown; warnings: string[]; typeName?: string }
+      | {
+          ok: true
+          preview: unknown
+          warnings: string[]
+          typeName?: string
+          /** Every declaration the source offered, in source order. */
+          candidates?: string[]
+        }
       | { ok: false; error: string; code: WriteFailure }
   >
 }
@@ -412,7 +419,12 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     return c.json(
       result.typeName === undefined
         ? { preview: result.preview, warnings: result.warnings }
-        : { preview: result.preview, warnings: result.warnings, typeName: result.typeName },
+        : {
+            preview: result.preview,
+            warnings: result.warnings,
+            typeName: result.typeName,
+            candidates: result.candidates ?? [result.typeName],
+          },
     )
   })
 

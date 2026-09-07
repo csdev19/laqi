@@ -303,9 +303,14 @@ describe('creating an endpoint', () => {
 
   // Which declaration the parser chose is the difference between mocking an
   // order and mocking the string 'viewer', and the preview alone does not
-  // say. The panel reports it beside the warnings.
-  it('says which type it generated from', async () => {
-    generateData.mockResolvedValue({ preview: { id: 1 }, warnings: [], typeName: 'Role' })
+  // say. The panel reports it, and names what else it could have used.
+  it('says which type it generated from, and what the alternatives were', async () => {
+    generateData.mockResolvedValue({
+      preview: { id: 1 },
+      warnings: [],
+      typeName: 'Role',
+      candidates: ['Role', 'User', 'Project'],
+    })
     createEndpoint.mockResolvedValue({ id: 'GET /projects' })
     await renderApp()
 
@@ -315,7 +320,55 @@ describe('creating an endpoint', () => {
     fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(await screen.findByText(/generated from Role/)).toBeTruthy()
+    const said = await screen.findByText(/generated from Role/)
+    expect(said.textContent).toContain('User, Project')
+  })
+
+  // A model with one declaration leaves the parser no choice, and saying
+  // "generated from Invoice" about it reads as a complaint about a model
+  // that is perfectly fine.
+  it('says nothing when the model declares only the type it used', async () => {
+    generateData.mockResolvedValue({
+      preview: { id: 1 },
+      warnings: [],
+      typeName: 'Invoice',
+      candidates: ['Invoice'],
+    })
+    createEndpoint.mockResolvedValue({ id: 'GET /invoices' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: 'export interface Invoice { id: string }' },
+    })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/invoices' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    expect(screen.queryByText(/generated from/)).toBeNull()
+  })
+
+  // Naming the type is saying which one you want; repeating it back is noise.
+  it('says nothing when the developer named the type themselves', async () => {
+    generateData.mockResolvedValue({
+      preview: { id: 1 },
+      warnings: [],
+      typeName: 'Project',
+      candidates: ['Role', 'User', 'Project'],
+    })
+    createEndpoint.mockResolvedValue({ id: 'GET /projects' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
+    fireEvent.change(screen.getByLabelText('type'), { target: { value: 'Project' } })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    expect(screen.queryByText(/generated from/)).toBeNull()
   })
 
   it('passes the named type through to generation', async () => {

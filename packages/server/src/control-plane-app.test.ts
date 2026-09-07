@@ -675,6 +675,7 @@ describe('generation routes', () => {
       preview: [{ id: 1 }],
       warnings: ['w'],
       typeName: 'X',
+      candidates: ['X', 'Y'],
     }))
     const app = createControlPlaneApp(makeRuntime({ generateData }))
     const res = await app.request('/api/generate/data', {
@@ -683,7 +684,12 @@ describe('generation routes', () => {
       body: JSON.stringify({ model: 'export interface X { id: number }', seed: 7 }),
     })
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: ['w'], typeName: 'X' })
+    expect(await res.json()).toEqual({
+      preview: [{ id: 1 }],
+      warnings: ['w'],
+      typeName: 'X',
+      candidates: ['X', 'Y'],
+    })
     expect(generateData).toHaveBeenCalledWith({
       model: 'export interface X { id: number }',
       seed: 7,

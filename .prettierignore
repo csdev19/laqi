@@ -7,3 +7,10 @@
 # every release PR.
 CHANGELOG.md
 **/CHANGELOG.md
+
+# The example project's mocks are written by laqi itself, from the panel and
+# from MCP, with `JSON.stringify(value, null, 2)`. The formatter disagrees
+# with that on short arrays, so every session spent trying the panel against
+# examples/todo-app turned `bun run verify` red on a file nobody typed.
+examples/*/laqi/*.json
+examples/*/.laqi/*.json

@@ -171,6 +171,7 @@ export function App() {
           preview,
           warnings: generationWarnings,
           typeName,
+          candidates,
         } = await api.generateData({
           model: input.model,
           ...(input.typeName ? { typeName: input.typeName } : {}),
@@ -178,13 +179,18 @@ export function App() {
         // `create()` closes the CreateEndpointRow and opens the new
         // endpoint's detail — the warnings state lives here, not there, so
         // it survives that transition instead of unmounting with the row.
-        // Which declaration was used is not visible in the body, and a
-        // model file usually declares several: without this, pasting a file
-        // whose first export is an alias silently mocks that alias.
+        // Only when the parser had a choice and made it alone. Which
+        // declaration was used is invisible in the body, and a file whose
+        // first export is an alias silently mocks that alias — but a model
+        // declaring one interface leaves nothing to choose, and saying
+        // "generated from Invoice" about it reads as a complaint about a
+        // model that is perfectly fine.
+        const alternatives = (candidates ?? []).filter((name) => name !== typeName)
+        const chose = typeName !== undefined && input.typeName === undefined
         setWarnings(
-          typeName
+          chose && alternatives.length > 0
             ? [
-                `generated from ${typeName} — name a type in the box to pick another`,
+                `generated from ${typeName} — the model also declares ${alternatives.join(', ')}`,
                 ...generationWarnings,
               ]
             : generationWarnings,

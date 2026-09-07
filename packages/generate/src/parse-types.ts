@@ -5,7 +5,7 @@ import { generateRuntime } from './services/runtime'
 import { primitive, type Shape, type ShapeField } from './shape'
 
 export type ParsedModel =
-  | { ok: true; shape: Shape; typeName: string; warnings: string[] }
+  | { ok: true; shape: Shape; typeName: string; warnings: string[]; candidates: string[] }
   | { ok: false; error: string }
 
 const VIRTUAL_FILE = '__laqi_pasted__.ts'
@@ -40,7 +40,11 @@ export const parseTypesEffect = (
   source: string,
   typeName?: string,
 ): Effect.Effect<
-  { shape: Shape; typeName: string; warnings: string[] },
+  // `candidates` is every declaration the source offers, in source order.
+  // Which one was used is only worth reporting when there was another it
+  // could have been: a single-interface model leaves no choice to make, and
+  // announcing one reads as a complaint about a model that is fine.
+  { shape: Shape; typeName: string; warnings: string[]; candidates: string[] },
   ParseError,
   TypeScriptCompiler
 > =>
@@ -257,7 +261,12 @@ export const parseTypesEffect = (
 
     const rootType = checker.getTypeAtLocation(target.name)
     const shape = toShape(rootType, target.name.text, 0)
-    return { shape, typeName: target.name.text, warnings }
+    return {
+      shape,
+      typeName: target.name.text,
+      warnings,
+      candidates: declarations.map((d) => d.name.text),
+    }
   }).pipe(
     // Everything between the import and the returned shape is plain
     // synchronous compiler work: `createProgram`, the checker, and the
