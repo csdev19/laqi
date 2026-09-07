@@ -23,6 +23,8 @@ export type CreateInput = {
   method: string
   path: string
   body?: unknown
+  /** Set only by the model flow: the source the body was generated from. */
+  generatedFrom?: { typeName: string; model: string }
 } & ResponseChoice
 
 export function CreateEndpointRow(props: {

@@ -35,3 +35,42 @@ describe('ResponseSchema', () => {
     expect(ResponseSchema.safeParse({ status: 200, delay: -1 }).success).toBe(false)
   })
 })
+
+// A body cannot be turned back into the model that made it: JSON carries no
+// literal unions, no absent optionals and no tuples. The source is kept so
+// the panel can show what was pasted, and so regenerating reproduces the
+// shape instead of guessing it from one sample.
+describe('generatedFrom', () => {
+  const model = 'export interface Todo { id: number }'
+
+  it('accepts a response carrying the model it came from', () => {
+    const result = ResponseSchema.safeParse({
+      status: 200,
+      body: { id: 1 },
+      generatedFrom: { typeName: 'Todo', model },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.generatedFrom?.typeName).toBe('Todo')
+  })
+
+  // Every response written before this existed, and every one written by
+  // hand, has no model behind it.
+  it('is optional', () => {
+    expect(ResponseSchema.safeParse({ status: 200, body: {} }).success).toBe(true)
+  })
+
+  it('refuses a half-filled record, which would say a model exists when none does', () => {
+    expect(
+      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: 'Todo' } }).success,
+    ).toBe(false)
+    expect(ResponseSchema.safeParse({ status: 200, generatedFrom: { model } }).success).toBe(false)
+    expect(
+      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: '', model } }).success,
+    ).toBe(false)
+    expect(
+      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: 'Todo', model: '' } })
+        .success,
+    ).toBe(false)
+  })
+})

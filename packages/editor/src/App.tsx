@@ -142,7 +142,14 @@ export function App() {
           path: input.path,
           default: input.responseName,
           responses: {
-            [input.responseName]: { status: input.status, body: input.body ?? {} },
+            [input.responseName]: {
+              status: input.status,
+              body: input.body ?? {},
+              // Kept beside the body it produced: a body cannot be turned
+              // back into the model that made it, so this is the only record
+              // of what was pasted.
+              ...(input.generatedFrom ? { generatedFrom: input.generatedFrom } : {}),
+            },
           },
         })
         setCreating(false)
@@ -201,6 +208,7 @@ export function App() {
           responseName: input.responseName,
           status: input.status,
           body: preview,
+          ...(typeName ? { generatedFrom: { typeName, model: input.model } } : {}),
         })
       } catch (error) {
         setCreateError(error instanceof ApiError ? error.message : String(error))

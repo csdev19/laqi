@@ -1585,3 +1585,29 @@ button.log-path:hover {
   border-color: var(--mint);
   color: var(--palem);
 }
+
+/* ── Types panel ───────────────────────────────────────────────────────── */
+
+/* Which of the two sources is on screen, said in words: one is what the
+   developer wrote, the other is a guess made from a single sample. */
+.types-origin {
+  margin: 6px 0 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--dim2);
+}
+
+.types-code {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--fg);
+}
