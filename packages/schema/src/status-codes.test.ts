@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterStatusCodes, STATUS_CODES, statusClass } from './status-codes'
+import { STATUS_CODES, filterStatusCodes, parseStatusCode, statusClass } from './status-codes'
 
 describe('STATUS_CODES', () => {
   it('is sorted by code and has no duplicates', () => {
@@ -56,5 +56,36 @@ describe('filterStatusCodes', () => {
   it('returns nothing when a code is not in the catalogue', () => {
     // 599 is legal and enterable as free text, but it is not a named code.
     expect(filterStatusCodes('599')).toEqual([])
+  })
+})
+
+describe('parseStatusCode', () => {
+  // The field doubles as the catalogue's search box, so most of what passes
+  // through here is a name being typed, not a broken code.
+  it('reads a three-digit code in range', () => {
+    expect(parseStatusCode('200')).toBe(200)
+    expect(parseStatusCode(' 404 ')).toBe(404)
+    expect(parseStatusCode('599')).toBe(599)
+    expect(parseStatusCode('100')).toBe(100)
+  })
+
+  // `Number('201e44')` is 2.01e46. It used to reach a mock file and come
+  // back as a Zod complaint about integers being ≤9007199254740991.
+  it.each(['201e44', '0x1f4', '2e2', '+200', '200.0', '1_00'])(
+    'refuses %s, which Number() would have accepted',
+    (text) => {
+      expect(parseStatusCode(text)).toBeNull()
+    },
+  )
+
+  it('refuses codes outside the range HTTP defines', () => {
+    expect(parseStatusCode('099')).toBeNull()
+    expect(parseStatusCode('600')).toBeNull()
+    expect(parseStatusCode('1000')).toBeNull()
+  })
+
+  it('refuses a name being typed, and an empty field', () => {
+    expect(parseStatusCode('not found')).toBeNull()
+    expect(parseStatusCode('')).toBeNull()
   })
 })

@@ -1,4 +1,13 @@
-export type TokenKind = 'key' | 'string' | 'number' | 'literal' | 'punct' | 'plain'
+export type TokenKind =
+  | 'key'
+  | 'string'
+  | 'number'
+  | 'literal'
+  | 'punct'
+  | 'plain'
+  | 'keyword'
+  | 'type'
+  | 'comment'
 
 export type Token = { kind: TokenKind; text: string }
 
@@ -60,6 +69,121 @@ export function tokenizeJson(source: string): Token[] {
   function push(kind: TokenKind, text: string): void {
     const last = tokens[tokens.length - 1]
     if (last && last.kind === kind) last.text += text
+    else tokens.push({ kind, text })
+    rest = rest.slice(text.length)
+  }
+}
+
+const TS_COMMENT = /^(?:\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$))/
+const TS_STRING = /^(?:"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?|`(?:[^`\\]|\\.)*`?)/
+const TS_WORD = /^[A-Za-z_$][\w$]*/
+const TS_PUNCT = /^[{}[\]()<>,:;|&=?.!]/
+
+const TS_KEYWORDS = new Set([
+  'interface',
+  'type',
+  'export',
+  'import',
+  'from',
+  'extends',
+  'implements',
+  'readonly',
+  'keyof',
+  'typeof',
+  'in',
+  'as',
+  'declare',
+  'namespace',
+  'enum',
+  'const',
+  'let',
+  'var',
+  'function',
+  'class',
+  'abstract',
+  'infer',
+  'unique',
+  'satisfies',
+  'default',
+])
+const TS_BUILTIN_TYPES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'bigint',
+  'symbol',
+  'any',
+  'unknown',
+  'never',
+  'void',
+  'object',
+])
+const TS_LITERALS = new Set(['true', 'false', 'null', 'undefined'])
+
+/**
+ * A TypeScript tokenizer just big enough to colorize a pasted model. Same
+ * contract as `tokenizeJson`: never validates, never drops a character, and
+ * half-written source still paints. A word is a `type` when it is a builtin
+ * or starts with a capital, and a `key` when a `:` (optionally `?:`) follows —
+ * that is what distinguishes a property from a reference on screen.
+ */
+export function tokenizeTypeScript(source: string): Token[] {
+  const tokens: Token[] = []
+  let rest = source
+
+  while (rest.length > 0) {
+    const whitespace = /^\s+/.exec(rest)
+    if (whitespace) {
+      push('plain', whitespace[0])
+      continue
+    }
+
+    const comment = TS_COMMENT.exec(rest)
+    if (comment) {
+      push('comment', comment[0])
+      continue
+    }
+
+    const string = TS_STRING.exec(rest)
+    if (string) {
+      push('string', string[0])
+      continue
+    }
+
+    const word = TS_WORD.exec(rest)
+    if (word) {
+      const text = word[0]
+      const after = rest.slice(text.length)
+      if (TS_KEYWORDS.has(text)) push('keyword', text)
+      else if (TS_LITERALS.has(text)) push('literal', text)
+      else if (TS_BUILTIN_TYPES.has(text) || /^[A-Z]/.test(text)) push('type', text)
+      else if (/^\s*\??\s*:/.test(after)) push('key', text)
+      else push('plain', text)
+      continue
+    }
+
+    const number = NUMBER.exec(rest)
+    if (number) {
+      push('number', number[0])
+      continue
+    }
+
+    const punct = TS_PUNCT.exec(rest)
+    if (punct) {
+      push('punct', punct[0])
+      continue
+    }
+
+    push('plain', rest[0]!)
+  }
+
+  return tokens
+
+  function push(kind: TokenKind, text: string): void {
+    const last = tokens[tokens.length - 1]
+    // Adjacent tokens of one kind merge, except keys and types: two
+    // capitalised words are two names, not one.
+    if (last && last.kind === kind && kind !== 'type' && kind !== 'key') last.text += text
     else tokens.push({ kind, text })
     rest = rest.slice(text.length)
   }

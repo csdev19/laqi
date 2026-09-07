@@ -88,11 +88,14 @@ export type ControlPlaneRuntime = {
   ) => Promise<
     { ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }
   >
-  generateData: (
-    input: GenerateRequest,
-  ) => Promise<
-    | { ok: true; preview: unknown; warnings: string[] }
-    | { ok: false; error: string; code: WriteFailure }
+  generateData: (input: GenerateRequest) => Promise<
+      // `typeName` is the declaration the parser generated from. A model file
+      // declares several, and which one was picked is the difference between
+      // mocking an order and mocking the string 'viewer' — the caller cannot
+      // tell from the preview alone. Absent when generating from a response
+      // that already exists, where there is no model and no choice to report.
+      | { ok: true; preview: unknown; warnings: string[]; typeName?: string }
+      | { ok: false; error: string; code: WriteFailure }
   >
 }
 
@@ -406,7 +409,11 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     if (!result.ok) {
       return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
     }
-    return c.json({ preview: result.preview, warnings: result.warnings })
+    return c.json(
+      result.typeName === undefined
+        ? { preview: result.preview, warnings: result.warnings }
+        : { preview: result.preview, warnings: result.warnings, typeName: result.typeName },
+    )
   })
 
   // Insertion point for future routes: they go HERE, before this

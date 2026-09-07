@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkJson, tokenizeJson } from './highlight'
+import { checkJson, tokenizeJson, tokenizeTypeScript } from './highlight'
 
 /** Rebuild the source from the tokens: the property that must never fail. */
 function roundTrip(source: string): string {
@@ -86,5 +86,79 @@ describe('checkJson', () => {
     const result = checkJson('{"a":}')
     expect(result.valid).toBe(false)
     if (!result.valid) expect(result.message).toBeTruthy()
+  })
+})
+
+describe('tokenizeTypeScript', () => {
+  function kinds(source: string) {
+    return tokenizeTypeScript(source).filter((t) => t.kind !== 'plain')
+  }
+
+  it('marks declaration keywords, type names and property names', () => {
+    expect(kinds('export interface Todo { id: number }')).toEqual([
+      { kind: 'keyword', text: 'export' },
+      { kind: 'keyword', text: 'interface' },
+      { kind: 'type', text: 'Todo' },
+      { kind: 'punct', text: '{' },
+      { kind: 'key', text: 'id' },
+      { kind: 'punct', text: ':' },
+      { kind: 'type', text: 'number' },
+      { kind: 'punct', text: '}' },
+    ])
+  })
+
+  it('treats an optional property as a key', () => {
+    expect(kinds('zip?: string').slice(0, 1)).toEqual([{ kind: 'key', text: 'zip' }])
+  })
+
+  it('colours string literal unions as strings', () => {
+    expect(kinds('type T = \'a\' | "b"').filter((t) => t.kind === 'string')).toEqual([
+      { kind: 'string', text: "'a'" },
+      { kind: 'string', text: '"b"' },
+    ])
+  })
+
+  it('keeps a template literal type as one string', () => {
+    expect(kinds('type D = `${number}-${number}`')).toContainEqual({
+      kind: 'string',
+      text: '`${number}-${number}`',
+    })
+  })
+
+  it('recognises line and block comments, including an unterminated one', () => {
+    expect(kinds('// note\nx: 1')[0]).toEqual({ kind: 'comment', text: '// note' })
+    expect(kinds('/* a\nb */ x')[0]).toEqual({ kind: 'comment', text: '/* a\nb */' })
+    expect(kinds('/* open')[0]).toEqual({ kind: 'comment', text: '/* open' })
+  })
+
+  it('recognises the literal words', () => {
+    expect(kinds('a: null | undefined | true').filter((t) => t.kind === 'literal')).toEqual([
+      { kind: 'literal', text: 'null' },
+      { kind: 'literal', text: 'undefined' },
+      { kind: 'literal', text: 'true' },
+    ])
+  })
+
+  it('does not mistake a longer word starting with a keyword for one', () => {
+    expect(kinds('typeName')).toEqual([])
+  })
+
+  it('round-trips every character, comments and strings included', () => {
+    const source =
+      "export type Tag = 'vip' | 'regular' // roles\ninterface A { readonly b?: [number, Date] }"
+    expect(
+      tokenizeTypeScript(source)
+        .map((t) => t.text)
+        .join(''),
+    ).toBe(source)
+  })
+
+  it('round-trips and terminates on malformed input', () => {
+    const source = "interface { @@ 'unclosed"
+    expect(
+      tokenizeTypeScript(source)
+        .map((t) => t.text)
+        .join(''),
+    ).toBe(source)
   })
 })
