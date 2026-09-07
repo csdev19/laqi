@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, resolve, sep } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 import { withFileLock, writeFileAtomic } from './atomic-file'
 import {
   EndpointSchema,
@@ -11,46 +11,69 @@ import {
 export type WriteResult = { ok: true } | { ok: false; error: string }
 
 /**
- * Resolves `file` inside `root` and refuses if the result escapes it.
+ * Resolves `file` (relative to `root`) and refuses if it lands outside
+ * every path in `bounds`.
+ *
+ * `bounds` is the MOCKS area, not the working directory. laqi reads the
+ * mocks from `--dir`/`--file`, which may sit outside the directory it was
+ * launched from — the repo's own `bun dev` runs
+ * `--dir ../../examples/todo-app/laqi` — and comparing against the working
+ * directory made laqi refuse to write the very files it was serving. The
+ * mocks area is also the stricter boundary the ADR asks for: a project file
+ * that is not a mock is now out of reach too.
  *
  * `join(root, file)` alone isn't enough: `join(root, '../x.json')` leaves
- * the project without complaint. Every writer goes through here, which is
- * the point where ADR-0006 requires the MCP server to be confined — an
- * agent with these tools writes project files and must never leave it.
+ * the area without complaint. Every writer goes through here, which is the
+ * point where ADR-0006 requires the MCP server to be confined — an agent
+ * with these tools writes project files and must never leave the mocks.
  */
 function resolveInside(
   root: string,
+  bounds: readonly string[],
   file: string,
 ): { ok: true; path: string } | { ok: false; error: string } {
-  const refuse = {
-    ok: false as const,
-    error: `refusing to write ${JSON.stringify(file)}: it resolves outside the project root`,
-  }
+  const target = resolve(root, file)
+  const real = realish(target)
+  const inside = bounds.some((bound) => {
+    const base = realish(bound)
+    return real === base || real.startsWith(base + sep)
+  })
 
-  // realpath, not resolve: `resolve` is purely lexical and doesn't look at
-  // the disk, so a symlink INSIDE the project pointing outward dodges it —
-  // verified, it wrote outside the root without complaint. The root also
-  // gets resolved because it itself can be a symlink (on macOS /tmp is).
-  const base = realOrSelf(resolve(root))
-  const target = resolve(base, file)
-
-  // The file may not exist yet, and neither may its folder. We resolve the
-  // deepest ancestor that DOES exist: that's the one that could be a symlink.
-  let existing = dirname(target)
-  while (!existsSync(existing) && dirname(existing) !== existing) {
-    existing = dirname(existing)
-  }
-
-  const realExisting = realOrSelf(existing)
-  if (realExisting !== base && !realExisting.startsWith(base + sep)) return refuse
-
-  // The file itself may be a symlink even though its folder is inside.
-  const realTarget = existsSync(target) ? realOrSelf(target) : target
-  if (realTarget !== base && !realTarget.startsWith(base + sep)) return refuse
-
-  return { ok: true, path: target }
+  return inside
+    ? { ok: true, path: target }
+    : {
+        ok: false,
+        error: `refusing to write ${JSON.stringify(file)}: it resolves outside the mocks directory`,
+      }
 }
 
+/**
+ * The path with every symlink in its EXISTING portion resolved.
+ *
+ * Plain `resolve` is lexical and never looks at the disk, so a symlink
+ * inside the mocks pointing outward dodges it — verified, it wrote outside
+ * the area without complaint. Plain `realpathSync` is no good either: it
+ * throws on a path that does not exist yet, and neither the target file nor
+ * the mocks directory has to exist (the first endpoint of a fresh project
+ * creates both). So resolve the deepest ancestor that DOES exist — the only
+ * part a symlink can hide in — and re-append the rest lexically.
+ */
+function realish(path: string): string {
+  let existing = resolve(path)
+  const rest: string[] = []
+
+  while (!existsSync(existing)) {
+    const parent = dirname(existing)
+    // Reached the filesystem root without finding anything that exists.
+    if (parent === existing) return existing
+    rest.unshift(basename(existing))
+    existing = parent
+  }
+
+  return rest.length > 0 ? join(realOrSelf(existing), ...rest) : realOrSelf(existing)
+}
+
+/** `realpathSync`, or the path itself when it cannot be resolved. */
 function realOrSelf(path: string): string {
   try {
     return realpathSync(path)
@@ -110,12 +133,13 @@ function findKey(contents: Record<string, unknown>, id: string): string | undefi
 
 export function updateEndpointInFile(params: {
   root: string
+  bounds: readonly string[]
   file: string
   id: string
   definition: EndpointDefinition
 }): WriteResult {
-  const { root, file, id, definition } = params
-  const inside = resolveInside(root, file)
+  const { root, bounds, file, id, definition } = params
+  const inside = resolveInside(root, bounds, file)
   if (!inside.ok) return inside
   const fullPath = inside.path
 
@@ -143,12 +167,13 @@ export function updateEndpointInFile(params: {
 
 export function createEndpointInFile(params: {
   root: string
+  bounds: readonly string[]
   file: string
   id: string
   definition: EndpointDefinition
 }): WriteResult {
-  const { root, file, id, definition } = params
-  const inside = resolveInside(root, file)
+  const { root, bounds, file, id, definition } = params
+  const inside = resolveInside(root, bounds, file)
   if (!inside.ok) return inside
   const fullPath = inside.path
 
@@ -184,11 +209,12 @@ export function createEndpointInFile(params: {
  */
 export function createEndpointsInFile(params: {
   root: string
+  bounds: readonly string[]
   file: string
   entries: { id: string; definition: EndpointDefinition }[]
 }): WriteResult {
-  const { root, file, entries } = params
-  const inside = resolveInside(root, file)
+  const { root, bounds, file, entries } = params
+  const inside = resolveInside(root, bounds, file)
   if (!inside.ok) return inside
   const fullPath = inside.path
 
@@ -223,11 +249,12 @@ export function createEndpointsInFile(params: {
 
 export function deleteEndpointFromFile(params: {
   root: string
+  bounds: readonly string[]
   file: string
   id: string
 }): WriteResult {
-  const { root, file, id } = params
-  const inside = resolveInside(root, file)
+  const { root, bounds, file, id } = params
+  const inside = resolveInside(root, bounds, file)
   if (!inside.ok) return inside
   const fullPath = inside.path
 

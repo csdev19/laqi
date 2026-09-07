@@ -52,6 +52,52 @@ also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 realistic body, or copy the current response's types in twenty-five
 languages.
 
+## Three ways to say what it returns
+
+**+ New endpoint** offers **blank**, **from a model** and **from JSON**. The
+path, the response name and the status mean the same thing in all three and
+never move; only the source of the body changes. Blank writes a placeholder,
+a model generates realistic data from your types, and JSON takes the body
+you paste, exactly as pasted. Once it exists, the endpoint detail turns that
+body back into types in twenty-five languages, and regenerates it.
+
+The status field is also the catalogue's search box, so it accepts whatever
+you type; what it will not accept is a code that is not one. `201e44` reads
+as a number to JavaScript and used to reach the mock file, coming back as a
+complaint about integer limits. It is now refused where it was typed.
+
+## Pasting a model
+
+**+ New endpoint → from a model** opens a small code box, not a form field.
+It highlights TypeScript and behaves the way an editor does: `Tab` indents
+(`Shift+Tab` outdents), `Enter` keeps the indentation and opens a block
+between `{}`, and brackets and quotes close themselves. Native undo still
+works. TypeScript is the only language today; the box is built to grow.
+
+The response name and the status sit beside the path in both flows: the
+model decides the body, not what the response is called or what it returns.
+
+A model file declares several types, and the parser generates from the
+first exported one, which is rarely the one you meant. Name the type in the
+box to settle it, or leave it empty and the panel reports which declaration
+it used. The examples fill it in for you.
+
+The JSON flow has its own examples, and one of them is deliberately the
+same data the **flat** model describes. Paste it, create the endpoint, then
+ask that response for its types: what comes back is the interface the model
+declares, give or take what JSON cannot carry — a date arrives as a string,
+and an absent optional field is not there to be seen. That is the way round
+from a body you already have to the model behind it.
+
+Four ready-made models sit in the corner of the box — **simple**,
+**medium**, **complex** and **flat** — and fill it with one click, so there
+is something to paste on the first run. The complex one nests four levels
+deep and mixes unions, intersections, `Pick`/`Omit`, tuples and `readonly`,
+which is about as dirty as a real model file gets. The flat one goes as
+wide without inheriting anything: one interface, no helper types, every
+level written inline. The same four models are what the parser's tests run
+against.
+
 ## The status field, and the usual siblings
 
 The status on the create form and in the detail pane is a searchable list,

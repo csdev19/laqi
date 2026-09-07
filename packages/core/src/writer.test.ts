@@ -19,6 +19,8 @@ import {
 
 let sandbox: string
 let root: string
+/** The mocks area writes are confined to. Most tests use the whole root. */
+let bounds: string[]
 
 beforeEach(() => {
   // root nested on purpose: the containment tests write outward, and they
@@ -27,6 +29,7 @@ beforeEach(() => {
   sandbox = mkdtempSync(join(tmpdir(), 'laqi-writer-'))
   root = join(sandbox, 'project')
   mkdirSync(root, { recursive: true })
+  bounds = [root]
 })
 
 afterEach(() => {
@@ -58,6 +61,7 @@ describe('updateEndpointInFile', () => {
     }
     const result = updateEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: updated,
@@ -76,6 +80,7 @@ describe('updateEndpointInFile', () => {
     writeMock('laqi/api.json', { a: okDefinition, b: okDefinition, c: okDefinition })
     updateEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'b',
       definition: { default: 'ok', responses: { ok: { status: 201, body: {} } } },
@@ -89,6 +94,7 @@ describe('updateEndpointInFile', () => {
 
     const result = updateEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: { default: 'nope', responses: { ok: { status: 200 } } } as never,
@@ -102,6 +108,7 @@ describe('updateEndpointInFile', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
     const result = updateEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /ghost',
       definition: okDefinition,
@@ -114,6 +121,7 @@ describe('updateEndpointInFile', () => {
   it('fails cleanly when the file does not exist', () => {
     const result = updateEndpointInFile({
       root,
+      bounds,
       file: 'laqi/nope.json',
       id: 'GET /users',
       definition: okDefinition,
@@ -125,7 +133,7 @@ describe('updateEndpointInFile', () => {
 describe('deleteEndpointFromFile', () => {
   it('removes the key and leaves siblings untouched', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition, 'GET /orders': okDefinition })
-    const result = deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' })
+    const result = deleteEndpointFromFile({ root, bounds, file: 'laqi/api.json', id: 'GET /users' })
 
     expect(result.ok).toBe(true)
     const contents = readMock('laqi/api.json') as Record<string, unknown>
@@ -135,7 +143,7 @@ describe('deleteEndpointFromFile', () => {
 
   it('fails cleanly when the id does not exist', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
-    const result = deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /ghost' })
+    const result = deleteEndpointFromFile({ root, bounds, file: 'laqi/api.json', id: 'GET /ghost' })
     expect(result.ok).toBe(false)
   })
 })
@@ -144,6 +152,7 @@ describe('createEndpointInFile', () => {
   it('creates the file if it does not exist yet, with the one endpoint', () => {
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: okDefinition,
@@ -157,6 +166,7 @@ describe('createEndpointInFile', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /orders',
       definition: { default: 'ok', responses: { ok: { status: 200, body: [] } } },
@@ -172,6 +182,7 @@ describe('createEndpointInFile', () => {
     writeMock('laqi/api.json', { 'GET /users': okDefinition })
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: okDefinition,
@@ -182,6 +193,7 @@ describe('createEndpointInFile', () => {
   it('rejects an invalid definition without creating the file', () => {
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: { default: 'ghost', responses: { ok: { status: 200 } } } as never,
@@ -202,44 +214,47 @@ describe('containment', () => {
     '/etc/laqi-escaped.json',
   ]
 
-  it('refuses to create outside the project root', () => {
+  it('refuses to create outside the mocks directory', () => {
     for (const file of escapes) {
       const result = createEndpointInFile({
         root,
+        bounds,
         file,
         id: 'GET /x',
         definition: { default: 'ok', responses: { ok: { status: 200 } } },
       })
-      expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+      expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the mocks') })
       expect(existsSync(join(root, file))).toBe(false)
     }
   })
 
-  it('refuses to update outside the project root', () => {
+  it('refuses to update outside the mocks directory', () => {
     for (const file of escapes) {
       expect(
         updateEndpointInFile({
           root,
+          bounds,
           file,
           id: 'GET /x',
           definition: { default: 'ok', responses: { ok: { status: 200 } } },
         }),
-      ).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+      ).toEqual({ ok: false, error: expect.stringContaining('outside the mocks') })
     }
   })
 
-  it('refuses to delete outside the project root', () => {
+  it('refuses to delete outside the mocks directory', () => {
     for (const file of escapes) {
-      expect(deleteEndpointFromFile({ root, file, id: 'GET /x' })).toEqual({
+      expect(deleteEndpointFromFile({ root, bounds, file, id: 'GET /x' })).toEqual({
         ok: false,
-        error: expect.stringContaining('outside the project'),
+        error: expect.stringContaining('outside the mocks'),
       })
     }
   })
 
-  it('still allows a legitimate nested path inside the root', () => {
+  it('still allows a legitimate nested path inside the area', () => {
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/nested/deep.json',
       id: 'GET /deep',
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
@@ -265,12 +280,13 @@ describe('containment through symlinks', () => {
 
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/escape/victim.json',
       id: 'GET /pwned',
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
     })
 
-    expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the project') })
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('outside the mocks') })
     expect(JSON.parse(readFileSync(join(outside, 'victim.json'), 'utf8'))).toEqual({
       note: 'outside',
     })
@@ -284,6 +300,7 @@ describe('containment through symlinks', () => {
 
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/link/brand-new.json',
       id: 'GET /x',
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
@@ -298,6 +315,7 @@ describe('containment through symlinks', () => {
     // unresolved, EVERY legitimate use would get rejected.
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/deep/nested.json',
       id: 'GET /fine',
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
@@ -320,6 +338,7 @@ describe('non-canonical keys in the file', () => {
 
       const result = updateEndpointInFile({
         root,
+        bounds,
         file: 'laqi/api.json',
         id: 'GET /users',
         definition: { default: 'ok', responses: { ok: { status: 201 } } },
@@ -344,7 +363,7 @@ describe('non-canonical keys in the file', () => {
       })
 
       expect(
-        deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' }),
+        deleteEndpointFromFile({ root, bounds, file: 'laqi/api.json', id: 'GET /users' }),
         key,
       ).toEqual({
         ok: true,
@@ -364,6 +383,7 @@ describe('non-canonical keys in the file', () => {
 
     const result = createEndpointInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       id: 'GET /users',
       definition: { default: 'ok', responses: { ok: { status: 200 } } },
@@ -382,7 +402,9 @@ describe('non-canonical keys in the file', () => {
       'GET /users': { default: 'ok', responses: { ok: { status: 200 } } },
     })
 
-    expect(deleteEndpointFromFile({ root, file: 'laqi/api.json', id: 'GET /users' })).toEqual({
+    expect(
+      deleteEndpointFromFile({ root, bounds, file: 'laqi/api.json', id: 'GET /users' }),
+    ).toEqual({
       ok: true,
     })
     const written = JSON.parse(readFileSync(join(root, 'laqi/api.json'), 'utf8')) as Record<
@@ -401,6 +423,7 @@ describe('the batch writer normalises too', () => {
 
     const result = createEndpointsInFile({
       root,
+      bounds,
       file: 'laqi/api.json',
       entries: [
         { id: 'GET /users', definition: { default: 'ok', responses: { ok: { status: 200 } } } },
@@ -408,5 +431,106 @@ describe('the batch writer normalises too', () => {
     })
 
     expect(result.ok).toBe(false)
+  })
+})
+
+// The confinement boundary is the MOCKS area, not the working directory.
+// `laqi --dir ../../examples/todo-app/laqi` is legitimate — the repo's own
+// `bun dev` runs exactly that — and laqi READS those mocks, so refusing to
+// write them left the panel able to list endpoints it could never save.
+describe('the mocks directory, not the working directory', () => {
+  it('writes into a mocks directory that sits outside the working directory', () => {
+    const mocks = join(sandbox, 'mocks')
+    mkdirSync(mocks, { recursive: true })
+
+    const result = createEndpointInFile({
+      root,
+      bounds: [mocks],
+      file: '../mocks/api.json',
+      id: 'GET /outside-cwd',
+      definition: okDefinition,
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(existsSync(join(mocks, 'api.json'))).toBe(true)
+  })
+
+  it('creates the first file when the mocks directory does not exist yet', () => {
+    const result = createEndpointInFile({
+      root,
+      bounds: [join(root, 'laqi')],
+      file: 'laqi/api.json',
+      id: 'GET /first',
+      definition: okDefinition,
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(existsSync(join(root, 'laqi', 'api.json'))).toBe(true)
+  })
+
+  // Stricter than comparing against the working directory: a path can be
+  // inside the project and still have no business being written.
+  it('refuses a path inside the working directory but outside the mocks area', () => {
+    const result = createEndpointInFile({
+      root,
+      bounds: [join(root, 'laqi')],
+      file: 'package.json',
+      id: 'GET /x',
+      definition: okDefinition,
+    })
+
+    expect(result).toEqual({ ok: false, error: expect.stringContaining('outside') })
+    expect(existsSync(join(root, 'package.json'))).toBe(false)
+  })
+
+  // Single-file mode names one file; the directory holding it is the area.
+  it('accepts more than one allowed area', () => {
+    const mocks = join(sandbox, 'mocks2')
+    mkdirSync(mocks, { recursive: true })
+
+    expect(
+      createEndpointInFile({
+        root,
+        bounds: [join(root, 'laqi'), mocks],
+        file: '../mocks2/api.json',
+        id: 'GET /second-area',
+        definition: okDefinition,
+      }),
+    ).toEqual({ ok: true })
+  })
+
+  it('still refuses to escape the mocks directory it was given', () => {
+    const mocks = join(sandbox, 'mocks3')
+    mkdirSync(mocks, { recursive: true })
+
+    expect(
+      createEndpointInFile({
+        root,
+        bounds: [mocks],
+        file: '../mocks3/../escaped.json',
+        id: 'GET /x',
+        definition: okDefinition,
+      }),
+    ).toEqual({ ok: false, error: expect.stringContaining('outside') })
+    expect(existsSync(join(sandbox, 'escaped.json'))).toBe(false)
+  })
+
+  // The mocks directory itself may be reached through a symlink — a
+  // monorepo pointing `laqi/` at a shared package, for instance.
+  it('accepts a mocks directory reached through a symlink', () => {
+    const real = join(sandbox, 'real-mocks')
+    mkdirSync(real, { recursive: true })
+    symlinkSync(real, join(root, 'linked'))
+
+    expect(
+      createEndpointInFile({
+        root,
+        bounds: [join(root, 'linked')],
+        file: 'linked/api.json',
+        id: 'GET /through-link',
+        definition: okDefinition,
+      }),
+    ).toEqual({ ok: true })
+    expect(existsSync(join(real, 'api.json'))).toBe(true)
   })
 })

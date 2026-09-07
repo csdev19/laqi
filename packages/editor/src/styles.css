@@ -711,10 +711,95 @@ textarea::-moz-selection {
   width: 66px;
 }
 
+/* The model box is a small code editor (see ModelEditor): it takes the whole
+   row, starts at a few lines and lets the developer drag it taller. */
 .create-model {
-  resize: vertical;
+  position: relative;
+  flex-basis: 100%;
   width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+  height: 180px;
+  min-height: 96px;
+  max-height: 60vh;
+  resize: vertical;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+}
+
+.create-model:focus-within {
+  border-color: var(--viol);
+}
+
+/* Under the box, never on top of it: a model is read while it is pasted. */
+.model-examples {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -2px;
+}
+
+/* The three body sources, as one control: which one is on is the question,
+   and three loose buttons would not say that. */
+.mode-picker {
+  display: flex;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mode-picker .method-option + .method-option {
+  border-left: 1px solid var(--line2);
+}
+
+.json-readout {
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
+.create-type {
+  width: 220px;
+}
+
+/* Pushes the examples to the far end, away from the type field. */
+.model-examples-spacer {
+  flex: 1;
+}
+
+.model-examples-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim2);
+  padding-left: 4px;
+}
+
+.btn-quiet {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.btn-quiet:hover {
+  color: var(--fg);
+  border-color: var(--viol);
+}
+
+.create-model .editor-shell {
+  width: 100%;
+}
+
+.editor-input::placeholder {
+  color: var(--dim2);
+  opacity: 1;
 }
 
 .form-error {
@@ -1014,16 +1099,20 @@ button.log-path:hover {
   color: var(--red);
 }
 
+/* Nothing here scrolls but the textarea: see CodeSurface. A second
+   scroller over the same text drifts away from it as soon as the caret
+   moves the field on its own. */
 .editor-shell {
   flex: 1;
   min-height: 0;
   display: flex;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg);
 }
 
 .editor-gutter {
   flex: none;
+  overflow: hidden;
   padding: 10px 8px 10px 12px;
   font-family: var(--mono);
   font-size: 12px;
@@ -1039,6 +1128,7 @@ button.log-path:hover {
   flex: 1;
   min-width: 0;
   position: relative;
+  overflow: hidden;
 }
 
 /* The real textarea sits transparent on top of the colorized <pre>, aligned
@@ -1056,21 +1146,29 @@ button.log-path:hover {
   border: 0;
 }
 
-.editor-paint {
-  pointer-events: none;
-  min-height: 100%;
-}
-
+/* Both layers are the same box, and both reserve the same scrollbar
+   gutter: where scrollbars take up space, one layer reserving it and the
+   other not would shift the text sideways against its own colors. */
+.editor-paint,
 .editor-input {
   position: absolute;
   inset: 0;
+  scrollbar-gutter: stable;
+}
+
+.editor-paint {
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.editor-input {
   width: 100%;
   height: 100%;
   resize: none;
   background: transparent;
   color: transparent;
   caret-color: var(--fg);
-  overflow: hidden;
+  overflow: auto;
 }
 
 .editor-input:focus {
@@ -1094,6 +1192,16 @@ button.log-path:hover {
 }
 .tok-plain {
   color: var(--dim);
+}
+.tok-keyword {
+  color: var(--mag);
+}
+.tok-type {
+  color: var(--palev);
+}
+.tok-comment {
+  color: var(--dim2);
+  font-style: italic;
 }
 
 .meta-field {

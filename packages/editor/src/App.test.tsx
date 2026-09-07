@@ -257,12 +257,14 @@ describe('creating an endpoint', () => {
     )
   })
 
-  it('refuses a path that does not start with a slash', async () => {
+  it('refuses a path that does not start with a slash, and says so', async () => {
     await renderApp()
     fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
     fireEvent.change(screen.getByLabelText('path'), { target: { value: 'health' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
-    expect(screen.getByRole('button', { name: 'Create' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('alert').textContent).toContain('/health')
+    expect(createEndpoint).not.toHaveBeenCalled()
   })
 
   it('shows the server error next to the form, not in a toast', async () => {
@@ -295,6 +297,43 @@ describe('creating an endpoint', () => {
         path: '/todos',
         default: 'ok',
         responses: { ok: { status: 200, body: [{ id: 1, title: 'Generated' }] } },
+      }),
+    )
+  })
+
+  // Which declaration the parser chose is the difference between mocking an
+  // order and mocking the string 'viewer', and the preview alone does not
+  // say. The panel reports it beside the warnings.
+  it('says which type it generated from', async () => {
+    generateData.mockResolvedValue({ preview: { id: 1 }, warnings: [], typeName: 'Role' })
+    createEndpoint.mockResolvedValue({ id: 'GET /projects' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(await screen.findByText(/generated from Role/)).toBeTruthy()
+  })
+
+  it('passes the named type through to generation', async () => {
+    generateData.mockResolvedValue({ preview: { id: 1 }, warnings: [], typeName: 'Project' })
+    createEndpoint.mockResolvedValue({ id: 'GET /projects' })
+    await renderApp()
+
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
+    fireEvent.change(screen.getByLabelText('type'), { target: { value: 'Project' } })
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() =>
+      expect(generateData).toHaveBeenCalledWith({
+        model: 'export type Role = 1',
+        typeName: 'Project',
       }),
     )
   })

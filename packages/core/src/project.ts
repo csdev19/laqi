@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { loadMocks, type LoadedEndpoint, type LoadError } from './loader'
 import { resolveResponse } from './resolve'
 import { buildRouteTable } from './route-table'
@@ -97,6 +97,17 @@ export class Project {
     return source === 'file' ? this.config.file : join(this.config.dir, 'api.json')
   }
 
+  /**
+   * The area every write is confined to: the two places laqi was pointed at
+   * for its mocks. Not the working directory — `--dir` and `--file` may
+   * resolve outside it, and laqi has to be able to write the files it
+   * reads. Both are listed because which one is in play depends on what is
+   * on disk, and a project can go from one to the other without a restart.
+   */
+  private bounds(): string[] {
+    return [resolve(this.root, this.config.dir), resolve(this.root, this.config.file)]
+  }
+
   private view(endpoint: LoadedEndpoint, state: LaqiState, scenarios: Scenarios): EndpointView {
     const resolution = resolveResponse({ endpoint, state, scenarios })
     return {
@@ -177,6 +188,7 @@ export class Project {
     const file = this.targetFile(source)
     const result = createEndpointInFile({
       root: this.root,
+      bounds: this.bounds(),
       file,
       id,
       definition: {
@@ -256,7 +268,12 @@ export class Project {
     }
 
     if (definitions.length > 0) {
-      const result = createEndpointsInFile({ root: this.root, file, entries: definitions })
+      const result = createEndpointsInFile({
+        root: this.root,
+        bounds: this.bounds(),
+        file,
+        entries: definitions,
+      })
       if (!result.ok) return fail(result.error)
     }
 
@@ -270,7 +287,13 @@ export class Project {
     const existing = this.load().byId.get(id)
     if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
-    const result = updateEndpointInFile({ root: this.root, file: existing.file, id, definition })
+    const result = updateEndpointInFile({
+      root: this.root,
+      bounds: this.bounds(),
+      file: existing.file,
+      id,
+      definition,
+    })
     return result.ok ? ok({ id, file: existing.file }) : fail(result.error)
   }
 
@@ -300,6 +323,7 @@ export class Project {
 
     const result = updateEndpointInFile({
       root: this.root,
+      bounds: this.bounds(),
       file: existing.file,
       id,
       definition: {
@@ -324,7 +348,12 @@ export class Project {
     const existing = this.load().byId.get(id)
     if (existing === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
-    const result = deleteEndpointFromFile({ root: this.root, file: existing.file, id })
+    const result = deleteEndpointFromFile({
+      root: this.root,
+      bounds: this.bounds(),
+      file: existing.file,
+      id,
+    })
     if (!result.ok) return fail(result.error)
 
     // An override left dangling from a deleted endpoint would make the
