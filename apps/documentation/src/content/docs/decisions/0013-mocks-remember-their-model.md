@@ -4,7 +4,7 @@ title: ADR-0013 — Mock files remember the model a body was generated from
 
 # ADR-0013 — Mock files remember the model a body was generated from
 
-**Status:** Accepted
+**Status:** Accepted — under challenge, see [Storing models in mocks](/adversarial/storing-models-in-mocks/)
 **Date:** 2026-09-06
 
 ## Context

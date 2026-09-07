@@ -34,6 +34,10 @@ and ends with the single question whose answer changes the outcome.
 - [Effect migration handoff](/adversarial/effect-migration-handoff/) — the Level 1
   implementation slices, lazy-loading constraint, and review notes for the active
   migration.
+- [Storing models in mocks](/adversarial/storing-models-in-mocks/) — what a mock
+  file that carries type definitions costs, which surfaces already invite reading
+  laqi as the contract, and whether provenance and regeneration can be had without
+  laqi holding a definition that exists nowhere else.
 
 Once an analysis here produces a decision, the decision moves to an
 [ADR](/decisions/) and the standing rules move to
