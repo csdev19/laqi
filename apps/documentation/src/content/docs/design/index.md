@@ -28,15 +28,16 @@ Design of `packages/editor`, produced with Claude Design from the brief in
 This folder has grown past the control panel it was named for. The design docs
 that are not about `packages/editor`:
 
-| File                                            | What it contains                                                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------- |
-| [terminal-output](/design/terminal-output/)     | The three terminal screens, the four shortcut keys, and the staging       |
-| [public-site](/design/public-site/)             | laqi.dev — the spec, the reconciliation delta, and the 2026-08-29 rulings |
-| [laqi-init](/design/laqi-init/)                 | The `laqi init` scaffold flow and its five questions                      |
-| [data-generators](/design/data-generators/)     | Types from live responses, and seeded data from a pasted model            |
-| [agent-facing-docs](/design/agent-facing-docs/) | What agents read, and how it differs from what people read                |
-| [testing-mcp](/design/testing-mcp/)             | How the MCP surface is tested over real stdio                             |
-| [websocket-mocking](/design/websocket-mocking/) | **Open design.** The two questions that block a WebSocket plan            |
+| File                                                  | What it contains                                                                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [terminal-output](/design/terminal-output/)           | The three terminal screens, the four shortcut keys, and the staging                                                                                     |
+| [public-site](/design/public-site/)                   | laqi.dev — the spec, the reconciliation delta, and the 2026-08-29 rulings                                                                               |
+| [laqi-init](/design/laqi-init/)                       | The `laqi init` scaffold flow and its five questions                                                                                                    |
+| [data-generators](/design/data-generators/)           | Types from live responses, and seeded data from a pasted model                                                                                          |
+| [agent-facing-docs](/design/agent-facing-docs/)       | What agents read, and how it differs from what people read                                                                                              |
+| [testing-mcp](/design/testing-mcp/)                   | How the MCP surface is tested over real stdio                                                                                                           |
+| [websocket-mocking](/design/websocket-mocking/)       | **Open design.** The two questions that block a WebSocket plan                                                                                          |
+| [json-schema-adapters](/design/json-schema-adapters/) | **Draft spec.** JSON Schema as the stored generation rules, the input and export adapters, and the loss, refresh and code-execution policies of Plan 14 |
 
 **Still needs to be brought over:** `Laqi Control Panel.dc.html`, the reference
 interactive prototype. It lives in the design project and can't be
