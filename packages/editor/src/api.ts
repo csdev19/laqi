@@ -94,7 +94,12 @@ export const api = {
   },
 
   generateData: (input: GenerateDataInput) =>
-    request<{ preview: unknown; warnings: string[]; typeName?: string }>('/api/generate/data', {
+    request<{
+      preview: unknown
+      warnings: string[]
+      typeName?: string
+      candidates?: string[]
+    }>('/api/generate/data', {
       method: 'POST',
       body: JSON.stringify(input),
     }),

@@ -276,3 +276,32 @@ describe('parseTypes input budget', () => {
     expect(result.ok).toBe(true)
   })
 })
+
+// Which declaration was chosen only deserves saying out loud when there was
+// something else it could have been. A model with one interface leaves no
+// choice to report, and reporting it anyway reads as a complaint about a
+// model that is perfectly fine.
+describe('the declarations a source offers', () => {
+  it('lists every declaration, in source order', async () => {
+    const result = await parseTypes(DIRTY, 'User')
+    if (!result.ok) throw new Error(result.error)
+
+    expect(result.candidates).toEqual(['Base', 'Tag', 'User', 'UserSummary'])
+  })
+
+  it('lists the one declaration of a single-interface source', async () => {
+    const result = await parseTypes('export interface Todo { id: number }')
+    if (!result.ok) throw new Error(result.error)
+
+    expect(result.candidates).toEqual(['Todo'])
+    expect(result.typeName).toBe('Todo')
+  })
+
+  it('keeps listing them when the caller named the type', async () => {
+    const result = await parseTypes(DIRTY, 'UserSummary')
+    if (!result.ok) throw new Error(result.error)
+
+    expect(result.candidates).toContain('User')
+    expect(result.typeName).toBe('UserSummary')
+  })
+})
