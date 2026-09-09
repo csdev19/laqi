@@ -1,6 +1,6 @@
 import { diagnostic, type Diagnostic } from '@laqi/schema'
 import type { Plan, PlanField, PlanLiteral } from './plan'
-import type { PrimitiveType } from './shape'
+import { MAX_SHAPE_DEPTH, type PrimitiveType } from './shape'
 
 /**
  * Keywords that describe a document to a reader and never change what is
@@ -35,6 +35,19 @@ export type CompileResult =
   | { ok: true; plan: Plan; diagnostics: Diagnostic[] }
   | { ok: false; diagnostics: Diagnostic[] }
 
+/**
+ * What every node of one compilation shares: the document `$ref` resolves
+ * against, the diagnostics collected so far, and the chain of references
+ * currently being followed — which is how a cycle is recognised as a cycle
+ * rather than as very deep nesting.
+ */
+type Ctx = {
+  root: Record<string, unknown>
+  diagnostics: Diagnostic[]
+  following: string[]
+  depth: number
+}
+
 /** Raised inside the plain recursion below and caught once, at the entry point. */
 class RefusedError extends Error {
   constructor(readonly diagnostic: Diagnostic) {
@@ -59,8 +72,10 @@ const token = (segment: string) => segment.replaceAll('~', '~0').replaceAll('/',
  */
 export function compileSchema(document: unknown): CompileResult {
   const diagnostics: Diagnostic[] = []
+  const root = isObject(document) ? document : {}
   try {
-    return { ok: true, plan: compile(document, '', diagnostics), diagnostics }
+    const plan = compile(document, '', { root, diagnostics, following: [], depth: 0 })
+    return { ok: true, plan, diagnostics }
   } catch (error) {
     if (error instanceof RefusedError) return { ok: false, diagnostics: [error.diagnostic] }
     throw error
@@ -71,7 +86,7 @@ function refuse(code: Parameters<typeof diagnostic>[0], message: string, pointer
   throw new RefusedError(diagnostic(code, message, pointer))
 }
 
-function compile(node: unknown, pointer: string, diagnostics: Diagnostic[]): Plan {
+function compile(node: unknown, pointer: string, ctx: Ctx): Plan {
   // `true` allows every value and `false` allows none. Both are schemas, and
   // they are the only non-object ones.
   if (node === true) return { kind: 'unknown' }
@@ -86,7 +101,15 @@ function compile(node: unknown, pointer: string, diagnostics: Diagnostic[]): Pla
     )
   }
 
+  if (ctx.depth > MAX_SHAPE_DEPTH) {
+    refuse('loss.depth', `this document nests deeper than ${MAX_SHAPE_DEPTH} levels`, pointer)
+  }
+
   const keywords = Object.keys(node).filter((keyword) => !ANNOTATIONS.has(keyword))
+
+  // A reference stands in for the schema it names, so it is resolved before
+  // any other keyword is read.
+  if (keywords.includes('$ref')) return reference(node, pointer, keywords, ctx)
 
   // `enum` decides on its own: it lists the permitted values outright, so
   // whatever `type` says about them is already implied.
@@ -103,9 +126,9 @@ function compile(node: unknown, pointer: string, diagnostics: Diagnostic[]): Pla
 
   switch (type) {
     case 'object':
-      return object(node, pointer, keywords, diagnostics)
+      return object(node, pointer, keywords, ctx)
     case 'array':
-      return array(node, pointer, keywords, diagnostics)
+      return array(node, pointer, keywords, ctx)
     case 'string':
       return string(node, pointer, keywords)
     case 'number':
@@ -180,7 +203,7 @@ function object(
   node: Record<string, unknown>,
   pointer: string,
   keywords: string[],
-  diagnostics: Diagnostic[],
+  ctx: Ctx,
 ): Plan {
   const properties = node.properties
   const additional = node.additionalProperties
@@ -197,7 +220,7 @@ function object(
     const required = requiredNames(node, pointer)
     const fields: PlanField[] = Object.entries(properties).map(([name, schema]) => ({
       name,
-      plan: compile(schema, `${pointer}/properties/${token(name)}`, diagnostics),
+      plan: compile(schema, `${pointer}/properties/${token(name)}`, deeper(ctx)),
       optional: !required.includes(name),
     }))
 
@@ -205,7 +228,7 @@ function object(
     // body, so it is generated as unconstrained and reported.
     for (const name of required) {
       if (name in properties) continue
-      diagnostics.push(
+      ctx.diagnostics.push(
         diagnostic(
           'loss.unresolved-type',
           `${JSON.stringify(name)} is required but has no schema, so it is generated as unconstrained`,
@@ -222,7 +245,7 @@ function object(
     reject(keywords, ['type', 'additionalProperties'], node, pointer)
     return {
       kind: 'record',
-      values: compile(additional, `${pointer}/additionalProperties`, diagnostics),
+      values: compile(additional, `${pointer}/additionalProperties`, deeper(ctx)),
     }
   }
 
@@ -240,12 +263,7 @@ function requiredNames(node: Record<string, unknown>, pointer: string): string[]
   return required as string[]
 }
 
-function array(
-  node: Record<string, unknown>,
-  pointer: string,
-  keywords: string[],
-  diagnostics: Diagnostic[],
-): Plan {
+function array(node: Record<string, unknown>, pointer: string, keywords: string[], ctx: Ctx): Plan {
   const prefixItems = node.prefixItems
 
   // A fixed-arity array. 2020-12 has no tuple keyword: `prefixItems` gives
@@ -266,7 +284,7 @@ function array(
     return {
       kind: 'tuple',
       items: prefixItems.map((item, index) =>
-        compile(item, `${pointer}/prefixItems/${index}`, diagnostics),
+        compile(item, `${pointer}/prefixItems/${index}`, deeper(ctx)),
       ),
     }
   }
@@ -280,7 +298,7 @@ function array(
     )
   }
   reject(keywords, ['type', 'items'], node, pointer)
-  return { kind: 'array', items: compile(items, `${pointer}/items`, diagnostics) }
+  return { kind: 'array', items: compile(items, `${pointer}/items`, deeper(ctx)) }
 }
 
 /**
@@ -299,4 +317,84 @@ function checkTupleArity(node: Record<string, unknown>, arity: number, pointer: 
       )
     }
   }
+}
+
+/** One level further into the document, for the nesting budget. */
+const deeper = (ctx: Ctx): Ctx => ({ ...ctx, depth: ctx.depth + 1 })
+
+/**
+ * `$ref` → the schema it names.
+ *
+ * Only pointers into this same document are followed. A reference to
+ * another file or a URL is refused rather than fetched: import, generation
+ * and export make no network requests, and a mock server that reached out
+ * to resolve a schema would be a surprise nobody asked for.
+ */
+function reference(
+  node: Record<string, unknown>,
+  pointer: string,
+  keywords: string[],
+  ctx: Ctx,
+): Plan {
+  const ref = node.$ref
+  if (typeof ref !== 'string') {
+    refuse('invalid.document', '"$ref" must be a string', pointer)
+  }
+  if (!ref.startsWith('#')) {
+    refuse(
+      'unsupported.keyword',
+      `laqi resolves references inside the document only, and never fetches one; ${JSON.stringify(ref)} points elsewhere`,
+      pointer,
+    )
+  }
+
+  // A reference already being followed closes a cycle. Cutting it here, at
+  // the edge that closes it, keeps the plan finite and says exactly where
+  // the document stopped being represented.
+  if (ctx.following.includes(ref)) {
+    ctx.diagnostics.push(
+      diagnostic(
+        'loss.circular',
+        `${JSON.stringify(ref)} refers back to a schema already being resolved, so the plan stops here`,
+        pointer,
+      ),
+    )
+    return { kind: 'unknown' }
+  }
+
+  // 2020-12 gives `$ref` no siblings that change what it names; anything
+  // else beside it would be silently dropped.
+  reject(keywords, ['$ref'], node, pointer)
+
+  const target = resolvePointer(ctx.root, ref, pointer)
+  return compile(target, pointer, {
+    ...ctx,
+    following: [...ctx.following, ref],
+    depth: ctx.depth + 1,
+  })
+}
+
+/** `#/a/b` → the value at that path, with `~1` and `~0` unescaped per RFC 6901. */
+function resolvePointer(root: Record<string, unknown>, ref: string, pointer: string): unknown {
+  if (ref === '#' || ref === '#/') return root
+
+  let current: unknown = root
+  for (const segment of ref.slice(2).split('/')) {
+    const name = segment.replaceAll('~1', '/').replaceAll('~0', '~')
+    if (Array.isArray(current)) {
+      current = current[Number(name)]
+    } else if (isObject(current)) {
+      current = current[name]
+    } else {
+      current = undefined
+    }
+    if (current === undefined) {
+      refuse(
+        'invalid.document',
+        `${JSON.stringify(ref)} resolves to nothing in this document`,
+        pointer,
+      )
+    }
+  }
+  return current
 }
