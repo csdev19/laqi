@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { withFileLock, writeFileAtomic } from './atomic-file'
+import { formatJson } from './json-layout'
 import {
   EndpointSchema,
   formatEndpointId,
@@ -102,7 +103,7 @@ function readFileObject(
 }
 
 function writeFileObject(fullPath: string, contents: Record<string, unknown>): void {
-  writeFileAtomic(fullPath, `${JSON.stringify(contents, null, 2)}\n`)
+  writeFileAtomic(fullPath, `${formatJson(contents)}\n`)
 }
 
 /** Adapts the lock's outcome to the `WriteResult` this module exposes. */
