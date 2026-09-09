@@ -4,8 +4,16 @@ title: ADR-0013 — Mock files remember the model a body was generated from
 
 # ADR-0013 — Mock files remember the model a body was generated from
 
-**Status:** Accepted — under challenge, see [Storing models in mocks](/adversarial/storing-models-in-mocks/)
+**Status:** Superseded by the [JSON Schema adapters spec](/design/json-schema-adapters/), implemented 2026-09-09
 **Date:** 2026-09-06
+
+The problems below are real and still drive the design. The answer changed
+twice: first from the pasted source to a compact recipe (measured in
+[Storing models in mocks](/adversarial/storing-models-in-mocks/), kept on the
+`wip/compact-recipe` branch), then from that recipe to a stored JSON Schema
+document. What a response stores today is `schema` and `generation`, described
+in the spec. `generatedFrom` no longer exists in either of its forms, and a
+mock file carrying it is refused by name rather than quietly loaded.
 
 ## Context
 
@@ -48,12 +56,18 @@ produced:
 are required together: half of it would claim a model exists when none
 does.
 
-Two things follow from having it:
+**What replaced it.** A response now stores `schema` — a JSON Schema
+document, its source descriptor and its diagnostics — and, separately,
+`generation`, the seed, effective options and body hash for the body laqi
+produced. Two consequences differ from the decision above:
 
-- The panel shows the model as it was pasted, every declaration included,
-  rather than only offering to copy types guessed from the body.
-- `regenerate` uses the model when there is one, and falls back to inferring
-  from the body — saying so — when the stored model no longer parses.
+- The panel prints an export **from the schema**, in any language, rather
+  than the developer's own source. A committed file holds laqi's rules for
+  generating, not a type definition a reviewer could read as the contract.
+- `regenerate` uses the schema and **refuses** when there is none. It never
+  falls back to inference, because a body edited or written by hand cannot
+  say what its literal unions, absent optionals or tuple arities were, and
+  the fallback returned a quietly worse mock with no signal.
 
 ## Why
 
