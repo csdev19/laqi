@@ -17,7 +17,7 @@ export function canonicalJson(value: unknown): string | undefined {
   return JSON.stringify(value, (_key, inner: unknown) => {
     if (inner === null || typeof inner !== 'object' || Array.isArray(inner)) return inner
     const sorted: Record<string, unknown> = {}
-    for (const key of Object.keys(inner).toSorted()) {
+    for (const key of Object.keys(inner).sort()) {
       sorted[key] = (inner as Record<string, unknown>)[key]
     }
     return sorted
