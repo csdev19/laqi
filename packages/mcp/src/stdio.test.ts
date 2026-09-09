@@ -254,12 +254,51 @@ describe('laqi mcp over stdio', () => {
     expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
   }, 30_000)
 
-  it('generate_data with from: regenerates from an existing response', async () => {
+  it('generate_data with from: regenerates from the response schema', async () => {
+    writeMocks({
+      'GET /users': {
+        default: 'ok',
+        responses: {
+          ok: {
+            status: 200,
+            body: [{ id: 1, name: 'Ada' }],
+            schema: {
+              name: 'User',
+              source: { kind: 'typescript-paste' },
+              diagnostics: [],
+              document: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: { id: { type: 'integer' }, name: { type: 'string' } },
+                  required: ['id', 'name'],
+                  additionalProperties: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
     const result = await call('generate_data', {
       from: { endpointId: 'GET /users', response: 'ok' },
       seed: 7,
     })
     expect(result.isError).toBe(false)
+    expect(result.text).toMatch(/"seed": ?7/)
+  }, 30_000)
+
+  // An agent cannot open the file to see that the shape it got back is a
+  // guess. Refusing is the only way to tell it.
+  it('generate_data refuses a from: response with no schema, and says why', async () => {
+    const result = await call('generate_data', {
+      from: { endpointId: 'GET /users', response: 'ok' },
+    })
+    expect(result.isError).toBe(true)
+    expect(result.text).toMatch(/no schema/i)
+    expect(result.text).toMatch(/literal unions/i)
   }, 30_000)
 
   // Finding 5 (MCP twin): generate_data had no try/catch around its calls
@@ -278,18 +317,32 @@ describe('laqi mcp over stdio', () => {
     expect(result.text).toMatch(/more than 100000 values/)
   }, 30_000)
 
-  it('generate_data reports pathologically nested from: data as a tool error, not a crash', async () => {
-    let deep: unknown = 'leaf'
-    for (let i = 0; i < 2_000; i++) deep = { child: deep }
+  it('generate_data reports a from: schema nested past the budget as a tool error, not a crash', async () => {
+    let document: Record<string, unknown> = { type: 'string' }
+    for (let i = 0; i < 2_000; i++) document = { type: 'array', items: document }
     writeMocks({
-      'GET /deep': { default: 'ok', responses: { ok: { status: 200, body: deep } } },
+      'GET /deep': {
+        default: 'ok',
+        responses: {
+          ok: {
+            status: 200,
+            body: null,
+            schema: {
+              name: 'Deep',
+              source: { kind: 'typescript-paste' },
+              diagnostics: [],
+              document: { $schema: 'https://json-schema.org/draft/2020-12/schema', ...document },
+            },
+          },
+        },
+      },
     })
 
     const result = await call('generate_data', {
       from: { endpointId: 'GET /deep', response: 'ok' },
     })
     expect(result.isError).toBe(true)
-    expect(result.text).toMatch(/nesting|depth/i)
+    expect(result.text).toMatch(/nests deeper|depth/i)
   }, 30_000)
 
   it('advertises the model size limit in the generate_data schema, so an agent knows it before sending', async () => {

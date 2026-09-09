@@ -4,8 +4,11 @@ import {
   isHttpMethod,
   RESERVED_PREFIX,
   StateSchema,
+  type Diagnostic,
+  type GenerationEvidence,
   type HttpMethod,
   type LaqiState,
+  type SchemaSnapshot,
   type Scenarios,
 } from '@laqi/schema'
 import { Hono } from 'hono'
@@ -27,7 +30,14 @@ const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
 }
 
 export type GenerateRequest =
-  | { model: string; typeName?: string; arrayLength?: number; seed?: number }
+  | {
+      model: string
+      typeName?: string
+      arrayLength?: number
+      seed?: number
+      /** Acknowledge the approximations the diagnostics name, and import anyway. */
+      allowLoss?: boolean
+    }
   | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
 
 // Two separate schemas instead of a z.union: a union emits a single
@@ -42,6 +52,7 @@ const ModelVariantSchema = z.object({
   typeName: z.string().optional(),
   arrayLength: z.number().int().optional(),
   seed: z.number().int().optional(),
+  allowLoss: z.boolean().optional(),
 })
 
 const FromVariantSchema = z.object({
@@ -86,7 +97,19 @@ export type ControlPlaneRuntime = {
     id: string,
     options: { response?: string; lang?: string },
   ) => Promise<
-    { ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }
+    | {
+        ok: true
+        code: string
+        language: string
+        /**
+         * Where the printed types came from. A schema states what the
+         * response may contain; a body is one sample, and what was inferred
+         * from it is a guess. The panel says which, always.
+         */
+        origin: 'schema' | 'body'
+        diagnostics?: Diagnostic[]
+      }
+    | { ok: false; error: string; code: WriteFailure }
   >
   generateData: (input: GenerateRequest) => Promise<
       // `typeName` is the declaration the parser generated from. A model file
@@ -101,8 +124,22 @@ export type ControlPlaneRuntime = {
           typeName?: string
           /** Every declaration the source offered, in source order. */
           candidates?: string[]
+          /**
+           * The schema the preview was generated from, and the evidence that
+           * reproduces it. The caller saves both beside the body it keeps.
+           */
+          schema?: SchemaSnapshot
+          generation?: GenerationEvidence
+          /** What the import approximated or noted, replayed on every later read. */
+          diagnostics?: Diagnostic[]
         }
-      | { ok: false; error: string; code: WriteFailure }
+      | {
+          ok: false
+          error: string
+          code: WriteFailure
+          /** Present when the refusal was a loss the caller may acknowledge. */
+          diagnostics?: Diagnostic[]
+        }
   >
 }
 
@@ -372,7 +409,12 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     if (!result.ok) {
       return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
     }
-    return c.json({ code: result.code, language: result.language })
+    return c.json({
+      code: result.code,
+      language: result.language,
+      origin: result.origin,
+      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+    })
   })
 
   app.post('/api/generate/data', async (c) => {
@@ -414,18 +456,27 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
     const result = await runtime.generateData(parsed.data)
     if (!result.ok) {
-      return c.json({ error: 'laqi-control-plane', message: result.error }, STATUS[result.code])
+      // The diagnostics ride on the refusal: a caller deciding whether to
+      // acknowledge an approximation needs to see it without asking twice.
+      return c.json(
+        {
+          error: 'laqi-control-plane',
+          message: result.error,
+          ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+        },
+        STATUS[result.code],
+      )
     }
-    return c.json(
-      result.typeName === undefined
-        ? { preview: result.preview, warnings: result.warnings }
-        : {
-            preview: result.preview,
-            warnings: result.warnings,
-            typeName: result.typeName,
-            candidates: result.candidates ?? [result.typeName],
-          },
-    )
+    return c.json({
+      preview: result.preview,
+      warnings: result.warnings,
+      ...(result.typeName === undefined
+        ? {}
+        : { typeName: result.typeName, candidates: result.candidates ?? [result.typeName] }),
+      ...(result.schema === undefined ? {} : { schema: result.schema }),
+      ...(result.generation === undefined ? {} : { generation: result.generation }),
+      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+    })
   })
 
   // Insertion point for future routes: they go HERE, before this

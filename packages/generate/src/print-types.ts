@@ -32,8 +32,15 @@ import type { Shape } from './shape'
  * tuples directly from the Shape IR (exact length, exact per-position
  * type) and never routes through this JSON Schema bridge at all.
  */
-export const printTypesEffect = (
-  shape: Shape,
+/**
+ * A JSON Schema document → source code, in any language quicktype targets.
+ *
+ * The document form is the primitive: a response that stores a schema prints
+ * from that schema directly, rather than being round-tripped through a Shape
+ * that would drop whatever the document says beyond it.
+ */
+export const printDocumentEffect = (
+  document: Record<string, unknown>,
   options: { typeName: string; lang?: string },
 ): Effect.Effect<{ code: string; language: string }, PrintError, Quicktype> =>
   Effect.gen(function* () {
@@ -70,7 +77,7 @@ export const printTypesEffect = (
         const input = new JSONSchemaInput(new FetchingJSONSchemaStore())
         await input.addSource({
           name: options.typeName,
-          schema: JSON.stringify(shapeToJsonSchema(shape)),
+          schema: JSON.stringify(document),
         })
         const inputData = new InputData()
         inputData.addInput(input)
@@ -88,6 +95,13 @@ export const printTypesEffect = (
     return { code, language: lang }
   })
 
+/** A Shape prints as the document it maps to. */
+export const printTypesEffect = (
+  shape: Shape,
+  options: { typeName: string; lang?: string },
+): Effect.Effect<{ code: string; language: string }, PrintError, Quicktype> =>
+  printDocumentEffect(shapeToJsonSchema(shape), options)
+
 /**
  * Promise facade preserving the plan's exact contract: resolves with the
  * printed code, rejects (via Effect's FiberFailure, whose message carries
@@ -98,6 +112,14 @@ export async function printTypes(
   options: { typeName: string; lang?: string },
 ): Promise<{ code: string; language: string }> {
   return generateRuntime().runPromise(printTypesEffect(shape, options))
+}
+
+/** Promise facade for the document form. */
+export async function printDocument(
+  document: Record<string, unknown>,
+  options: { typeName: string; lang?: string },
+): Promise<{ code: string; language: string }> {
+  return generateRuntime().runPromise(printDocumentEffect(document, options))
 }
 
 /**

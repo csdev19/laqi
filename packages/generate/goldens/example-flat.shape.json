@@ -1,0 +1,470 @@
+{
+  "kind": "object",
+  "fields": [
+    {
+      "name": "id",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "number",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "status",
+      "shape": {
+        "kind": "literals",
+        "values": [
+          "draft",
+          "issued",
+          "paid",
+          "void"
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "issuedAt",
+      "shape": {
+        "kind": "primitive",
+        "type": "date"
+      },
+      "optional": false
+    },
+    {
+      "name": "dueAt",
+      "shape": {
+        "kind": "primitive",
+        "type": "date"
+      },
+      "optional": false
+    },
+    {
+      "name": "currency",
+      "shape": {
+        "kind": "literals",
+        "values": [
+          "USD",
+          "EUR",
+          "PEN"
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "customer",
+      "shape": {
+        "kind": "object",
+        "fields": [
+          {
+            "name": "id",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": false
+          },
+          {
+            "name": "name",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "email",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "vatId",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": true
+          },
+          {
+            "name": "billing",
+            "shape": {
+              "kind": "object",
+              "fields": [
+                {
+                  "name": "street",
+                  "shape": {
+                    "kind": "primitive",
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                {
+                  "name": "city",
+                  "shape": {
+                    "kind": "primitive",
+                    "type": "string"
+                  },
+                  "optional": false
+                },
+                {
+                  "name": "country",
+                  "shape": {
+                    "kind": "literals",
+                    "values": [
+                      "PE",
+                      "US",
+                      "DE"
+                    ]
+                  },
+                  "optional": false
+                },
+                {
+                  "name": "postalCode",
+                  "shape": {
+                    "kind": "primitive",
+                    "type": "string"
+                  },
+                  "optional": true
+                },
+                {
+                  "name": "coordinates",
+                  "shape": {
+                    "kind": "tuple",
+                    "items": [
+                      {
+                        "kind": "primitive",
+                        "type": "number"
+                      },
+                      {
+                        "kind": "primitive",
+                        "type": "number"
+                      }
+                    ]
+                  },
+                  "optional": false
+                },
+                {
+                  "name": "contact",
+                  "shape": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "name": "name",
+                        "shape": {
+                          "kind": "primitive",
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      {
+                        "name": "phone",
+                        "shape": {
+                          "kind": "primitive",
+                          "type": "string"
+                        },
+                        "optional": false
+                      },
+                      {
+                        "name": "preferred",
+                        "shape": {
+                          "kind": "literals",
+                          "values": [
+                            "email",
+                            "phone",
+                            "none"
+                          ]
+                        },
+                        "optional": false
+                      }
+                    ]
+                  },
+                  "optional": false
+                }
+              ]
+            },
+            "optional": false
+          }
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "lines",
+      "shape": {
+        "kind": "array",
+        "items": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "sku",
+              "shape": {
+                "kind": "primitive",
+                "type": "string"
+              },
+              "optional": false
+            },
+            {
+              "name": "description",
+              "shape": {
+                "kind": "primitive",
+                "type": "string"
+              },
+              "optional": false
+            },
+            {
+              "name": "quantity",
+              "shape": {
+                "kind": "primitive",
+                "type": "number"
+              },
+              "optional": false
+            },
+            {
+              "name": "unitPrice",
+              "shape": {
+                "kind": "primitive",
+                "type": "number"
+              },
+              "optional": false
+            },
+            {
+              "name": "taxRate",
+              "shape": {
+                "kind": "literals",
+                "values": [
+                  0,
+                  0.1,
+                  0.18
+                ]
+              },
+              "optional": false
+            },
+            {
+              "name": "discount",
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "name": "code",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  {
+                    "name": "percent",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "number"
+                    },
+                    "optional": false
+                  }
+                ]
+              },
+              "optional": true
+            }
+          ]
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "totals",
+      "shape": {
+        "kind": "object",
+        "fields": [
+          {
+            "name": "subtotal",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": false
+          },
+          {
+            "name": "tax",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": false
+          },
+          {
+            "name": "total",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": false
+          },
+          {
+            "name": "perCurrency",
+            "shape": {
+              "kind": "record",
+              "values": {
+                "kind": "primitive",
+                "type": "number"
+              }
+            },
+            "optional": false
+          }
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "payments",
+      "shape": {
+        "kind": "array",
+        "items": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "method",
+              "shape": {
+                "kind": "literals",
+                "values": [
+                  "card",
+                  "transfer",
+                  "cash"
+                ]
+              },
+              "optional": false
+            },
+            {
+              "name": "amount",
+              "shape": {
+                "kind": "primitive",
+                "type": "number"
+              },
+              "optional": false
+            },
+            {
+              "name": "at",
+              "shape": {
+                "kind": "primitive",
+                "type": "date"
+              },
+              "optional": false
+            },
+            {
+              "name": "reference",
+              "shape": {
+                "kind": "primitive",
+                "type": "string"
+              },
+              "optional": false
+            }
+          ]
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "attachments",
+      "shape": {
+        "kind": "array",
+        "items": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "name",
+              "shape": {
+                "kind": "primitive",
+                "type": "string"
+              },
+              "optional": false
+            },
+            {
+              "name": "sizeBytes",
+              "shape": {
+                "kind": "primitive",
+                "type": "number"
+              },
+              "optional": false
+            },
+            {
+              "name": "url",
+              "shape": {
+                "kind": "primitive",
+                "type": "string"
+              },
+              "optional": false
+            }
+          ]
+        }
+      },
+      "optional": true
+    },
+    {
+      "name": "tags",
+      "shape": {
+        "kind": "array",
+        "items": {
+          "kind": "primitive",
+          "type": "string"
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "metadata",
+      "shape": {
+        "kind": "record",
+        "values": {
+          "kind": "primitive",
+          "type": "string"
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "notes",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "createdBy",
+      "shape": {
+        "kind": "object",
+        "fields": [
+          {
+            "name": "userId",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "role",
+            "shape": {
+              "kind": "literals",
+              "values": [
+                "system",
+                "agent",
+                "human"
+              ]
+            },
+            "optional": false
+          }
+        ]
+      },
+      "optional": false
+    }
+  ]
+}

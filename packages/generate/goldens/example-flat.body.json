@@ -1,0 +1,124 @@
+{
+  "id": "aestus termes",
+  "number": "debitis supra",
+  "status": "void",
+  "issuedAt": "2025-11-20T11:09:03.350Z",
+  "dueAt": "2025-11-17T02:25:12.224Z",
+  "currency": "USD",
+  "customer": {
+    "id": 1,
+    "name": "Maria Homenick",
+    "email": "Horace_Mills@gmail.com",
+    "vatId": "verbera appello",
+    "billing": {
+      "street": "7642 Hilll Stream",
+      "city": "Gorczanyport",
+      "country": "US",
+      "postalCode": "34749-1744",
+      "coordinates": [
+        634.38,
+        522.91
+      ],
+      "contact": {
+        "name": "Aracely Leffler",
+        "phone": "1-703-629-9848 x13474",
+        "preferred": "email"
+      }
+    }
+  },
+  "lines": [
+    {
+      "sku": "coniecto communis",
+      "description": "Asperiores cuppedia dedico terga theca.",
+      "quantity": 52,
+      "unitPrice": 461.1,
+      "taxRate": 0.18,
+      "discount": {
+        "code": "thesaurus vigor",
+        "percent": 40.65
+      }
+    },
+    {
+      "sku": "utique charisma",
+      "description": "Theca sunt arceo soluta aegrus consuasor.",
+      "quantity": 82,
+      "unitPrice": 428.25,
+      "taxRate": 0.18,
+      "discount": {
+        "code": "temporibus absens",
+        "percent": 420.26
+      }
+    },
+    {
+      "sku": "delectatio adsidue",
+      "description": "Pecus tribuo vilis aperiam callide soluta apparatus.",
+      "quantity": 22,
+      "unitPrice": 575.25,
+      "taxRate": 0.18,
+      "discount": {
+        "code": "ademptio expedita",
+        "percent": 796.95
+      }
+    }
+  ],
+  "totals": {
+    "subtotal": 975.14,
+    "tax": 274.26,
+    "total": 169.98,
+    "perCurrency": {
+      "avaritia": 441.53,
+      "super": 845.35
+    }
+  },
+  "payments": [
+    {
+      "method": "card",
+      "amount": 665.35,
+      "at": "2025-10-17T19:47:16.574Z",
+      "reference": "adeptio cilicium"
+    },
+    {
+      "method": "cash",
+      "amount": 45.79,
+      "at": "2025-10-08T17:25:26.830Z",
+      "reference": "architecto acervus"
+    },
+    {
+      "method": "transfer",
+      "amount": 697.09,
+      "at": "2025-11-01T19:43:53.341Z",
+      "reference": "officia vilicus"
+    }
+  ],
+  "attachments": [
+    {
+      "name": "Adolf Walter",
+      "sizeBytes": 771.45,
+      "url": "https://pink-supplier.biz"
+    },
+    {
+      "name": "Berenice Bartell",
+      "sizeBytes": 71.34,
+      "url": "https://infinite-conservative.name/"
+    },
+    {
+      "name": "Nikko Dickinson",
+      "sizeBytes": 378.37,
+      "url": "https://urban-solvency.biz/"
+    }
+  ],
+  "tags": [
+    "corpus candidus",
+    "defendo charisma",
+    "desipio vesco"
+  ],
+  "metadata": {
+    "crebro": "sol patior",
+    "tantum": "aduro tamdiu"
+  },
+  "notes": "vindico pax",
+  "createdBy": {
+    "userId": "civis spectaculum",
+    "role": "human"
+  }
+}

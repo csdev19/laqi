@@ -48,13 +48,14 @@ describe('shapeToJsonSchema', () => {
     })
   })
 
-  it('maps an empty tuple the same way an empty-tuple Shape ever appears — as an array of unknown', () => {
+  it('maps an empty tuple without an empty prefixItems, which the meta-schema forbids', () => {
     // parseTypes never emits `{kind:'tuple', items:[]}` (it emits
     // `{kind:'array', items:{kind:'unknown'}}` for `[]`), but the mapping
-    // must still be sane if one is ever constructed by hand.
+    // must still produce a valid document if one is ever constructed by
+    // hand. `prefixItems` has `minItems: 1` in draft 2020-12, so an empty
+    // tuple is spelled with `items: false` alone.
     expect(shapeToJsonSchema({ kind: 'tuple', items: [] })).toEqual({
       type: 'array',
-      prefixItems: [],
       items: false,
       minItems: 0,
       maxItems: 0,

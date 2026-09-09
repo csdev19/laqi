@@ -283,7 +283,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Get the types of an endpoint',
       description:
-        'Derive a data model from the live response body of an endpoint, in any supported language (default "typescript"; try "typescript-zod", "swift", "kotlin", "python", …). Types are derived from the data on demand, so they are never stale.',
+        'Export a data model for one response of an endpoint, in any supported language (default "typescript"; try "typescript-zod", "swift", "kotlin", "python", …). Exported from the stored JSON Schema when the response has one, and inferred from the live body otherwise. The first line of the output says which.',
       inputSchema: {
         endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
         response: z.string().optional().describe('Response name; defaults to the endpoint default'),
@@ -292,16 +292,26 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       annotations: { readOnlyHint: true },
     },
     async ({ endpointId, response, lang }) => {
-      const body = project.getResponseBody(endpointId, response)
-      if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+      const found = project.getResponse(endpointId, response)
+      if (!found.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
 
-      const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+      const { inferShape, printDocument, printTypes, typeNameFor } = await import('@laqi/generate')
       try {
-        const printed = await printTypes(inferShape(body.value ?? null), {
-          typeName: typeNameFor(endpointId),
-          lang,
-        })
-        return { content: [{ type: 'text' as const, text: printed.code }] }
+        // The stored schema states what the response may contain; the body is
+        // one sample. An agent gets the better source when there is one, and
+        // is told which it got — it cannot see the file to judge for itself.
+        const snapshot = found.value.schema
+        const printed = snapshot
+          ? await printDocument(snapshot.document, { typeName: snapshot.name, lang })
+          : await printTypes(inferShape(found.value.body ?? null), {
+              typeName: typeNameFor(endpointId),
+              lang,
+            })
+        const origin = snapshot
+          ? `// exported from the ${snapshot.name} schema this response carries`
+          : '// derived from the response body — this response carries no schema'
+        return { content: [{ type: 'text' as const, text: `${origin}\n${printed.code}` }] }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
@@ -348,7 +358,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       annotations: { readOnlyHint: true },
     },
     async ({ model, typeName, from, arrayLength, seed }) => {
-      const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+      const { compileSchema, importSchema, previewBody } = await import('@laqi/generate')
       const genOptions = { arrayLength, seed }
 
       // Same shape as get_types just above: a malformed model or an
@@ -359,18 +369,60 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       // error explicit and consistent with get_types.
       try {
         if (model !== undefined) {
-          const parsed = await parseTypes(model, typeName)
-          if (!parsed.ok)
-            return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
-          const preview = await generate(parsed.shape, genOptions)
-          return text({ preview, warnings: parsed.warnings })
+          // Strict by default, and no way to acknowledge a loss over this
+          // transport: an agent cannot be shown diagnostics and asked. It is
+          // told what would have been approximated, and a person decides.
+          const snapshot = await importSchema({
+            kind: 'typescript-paste',
+            source: model,
+            ...(typeName === undefined ? {} : { typeName }),
+          })
+          const preview = await previewBody(snapshot, genOptions)
+          return text({
+            preview: preview.body,
+            schema: snapshot,
+            generation: preview.evidence,
+            warnings: snapshot.diagnostics.map((item) => item.message),
+          })
         }
         if (from !== undefined) {
-          const body = project.getResponseBody(from.endpointId, from.response)
-          if (!body.ok)
-            return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
-          const preview = await generate(inferShape(body.value ?? null), genOptions)
-          return text({ preview, warnings: [] })
+          const found = project.getResponse(from.endpointId, from.response)
+          if (!found.ok)
+            return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
+          const snapshot = found.value.schema
+          if (!snapshot) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text' as const,
+                  text:
+                    `${from.endpointId} has no schema for ${JSON.stringify(from.response)}, so there is ` +
+                    'nothing to regenerate from. Inferring one from the body would silently drop literal ' +
+                    'unions, absent optionals and tuple arity; create the response from a model or a ' +
+                    'JSON Schema first.',
+                },
+              ],
+            }
+          }
+          const compiled = compileSchema(snapshot.document)
+          if (!compiled.ok) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text' as const,
+                  text: compiled.diagnostics[0]?.message ?? 'the stored schema no longer compiles',
+                },
+              ],
+            }
+          }
+          const preview = await previewBody(snapshot, genOptions)
+          return text({
+            preview: preview.body,
+            generation: preview.evidence,
+            warnings: snapshot.diagnostics.map((item) => item.message),
+          })
         }
         return {
           isError: true,

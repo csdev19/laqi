@@ -4,6 +4,10 @@ title: Implementation plans
 
 # Implementation plans
 
+Latest proposal: [Plan 14 — JSON Schema and adapters](/plans/2026-09-07-14-json-schema-adapters/).
+Replaces experimental generation metadata with JSON Schema and plans shared input
+and export adapters, local library integrations, and transport parity. **Planned.**
+
 v2.0.0 was built in six plans (plan 2 was split in two so each could close with
 its own PR). Each one produces working software that can be tested on its own,
 and they run in order.

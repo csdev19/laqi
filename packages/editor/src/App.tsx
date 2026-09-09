@@ -145,10 +145,12 @@ export function App() {
             [input.responseName]: {
               status: input.status,
               body: input.body ?? {},
-              // Kept beside the body it produced: a body cannot be turned
-              // back into the model that made it, so this is the only record
-              // of what was pasted.
-              ...(input.generatedFrom ? { generatedFrom: input.generatedFrom } : {}),
+              // Kept beside the body it produced. A body cannot be turned
+              // back into the rules that made it — JSON has no literal
+              // unions, no absent optionals and no tuples — so the schema is
+              // what makes regenerating faithful rather than a guess.
+              ...(input.schema ? { schema: input.schema } : {}),
+              ...(input.generation ? { generation: input.generation } : {}),
             },
           },
         })
@@ -179,6 +181,8 @@ export function App() {
           warnings: generationWarnings,
           typeName,
           candidates,
+          schema,
+          generation,
         } = await api.generateData({
           model: input.model,
           ...(input.typeName ? { typeName: input.typeName } : {}),
@@ -208,7 +212,8 @@ export function App() {
           responseName: input.responseName,
           status: input.status,
           body: preview,
-          ...(typeName ? { generatedFrom: { typeName, model: input.model } } : {}),
+          ...(schema ? { schema } : {}),
+          ...(generation ? { generation } : {}),
         })
       } catch (error) {
         setCreateError(error instanceof ApiError ? error.message : String(error))

@@ -1,0 +1,63 @@
+{
+  "id": "aestus termes",
+  "name": "Wava Kuvalis",
+  "description": "Desidero spoliatio thymbra creator aedificium.",
+  "visibility": "public",
+  "owner": {
+    "id": 1,
+    "name": "Horace Bailey",
+    "email": "Summer_Rohan46@yahoo.com",
+    "avatarUrl": "https://picsum.photos/seed/mPLjzhs/1963/1490"
+  },
+  "members": [
+    {
+      "user": {
+        "id": 2,
+        "name": "Gillian Reichel",
+        "email": "Isabel.Ledner0@yahoo.com",
+        "avatarUrl": "https://picsum.photos/seed/XG3jAeXWQ/2837/2097"
+      },
+      "role": "editor",
+      "active": false,
+      "createdAt": "2025-10-14T19:11:56.223Z",
+      "updatedAt": "2025-10-30T18:51:52.610Z"
+    },
+    {
+      "user": {
+        "id": 3,
+        "name": "Julianne Heathcote",
+        "email": "Jaunita77@gmail.com",
+        "avatarUrl": "https://picsum.photos/seed/2ShtNI9E4m/2700/3202"
+      },
+      "role": "viewer",
+      "active": true,
+      "createdAt": "2025-11-25T23:41:07.507Z",
+      "updatedAt": "2025-12-07T12:49:41.410Z"
+    },
+    {
+      "user": {
+        "id": 4,
+        "name": "Adalberto Kohler",
+        "email": "Tyshawn.Oberbrunner@hotmail.com",
+        "avatarUrl": "https://picsum.photos/seed/2xNYhaSUcr/678/3129"
+      },
+      "role": "viewer",
+      "active": false,
+      "createdAt": "2025-10-18T03:28:28.606Z",
+      "updatedAt": "2025-12-01T20:19:57.991Z"
+    }
+  ],
+  "labels": {
+    "titulus": "inventore asper",
+    "adeptio": "cilicium titulus"
+  },
+  "settings": {
+    "notifications": true,
+    "defaultBranch": "absorbeo conturbo",
+    "retentionDays": 63.62
+  },
+  "stars": 149.48,
+  "archived": true,
+  "createdAt": "2025-11-19T05:23:40.926Z",
+  "updatedAt": "2025-12-04T16:51:46.639Z"
+}

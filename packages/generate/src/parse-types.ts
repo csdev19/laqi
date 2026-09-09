@@ -1,3 +1,4 @@
+import { diagnostic, type Diagnostic, type DiagnosticCode } from '@laqi/schema'
 import { Effect } from 'effect'
 import { ParseError } from './errors'
 import { TypeScriptCompiler } from './services/compiler'
@@ -5,7 +6,20 @@ import { generateRuntime } from './services/runtime'
 import { primitive, type Shape, type ShapeField } from './shape'
 
 export type ParsedModel =
-  | { ok: true; shape: Shape; typeName: string; warnings: string[]; candidates: string[] }
+  | {
+      ok: true
+      shape: Shape
+      typeName: string
+      warnings: string[]
+      /**
+       * The same findings as `warnings`, coded and pointed at a place in the
+       * emitted document. `warnings` stays for the surfaces that show prose;
+       * the schema adapters read these, because the loss policy needs a code
+       * and a reader needs somewhere to look.
+       */
+      diagnostics: Diagnostic[]
+      candidates: string[]
+    }
   | { ok: false; error: string }
 
 const VIRTUAL_FILE = '__laqi_pasted__.ts'
@@ -44,7 +58,13 @@ export const parseTypesEffect = (
   // Which one was used is only worth reporting when there was another it
   // could have been: a single-interface model leaves no choice to make, and
   // announcing one reads as a complaint about a model that is fine.
-  { shape: Shape; typeName: string; warnings: string[]; candidates: string[] },
+  {
+    shape: Shape
+    typeName: string
+    warnings: string[]
+    diagnostics: Diagnostic[]
+    candidates: string[]
+  },
   ParseError,
   TypeScriptCompiler
 > =>
@@ -141,21 +161,41 @@ export const parseTypesEffect = (
     }
 
     const warnings: string[] = []
+    const diagnostics: Diagnostic[] = []
     const seen = new Set<import('typescript').Type>()
 
-    function toShape(type: import('typescript').Type, path: string, depth: number): Shape {
+    /** Records a finding in both forms: prose for people, coded for the policy. */
+    function note(code: DiagnosticCode, path: string, pointer: string, prose: string): void {
+      warnings.push(`${path}: ${prose}`)
+      diagnostics.push(diagnostic(code, `${path}: ${prose}`, pointer))
+    }
+
+    function toShape(
+      type: import('typescript').Type,
+      path: string,
+      pointer: string,
+      depth: number,
+    ): Shape {
       if (depth > MAX_DEPTH) {
-        warnings.push(`${path}: nesting deeper than ${MAX_DEPTH} levels — cut off as unknown`)
+        note(
+          'loss.depth',
+          path,
+          pointer,
+          `nesting deeper than ${MAX_DEPTH} levels — cut off as unknown`,
+        )
         return { kind: 'unknown' }
       }
       if (seen.has(type)) {
-        warnings.push(`${path}: circular reference — generated as unknown`)
+        note('loss.circular', path, pointer, 'circular reference — generated as unknown')
         return { kind: 'unknown' }
       }
 
       if (type.flags & ts.TypeFlags.Any || type.flags & ts.TypeFlags.Unknown) {
-        warnings.push(
-          `${path}: unresolvable type (likely an import that is not present) — generated as unknown`,
+        note(
+          'loss.unresolved-type',
+          path,
+          pointer,
+          'unresolvable type (likely an import that is not present) — generated as unknown',
         )
         return { kind: 'unknown' }
       }
@@ -183,7 +223,7 @@ export const parseTypesEffect = (
           (t) => !(t.flags & ts.TypeFlags.Undefined) && !(t.flags & ts.TypeFlags.Null),
         )
         if (members.length === 0) return primitive('null')
-        if (members.length === 1) return toShape(members[0]!, path, depth)
+        if (members.length === 1) return toShape(members[0]!, path, pointer, depth)
         const literals: (string | number | boolean)[] = []
         for (const member of members) {
           if (member.isStringLiteral() || member.isNumberLiteral()) literals.push(member.value)
@@ -191,11 +231,14 @@ export const parseTypesEffect = (
             literals.push(checker.typeToString(member) === 'true')
         }
         if (literals.length === members.length) return { kind: 'literals', values: literals }
-        warnings.push(
-          `${path}: mixed union — narrowed to ${checker.typeToString(members[0]!)} ` +
+        note(
+          'loss.union-narrowed',
+          path,
+          pointer,
+          `mixed union — narrowed to ${checker.typeToString(members[0]!)} ` +
             `(the checker does not preserve source order, so this is not necessarily the first member as written)`,
         )
-        return toShape(members[0]!, path, depth)
+        return toShape(members[0]!, path, pointer, depth)
       }
 
       if (type.flags & ts.TypeFlags.StringLike) return primitive('string')
@@ -211,7 +254,7 @@ export const parseTypesEffect = (
         // A real tuple, not an approximation: each position keeps its own
         // type and the arity is preserved (see Shape's `tuple` kind).
         const itemShapes = elements.map((element, index) =>
-          toShape(element, `${path}[${index}]`, depth + 1),
+          toShape(element, `${path}[${index}]`, `${pointer}/prefixItems/${index}`, depth + 1),
         )
         return { kind: 'tuple', items: itemShapes }
       }
@@ -220,23 +263,31 @@ export const parseTypesEffect = (
         const [items] = checker.getTypeArguments(type as import('typescript').TypeReference)
         return {
           kind: 'array',
-          items: items ? toShape(items, `${path}[]`, depth + 1) : { kind: 'unknown' },
+          items: items
+            ? toShape(items, `${path}[]`, `${pointer}/items`, depth + 1)
+            : { kind: 'unknown' },
         }
       }
 
       if (type.getCallSignatures().length > 0) {
-        warnings.push(`${path}: functions cannot be generated — unknown`)
+        note('loss.function', path, pointer, 'functions cannot be generated — unknown')
         return { kind: 'unknown' }
       }
 
       const stringIndex = type.getStringIndexType()
       const properties = type.getProperties()
       if (stringIndex && properties.length === 0) {
-        return { kind: 'record', values: toShape(stringIndex, `${path}{}`, depth + 1) }
+        return {
+          kind: 'record',
+          values: toShape(stringIndex, `${path}{}`, `${pointer}/additionalProperties`, depth + 1),
+        }
       }
       if (stringIndex && properties.length > 0) {
-        warnings.push(
-          `${path}: has both named properties and a string index signature — the index signature is not represented`,
+        note(
+          'loss.index-signature',
+          path,
+          pointer,
+          'has both named properties and a string index signature — the index signature is not represented',
         )
       }
 
@@ -247,7 +298,12 @@ export const parseTypesEffect = (
           const optional = (prop.flags & ts.SymbolFlags.Optional) !== 0
           return {
             name: prop.name,
-            shape: toShape(propType, `${path}.${prop.name}`, depth + 1),
+            shape: toShape(
+              propType,
+              `${path}.${prop.name}`,
+              `${pointer}/properties/${prop.name.replaceAll('~', '~0').replaceAll('/', '~1')}`,
+              depth + 1,
+            ),
             optional,
           }
         })
@@ -255,16 +311,22 @@ export const parseTypesEffect = (
         return { kind: 'object', fields }
       }
 
-      warnings.push(`${path}: unsupported construct (${checker.typeToString(type)}) — unknown`)
+      note(
+        'loss.unresolved-type',
+        path,
+        pointer,
+        `unsupported construct (${checker.typeToString(type)}) — unknown`,
+      )
       return { kind: 'unknown' }
     }
 
     const rootType = checker.getTypeAtLocation(target.name)
-    const shape = toShape(rootType, target.name.text, 0)
+    const shape = toShape(rootType, target.name.text, '', 0)
     return {
       shape,
       typeName: target.name.text,
       warnings,
+      diagnostics,
       candidates: declarations.map((d) => d.name.text),
     }
   }).pipe(

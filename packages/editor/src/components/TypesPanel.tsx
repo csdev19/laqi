@@ -1,3 +1,4 @@
+import type { Diagnostic } from '@laqi/schema'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { tokenizeTypeScript } from '../highlight'
@@ -7,15 +8,16 @@ import type { MockResponse } from '../types'
  * What this response's shape actually is, on screen rather than only on the
  * clipboard.
  *
- * Two sources, and the panel always says which one it is showing. A response
- * generated from a model carries that model, and that is the honest answer:
- * the whole file as pasted, every declaration, with the literal unions,
- * optional fields and tuples a body cannot carry. Anything else — a
- * hand-written response, a pasted JSON body, an endpoint from before any of
- * this existed — gets the types derived from the body it holds.
+ * Two sources, and the panel always says which one it is showing, because
+ * they are not equally trustworthy. A stored schema states what the response
+ * may contain, in any language quicktype targets. A body is one sample, and
+ * types inferred from it cannot show that a field was a literal union, that
+ * an absent optional exists, or that an array had a fixed length.
  *
- * Asking for a language other than TypeScript is asking for the derived
- * form: there is only one language the stored model could be in.
+ * Whatever the schema had to approximate is shown here too, beside the types
+ * rather than behind a click: it is the difference between what the source
+ * said and what laqi can generate, and reading the types without it would be
+ * reading half the answer.
  */
 export function TypesPanel(props: {
   endpointId: string
@@ -28,12 +30,15 @@ export function TypesPanel(props: {
   const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
     { name: 'typescript', displayName: 'TypeScript' },
   ])
-  const [derived, setDerived] = useState<string | null>(null)
+  const [printed, setPrinted] = useState<{
+    code: string
+    origin: 'schema' | 'body'
+    diagnostics?: Diagnostic[]
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const model = props.response?.generatedFrom
-  const showingModel = model !== undefined && lang === 'typescript'
-  const code = showingModel ? model.model : derived
+  const schema = props.response?.schema
+  const code = printed?.code ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -50,17 +55,18 @@ export function TypesPanel(props: {
     }
   }, [])
 
-  // Derived types are fetched only when they are what is on screen. A
-  // response carrying a model does not pay for a round trip nobody reads.
+  // The server prints, in every case. It is the side that knows whether the
+  // stored schema was usable, so it is the side that decides the origin —
+  // the panel reports that answer rather than guessing at it from the
+  // response it happens to hold.
   useEffect(() => {
-    if (showingModel) return
     let cancelled = false
     setError(null)
-    setDerived(null)
+    setPrinted(null)
     api
       .getTypes(props.endpointId, { response: props.responseName, lang })
-      .then(({ code: fetched }) => {
-        if (!cancelled) setDerived(fetched)
+      .then((fetched) => {
+        if (!cancelled) setPrinted(fetched)
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause))
@@ -68,7 +74,7 @@ export function TypesPanel(props: {
     return () => {
       cancelled = true
     }
-  }, [props.endpointId, props.responseName, props.revision, lang, showingModel])
+  }, [props.endpointId, props.responseName, props.revision, lang])
 
   return (
     <div className="meta-field types-panel">
@@ -99,15 +105,22 @@ export function TypesPanel(props: {
         </button>
       </div>
 
-      {/* Never ambiguous about what is on screen: one of these is the source
-          the developer wrote, the other is a guess made from one sample. */}
+      {/* Never ambiguous about what is on screen: one of these states what
+          the response may contain, the other is a guess made from one sample. */}
       <p className="types-origin">
-        {showingModel
-          ? `the ${model.typeName} model this body was generated from`
-          : model !== undefined
-            ? 'derived from the body — the stored model is TypeScript'
-            : 'derived from the body'}
+        {printed?.origin === 'schema' && schema !== undefined
+          ? `exported from the ${schema.name} schema this response carries`
+          : 'derived from the body — this response carries no schema'}
       </p>
+
+      {/* What the source said that the schema could not keep. Shown next to
+          the types, because copying them without knowing this is copying a
+          claim laqi already knows is incomplete. */}
+      {(printed?.diagnostics ?? []).map((item) => (
+        <p key={`${item.code}${item.pointer}`} className="types-loss micro">
+          {item.kind === 'loss' ? 'approximated' : 'note'}: {item.message}
+        </p>
+      ))}
 
       {error !== null ? <p className="form-error">{error}</p> : null}
 

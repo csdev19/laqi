@@ -1,30 +1,9 @@
 import { z } from 'zod'
+import { GenerationEvidenceSchema, SchemaSnapshotSchema } from './schema-snapshot'
 import { STATUS_MAX, STATUS_MIN } from './status-codes'
 
 /** A mock should never take more than a minute; beyond that, it's a typo. */
 export const MAX_DELAY_MS = 60_000
-
-/**
- * The model a generated body came from, kept beside the body it produced.
- *
- * A body cannot be turned back into the model that made it: JSON has no
- * literal unions, no optional fields that happen to be absent, and no
- * tuples. Storing the source is the only way the panel can show what was
- * actually pasted, and the only way `regenerate` can reproduce the shape
- * instead of guessing it from one sample.
- *
- * Optional, and only ever written by the generator. A hand-written response
- * has no model, and a body edited by hand keeps whatever model was there —
- * it says where the body came from, not what the body currently is.
- */
-export const GeneratedFromSchema = z.object({
-  /** The declaration inside `model` the body was generated from. */
-  typeName: z.string().min(1),
-  /** The source exactly as it was pasted, every declaration included. */
-  model: z.string().min(1),
-})
-
-export type GeneratedFrom = z.infer<typeof GeneratedFromSchema>
 
 export const ResponseSchema = z.object({
   status: z
@@ -36,7 +15,26 @@ export const ResponseSchema = z.object({
   delay: z.number().int().min(0).max(MAX_DELAY_MS).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   description: z.string().optional(),
-  generatedFrom: GeneratedFromSchema.optional(),
+  /**
+   * The schema this response is associated with. Independent of how the body
+   * was obtained: an OpenAPI example has one and was never generated.
+   */
+  schema: SchemaSnapshotSchema.optional(),
+  /** Present only when laqi generated the body this response currently holds. */
+  generation: GenerationEvidenceSchema.optional(),
+  /**
+   * Two experiments stored generation metadata here before the schema did:
+   * the pasted TypeScript, then a packed Shape. Neither gets a compatibility
+   * branch, and neither may be quietly dropped either — a mock whose
+   * provenance vanished on load would regenerate from nothing with no
+   * explanation. Declared so it is refused by name, with what replaced it.
+   */
+  generatedFrom: z
+    .never({
+      error:
+        '"generatedFrom" is no longer stored; a generated response carries "schema" and "generation" instead',
+    })
+    .optional(),
 })
 
 export type MockResponse = z.infer<typeof ResponseSchema>

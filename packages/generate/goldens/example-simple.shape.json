@@ -1,0 +1,49 @@
+{
+  "kind": "object",
+  "fields": [
+    {
+      "name": "id",
+      "shape": {
+        "kind": "primitive",
+        "type": "number"
+      },
+      "optional": false
+    },
+    {
+      "name": "title",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "completed",
+      "shape": {
+        "kind": "primitive",
+        "type": "boolean"
+      },
+      "optional": false
+    },
+    {
+      "name": "priority",
+      "shape": {
+        "kind": "literals",
+        "values": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "dueDate",
+      "shape": {
+        "kind": "primitive",
+        "type": "date"
+      },
+      "optional": true
+    }
+  ]
+}

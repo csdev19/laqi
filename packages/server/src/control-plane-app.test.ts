@@ -647,6 +647,7 @@ describe('generation routes', () => {
       ok: true as const,
       code: 'export interface X {}',
       language: 'typescript',
+      origin: 'body' as const,
     }))
     const app = createControlPlaneApp(makeRuntime({ getTypes }))
     const res = await app.request(
