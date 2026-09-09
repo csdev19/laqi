@@ -84,6 +84,32 @@ describe('heavy dependencies stay lazy', () => {
     expect([...afterAct]).toEqual(['quicktype-core'])
   })
 
+  it('loads none of them when a JSON Schema document is compiled', async () => {
+    // The whole point of the schema path: a mock built from a document has
+    // no reason to pay for a 23 MB TypeScript compiler, and never touches
+    // the export libraries either.
+    const { afterAct } = await loadedDuring(async (m) => {
+      const normalized = m.normalizeDialect({
+        type: 'object',
+        properties: { a: { type: 'string' } },
+      })
+      if (!normalized.ok) throw new Error('expected a document')
+      return m.compileSchema(normalized.document)
+    })
+
+    expect([...afterAct]).toEqual([])
+  })
+
+  it('loads only faker when generating from a compiled plan', async () => {
+    const { afterAct } = await loadedDuring(async (m) => {
+      const compiled = m.compileSchema({ type: 'string' })
+      if (!compiled.ok) throw new Error('expected a plan')
+      return m.generateFromPlan(compiled.plan, { seed: 1 })
+    })
+
+    expect([...afterAct]).toEqual(['@faker-js/faker'])
+  })
+
   it('loads only quicktype when listing the supported languages', async () => {
     const { afterAct } = await loadedDuring((m) => m.supportedLanguages())
 

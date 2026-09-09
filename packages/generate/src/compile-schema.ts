@@ -518,6 +518,15 @@ function array(node: Record<string, unknown>, pointer: string, keywords: string[
   }
 
   const items = node.items
+
+  // `items: false` with no positions before it closes the array from the
+  // start: the only array that satisfies it is the empty one.
+  if (items === false) {
+    reject(keywords, ['type', 'items', 'minItems', 'maxItems'], node, pointer)
+    checkTupleArity(node, 0, pointer)
+    return { kind: 'tuple', items: [] }
+  }
+
   if (items === undefined) {
     refuse(
       'unsupported.keyword',

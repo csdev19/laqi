@@ -269,19 +269,28 @@ export const generateFromPlanEffect = (
     }
 
     function constrainedText(rule: TextRule): string {
-      const formatted = rule.format ? textForFormat(rule.format) : undefined
-      // A length asserted by the document wins over the shape of a format:
-      // a truncated uuid still satisfies maxLength, an over-long one does
-      // not satisfy the document at all.
       if (rule.minLength === undefined && rule.maxLength === undefined) {
-        return formatted ?? faker.lorem.words(2)
+        return rule.format ? textForFormat(rule.format) : faker.lorem.words(2)
       }
+
       const min = rule.minLength ?? 0
       const max = Math.max(min, rule.maxLength ?? Math.max(min, 12))
-      const base = formatted ?? faker.string.alpha({ length: { min: max, max } })
-      return base.length > max
-        ? base.slice(0, max)
-        : base.padEnd(min, faker.string.alpha({ length: 1 }))
+
+      // With a format there is nothing to adjust: padding or truncating a
+      // uuid produces something that is no longer a uuid, so a value that
+      // does not fit the asserted length means the document asked for a
+      // string that cannot exist.
+      if (rule.format) {
+        const value = textForFormat(rule.format)
+        if (value.length < min || value.length > max) {
+          throw new UnsatisfiableError(
+            `a ${rule.format} is ${value.length} characters, which does not fit the asserted length ${min}..${max}`,
+          )
+        }
+        return value
+      }
+
+      return faker.string.alpha({ length: { min, max } })
     }
 
     function textForFormat(format: TextFormat): string {

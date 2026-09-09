@@ -25,9 +25,14 @@ export function shapeToJsonSchema(shape: Shape): Record<string, unknown> {
       // expressed in it), and min/maxItems pin the arity redundantly for
       // any consumer that only understands the older `items: [...]` tuple
       // form and ignores `prefixItems`.
+      //
+      // `prefixItems` must hold at least one schema — the 2020-12
+      // meta-schema says so — and an empty tuple has none. `items: false`
+      // alone already closes the array from position 0, which is exactly
+      // "this array is empty".
       return {
         type: 'array',
-        prefixItems: shape.items.map(shapeToJsonSchema),
+        ...(shape.items.length > 0 ? { prefixItems: shape.items.map(shapeToJsonSchema) } : {}),
         items: false,
         minItems: shape.items.length,
         maxItems: shape.items.length,
