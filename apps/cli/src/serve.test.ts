@@ -682,11 +682,31 @@ describe('generation through a live server', () => {
     expect(((await twice.json()) as { preview: unknown }).preview).toEqual(first.preview)
   }, 30_000)
 
-  it('regenerates from live data via from:, without any model', async () => {
+  it('regenerates a response from its stored schema', async () => {
     writeMocks({
       'GET /users': {
         default: 'ok',
-        responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } },
+        responses: {
+          ok: {
+            status: 200,
+            body: [{ id: 1, name: 'Ada' }],
+            schema: {
+              name: 'User',
+              source: { kind: 'typescript-paste' },
+              diagnostics: [],
+              document: {
+                $schema: 'https://json-schema.org/draft/2020-12/schema',
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: { id: { type: 'integer' }, name: { type: 'string' } },
+                  required: ['id', 'name'],
+                  additionalProperties: false,
+                },
+              },
+            },
+          },
+        },
       },
     })
     handle = await startServer({ root, config })
@@ -701,10 +721,39 @@ describe('generation through a live server', () => {
       }),
     })
     expect(res.status).toBe(200)
-    const { preview } = (await res.json()) as { preview: Record<string, unknown>[] }
+    const { preview, generation } = (await res.json()) as {
+      preview: Record<string, unknown>[]
+      generation: { seed: number; options: { arrayLength: number }; bodyHash: string }
+    }
     expect(preview).toHaveLength(2)
     expect(typeof preview[0]!.id).toBe('number')
     expect(typeof preview[0]!.name).toBe('string')
+    // The evidence comes back with the preview, so whatever saves the body
+    // can save what reproduces it in the same write.
+    expect(generation.seed).toBe(7)
+    expect(generation.options.arrayLength).toBe(2)
+  }, 30_000)
+
+  // Inferring a shape back from one sample cannot see a literal union, an
+  // absent optional or a fixed-length tuple. Falling back to it would hand
+  // the caller a quietly worse mock, so a response with no schema says so.
+  it('refuses to regenerate a response that has no schema, rather than guessing from the body', async () => {
+    writeMocks({
+      'GET /users': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }] } },
+      },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: { endpointId: 'GET /users', response: 'ok' } }),
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toMatch(/no schema/i)
   }, 30_000)
 
   // Finding 5: generateData had no try/catch around its calls into
@@ -712,13 +761,29 @@ describe('generation through a live server', () => {
   // the callback and fell through to Hono's default handler as a bare
   // 500 with no body. Both branches now mirror getTypes.
 
-  it('400s the from: branch with a real message on pathologically nested data, instead of a bare 500', async () => {
-    // Deep enough to clear the depth guard's MAX_DEPTH (500) with room to
-    // spare, but shallow enough that building/serialising the fixture
-    // itself (JSON.stringify in writeMocks) doesn't hit its own stack limit.
-    let deep: unknown = 'leaf'
-    for (let i = 0; i < 2_000; i++) deep = { child: deep }
-    writeMocks({ 'GET /deep': { default: 'ok', responses: { ok: { status: 200, body: deep } } } })
+  it('400s the from: branch with a real message on a schema nested past the budget', async () => {
+    // Deep enough to clear the compiler's MAX_SHAPE_DEPTH (500) with room to
+    // spare, but shallow enough that serialising the fixture itself does not
+    // hit its own stack limit.
+    let document: Record<string, unknown> = { type: 'string' }
+    for (let i = 0; i < 2_000; i++) document = { type: 'array', items: document }
+    writeMocks({
+      'GET /deep': {
+        default: 'ok',
+        responses: {
+          ok: {
+            status: 200,
+            body: null,
+            schema: {
+              name: 'Deep',
+              source: { kind: 'typescript-paste' },
+              diagnostics: [],
+              document: { $schema: 'https://json-schema.org/draft/2020-12/schema', ...document },
+            },
+          },
+        },
+      },
+    })
     handle = await startServer({ root, config })
 
     const res = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
@@ -728,7 +793,7 @@ describe('generation through a live server', () => {
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { message: string }
-    expect(body.message).toMatch(/nesting|depth/i)
+    expect(body.message).toMatch(/nests deeper|depth/i)
   }, 30_000)
 
   it('400s the model branch with a real message on a genuine generation failure, instead of a bare 500', async () => {

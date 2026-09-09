@@ -2,7 +2,7 @@
 
 import { serve, type ServerType } from '@hono/node-server'
 import { EventBus, Project, SessionCounters, StateStore, type LaqiEvent } from '@laqi/core'
-import type { EndpointDefinition, LaqiConfig } from '@laqi/schema'
+import type { Diagnostic, EndpointDefinition, LaqiConfig } from '@laqi/schema'
 import {
   createControlPlaneApp,
   createMockApp,
@@ -220,15 +220,32 @@ export async function startServer(options: {
           }
         }
 
-        const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+        const { inferShape, printDocument, printTypes, typeNameFor } =
+          await import('@laqi/generate')
         try {
-          // Types are a VIEW of the live data — never persisted, never stale.
-          const shape = inferShape(response.body ?? null)
-          const printed = await printTypes(shape, {
-            typeName: typeNameFor(id),
-            lang: typesOptions.lang,
-          })
-          return { ok: true, ...printed }
+          // The stored schema when there is one, the live body otherwise —
+          // and the panel is told which, because the two are not equally
+          // trustworthy. A schema says what the response may contain; a body
+          // is one sample, and inferring from it cannot see a literal union,
+          // an absent optional or a fixed-length tuple.
+          const snapshot = response.schema
+          const printed = snapshot
+            ? await printDocument(snapshot.document, {
+                typeName: snapshot.name,
+                lang: typesOptions.lang,
+              })
+            : await printTypes(inferShape(response.body ?? null), {
+                typeName: typeNameFor(id),
+                lang: typesOptions.lang,
+              })
+          return {
+            ok: true,
+            ...printed,
+            origin: snapshot ? ('schema' as const) : ('body' as const),
+            ...(snapshot && snapshot.diagnostics.length > 0
+              ? { diagnostics: [...snapshot.diagnostics] }
+              : {}),
+          }
         } catch (error) {
           return {
             ok: false,
@@ -238,26 +255,43 @@ export async function startServer(options: {
         }
       },
       generateData: async (input) => {
-        const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+        const { compileSchema, importSchema, previewBody } = await import('@laqi/generate')
         const generateOptions = { seed: input.seed, arrayLength: input.arrayLength }
 
         // Same shape as getTypes just above: a malformed or unrepresentable
-        // model/response is a client problem, not a server crash. Before
-        // this, only the not-found checks below were guarded — a deep
-        // recursion limit in inferShape or a generation-budget overrun in
-        // generate() escaped straight past this callback to Hono's default
-        // handler, landing as a bare 500 with no body.
+        // model is the caller's problem to see, not a 500.
         try {
           if ('model' in input) {
-            const parsed = await parseTypes(input.model, input.typeName)
-            if (!parsed.ok) return { ok: false, error: parsed.error, code: 'invalid' }
-            const preview = await generate(parsed.shape, generateOptions)
+            // The strict loss policy lives in the use case, not here. A model
+            // that would lose information is refused with the diagnostics
+            // that say what, and the caller decides whether to acknowledge.
+            let snapshot
+            try {
+              snapshot = await importSchema(
+                { kind: 'typescript-paste', source: input.model, typeName: input.typeName },
+                { allowLoss: input.allowLoss === true },
+              )
+            } catch (cause) {
+              return {
+                ok: false,
+                error: cause instanceof Error ? cause.message : String(cause),
+                code: 'invalid' as const,
+                diagnostics: (cause as { diagnostics?: Diagnostic[] }).diagnostics,
+              }
+            }
+
+            const preview = await previewBody(snapshot, generateOptions)
             return {
               ok: true,
-              preview,
-              warnings: parsed.warnings,
-              typeName: parsed.typeName,
-              candidates: parsed.candidates,
+              preview: preview.body,
+              // The prose the panel already shows, derived from the coded
+              // diagnostics rather than kept as a second source of truth.
+              warnings: snapshot.diagnostics.map((item) => item.message),
+              typeName: snapshot.name,
+              candidates: [snapshot.name],
+              schema: snapshot,
+              generation: preview.evidence,
+              diagnostics: [...snapshot.diagnostics],
             }
           }
 
@@ -277,33 +311,42 @@ export async function startServer(options: {
               code: 'not-found',
             }
           }
-          // The model, when the response carries one. Re-inferring from the
-          // body is a lossy fallback: one sample cannot show that a field
-          // was a literal union, that an absent optional exists, or that an
-          // array was a fixed-length tuple — regenerating a `[number,
-          // number]` from data produced three numbers. The model has all of
-          // that, so it wins whenever it is there.
-          const from = response.generatedFrom
-          if (from) {
-            const parsed = await parseTypes(from.model, from.typeName)
-            if (parsed.ok) {
-              const preview = await generate(parsed.shape, generateOptions)
-              return {
-                ok: true,
-                preview,
-                warnings: parsed.warnings,
-                typeName: parsed.typeName,
-                candidates: parsed.candidates,
-              }
+          // The stored schema, and only that. Inferring a shape back from
+          // one sample cannot show that a field was a literal union, that an
+          // absent optional exists, or that an array was a fixed-length
+          // tuple — regenerating a `[number, number]` from data produced
+          // three numbers. Falling back to it silently would hand the caller
+          // a worse mock with no sign that anything was lost, so a response
+          // with no schema is told to say so instead.
+          const snapshot = response.schema
+          if (!snapshot) {
+            return {
+              ok: false,
+              error:
+                `${input.from.endpointId} has no schema for ${JSON.stringify(input.from.response)}, ` +
+                'so there is nothing to regenerate from — create it from a model or a JSON Schema first',
+              code: 'invalid' as const,
             }
-            // A model that no longer parses is not a reason to refuse: the
-            // body is still there to infer from, and the developer is told.
           }
-          const preview = await generate(inferShape(response.body ?? null), generateOptions)
+
+          const compiled = compileSchema(snapshot.document)
+          if (!compiled.ok) {
+            return {
+              ok: false,
+              error: compiled.diagnostics[0]?.message ?? 'the stored schema no longer compiles',
+              code: 'invalid' as const,
+              diagnostics: compiled.diagnostics,
+            }
+          }
+
+          const regenerated = await previewBody(snapshot, generateOptions)
           return {
             ok: true,
-            preview,
-            warnings: from ? ['the stored model no longer parses — regenerated from the body'] : [],
+            preview: regenerated.body,
+            warnings: snapshot.diagnostics.map((item) => item.message),
+            typeName: snapshot.name,
+            generation: regenerated.evidence,
+            diagnostics: [...snapshot.diagnostics],
           }
         } catch (error) {
           return {

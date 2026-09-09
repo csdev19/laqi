@@ -1,3 +1,4 @@
+import type { Diagnostic, GenerationEvidence, SchemaSnapshot } from '@laqi/schema'
 import type { Endpoint, LaqiState, MockResponse, Scenarios, Status } from './types'
 
 /**
@@ -88,9 +89,12 @@ export const api = {
     if (options.response) query.set('response', options.response)
     if (options.lang) query.set('lang', options.lang)
     const suffix = query.size > 0 ? `?${query.toString()}` : ''
-    return request<{ code: string; language: string }>(
-      `/api/endpoints/${encodeURIComponent(id)}/types${suffix}`,
-    )
+    return request<{
+      code: string
+      language: string
+      origin: 'schema' | 'body'
+      diagnostics?: Diagnostic[]
+    }>(`/api/endpoints/${encodeURIComponent(id)}/types${suffix}`)
   },
 
   generateData: (input: GenerateDataInput) =>
@@ -99,6 +103,9 @@ export const api = {
       warnings: string[]
       typeName?: string
       candidates?: string[]
+      /** Saved beside the body, so the response can be regenerated later. */
+      schema?: SchemaSnapshot
+      generation?: GenerationEvidence
     }>('/api/generate/data', {
       method: 'POST',
       body: JSON.stringify(input),

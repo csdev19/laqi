@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import type { SchemaSnapshot } from '@laqi/schema'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api'
@@ -6,8 +7,8 @@ import { TypesPanel } from './TypesPanel'
 
 // The panel exists so nobody has to paste into an editor to find out what a
 // response's shape is. Which of the two sources it is showing has to be on
-// screen: one is what the developer wrote, the other is a guess made from a
-// single sample.
+// screen: one states what the response may contain, the other is a guess made
+// from a single sample.
 
 vi.mock('../api', () => ({
   api: { getTypes: vi.fn(), getLanguages: vi.fn() },
@@ -16,10 +17,24 @@ vi.mock('../api', () => ({
 const getTypes = vi.mocked(api.getTypes)
 const getLanguages = vi.mocked(api.getLanguages)
 
-const MODEL = 'export interface Invoice {\n  id: string\n  status: "paid" | "void"\n}\n'
+const SCHEMA: SchemaSnapshot = {
+  name: 'Invoice',
+  source: { kind: 'typescript-paste' },
+  diagnostics: [],
+  document: {
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    properties: { id: { type: 'string' } },
+    required: ['id'],
+  },
+}
 
 beforeEach(() => {
-  getTypes.mockResolvedValue({ code: 'interface Derived { id: string }', language: 'TypeScript' })
+  getTypes.mockResolvedValue({
+    code: 'interface Derived { id: string }',
+    language: 'TypeScript',
+    origin: 'body',
+  })
   getLanguages.mockResolvedValue([
     { name: 'typescript', displayName: 'TypeScript' },
     { name: 'go', displayName: 'Go' },
@@ -37,24 +52,26 @@ function renderPanel(response: Parameters<typeof TypesPanel>[0]['response']) {
   )
 }
 
+/** The server decides the origin: only it knows whether the schema was usable. */
+function serverSays(origin: 'schema' | 'body', diagnostics?: SchemaSnapshot['diagnostics']) {
+  getTypes.mockResolvedValue({
+    code: 'interface Derived { id: string }',
+    language: 'TypeScript',
+    origin,
+    ...(diagnostics ? { diagnostics } : {}),
+  })
+}
+
 describe('TypesPanel', () => {
-  it('shows the stored model, whole, when the body was generated from one', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
+  it('names the schema the types were exported from', async () => {
+    serverSays('schema')
+    renderPanel({ status: 200, schema: SCHEMA })
 
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain(MODEL.trim()))
-    expect(screen.getByText(/the Invoice model this body was generated from/)).toBeTruthy()
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
+    expect(screen.getByText(/exported from the Invoice schema/)).toBeTruthy()
   })
 
-  // Reading a model that is already in hand costs nothing; asking the server
-  // to guess one from the body would be a round trip nobody reads.
-  it('does not ask the server for types it already has', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
-
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Invoice'))
-    expect(getTypes).not.toHaveBeenCalled()
-  })
-
-  it('derives from the body when there is no model behind it', async () => {
+  it('says the response carries no schema when the types came from the body', async () => {
     renderPanel({ status: 200, body: { id: 'x' } })
 
     await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
@@ -62,14 +79,13 @@ describe('TypesPanel', () => {
       response: 'ok',
       lang: 'typescript',
     })
-    expect(screen.getByText('derived from the body')).toBeTruthy()
+    expect(screen.getByText(/carries no schema/)).toBeTruthy()
   })
 
-  // The stored model can only be TypeScript, so asking for Go is asking for
-  // the derived form, and the panel says so rather than showing nothing.
-  it('falls back to derived types when another language is asked for', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Invoice'))
+  it('asks the server to print in the selected language, schema or not', async () => {
+    serverSays('schema')
+    renderPanel({ status: 200, schema: SCHEMA })
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
 
     const select = screen.getByLabelText('types language') as HTMLSelectElement
     await waitFor(() => expect(select.options).toHaveLength(2))
@@ -79,10 +95,27 @@ describe('TypesPanel', () => {
     await waitFor(() =>
       expect(getTypes).toHaveBeenCalledWith('GET /invoices', { response: 'ok', lang: 'go' }),
     )
-    expect(await screen.findByText(/the stored model is TypeScript/)).toBeTruthy()
+    expect(await screen.findByText(/exported from the Invoice schema/)).toBeTruthy()
   })
 
-  it('reports a failure to derive rather than showing an empty panel', async () => {
+  // Copying types without seeing this would be copying a claim laqi already
+  // knows is incomplete.
+  it('shows what the schema had to approximate, beside the types', async () => {
+    serverSays('schema', [
+      {
+        code: 'loss.union-narrowed',
+        kind: 'loss',
+        severity: 'warning',
+        pointer: '/properties/total',
+        message: 'Invoice.total: mixed union — narrowed to number',
+      },
+    ])
+    renderPanel({ status: 200, schema: SCHEMA })
+
+    expect(await screen.findByText(/approximated: .*narrowed to number/)).toBeTruthy()
+  })
+
+  it('reports a failure to print rather than showing an empty panel', async () => {
     getTypes.mockRejectedValue(new Error('quicktype fell over'))
     renderPanel({ status: 200, body: {} })
 

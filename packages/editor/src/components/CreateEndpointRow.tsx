@@ -1,5 +1,11 @@
 import { EXAMPLE_BODIES, EXAMPLE_MODELS } from '@laqi/generate/examples'
-import { parseStatusCode, STATUS_MAX, STATUS_MIN } from '@laqi/schema'
+import {
+  parseStatusCode,
+  STATUS_MAX,
+  STATUS_MIN,
+  type GenerationEvidence,
+  type SchemaSnapshot,
+} from '@laqi/schema'
 import { useState } from 'react'
 import { checkJson } from '../highlight'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
@@ -23,8 +29,12 @@ export type CreateInput = {
   method: string
   path: string
   body?: unknown
-  /** Set only by the model flow: the source the body was generated from. */
-  generatedFrom?: { typeName: string; model: string }
+  /**
+   * Set only by the model flow: the schema the body was generated from, and
+   * the evidence that reproduces it.
+   */
+  schema?: SchemaSnapshot
+  generation?: GenerationEvidence
 } & ResponseChoice
 
 export function CreateEndpointRow(props: {
