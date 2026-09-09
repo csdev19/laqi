@@ -139,3 +139,29 @@ describe('a cycle', () => {
     expect(result.diagnostics.map((d) => d.code)).toEqual(['loss.circular'])
   })
 })
+
+describe('nothing here reaches the network', () => {
+  it('refuses an external reference without ever calling fetch', () => {
+    const real = globalThis.fetch
+    let calls = 0
+    globalThis.fetch = (() => {
+      calls++
+      throw new Error('the compiler must not make a request')
+    }) as typeof fetch
+
+    try {
+      for (const ref of [
+        'https://example.test/invoice.json',
+        'http://example.test/a.json#/$defs/A',
+        'common.json#/$defs/A',
+        '/absolute.json',
+      ]) {
+        expect(compileSchema({ $ref: ref }).ok, ref).toBe(false)
+      }
+    } finally {
+      globalThis.fetch = real
+    }
+
+    expect(calls).toBe(0)
+  })
+})
