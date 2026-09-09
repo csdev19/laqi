@@ -4,8 +4,8 @@ title: JSON Schema and adapters — design spec
 
 # JSON Schema and adapters — design spec
 
-**Status:** draft spec, derived from [Plan 14](/plans/2026-09-07-14-json-schema-adapters/) and its twelve-point review; pre-implementation
-**Date:** 2026-09-07
+**Status:** phase 1 implemented; phases 2-6 not started. Derived from [Plan 14](/plans/2026-09-07-14-json-schema-adapters/) and its twelve-point review
+**Date:** 2026-09-07, revised 2026-09-09 by what phase 1 measured
 **Supersedes:** the section "One source of truth: the data. Models are never persisted" in [data-generators](/design/data-generators/), and the `generatedFrom` experiment of [ADR-0013](/decisions/0013-mocks-remember-their-model/) (PR #61) and the compact-recipe experiment that followed it
 
 This document turns Plan 14 into contracts an implementer can build and a
@@ -15,6 +15,21 @@ implementation evidence, this spec says so and does not decide it.
 
 Normative statements use **must** / **must not**. Code blocks marked
 _illustrative_ show intent, not final declarations.
+
+## What phase 1 changed here
+
+Phase 1 pinned today's generation behaviour in `packages/generate/goldens/` and
+declared the contracts in `packages/schema`. Four statements in the first draft did
+not survive that, and are corrected in place:
+
+| Was                                                         | Is                                                                                       |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| An optional property is present with probability 0.5        | Every property is generated, optional or not                                             |
+| A record generates `arrayLength` keys                       | A record generates exactly two keys, whatever `arrayLength` says                         |
+| One "Kind" column holding `loss`, `error` and `information` | Kind, severity and acknowledgeability are three columns; error-severity codes are `loss` |
+| A stored document may be a boolean                          | A stored root document is always an object; a nested boolean is still a schema           |
+
+The first two would each have broken the emitter invariant on its first fixture.
 
 ## What this specifies
 
@@ -108,6 +123,11 @@ Rules:
 - `document.$schema` **must** be `https://json-schema.org/draft/2020-12/schema` on
   every stored document. An adapter that received another dialect normalizes and
   records a `dialect.normalized` diagnostic.
+- A **stored root document is always an object.** `true` and `false` are legal
+  JSON Schema values and appear nested — `items: false` is how a tuple closes — but
+  the root is where the dialect is declared and a boolean has nowhere to declare
+  it. A root `true` is stored as `{}`; a root `false` fails as `unsatisfiable` and
+  is never stored.
 - The document is stored **as produced**. laqi **must not** add
   `additionalProperties: false` to an imported document, and **must not** remove
   it when the source supplied it. The TypeScript adapter emits it, because closed
@@ -150,30 +170,44 @@ type Diagnostic = {
 }
 ```
 
-`kind: 'loss'` means the document does not say what the source said. Every loss
-diagnostic is persisted with the snapshot and replayed by regeneration and export
-after a reload. `kind: 'information'` is persisted too, and never blocks.
+`kind` and `severity` answer different questions, and a diagnostic carries both.
+`kind` says what was lost: `loss` means the document does not say what the source
+said, `information` means laqi did something worth reporting that changed no
+meaning. `severity` says whether the import can proceed: `error` never can,
+`warning` is blocked by the strict default and may be acknowledged when the code
+allows it. A rejected import is `kind: 'loss'` — nothing of the source survived it
+— which is what lets the loss policy read one field to decide whether to refuse.
 
-Initial code list. Phase 1 finalizes it; codes are stable once shipped.
+Every diagnostic, of either kind, is persisted with the snapshot and replayed by
+regeneration and export after a reload.
 
-| Code                        | Kind        | Raised when                                                                                |
-| --------------------------- | ----------- | ------------------------------------------------------------------------------------------ |
-| `loss.unresolved-type`      | loss        | A TypeScript type resolved to `any`/`unknown`, usually an absent import                    |
-| `loss.union-narrowed`       | loss        | A mixed union was narrowed to one member                                                   |
-| `loss.function`             | loss        | A callable type has no data form                                                           |
-| `loss.index-signature`      | loss        | Named properties and a string index existed together; the index was dropped                |
-| `loss.depth`                | loss        | Nesting exceeded the budget                                                                |
-| `loss.circular`             | loss        | A self-reference was cut                                                                   |
-| `loss.approximated`         | loss        | An acknowledged generation approximation was applied (see loss policy)                     |
-| `unsupported.keyword`       | error       | A keyword outside the supported vocabulary                                                 |
-| `unsupported.combination`   | error       | An `anyOf`/`oneOf`/`allOf` case outside the supported set                                  |
-| `invalid.document`          | error       | Not a JSON Schema, or fails the meta-schema                                                |
-| `unsatisfiable`             | error       | No JSON value can satisfy the document (`false`, empty `enum`, `minItems` > `maxItems`, …) |
-| `dialect.unknown`           | error       | `$schema` names a dialect laqi does not normalize                                          |
-| `dialect.normalized`        | information | draft-07 or OpenAPI 3.0 forms were rewritten to 2020-12                                    |
-| `budget.exceeded`           | error       | Bytes, nodes, references or output values exceeded a limit                                 |
-| `side.selected`             | information | Which Standard JSON Schema side was used                                                   |
-| `export.tuple-approximated` | loss        | An exporter rendered a tuple as a union-typed array                                        |
+The table is the source of truth: `diagnostic(code, message)` reads kind and
+severity from it, and a stored diagnostic whose kind or severity disagrees with its
+code is refused on load. Codes are stable once shipped. Implemented in
+`packages/schema/src/diagnostics.ts`.
+
+| Code                        | Kind        | Severity | May be acknowledged | Raised when                                                                                |
+| --------------------------- | ----------- | -------- | ------------------- | ------------------------------------------------------------------------------------------ |
+| `loss.unresolved-type`      | loss        | warning  | yes                 | A TypeScript type resolved to `any`/`unknown`, usually an absent import                    |
+| `loss.union-narrowed`       | loss        | warning  | yes                 | A mixed union was narrowed to one member                                                   |
+| `loss.function`             | loss        | warning  | yes                 | A callable type has no data form                                                           |
+| `loss.index-signature`      | loss        | warning  | yes                 | Named properties and a string index existed together; the index was dropped                |
+| `loss.depth`                | loss        | warning  | no                  | Nesting exceeded the budget                                                                |
+| `loss.circular`             | loss        | warning  | yes                 | A self-reference was cut                                                                   |
+| `loss.approximated`         | loss        | warning  | yes                 | An acknowledged generation approximation was applied (see loss policy)                     |
+| `export.tuple-approximated` | loss        | warning  | yes                 | An exporter rendered a tuple as a union-typed array                                        |
+| `unsupported.keyword`       | loss        | error    | no                  | A keyword outside the supported vocabulary                                                 |
+| `unsupported.combination`   | loss        | error    | no                  | An `anyOf`/`oneOf`/`allOf` case outside the supported set                                  |
+| `invalid.document`          | loss        | error    | no                  | Not a JSON Schema, or fails the meta-schema                                                |
+| `unsatisfiable`             | loss        | error    | no                  | No JSON value can satisfy the document (`false`, empty `enum`, `minItems` > `maxItems`, …) |
+| `dialect.unknown`           | loss        | error    | no                  | `$schema` names a dialect laqi does not normalize                                          |
+| `budget.exceeded`           | loss        | error    | no                  | Bytes, nodes, references or output values exceeded a limit                                 |
+| `dialect.normalized`        | information | warning  | n/a                 | draft-07 or OpenAPI 3.0 forms were rewritten to 2020-12                                    |
+| `side.selected`             | information | warning  | n/a                 | Which Standard JSON Schema side was used                                                   |
+
+`loss.depth` is the one warning that cannot be acknowledged: the fix is to raise the
+budget or trim the source, not to store a truncated document. So acknowledgeability
+is its own column, not something read off `severity`.
 
 ### `GenerationEvidence`
 
@@ -272,24 +306,33 @@ keyword outside it.
 `shapeToJsonSchema` emits exactly these forms today, and each has a generation
 meaning the compiler **must** honor:
 
-| Emitted form                                                                    | From Shape        | Generation meaning                                                                                                                    |
-| ------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `{ type: 'string' }`                                                            | primitive string  | faker string; field-name heuristics apply                                                                                             |
-| `{ type: 'number' }`                                                            | primitive number  | faker number; field-name heuristics apply                                                                                             |
-| `{ type: 'integer' }`                                                           | primitive integer | faker integer                                                                                                                         |
-| `{ type: 'boolean' }`                                                           | primitive boolean | random boolean                                                                                                                        |
-| `{ type: 'null' }`                                                              | primitive null    | `null`                                                                                                                                |
-| `{ type: 'string', format: 'date-time' }`                                       | primitive date    | ISO 8601 date-time string; the date heuristics apply                                                                                  |
-| `{}`                                                                            | unknown           | `null` (see the loss policy for whether it may be stored)                                                                             |
-| `{ enum: [...] }`                                                               | literals          | one member of the enum, uniformly                                                                                                     |
-| `{ type: 'object', properties, required, additionalProperties: false }`         | object            | every property in `required`; each optional property present with probability 0.5 unless `options` say otherwise; no extra properties |
-| `{ type: 'object', additionalProperties: <schema> }` with no `properties`       | record            | `arrayLength` keys, each value from the schema                                                                                        |
-| `{ type: 'array', items: <schema> }`                                            | array             | `arrayLength` items                                                                                                                   |
-| `{ type: 'array', prefixItems: [...], items: false, minItems: n, maxItems: n }` | tuple             | exactly `n` items, each from its positional schema                                                                                    |
+| Emitted form                                                                    | From Shape        | Generation meaning                                                   |
+| ------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| `{ type: 'string' }`                                                            | primitive string  | faker string; field-name heuristics apply                            |
+| `{ type: 'number' }`                                                            | primitive number  | faker number; field-name heuristics apply                            |
+| `{ type: 'integer' }`                                                           | primitive integer | faker integer                                                        |
+| `{ type: 'boolean' }`                                                           | primitive boolean | random boolean                                                       |
+| `{ type: 'null' }`                                                              | primitive null    | `null`                                                               |
+| `{ type: 'string', format: 'date-time' }`                                       | primitive date    | ISO 8601 date-time string; the date heuristics apply                 |
+| `{}`                                                                            | unknown           | `null` (see the loss policy for whether it may be stored)            |
+| `{ enum: [...] }`                                                               | literals          | one member of the enum, uniformly                                    |
+| `{ type: 'object', properties, required, additionalProperties: false }`         | object            | every property in `properties`, required or not; no extra properties |
+| `{ type: 'object', additionalProperties: <schema> }` with no `properties`       | record            | exactly two keys, each value from the schema                         |
+| `{ type: 'array', items: <schema> }`                                            | array             | `arrayLength` items                                                  |
+| `{ type: 'array', prefixItems: [...], items: false, minItems: n, maxItems: n }` | tuple             | exactly `n` items, each from its positional schema                   |
 
-Optional-property probability and record key generation match today's `generate()`
-behavior exactly; phase 1 characterizes both and pins them in tests before phase 2
-begins.
+Both rows describe what phase 1 measured, not what the plan assumed. Today's
+`generate()` emits **every** property of an object, optional or not — deliberately,
+so a mock shows the full shape of what an endpoint can return — and emits **two**
+keys for a record regardless of `arrayLength`. Earlier drafts of this spec said
+"probability 0.5" and "`arrayLength` keys"; neither was true, and either would have
+broken the invariant above on its first fixture.
+
+Both are pinned in `packages/generate/goldens/`. Changing either is a deliberate
+behaviour change to `generate()`, made in its own commit with the golden diff read,
+and is out of scope for the compiler. The record's fixed two is the weaker of the
+two: it ignores an option the caller set, and is the more likely of the pair to be
+revisited.
 
 ### Additive support
 
