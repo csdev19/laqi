@@ -30,6 +30,16 @@ export type PlanLiteral = string | number | boolean | null
 
 export type PlanField = { name: string; plan: Plan; optional: boolean }
 
+/** Numeric bounds a document asserted. Absent means the field-name rules decide. */
+export type NumberRule = { minimum?: number; maximum?: number; multipleOf?: number }
+
+/** The string formats laqi generates. `date-time` is not here: it is the `date` primitive. */
+export type TextFormat = 'date' | 'email' | 'uri' | 'uuid'
+
+export type TextRule = { minLength?: number; maxLength?: number; format?: TextFormat }
+
+export type ItemsRule = { min?: number; max?: number; unique?: boolean }
+
 /**
  * The rules the generator executes.
  *
@@ -44,11 +54,11 @@ export type PlanField = { name: string; plan: Plan; optional: boolean }
  */
 export type Plan =
   | { kind: 'object'; fields: PlanField[] }
-  | { kind: 'array'; items: Plan }
+  | { kind: 'array'; items: Plan; length?: ItemsRule }
   | { kind: 'tuple'; items: Plan[] }
   | { kind: 'record'; values: Plan }
   | { kind: 'literals'; values: PlanLiteral[] }
-  | { kind: 'primitive'; type: PrimitiveType }
+  | { kind: 'primitive'; type: PrimitiveType; number?: NumberRule; text?: TextRule }
   | { kind: 'choice'; options: Plan[] }
   | { kind: 'unknown' }
 
@@ -89,6 +99,14 @@ export function liftShape(shape: Shape): Plan {
  * never sees a bare throw.
  */
 class BudgetExceededError extends Error {}
+
+/**
+ * Raised when the plan's own constraints admit no value — bounds that cross,
+ * a multipleOf with no multiple in range, more distinct items than the
+ * element schema can produce. Generating something wrong would be worse
+ * than failing, so this stops the call.
+ */
+class UnsatisfiableError extends Error {}
 
 /**
  * Plan → data. faker (seeded) provides the values; the field-name rules make
@@ -154,7 +172,7 @@ export const generateFromPlanEffect = (
         case 'object':
           return Object.fromEntries(node.fields.map((f) => [f.name, valueFor(f.plan, f.name)]))
         case 'array':
-          return Array.from({ length: clampedArrayLength }, () => valueFor(node.items, fieldName))
+          return arrayFor(node, fieldName)
         case 'tuple':
           // Exactly one value per element plan, in order — arrayLength does
           // not apply here, arity comes from the tuple itself. This is the
@@ -175,29 +193,114 @@ export const generateFromPlanEffect = (
         case 'unknown':
           return null
         case 'primitive':
-          return primitiveFor(node.type, fieldName)
+          return primitiveFor(node, fieldName)
       }
     }
 
-    function primitiveFor(type: PrimitiveType, fieldName: string): unknown {
+    function arrayFor(node: Plan & { kind: 'array' }, fieldName: string): unknown {
+      const rule = node.length
+      const length = rule
+        ? Math.max(rule.min ?? 1, Math.min(clampedArrayLength, rule.max ?? clampedArrayLength))
+        : clampedArrayLength
+
+      if (!rule?.unique) {
+        return Array.from({ length }, () => valueFor(node.items, fieldName))
+      }
+
+      // Distinctness is compared on the serialised value, so two objects
+      // with the same contents count as one — which is what `uniqueItems`
+      // means. The attempt ceiling keeps a plan that cannot produce enough
+      // distinct values (five unique booleans) from spinning; failing is
+      // the honest answer, since a short array would break the document
+      // that asked for the length.
+      const seen = new Map<string, unknown>()
+      for (let attempt = 0; attempt < length * 20 && seen.size < length; attempt++) {
+        const candidate = valueFor(node.items, fieldName)
+        seen.set(JSON.stringify(candidate) ?? 'undefined', candidate)
+      }
+      if (seen.size < length) {
+        throw new UnsatisfiableError(
+          `this array asks for ${length} distinct items, and its element schema does not have that many`,
+        )
+      }
+      return [...seen.values()]
+    }
+
+    function primitiveFor(node: Plan & { kind: 'primitive' }, fieldName: string): unknown {
+      const type = node.type
       if (type === 'null') return null
       if (type === 'boolean') return faker.datatype.boolean()
       if (type === 'date') return faker.date.recent({ days: 90 }).toISOString()
 
       if (type === 'integer' || type === 'number') {
+        // A document's bounds are an assertion about the data; a field-name
+        // rule is only a cosmetic guess. So the bounds win where both apply.
+        if (node.number) return boundedNumber(node.number, type)
         const rules = numberRules(idCounters, fieldName, type)
         const rule = rules.find((r) => r.when(fieldName))!
         return rule.use(faker)
       }
 
+      if (node.text) return constrainedText(node.text)
       const rule = STRING_RULES.find((r) => r.when(fieldName))!
       return rule.use(faker)
+    }
+
+    function boundedNumber(rule: NumberRule, type: 'number' | 'integer'): number {
+      const min = rule.minimum ?? 0
+      const max = rule.maximum ?? min + 1000
+
+      if (rule.multipleOf !== undefined) {
+        const step = rule.multipleOf
+        const lowest = Math.ceil(min / step)
+        const highest = Math.floor(max / step)
+        if (lowest > highest) {
+          throw new UnsatisfiableError(`no multiple of ${step} lies between ${min} and ${max}`)
+        }
+        return faker.number.int({ min: lowest, max: highest }) * step
+      }
+
+      if (min > max) {
+        throw new UnsatisfiableError(`no value lies between ${min} and ${max}`)
+      }
+      return type === 'integer'
+        ? faker.number.int({ min: Math.ceil(min), max: Math.floor(max) })
+        : faker.number.float({ min, max, fractionDigits: 2 })
+    }
+
+    function constrainedText(rule: TextRule): string {
+      const formatted = rule.format ? textForFormat(rule.format) : undefined
+      // A length asserted by the document wins over the shape of a format:
+      // a truncated uuid still satisfies maxLength, an over-long one does
+      // not satisfy the document at all.
+      if (rule.minLength === undefined && rule.maxLength === undefined) {
+        return formatted ?? faker.lorem.words(2)
+      }
+      const min = rule.minLength ?? 0
+      const max = Math.max(min, rule.maxLength ?? Math.max(min, 12))
+      const base = formatted ?? faker.string.alpha({ length: { min: max, max } })
+      return base.length > max
+        ? base.slice(0, max)
+        : base.padEnd(min, faker.string.alpha({ length: 1 }))
+    }
+
+    function textForFormat(format: TextFormat): string {
+      switch (format) {
+        case 'date':
+          return faker.date.recent({ days: 90 }).toISOString().slice(0, 10)
+        case 'email':
+          return faker.internet.email()
+        case 'uri':
+          return faker.internet.url()
+        case 'uuid':
+          return faker.string.uuid()
+      }
     }
 
     return yield* Effect.try({
       try: () => valueFor(plan, ''),
       catch: (e) =>
-        e instanceof BudgetExceededError
+        e instanceof BudgetExceededError || e instanceof UnsatisfiableError
           ? new GenerateError({ message: e.message })
           : new GenerateError({ message: String(e) }),
     })

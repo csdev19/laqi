@@ -1,5 +1,13 @@
 import { diagnostic, type Diagnostic } from '@laqi/schema'
-import type { Plan, PlanField, PlanLiteral } from './plan'
+import type {
+  ItemsRule,
+  NumberRule,
+  Plan,
+  PlanField,
+  PlanLiteral,
+  TextFormat,
+  TextRule,
+} from './plan'
 import { MAX_SHAPE_DEPTH, type PrimitiveType } from './shape'
 
 /**
@@ -111,17 +119,34 @@ function compile(node: unknown, pointer: string, ctx: Ctx): Plan {
   // any other keyword is read.
   if (keywords.includes('$ref')) return reference(node, pointer, keywords, ctx)
 
-  // `enum` decides on its own: it lists the permitted values outright, so
-  // whatever `type` says about them is already implied.
+  // `enum` and `const` decide on their own: they list the permitted values
+  // outright, so whatever `type` says about them is already implied.
   if (keywords.includes('enum')) return literals(node, pointer, keywords)
+  if (keywords.includes('const')) return constant(node, pointer, keywords)
+
+  // A choice between alternatives, each of which laqi must be able to
+  // generate on its own.
+  for (const keyword of ['anyOf', 'oneOf'] as const) {
+    if (keywords.includes(keyword)) return alternatives(node, keyword, pointer, keywords, ctx)
+  }
+  if (keywords.includes('allOf')) return intersection(node, pointer, keywords, ctx)
 
   const type = node.type
   if (type === undefined) {
     reject(keywords, [], node, pointer)
     return { kind: 'unknown' }
   }
+
+  // A list of type names is a choice between them, each still subject to
+  // the keywords beside it.
+  if (Array.isArray(type)) return typeUnion(node, type, pointer, keywords, ctx)
+
   if (typeof type !== 'string') {
-    refuse('unsupported.keyword', `"type" must name one type here, not ${typeof type}`, pointer)
+    refuse(
+      'unsupported.keyword',
+      `"type" must be a name or a list of names, not ${typeof type}`,
+      pointer,
+    )
   }
 
   switch (type) {
@@ -133,6 +158,7 @@ function compile(node: unknown, pointer: string, ctx: Ctx): Plan {
       return string(node, pointer, keywords)
     case 'number':
     case 'integer':
+      return number(node, type, pointer, keywords)
     case 'boolean':
     case 'null':
       reject(keywords, ['type'], node, pointer)
@@ -188,15 +214,217 @@ function literals(node: Record<string, unknown>, pointer: string, keywords: stri
   return { kind: 'literals', values: values as PlanLiteral[] }
 }
 
+/** The string formats laqi can produce a value for. Anything else is refused. */
+const TEXT_FORMATS = new Set<TextFormat>(['date', 'email', 'uri', 'uuid'])
+
 function string(node: Record<string, unknown>, pointer: string, keywords: string[]): Plan {
-  // The one format the minimum vocabulary carries, because it is the only
-  // one a Shape can express: `date` is a distinct primitive to the generator.
-  if (node.format === 'date-time') {
-    reject(keywords, ['type', 'format'], node, pointer)
-    return { kind: 'primitive', type: 'date' }
+  reject(keywords, ['type', 'format', 'minLength', 'maxLength'], node, pointer)
+
+  const format = node.format
+  // `date-time` is not a string format to the generator: it is the `date`
+  // primitive, which is what a Shape calls the same thing.
+  if (format === 'date-time') {
+    if (node.minLength === undefined && node.maxLength === undefined) {
+      return { kind: 'primitive', type: 'date' }
+    }
   }
-  reject(keywords, ['type'], node, pointer)
-  return { kind: 'primitive', type: 'string' }
+
+  const rule: TextRule = {}
+  const minLength = numeric(node, 'minLength', pointer)
+  const maxLength = numeric(node, 'maxLength', pointer)
+  if (minLength !== undefined) rule.minLength = minLength
+  if (maxLength !== undefined) rule.maxLength = maxLength
+  if (minLength !== undefined && maxLength !== undefined && minLength > maxLength) {
+    refuse(
+      'unsatisfiable',
+      `"minLength" is ${minLength} and "maxLength" is ${maxLength}, so no string satisfies both`,
+      pointer,
+    )
+  }
+
+  if (format !== undefined) {
+    const named = format === 'date-time' ? 'date' : format
+    if (typeof named !== 'string' || !TEXT_FORMATS.has(named as TextFormat)) {
+      refuse(
+        'unsupported.keyword',
+        `laqi generates the formats ${[...TEXT_FORMATS].join(', ')} and date-time; it has no generator for ${JSON.stringify(format)}`,
+        pointer,
+      )
+    }
+    rule.format = named as TextFormat
+  }
+
+  return Object.keys(rule).length === 0
+    ? { kind: 'primitive', type: 'string' }
+    : { kind: 'primitive', type: 'string', text: rule }
+}
+
+/** One numeric keyword, checked to be a real number rather than trusted. */
+function numeric(
+  node: Record<string, unknown>,
+  keyword: string,
+  pointer: string,
+): number | undefined {
+  const value = node[keyword]
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    refuse('invalid.document', `"${keyword}" must be a number`, pointer)
+  }
+  return value
+}
+
+function constant(node: Record<string, unknown>, pointer: string, keywords: string[]): Plan {
+  const value = node.const
+  const kind = value === null ? 'null' : typeof value
+  if (!['string', 'number', 'boolean', 'null'].includes(kind)) {
+    refuse('unsupported.keyword', `laqi generates only scalar constants, not ${kind}`, pointer)
+  }
+  reject(keywords, ['const', 'type'], node, pointer)
+  return { kind: 'literals', values: [value as PlanLiteral] }
+}
+
+function number(
+  node: Record<string, unknown>,
+  type: 'number' | 'integer',
+  pointer: string,
+  keywords: string[],
+): Plan {
+  reject(
+    keywords,
+    ['type', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
+    node,
+    pointer,
+  )
+
+  const step = type === 'integer' ? 1 : Number.EPSILON
+  const exclusiveMinimum = numeric(node, 'exclusiveMinimum', pointer)
+  const exclusiveMaximum = numeric(node, 'exclusiveMaximum', pointer)
+  const minimum = numeric(node, 'minimum', pointer) ?? bump(exclusiveMinimum, step)
+  const maximum = numeric(node, 'maximum', pointer) ?? bump(exclusiveMaximum, -step)
+  const multipleOf = numeric(node, 'multipleOf', pointer)
+
+  if (minimum !== undefined && maximum !== undefined && minimum > maximum) {
+    refuse(
+      'unsatisfiable',
+      `the bounds ${minimum} and ${maximum} cross, so no number satisfies them`,
+      pointer,
+    )
+  }
+  if (multipleOf !== undefined && multipleOf <= 0) {
+    refuse('invalid.document', '"multipleOf" must be greater than zero', pointer)
+  }
+
+  const rule: NumberRule = {}
+  if (minimum !== undefined) rule.minimum = minimum
+  if (maximum !== undefined) rule.maximum = maximum
+  if (multipleOf !== undefined) rule.multipleOf = multipleOf
+
+  return Object.keys(rule).length === 0
+    ? { kind: 'primitive', type }
+    : { kind: 'primitive', type, number: rule }
+}
+
+/** An exclusive bound becomes the nearest inclusive one the type can represent. */
+const bump = (bound: number | undefined, step: number): number | undefined =>
+  bound === undefined ? undefined : bound + step
+
+function typeUnion(
+  node: Record<string, unknown>,
+  types: unknown[],
+  pointer: string,
+  keywords: string[],
+  ctx: Ctx,
+): Plan {
+  if (types.length === 0) {
+    refuse('unsatisfiable', '"type" lists no types, so no value satisfies it', pointer)
+  }
+  const options = types.map((name) => {
+    if (typeof name !== 'string' || !(name in PRIMITIVES)) {
+      refuse(
+        'unsupported.keyword',
+        `a list of types holds primitive names only; ${JSON.stringify(name)} needs a schema of its own`,
+        pointer,
+      )
+    }
+    return compile({ ...node, type: name }, pointer, ctx)
+  })
+  return options.length === 1 ? options[0]! : { kind: 'choice', options }
+}
+
+/**
+ * `anyOf`/`oneOf` → a choice, but only between alternatives laqi can pick
+ * blindly. Choosing between two object shapes would mean deciding which one
+ * the API returns, which is the caller's decision and not laqi's.
+ */
+function alternatives(
+  node: Record<string, unknown>,
+  keyword: 'anyOf' | 'oneOf',
+  pointer: string,
+  keywords: string[],
+  ctx: Ctx,
+): Plan {
+  const members = node[keyword]
+  if (!Array.isArray(members) || members.length === 0) {
+    refuse('invalid.document', `"${keyword}" must be a non-empty array of schemas`, pointer)
+  }
+  reject(keywords, [keyword], node, pointer)
+
+  const options = members.map((member, index) =>
+    compile(member, `${pointer}/${keyword}/${index}`, deeper(ctx)),
+  )
+  for (const option of options) {
+    if (option.kind !== 'primitive' && option.kind !== 'literals' && option.kind !== 'choice') {
+      refuse(
+        'unsupported.combination',
+        `laqi picks between scalars and enums; this "${keyword}" offers a ${option.kind}, and choosing one would be laqi deciding what the API returns`,
+        pointer,
+      )
+    }
+  }
+  return options.length === 1 ? options[0]! : { kind: 'choice', options }
+}
+
+/**
+ * `allOf` → one merged object. Only disjoint objects merge: two members
+ * claiming the same property state two rules for it, and picking one would
+ * be guessing.
+ */
+function intersection(
+  node: Record<string, unknown>,
+  pointer: string,
+  keywords: string[],
+  ctx: Ctx,
+): Plan {
+  const members = node.allOf
+  if (!Array.isArray(members) || members.length === 0) {
+    refuse('invalid.document', '"allOf" must be a non-empty array of schemas', pointer)
+  }
+  reject(keywords, ['allOf', 'type'], node, pointer)
+
+  const fields: PlanField[] = []
+  const claimed = new Set<string>()
+  for (const [index, member] of members.entries()) {
+    const plan = compile(member, `${pointer}/allOf/${index}`, deeper(ctx))
+    if (plan.kind !== 'object') {
+      refuse(
+        'unsupported.combination',
+        `laqi merges "allOf" of objects; member ${index} is a ${plan.kind}`,
+        pointer,
+      )
+    }
+    for (const field of plan.fields) {
+      if (claimed.has(field.name)) {
+        refuse(
+          'unsupported.combination',
+          `two "allOf" members both describe ${JSON.stringify(field.name)}, and laqi will not choose between their rules`,
+          pointer,
+        )
+      }
+      claimed.add(field.name)
+      fields.push(field)
+    }
+  }
+  return { kind: 'object', fields }
 }
 
 function object(
@@ -297,8 +525,28 @@ function array(node: Record<string, unknown>, pointer: string, keywords: string[
       pointer,
     )
   }
-  reject(keywords, ['type', 'items'], node, pointer)
-  return { kind: 'array', items: compile(items, `${pointer}/items`, deeper(ctx)) }
+  reject(keywords, ['type', 'items', 'minItems', 'maxItems', 'uniqueItems'], node, pointer)
+
+  const min = numeric(node, 'minItems', pointer)
+  const max = numeric(node, 'maxItems', pointer)
+  if (min !== undefined && max !== undefined && min > max) {
+    refuse(
+      'unsatisfiable',
+      `"minItems" is ${min} and "maxItems" is ${max}, so no array satisfies both`,
+      pointer,
+    )
+  }
+
+  const rule: ItemsRule = {}
+  if (min !== undefined) rule.min = min
+  if (max !== undefined) rule.max = max
+  // Only `true` says anything: `uniqueItems: false` is the default.
+  if (node.uniqueItems === true) rule.unique = true
+
+  const plan = compile(items, `${pointer}/items`, deeper(ctx))
+  return Object.keys(rule).length === 0
+    ? { kind: 'array', items: plan }
+    : { kind: 'array', items: plan, length: rule }
 }
 
 /**
