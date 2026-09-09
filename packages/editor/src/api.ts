@@ -88,14 +88,18 @@ export const api = {
     if (options.response) query.set('response', options.response)
     if (options.lang) query.set('lang', options.lang)
     const suffix = query.size > 0 ? `?${query.toString()}` : ''
-    return request<{ code: string; language: string }>(
-      `/api/endpoints/${encodeURIComponent(id)}/types${suffix}`,
-    )
+    return request<{
+      code: string
+      language: string
+      origin?: 'recipe' | 'body'
+      warning?: string
+    }>(`/api/endpoints/${encodeURIComponent(id)}/types${suffix}`)
   },
 
   generateData: (input: GenerateDataInput) =>
     request<{
       preview: unknown
+      recipe?: string | unknown[]
       warnings: string[]
       typeName?: string
       candidates?: string[]

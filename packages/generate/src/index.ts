@@ -1,4 +1,5 @@
 export * from './shape'
+export * from './recipe'
 export * from './infer'
 export * from './json-schema'
 export * from './errors'

@@ -4,7 +4,7 @@ title: Storing models in mocks — how close laqi gets to being a source of trut
 
 # Storing models in mocks — how close laqi gets to being a source of truth
 
-**Status:** open — argues against [ADR-0013](/decisions/0013-mocks-remember-their-model/), which is written but unmerged (PR #61)
+**Status:** resolved — led to the revision of [ADR-0013](/decisions/0013-mocks-remember-their-model/)
 **Date:** 2026-09-06
 **Trigger:** "it would end up being a source of truth for laqi, when it should only deliver mock APIs"
 
@@ -187,11 +187,11 @@ models should come from**: store the recipe, never the definition, and make the
 long-term path one where the definition lives in the user's repository or spec and
 laqi points at it.
 
-The weight measurement is the honest problem with that: a Shape is 3.3× the source it
-came from, and 401% on the example file is not a rounding error. The Shape format was
-designed to be read by the generator, not to be committed. If B is chosen, the format
-needs a compact encoding before it goes into files people review — and that work is
-real, and it is not in ADR-0013's scope.
+The compact encoding is now implemented: tagged JSON arrays such as
+`["o", [["status", 0, ["l", ["draft", "issued"]]]]]`. Across the four example
+models it serializes 9–14% smaller than the original TypeScript source (`flat`:
+1,135 bytes versus 1,223). It is a recipe for Laqi, not a definition reviewers
+can mistake for a contract.
 
 Reverting costs nothing today. Both PRs are open and unmerged.
 
@@ -205,14 +205,16 @@ output laqi may remember as a recipe but never as a definition, and the real flo
 build is C — point at a type in the repository, or import a spec — with the paste box
 kept for the thirty-second case.
 
-Everything else here follows from that answer.
+The answer is no. Laqi retains local generation recipes; the contract lives in
+the user's repository or specification, and a future project-types/OpenAPI
+flow should point at that source.
 
 ## Ledger
 
 Not analysed yet, and deliberately not guessed at:
 
-- **The compact Shape encoding** option B needs. No format proposed, no size
-  measured. Until it exists, B's file-weight number stands as measured.
+- **Recipe deduplication.** The compact encoding is implemented, but repeated
+  large recipes are not deduplicated yet.
 - **What MCP agents do with this.** `create_endpoint` validates against the same
   schema, so an agent can write `generatedFrom` today. Whether agents should be
   allowed to, and what they would put there, has not been thought through.

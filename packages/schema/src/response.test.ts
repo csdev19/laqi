@@ -36,18 +36,17 @@ describe('ResponseSchema', () => {
   })
 })
 
-// A body cannot be turned back into the model that made it: JSON carries no
-// literal unions, no absent optionals and no tuples. The source is kept so
-// the panel can show what was pasted, and so regenerating reproduces the
-// shape instead of guessing it from one sample.
+// A body cannot be turned back into the recipe that made it: JSON carries no
+// literal unions, no absent optionals and no tuples. The recipe is retained
+// so regeneration is faithful without persisting a readable type definition.
 describe('generatedFrom', () => {
-  const model = 'export interface Todo { id: number }'
+  const recipe = ['o', [['id', 0, 'i']]]
 
-  it('accepts a response carrying the model it came from', () => {
+  it('accepts a response carrying the generation recipe it came from', () => {
     const result = ResponseSchema.safeParse({
       status: 200,
       body: { id: 1 },
-      generatedFrom: { typeName: 'Todo', model },
+      generatedFrom: { typeName: 'Todo', recipe },
     })
 
     expect(result.success).toBe(true)
@@ -55,22 +54,33 @@ describe('generatedFrom', () => {
   })
 
   // Every response written before this existed, and every one written by
-  // hand, has no model behind it.
+  // hand, has no recipe behind it.
   it('is optional', () => {
     expect(ResponseSchema.safeParse({ status: 200, body: {} }).success).toBe(true)
   })
 
-  it('refuses a half-filled record, which would say a model exists when none does', () => {
+  it('continues to load the legacy local source record without writing new ones', () => {
+    expect(
+      ResponseSchema.safeParse({
+        status: 200,
+        generatedFrom: { typeName: 'Todo', model: 'export interface Todo { id: number }' },
+      }).success,
+    ).toBe(true)
+  })
+
+  it('refuses a half-filled record, which would say a recipe exists when none does', () => {
     expect(
       ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: 'Todo' } }).success,
     ).toBe(false)
-    expect(ResponseSchema.safeParse({ status: 200, generatedFrom: { model } }).success).toBe(false)
+    expect(ResponseSchema.safeParse({ status: 200, generatedFrom: { recipe } }).success).toBe(false)
     expect(
-      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: '', model } }).success,
+      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: '', recipe } }).success,
     ).toBe(false)
     expect(
-      ResponseSchema.safeParse({ status: 200, generatedFrom: { typeName: 'Todo', model: '' } })
-        .success,
+      ResponseSchema.safeParse({
+        status: 200,
+        generatedFrom: { typeName: 'Todo', recipe: undefined },
+      }).success,
     ).toBe(false)
   })
 })

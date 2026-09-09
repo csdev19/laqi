@@ -86,7 +86,14 @@ export type ControlPlaneRuntime = {
     id: string,
     options: { response?: string; lang?: string },
   ) => Promise<
-    { ok: true; code: string; language: string } | { ok: false; error: string; code: WriteFailure }
+    | {
+        ok: true
+        code: string
+        language: string
+        origin?: 'recipe' | 'body'
+        warning?: string
+      }
+    | { ok: false; error: string; code: WriteFailure }
   >
   generateData: (input: GenerateRequest) => Promise<
       // `typeName` is the declaration the parser generated from. A model file
@@ -99,6 +106,8 @@ export type ControlPlaneRuntime = {
           preview: unknown
           warnings: string[]
           typeName?: string
+          /** Compact generation metadata, present for a pasted model. */
+          recipe?: string | unknown[]
           /** Every declaration the source offered, in source order. */
           candidates?: string[]
         }
@@ -424,6 +433,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
             warnings: result.warnings,
             typeName: result.typeName,
             candidates: result.candidates ?? [result.typeName],
+            ...(result.recipe === undefined ? {} : { recipe: result.recipe }),
           },
     )
   })

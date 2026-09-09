@@ -16,7 +16,7 @@ vi.mock('../api', () => ({
 const getTypes = vi.mocked(api.getTypes)
 const getLanguages = vi.mocked(api.getLanguages)
 
-const MODEL = 'export interface Invoice {\n  id: string\n  status: "paid" | "void"\n}\n'
+const RECIPE = ['o', [['id', 0, 's']]]
 
 beforeEach(() => {
   getTypes.mockResolvedValue({ code: 'interface Derived { id: string }', language: 'TypeScript' })
@@ -38,20 +38,28 @@ function renderPanel(response: Parameters<typeof TypesPanel>[0]['response']) {
 }
 
 describe('TypesPanel', () => {
-  it('shows the stored model, whole, when the body was generated from one', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
+  it('exports types from the stored generation recipe', async () => {
+    // The origin is the server's answer, not the panel's guess: only the
+    // server knows whether the stored recipe was usable.
+    getTypes.mockResolvedValue({
+      code: 'interface Derived { id: string }',
+      language: 'TypeScript',
+      origin: 'recipe',
+    })
+    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', recipe: RECIPE } })
 
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain(MODEL.trim()))
-    expect(screen.getByText(/the Invoice model this body was generated from/)).toBeTruthy()
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
+    expect(screen.getByText(/exported from Laqi’s Invoice generation recipe/)).toBeTruthy()
   })
 
-  // Reading a model that is already in hand costs nothing; asking the server
-  // to guess one from the body would be a round trip nobody reads.
-  it('does not ask the server for types it already has', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
+  it('asks the server to print the recipe in the selected language', async () => {
+    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', recipe: RECIPE } })
 
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Invoice'))
-    expect(getTypes).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
+    expect(getTypes).toHaveBeenCalledWith('GET /invoices', {
+      response: 'ok',
+      lang: 'typescript',
+    })
   })
 
   it('derives from the body when there is no model behind it', async () => {
@@ -65,11 +73,14 @@ describe('TypesPanel', () => {
     expect(screen.getByText('derived from the body')).toBeTruthy()
   })
 
-  // The stored model can only be TypeScript, so asking for Go is asking for
-  // the derived form, and the panel says so rather than showing nothing.
-  it('falls back to derived types when another language is asked for', async () => {
-    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', model: MODEL } })
-    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Invoice'))
+  it('exports a recipe to another language without a TypeScript fallback', async () => {
+    getTypes.mockResolvedValue({
+      code: 'interface Derived { id: string }',
+      language: 'TypeScript',
+      origin: 'recipe',
+    })
+    renderPanel({ status: 200, generatedFrom: { typeName: 'Invoice', recipe: RECIPE } })
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
 
     const select = screen.getByLabelText('types language') as HTMLSelectElement
     await waitFor(() => expect(select.options).toHaveLength(2))
@@ -79,7 +90,7 @@ describe('TypesPanel', () => {
     await waitFor(() =>
       expect(getTypes).toHaveBeenCalledWith('GET /invoices', { response: 'ok', lang: 'go' }),
     )
-    expect(await screen.findByText(/the stored model is TypeScript/)).toBeTruthy()
+    expect(await screen.findByText(/generation recipe/)).toBeTruthy()
   })
 
   it('reports a failure to derive rather than showing an empty panel', async () => {

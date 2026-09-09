@@ -220,15 +220,30 @@ export async function startServer(options: {
           }
         }
 
-        const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+        const { inferShape, printTypes, typeNameFor, unpackShape } = await import('@laqi/generate')
         try {
-          // Types are a VIEW of the live data — never persisted, never stale.
-          const shape = inferShape(response.body ?? null)
+          // A recipe is faithful generation metadata, never an assertion that
+          // the current body conforms to it. It is still the best source for
+          // an export because JSON cannot retain unions, optionals or tuples.
+          const from = response.generatedFrom
+          const unpacked = from && 'recipe' in from ? unpackShape(from.recipe) : undefined
+          const origin = unpacked?.ok ? 'recipe' : 'body'
+          const shape = unpacked?.ok ? unpacked.shape : inferShape(response.body ?? null)
           const printed = await printTypes(shape, {
-            typeName: typeNameFor(id),
+            typeName: from?.typeName ?? typeNameFor(id),
             lang: typesOptions.lang,
           })
-          return { ok: true, ...printed }
+          return {
+            ok: true,
+            ...printed,
+            origin,
+            ...(from && 'recipe' in from && !unpacked?.ok
+              ? {
+                  warning:
+                    'the stored generation recipe is invalid — types were derived from the body',
+                }
+              : {}),
+          }
         } catch (error) {
           return {
             ok: false,
@@ -238,7 +253,8 @@ export async function startServer(options: {
         }
       },
       generateData: async (input) => {
-        const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+        const { generate, inferShape, packShape, parseTypes, unpackShape } =
+          await import('@laqi/generate')
         const generateOptions = { seed: input.seed, arrayLength: input.arrayLength }
 
         // Same shape as getTypes just above: a malformed or unrepresentable
@@ -255,6 +271,7 @@ export async function startServer(options: {
             return {
               ok: true,
               preview,
+              recipe: packShape(parsed.shape),
               warnings: parsed.warnings,
               typeName: parsed.typeName,
               candidates: parsed.candidates,
@@ -277,33 +294,34 @@ export async function startServer(options: {
               code: 'not-found',
             }
           }
-          // The model, when the response carries one. Re-inferring from the
+          // The recipe, when the response carries one. Re-inferring from the
           // body is a lossy fallback: one sample cannot show that a field
           // was a literal union, that an absent optional exists, or that an
           // array was a fixed-length tuple — regenerating a `[number,
-          // number]` from data produced three numbers. The model has all of
-          // that, so it wins whenever it is there.
+          // number]` from data produced three numbers. The recipe has all of
+          // that, so it wins whenever it is valid.
           const from = response.generatedFrom
-          if (from) {
-            const parsed = await parseTypes(from.model, from.typeName)
-            if (parsed.ok) {
-              const preview = await generate(parsed.shape, generateOptions)
+          if (from && 'recipe' in from) {
+            const unpacked = unpackShape(from.recipe)
+            if (unpacked.ok) {
+              const preview = await generate(unpacked.shape, generateOptions)
               return {
                 ok: true,
                 preview,
-                warnings: parsed.warnings,
-                typeName: parsed.typeName,
-                candidates: parsed.candidates,
+                warnings: [],
+                typeName: from.typeName,
               }
             }
-            // A model that no longer parses is not a reason to refuse: the
+            // A hand-edited invalid recipe is not a reason to refuse: the
             // body is still there to infer from, and the developer is told.
           }
           const preview = await generate(inferShape(response.body ?? null), generateOptions)
           return {
             ok: true,
             preview,
-            warnings: from ? ['the stored model no longer parses — regenerated from the body'] : [],
+            warnings: from
+              ? ['the stored generation recipe is invalid — regenerated from the body']
+              : [],
           }
         } catch (error) {
           return {

@@ -1,37 +1,28 @@
 ---
-title: ADR-0013 — Mock files remember the model a body was generated from
+title: ADR-0013 — Mock files retain a generation recipe
 ---
 
-# ADR-0013 — Mock files remember the model a body was generated from
+# ADR-0013 — Mock files retain a generation recipe
 
-**Status:** Accepted — under challenge, see [Storing models in mocks](/adversarial/storing-models-in-mocks/)
+**Status:** Accepted — revised after [Storing models in mocks](/adversarial/storing-models-in-mocks/)
 **Date:** 2026-09-06
 
 ## Context
 
-A response body can be generated from a pasted TypeScript model. Until now
-the model was used once and dropped: the file kept the generated data and
-nothing else, and `regenerate` re-inferred a shape from that data whenever
-new values were wanted.
+Laqi can generate a response body from a pasted TypeScript model. JSON cannot
+preserve all rules used to make that body: literal unions, optional properties,
+and tuple arity disappear in a sample. Regenerating from the body alone is
+therefore lossy.
 
-Two problems followed from that, both reported from the panel.
-
-**The endpoint stops explaining itself.** Opening `GET /invoices` a day
-later shows a body full of realistic values and no indication that it came
-from a model, let alone which one. The developer's words: "I don't know that
-this endpoint was made with a model."
-
-**Re-inferring is lossy, and silently so.** JSON carries no literal unions,
-no optional field that happens to be absent, and no tuples. A model
-declaring `coordinates: [number, number]` produces two numbers; regenerating
-from those two numbers produces three, because one sample cannot say the
-array had a fixed length. `status: 'draft' | 'issued' | 'paid' | 'void'`
-comes back as an arbitrary string.
+The first version of this ADR stored the pasted TypeScript. The adversarial
+analysis found that this puts a readable, stale type definition in a committed
+mock file. A reviewer can reasonably mistake it for the API contract even
+though Laqi neither owns nor validates that contract.
 
 ## Decision
 
-**A generated response stores the model it came from**, beside the body it
-produced:
+A generated response stores a compact **generation recipe**, not the TypeScript
+source it was generated from:
 
 ```json
 "ok": {
@@ -39,87 +30,59 @@ produced:
   "body": { "id": "inv_9c1f2a", "status": "issued" },
   "generatedFrom": {
     "typeName": "Invoice",
-    "model": "export interface Invoice {\n  readonly id: string\n  ...\n}\n"
+    "recipe": ["o", [["id", 0, "s"], ["status", 0, ["l", ["draft", "issued"]]]]]
   }
 }
 ```
 
-`generatedFrom` is optional and written only by the generator. Both fields
-are required together: half of it would claim a model exists when none
-does.
+`recipe` is tagged JSON for Laqi's internal `Shape`: `o` is an object, `s` a
+string, `l` a literal union, and `0` means a required field. It is compact,
+plain JSON, and deliberately not a language developers import or treat as a
+contract. `typeName` is only a helpful provenance label.
 
-Two things follow from having it:
-
-- The panel shows the model as it was pasted, every declaration included,
-  rather than only offering to copy types guessed from the body.
-- `regenerate` uses the model when there is one, and falls back to inferring
-  from the body — saying so — when the stored model no longer parses.
-
-## Why
-
-The relation is one to one, which is the argument that settled it: a model
-produces a body, and a body implies a model. Only one direction is
-lossless, so the lossy direction should not be the one the tool relies on
-when it does not have to be.
-
-The alternative reading — that a body is enough, because types can always be
-derived from it — is true only for the shape JSON can express. Every
-construct laqi's parser was built to understand is exactly what that
-derivation throws away.
-
-## Alternatives rejected
-
-**Derive the interface from the body, store nothing.** No format change, and
-the panel could still show an interface for every response including
-hand-written ones. Rejected because it cannot answer either half of the
-report: it cannot say that an endpoint came from a model, and the interface
-it shows is a guess that contradicts the model in the ways listed above.
-The derivation is kept, as the fallback for responses with no model.
-
-**Store only the type name.** A marker saying "this came from a model called
-Invoice", a few bytes, no source. Rejected because the developer asked to
-see the interface, and a name is not one.
-
-**Store the model outside the mock file**, in `.laqi/` beside the state.
-Rejected because `.laqi/` is deliberately outside git ([ADR-0004](/decisions/0004-state-outside-git/)):
-the model would survive on the machine that pasted it and vanish for
-everyone who cloned the repository, which is precisely when the endpoint
-most needs to explain itself.
+`generatedFrom` is optional and is written only by generation flows. A
+hand-written response has no recipe.
 
 ## Consequences
 
-**In favour:**
+- Regeneration uses the recipe directly, retaining literal unions, optionals,
+  and tuple arity without loading the TypeScript compiler again.
+- The panel exports the recipe to TypeScript and every other language supported
+  by the existing JSON Schema/quicktype bridge. It never displays the pasted
+  TypeScript source as authoritative.
+- The current body may intentionally diverge after a manual edit. The recipe
+  remains historical generation metadata, not a claim about what the API now
+  returns. If a recipe is malformed, Laqi warns and falls back to inferring the
+  body.
+- Everything stays local to the user's project. Laqi does not transmit or
+  centralize models, schemas, or example data.
 
-- An endpoint explains where its body came from, a week later and to
-  somebody who was not there.
-- Regeneration keeps literal unions, optional fields and tuple arity.
-- The model travels with the mocks, through git, to the whole team.
+## Alternatives rejected
 
-**Against:**
+**Store the pasted TypeScript source.** It enables exact source display but
+creates a readable copy that looks like a contract and can drift from the
+body and the user's real definitions.
 
-- Mock files grow by the size of the pasted model. A model is typically
-  smaller than the body it generates, but it is not nothing, and it sits in
-  a file people read and review.
-- The stored model can go stale. It records where the body came from, not
-  what the body currently is: editing the body by hand leaves the model
-  untouched and now describing something else. The panel labels it as the
-  model the body was _generated from_ for that reason, and never as the
-  body's current type.
+**Store nothing.** It keeps files smaller but makes regeneration silently
+lose information JSON cannot express.
+
+**Store only a type name.** It records provenance but cannot regenerate the
+lost rules.
+
+**Keep source in `.laqi/` state.** State outside git disappears for teammates
+who clone the mock project; the useful local recipe should travel with the
+mock it generated.
 
 ## Non-goals
 
-- **Validating bodies against the stored model.** laqi does not check that a
-  body still matches; a mock's whole job is sometimes to return something
-  wrong on purpose.
-- **Keeping the model in sync with the project's real types.** It is a copy
-  taken at paste time, not a reference to the source file it came from.
-- **Storing a model for a pasted JSON body.** The types for those are
-  derivable from the body, so a stored copy would only be a second thing to
-  keep in step.
+- Validating a body against the recipe. Mocks sometimes need invalid data on
+  purpose.
+- Making Laqi the owner of the project's types or OpenAPI specification.
+- Keeping a pasted model synchronized with project types. The durable future
+  is a project-types or OpenAPI flow that points to the user's source of
+  truth; the paste box remains a fast local convenience.
 
 ## What would reopen this
 
-A mock file where the stored models are a serious share of its weight —
-several endpoints generated from one large shared model, each carrying its
-own copy. The answer then is deduplication (one model, referenced by
-several responses), not dropping the record.
+If repeated large recipes become a material share of a mock file, add recipe
+deduplication. Do not reintroduce readable contract copies into mock files.

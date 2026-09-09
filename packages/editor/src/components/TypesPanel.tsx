@@ -7,15 +7,9 @@ import type { MockResponse } from '../types'
  * What this response's shape actually is, on screen rather than only on the
  * clipboard.
  *
- * Two sources, and the panel always says which one it is showing. A response
- * generated from a model carries that model, and that is the honest answer:
- * the whole file as pasted, every declaration, with the literal unions,
- * optional fields and tuples a body cannot carry. Anything else — a
- * hand-written response, a pasted JSON body, an endpoint from before any of
- * this existed — gets the types derived from the body it holds.
- *
- * Asking for a language other than TypeScript is asking for the derived
- * form: there is only one language the stored model could be in.
+ * The panel always prints an export from a Shape, never a type definition
+ * pasted by the developer. A stored recipe retains generation fidelity; a
+ * hand-written body is inferred as a lossy fallback.
  */
 export function TypesPanel(props: {
   endpointId: string
@@ -28,12 +22,15 @@ export function TypesPanel(props: {
   const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
     { name: 'typescript', displayName: 'TypeScript' },
   ])
-  const [derived, setDerived] = useState<string | null>(null)
+  const [derived, setDerived] = useState<{
+    code: string
+    origin: 'recipe' | 'body'
+    warning?: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const model = props.response?.generatedFrom
-  const showingModel = model !== undefined && lang === 'typescript'
-  const code = showingModel ? model.model : derived
+  const recipe = props.response?.generatedFrom
+  const code = derived?.code ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -50,17 +47,14 @@ export function TypesPanel(props: {
     }
   }, [])
 
-  // Derived types are fetched only when they are what is on screen. A
-  // response carrying a model does not pay for a round trip nobody reads.
   useEffect(() => {
-    if (showingModel) return
     let cancelled = false
     setError(null)
     setDerived(null)
     api
       .getTypes(props.endpointId, { response: props.responseName, lang })
-      .then(({ code: fetched }) => {
-        if (!cancelled) setDerived(fetched)
+      .then((fetched) => {
+        if (!cancelled) setDerived({ ...fetched, origin: fetched.origin ?? 'body' })
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause))
@@ -68,7 +62,7 @@ export function TypesPanel(props: {
     return () => {
       cancelled = true
     }
-  }, [props.endpointId, props.responseName, props.revision, lang, showingModel])
+  }, [props.endpointId, props.responseName, props.revision, lang])
 
   return (
     <div className="meta-field types-panel">
@@ -99,17 +93,14 @@ export function TypesPanel(props: {
         </button>
       </div>
 
-      {/* Never ambiguous about what is on screen: one of these is the source
-          the developer wrote, the other is a guess made from one sample. */}
       <p className="types-origin">
-        {showingModel
-          ? `the ${model.typeName} model this body was generated from`
-          : model !== undefined
-            ? 'derived from the body — the stored model is TypeScript'
-            : 'derived from the body'}
+        {derived?.origin === 'recipe' && recipe !== undefined
+          ? `exported from Laqi’s ${recipe.typeName} generation recipe`
+          : 'derived from the body'}
       </p>
 
       {error !== null ? <p className="form-error">{error}</p> : null}
+      {derived?.warning ? <p className="form-error">{derived.warning}</p> : null}
 
       <pre className="types-code mono" aria-label="types">
         {code === null

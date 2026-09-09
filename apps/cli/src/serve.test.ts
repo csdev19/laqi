@@ -670,9 +670,21 @@ describe('generation through a live server', () => {
       body,
     })
     expect(once.status).toBe(200)
-    const first = (await once.json()) as { preview: Record<string, unknown>; warnings: string[] }
+    const first = (await once.json()) as {
+      preview: Record<string, unknown>
+      recipe: unknown
+      warnings: string[]
+    }
     expect(typeof first.preview.id).toBe('number')
     expect(typeof first.preview.title).toBe('string')
+    expect(first.recipe).toEqual([
+      'o',
+      [
+        ['id', 0, 'n'],
+        ['title', 0, 's'],
+        ['done', 0, 'b'],
+      ],
+    ])
 
     const twice = await fetch(`http://127.0.0.1:${handle.port}/__laqi/api/generate/data`, {
       method: 'POST',

@@ -18,6 +18,7 @@ import {
   type HttpMethod,
   type LaqiConfig,
   type LaqiState,
+  type MockResponse,
   type Scenarios,
 } from '@laqi/schema'
 
@@ -424,8 +425,8 @@ export class Project {
     return ok({ cleared })
   }
 
-  /** The raw body of one response — what the generators derive shapes from. */
-  getResponseBody(id: string, responseName?: string): ProjectResult<unknown> {
+  /** One response including its optional local generation metadata. */
+  getResponse(id: string, responseName?: string): ProjectResult<MockResponse> {
     const endpoint = this.load().byId.get(id)
     if (endpoint === undefined) return fail(this.unknownEndpoint(id), 'not-found')
 
@@ -437,7 +438,13 @@ export class Project {
         'not-found',
       )
     }
-    return ok(response.body)
+    return ok(response)
+  }
+
+  /** The raw body of one response — what older callers derive shapes from. */
+  getResponseBody(id: string, responseName?: string): ProjectResult<unknown> {
+    const response = this.getResponse(id, responseName)
+    return response.ok ? ok(response.value.body) : response
   }
 
   private unknownEndpoint(id: string): string {

@@ -145,9 +145,8 @@ export function App() {
             [input.responseName]: {
               status: input.status,
               body: input.body ?? {},
-              // Kept beside the body it produced: a body cannot be turned
-              // back into the model that made it, so this is the only record
-              // of what was pasted.
+              // Kept beside the body it produced: a body cannot recover
+              // literal unions, optionals, or tuples from one sample.
               ...(input.generatedFrom ? { generatedFrom: input.generatedFrom } : {}),
             },
           },
@@ -176,6 +175,7 @@ export function App() {
       try {
         const {
           preview,
+          recipe,
           warnings: generationWarnings,
           typeName,
           candidates,
@@ -208,7 +208,7 @@ export function App() {
           responseName: input.responseName,
           status: input.status,
           body: preview,
-          ...(typeName ? { generatedFrom: { typeName, model: input.model } } : {}),
+          ...(typeName && recipe !== undefined ? { generatedFrom: { typeName, recipe } } : {}),
         })
       } catch (error) {
         setCreateError(error instanceof ApiError ? error.message : String(error))

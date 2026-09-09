@@ -283,7 +283,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Get the types of an endpoint',
       description:
-        'Derive a data model from the live response body of an endpoint, in any supported language (default "typescript"; try "typescript-zod", "swift", "kotlin", "python", …). Types are derived from the data on demand, so they are never stale.',
+        'Export a data model in any supported language (default "typescript"; try "typescript-zod", "swift", "kotlin", "python", …). A local generation recipe is used when present; otherwise the live body is inferred.',
       inputSchema: {
         endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
         response: z.string().optional().describe('Response name; defaults to the endpoint default'),
@@ -292,15 +292,21 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       annotations: { readOnlyHint: true },
     },
     async ({ endpointId, response, lang }) => {
-      const body = project.getResponseBody(endpointId, response)
-      if (!body.ok) return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
+      const found = project.getResponse(endpointId, response)
+      if (!found.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
 
-      const { inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
+      const { inferShape, printTypes, typeNameFor, unpackShape } = await import('@laqi/generate')
       try {
-        const printed = await printTypes(inferShape(body.value ?? null), {
-          typeName: typeNameFor(endpointId),
-          lang,
-        })
+        const from = found.value.generatedFrom
+        const unpacked = from && 'recipe' in from ? unpackShape(from.recipe) : undefined
+        const printed = await printTypes(
+          unpacked?.ok ? unpacked.shape : inferShape(found.value.body ?? null),
+          {
+            typeName: from?.typeName ?? typeNameFor(endpointId),
+            lang,
+          },
+        )
         return { content: [{ type: 'text' as const, text: printed.code }] }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
@@ -348,7 +354,8 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       annotations: { readOnlyHint: true },
     },
     async ({ model, typeName, from, arrayLength, seed }) => {
-      const { generate, inferShape, parseTypes } = await import('@laqi/generate')
+      const { generate, inferShape, packShape, parseTypes, unpackShape } =
+        await import('@laqi/generate')
       const genOptions = { arrayLength, seed }
 
       // Same shape as get_types just above: a malformed model or an
@@ -363,14 +370,33 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
           if (!parsed.ok)
             return { isError: true, content: [{ type: 'text' as const, text: parsed.error }] }
           const preview = await generate(parsed.shape, genOptions)
-          return text({ preview, warnings: parsed.warnings })
+          return text({
+            preview,
+            recipe: packShape(parsed.shape),
+            typeName: parsed.typeName,
+            warnings: parsed.warnings,
+          })
         }
         if (from !== undefined) {
-          const body = project.getResponseBody(from.endpointId, from.response)
-          if (!body.ok)
-            return { isError: true, content: [{ type: 'text' as const, text: body.error }] }
-          const preview = await generate(inferShape(body.value ?? null), genOptions)
-          return text({ preview, warnings: [] })
+          const found = project.getResponse(from.endpointId, from.response)
+          if (!found.ok)
+            return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
+          const stored = found.value.generatedFrom
+          const unpacked = stored && 'recipe' in stored ? unpackShape(stored.recipe) : undefined
+          const preview = await generate(
+            unpacked?.ok ? unpacked.shape : inferShape(found.value.body ?? null),
+            genOptions,
+          )
+          return text({
+            preview,
+            ...(stored && 'recipe' in stored && unpacked?.ok
+              ? { recipe: stored.recipe, typeName: stored.typeName }
+              : {}),
+            warnings:
+              unpacked && !unpacked.ok
+                ? ['the stored generation recipe is invalid — generated from the body']
+                : [],
+          })
         }
         return {
           isError: true,

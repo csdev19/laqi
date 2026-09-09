@@ -5,24 +5,38 @@ import { STATUS_MAX, STATUS_MIN } from './status-codes'
 export const MAX_DELAY_MS = 60_000
 
 /**
- * The model a generated body came from, kept beside the body it produced.
+ * The local generation recipe a body came from, kept beside the body it produced.
  *
- * A body cannot be turned back into the model that made it: JSON has no
+ * A body cannot be turned back into the recipe that made it: JSON has no
  * literal unions, no optional fields that happen to be absent, and no
- * tuples. Storing the source is the only way the panel can show what was
- * actually pasted, and the only way `regenerate` can reproduce the shape
- * instead of guessing it from one sample.
+ * tuples. The recipe preserves those rules without storing a readable type
+ * definition that could be mistaken for the API contract.
  *
  * Optional, and only ever written by the generator. A hand-written response
- * has no model, and a body edited by hand keeps whatever model was there —
+ * has no recipe, and a body edited by hand keeps whatever recipe was there —
  * it says where the body came from, not what the body currently is.
  */
-export const GeneratedFromSchema = z.object({
-  /** The declaration inside `model` the body was generated from. */
+const RecipeGeneratedFromSchema = z.object({
+  /** A helpful provenance label, never a declaration of the API contract. */
   typeName: z.string().min(1),
-  /** The source exactly as it was pasted, every declaration included. */
+  /** Compact, tool-owned JSON metadata decoded by @laqi/generate. */
+  recipe: z.union([z.string(), z.array(z.unknown())]),
+})
+
+/**
+ * Compatibility for mock files written by the unmerged source-storage
+ * experiment. New writes always use RecipeGeneratedFromSchema; keeping this
+ * readable only long enough to load old local projects avoids data loss.
+ */
+const LegacyModelGeneratedFromSchema = z.object({
+  typeName: z.string().min(1),
   model: z.string().min(1),
 })
+
+export const GeneratedFromSchema = z.union([
+  RecipeGeneratedFromSchema,
+  LegacyModelGeneratedFromSchema,
+])
 
 export type GeneratedFrom = z.infer<typeof GeneratedFromSchema>
 

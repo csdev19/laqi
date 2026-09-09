@@ -676,6 +676,7 @@ describe('generation routes', () => {
       warnings: ['w'],
       typeName: 'X',
       candidates: ['X', 'Y'],
+      recipe: ['o', [['id', 0, 'i']]],
     }))
     const app = createControlPlaneApp(makeRuntime({ generateData }))
     const res = await app.request('/api/generate/data', {
@@ -689,6 +690,7 @@ describe('generation routes', () => {
       warnings: ['w'],
       typeName: 'X',
       candidates: ['X', 'Y'],
+      recipe: ['o', [['id', 0, 'i']]],
     })
     expect(generateData).toHaveBeenCalledWith({
       model: 'export interface X { id: number }',

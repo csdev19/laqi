@@ -23,8 +23,8 @@ export type CreateInput = {
   method: string
   path: string
   body?: unknown
-  /** Set only by the model flow: the source the body was generated from. */
-  generatedFrom?: { typeName: string; model: string }
+  /** Set only by the model flow: compact local regeneration metadata. */
+  generatedFrom?: { typeName: string; recipe: string | unknown[] }
 } & ResponseChoice
 
 export function CreateEndpointRow(props: {
