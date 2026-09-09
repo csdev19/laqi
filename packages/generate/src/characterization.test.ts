@@ -29,7 +29,7 @@ describe('generate() over every Shape variant', () => {
 
   it('covers every kind in the Shape union', () => {
     const covered = new Set(SHAPE_CASES.map((c) => c.shape.kind))
-    expect([...covered].sort()).toEqual([
+    expect([...covered].toSorted()).toEqual([
       'array',
       'literals',
       'object',
