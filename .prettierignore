@@ -14,3 +14,9 @@ CHANGELOG.md
 # examples/todo-app turned `bun run verify` red on a file nobody typed.
 examples/*/laqi/*.json
 examples/*/.laqi/*.json
+
+# Characterization goldens. They are written by the test that reads them, with
+# `JSON.stringify(value, null, 2)`, and are the oracle the JSON Schema compiler
+# is held to. A formatter that reflows them would make the test rewrite them
+# again on the next run, and the pair would never agree.
+packages/generate/goldens/

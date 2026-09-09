@@ -1,0 +1,246 @@
+{
+  "kind": "object",
+  "fields": [
+    {
+      "name": "id",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "name",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "description",
+      "shape": {
+        "kind": "primitive",
+        "type": "string"
+      },
+      "optional": false
+    },
+    {
+      "name": "visibility",
+      "shape": {
+        "kind": "literals",
+        "values": [
+          "public",
+          "private"
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "owner",
+      "shape": {
+        "kind": "object",
+        "fields": [
+          {
+            "name": "id",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": false
+          },
+          {
+            "name": "name",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "email",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "avatarUrl",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": true
+          }
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "members",
+      "shape": {
+        "kind": "array",
+        "items": {
+          "kind": "object",
+          "fields": [
+            {
+              "name": "user",
+              "shape": {
+                "kind": "object",
+                "fields": [
+                  {
+                    "name": "id",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "number"
+                    },
+                    "optional": false
+                  },
+                  {
+                    "name": "name",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  {
+                    "name": "email",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "string"
+                    },
+                    "optional": false
+                  },
+                  {
+                    "name": "avatarUrl",
+                    "shape": {
+                      "kind": "primitive",
+                      "type": "string"
+                    },
+                    "optional": true
+                  }
+                ]
+              },
+              "optional": false
+            },
+            {
+              "name": "role",
+              "shape": {
+                "kind": "literals",
+                "values": [
+                  "owner",
+                  "editor",
+                  "viewer"
+                ]
+              },
+              "optional": false
+            },
+            {
+              "name": "active",
+              "shape": {
+                "kind": "primitive",
+                "type": "boolean"
+              },
+              "optional": false
+            },
+            {
+              "name": "createdAt",
+              "shape": {
+                "kind": "primitive",
+                "type": "date"
+              },
+              "optional": false
+            },
+            {
+              "name": "updatedAt",
+              "shape": {
+                "kind": "primitive",
+                "type": "date"
+              },
+              "optional": false
+            }
+          ]
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "labels",
+      "shape": {
+        "kind": "record",
+        "values": {
+          "kind": "primitive",
+          "type": "string"
+        }
+      },
+      "optional": false
+    },
+    {
+      "name": "settings",
+      "shape": {
+        "kind": "object",
+        "fields": [
+          {
+            "name": "notifications",
+            "shape": {
+              "kind": "primitive",
+              "type": "boolean"
+            },
+            "optional": false
+          },
+          {
+            "name": "defaultBranch",
+            "shape": {
+              "kind": "primitive",
+              "type": "string"
+            },
+            "optional": false
+          },
+          {
+            "name": "retentionDays",
+            "shape": {
+              "kind": "primitive",
+              "type": "number"
+            },
+            "optional": true
+          }
+        ]
+      },
+      "optional": false
+    },
+    {
+      "name": "stars",
+      "shape": {
+        "kind": "primitive",
+        "type": "number"
+      },
+      "optional": false
+    },
+    {
+      "name": "archived",
+      "shape": {
+        "kind": "primitive",
+        "type": "boolean"
+      },
+      "optional": false
+    },
+    {
+      "name": "createdAt",
+      "shape": {
+        "kind": "primitive",
+        "type": "date"
+      },
+      "optional": false
+    },
+    {
+      "name": "updatedAt",
+      "shape": {
+        "kind": "primitive",
+        "type": "date"
+      },
+      "optional": false
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "status": "draft",
+  "placedOn": "termes debitis",
+  "customer": {
+    "name": "Kerry Bins",
+    "email": "Garett45@hotmail.com",
+    "phone": "692-691-5764",
+    "tier": "free",
+    "address": {
+      "street": "4438 Gloucester Road",
+      "city": "Flossiechester",
+      "zip": "47491",
+      "country": "DE",
+      "geo": {
+        "lat": 422.37,
+        "lng": 426.45,
+        "accuracy": 634.38
+      },
+      "id": "eos cuppedia"
+    },
+    "preferences": {
+      "newsletter": false,
+      "locale": "en"
+    },
+    "tags": [
+      "sui error",
+      "subito vis"
+    ],
+    "id": "statua adnuo",
+    "createdAt": "2025-10-30T19:07:18.168Z",
+    "updatedAt": "2025-11-25T08:00:15.696Z"
+  },
+  "items": [
+    {
+      "product": {
+        "id": "canonicus vociferor",
+        "name": "Isidro Cole",
+        "variant": "delectatio talis"
+      },
+      "quantity": 49,
+      "unitPrice": {
+        "amount": 137.79,
+        "currency": "USD"
+      },
+      "discounts": [
+        {
+          "code": "asperiores cuppedia",
+          "percent": 448.12
+        },
+        {
+          "code": "terga theca",
+          "percent": 522.39
+        }
+      ]
+    },
+    {
+      "product": {
+        "id": "degusto tergo",
+        "name": "Raphael Bauch II",
+        "variant": "demonstro theca"
+      },
+      "quantity": 72,
+      "unitPrice": {
+        "amount": 148.09,
+        "currency": "EUR"
+      },
+      "discounts": [
+        {
+          "code": "torqueo cursus",
+          "percent": 599.86
+        },
+        {
+          "code": "suscipit trado",
+          "percent": 760.52
+        }
+      ]
+    }
+  ],
+  "payment": {
+    "method": "card",
+    "last4": "absens curia",
+    "brand": "visa"
+  },
+  "shipment": {
+    "id": "adsidue hic",
+    "street": "8912 Marvin Curve",
+    "city": "Lemkefield",
+    "zip": "21891-4781",
+    "country": "US",
+    "carrier": "serpost",
+    "eta": "2025-11-21T11:22:56.454Z",
+    "tracking": [
+      "asper adeptio",
+      "cilicium titulus"
+    ]
+  },
+  "totals": {
+    "subtotal": {
+      "amount": 45.79,
+      "currency": "USD"
+    },
+    "tax": {
+      "amount": 150.35,
+      "currency": "PEN"
+    },
+    "grand": {
+      "amount": 427.69,
+      "currency": "EUR"
+    },
+    "breakdown": [
+      [
+        "PEN",
+        992.56
+      ],
+      [
+        "USD",
+        10.58
+      ]
+    ]
+  },
+  "notes": "triduana vester",
+  "history": [
+    {
+      "at": "2025-11-13T06:35:00.200Z",
+      "from": "delivered",
+      "to": "cancelled",
+      "by": {
+        "userId": "pel uter",
+        "role": "system"
+      }
+    },
+    {
+      "at": "2025-10-27T10:38:44.161Z",
+      "from": "paid",
+      "to": "draft",
+      "by": {
+        "userId": "verbum adaugeo",
+        "role": "agent"
+      }
+    }
+  ],
+  "metadata": {
+    "aequitas": "contra cura",
+    "attonbitus": "eligendi facere"
+  },
+  "id": "comes tabula",
+  "createdAt": "2025-10-17T10:02:13.784Z",
+  "updatedAt": "2025-10-20T07:49:03.718Z"
+}
