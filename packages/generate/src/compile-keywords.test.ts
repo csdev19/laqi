@@ -188,9 +188,13 @@ describe('combinations', () => {
 
   it('refuses the combinations it has no rule for', () => {
     expect(refused({ not: { type: 'string' } }).code).toBe('unsupported.keyword')
-    expect(refused({ if: { type: 'string' }, then: { const: 'a' } }).code).toBe(
-      'unsupported.keyword',
-    )
+    // Each conditional keyword on its own, built from names rather than as
+    // a literal: an object with a `then` key is a thenable, and lint refuses
+    // to see one written down for good reasons of its own.
+    for (const keyword of ['if', 'then', 'else']) {
+      const conditional = Object.fromEntries([[keyword, { type: 'string' }]])
+      expect(refused(conditional).code, keyword).toBe('unsupported.keyword')
+    }
   })
 })
 

@@ -3,7 +3,7 @@ import { EXAMPLE_CASES, goldenPath, SHAPE_CASES } from './characterization.catal
 import { compileSchema } from './compile-schema'
 import { generateFromPlan, liftShape } from './plan'
 import { shapeToJsonSchema } from './json-schema'
-import { primitive, type Shape } from './shape'
+import type { Shape } from './shape'
 import { DIALECT_2020_12 } from '@laqi/schema'
 import { readFileSync } from 'node:fs'
 
