@@ -14,6 +14,7 @@ const {
   getResponseRevision,
   importSchema,
   setResponseSchema,
+  draftModel,
   TestApiError,
 } = vi.hoisted(() => ({
   getLanguages: vi.fn(),
@@ -25,6 +26,7 @@ const {
   getResponseRevision: vi.fn(),
   importSchema: vi.fn(),
   setResponseSchema: vi.fn(),
+  draftModel: vi.fn(),
   // Declared here because vi.mock is hoisted: a top-level class would not
   // exist yet when the factory runs. The component narrows with
   // `instanceof`, so the mock has to hand back the same constructor.
@@ -53,6 +55,7 @@ vi.mock('../api', () => ({
     getResponseRevision,
     importSchema,
     setResponseSchema,
+    draftModel,
   },
 }))
 
@@ -90,6 +93,10 @@ beforeEach(() => {
     candidates: ['Users'],
   })
   setResponseSchema.mockResolvedValue({ revision: 'rev-2' })
+  draftModel.mockResolvedValue({
+    source: 'export interface Users { id: number }',
+    typeName: 'Users',
+  })
 })
 
 function endpoint(overrides: Partial<Endpoint> = {}): Endpoint {

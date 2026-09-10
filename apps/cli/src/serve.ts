@@ -458,6 +458,22 @@ export async function startServer(options: {
           ? { ok: true, revision: result.value }
           : { ok: false, error: result.error, code: result.code }
       },
+      draftModel: async (id, responseName) => {
+        const found = project.getResponse(id, responseName)
+        if (!found.ok) return { ok: false, error: found.error, code: found.code }
+
+        const { inferShape, printShapeTypeScript, typeNameFor } = await import('@laqi/generate')
+        try {
+          const typeName = typeNameFor(id)
+          return {
+            ok: true,
+            source: printShapeTypeScript(inferShape(found.value.body ?? null), typeName),
+            typeName,
+          }
+        } catch (cause) {
+          return failedImport(cause)
+        }
+      },
       setResponseSchema: (id, responseName, input) => {
         const parsed = SchemaSnapshotSchema.safeParse(input.snapshot)
         if (!parsed.success) {

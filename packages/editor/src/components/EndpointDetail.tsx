@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError, type EndpointDefinition } from '../api'
-import { checkJson } from '../highlight'
+import { checkJson, tokenizeJson } from '../highlight'
 import { statusClass } from '../log'
 import { parseStatusCode, suggestResponses, type GenerationEvidence } from '@laqi/schema'
 import { StatusSelect } from './StatusSelect'
@@ -143,18 +143,18 @@ export function EndpointDetail(props: {
   const hasSchema = endpoint.responses[selected]?.schema !== undefined
 
   /**
-   * Reads back the types laqi derives from the body and puts them on screen
-   * as an editable model. Nothing is written; this is the draft step.
+   * Puts the body on screen as an editable model, keys in the body's own
+   * order. Nothing is written; this is the draft step.
    */
   const buildModel = () => {
     const epoch = epochRef.current
     setActionError(null)
     setConflict(null)
     void api
-      .getTypes(endpoint.id, { response: selected, lang: 'typescript' })
-      .then((derived) => {
+      .draftModel(endpoint.id, selected)
+      .then((drafted) => {
         if (epochRef.current !== epoch) return
-        setDraftModel({ source: derived.code, typeName: derived.typeName })
+        setDraftModel(drafted)
       })
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
@@ -642,13 +642,13 @@ export function EndpointDetail(props: {
             <div>
               <span className="micro">on disk — what you would lose</span>
               <pre className="mono" aria-label="body on disk">
-                {storedBody(preview.response)}
+                {highlightJson(storedBody(preview.response))}
               </pre>
             </div>
             <div>
               <span className="micro">generated — what would replace it</span>
               <pre className="mono compare-next" aria-label="generated body">
-                {JSON.stringify(preview.body, null, 2)}
+                {highlightJson(JSON.stringify(preview.body, null, 2))}
               </pre>
             </div>
           </div>
@@ -698,6 +698,15 @@ export function EndpointDetail(props: {
       ) : null}
     </div>
   )
+}
+
+/** The same colours as the editor, so the two sides read the way the body does. */
+function highlightJson(source: string) {
+  return tokenizeJson(source).map((token, index) => (
+    <span key={index} className={`tok-${token.kind}`}>
+      {token.text}
+    </span>
+  ))
 }
 
 function curlFor(endpoint: Endpoint, response: string, address: string): string {

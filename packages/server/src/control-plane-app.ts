@@ -176,6 +176,19 @@ export type ControlPlaneRuntime = {
     response: string | undefined,
   ) => { ok: true; revision: string } | { ok: false; error: string; code: WriteFailure }
   /**
+   * The body as a TypeScript model, in the body's own key order, for a person
+   * to accept or fix. Not the export route: that one prints through
+   * quicktype, which alphabetises, and a model's order becomes every
+   * generated body's order.
+   */
+  draftModel: (
+    id: string,
+    response: string | undefined,
+  ) => Promise<
+    | { ok: true; source: string; typeName: string }
+    | { ok: false; error: string; code: WriteFailure }
+  >
+  /**
    * Stores a schema the caller already has. Never touches the body.
    *
    * Separate from `refreshResponseSchema`, which re-reads a source file: this
@@ -755,6 +768,15 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       return c.json(payload, status)
     }
     return c.json({ revision: result.revision })
+  })
+
+  app.get('/api/endpoints/:id/responses/:name/model', async (c) => {
+    const result = await runtime.draftModel(c.req.param('id'), c.req.param('name'))
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ source: result.source, typeName: result.typeName })
   })
 
   app.put('/api/endpoints/:id/responses/:name/schema', async (c) => {

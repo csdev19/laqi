@@ -180,6 +180,9 @@ export const api = {
   getResponseRevision: (id: string, response: string) =>
     request<{ revision: string }>(`${responsePath(id, response)}/revision`),
 
+  draftModel: (id: string, response: string) =>
+    request<{ source: string; typeName: string }>(`${responsePath(id, response)}/model`),
+
   setResponseSchema: (
     id: string,
     response: string,

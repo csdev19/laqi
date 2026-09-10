@@ -608,20 +608,16 @@ describe('giving a response a schema it never had', () => {
     const refused = await send(`${RESPONSE}/regenerate`, 'POST', {})
     expect(refused.status).toBe(400)
 
-    // The types laqi derives from the body are the draft.
-    const derived = await fetch(
-      `http://127.0.0.1:${handle.port}/__laqi/api/endpoints/${encodeURIComponent('GET /todos')}/types?response=ok&lang=typescript`,
-    )
-    const { code, typeName, origin } = (await derived.json()) as {
-      code: string
-      typeName: string
-      origin: string
-    }
-    expect(origin).toBe('body')
-    expect(code).toContain(typeName)
+    // The draft is the body as a model, keys where the body had them — not
+    // the export route, which prints through quicktype and alphabetises.
+    const drafted = await send(`${RESPONSE}/model`, 'GET')
+    expect(drafted.status).toBe(200)
+    const { source, typeName } = (await drafted.json()) as { source: string; typeName: string }
+    expect(source).toContain(`export interface ${typeName}`)
+    expect(source.indexOf('id:')).toBeLessThan(source.indexOf('title:'))
 
     const imported = await send('/api/schema/import', 'POST', {
-      source: { kind: 'typescript-paste', source: code, typeName },
+      source: { kind: 'typescript-paste', source, typeName },
     })
     const { snapshot } = (await imported.json()) as { snapshot: SchemaSnapshot }
 
@@ -645,6 +641,8 @@ describe('giving a response a schema it never had', () => {
     expect(allowed.status).toBe(200)
     const regenerated = (await allowed.json()) as { body: Record<string, unknown> }
     expect(typeof regenerated.body['title']).toBe('string')
+    // The order is the contract: what the sample had is what every body has.
+    expect(Object.keys(regenerated.body)).toEqual(['id', 'title'])
   }, 60_000)
 
   it('refuses a stale revision, like every other write', async () => {
