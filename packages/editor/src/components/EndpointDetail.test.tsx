@@ -356,7 +356,7 @@ describe('generated types and data', () => {
 
   it('shows a refused write with its reason, and confirms against the current revision', async () => {
     applyGeneratedBody.mockRejectedValueOnce(
-      new TestApiError('this body has changed since laqi generated it', 409, undefined, {
+      new TestApiError('the body on disk has changed since laqi wrote it', 409, undefined, {
         reason: 'body-modified',
         revision: 'rev-current',
       }),
@@ -365,7 +365,7 @@ describe('generated types and data', () => {
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
     fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
 
-    expect(await screen.findByText(/has changed since laqi generated it/)).toBeTruthy()
+    expect(await screen.findByText(/has changed since laqi wrote it/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /overwrite anyway/i }))
 
@@ -656,5 +656,40 @@ describe('building a model from a body that has no schema', () => {
 
     expect(await screen.findByText(/no interface or type alias/)).toBeTruthy()
     expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+})
+
+describe('answering a refused write', () => {
+  const refuse = () =>
+    applyGeneratedBody.mockRejectedValueOnce(
+      new TestApiError('laqi did not write the body on disk', 409, undefined, {
+        reason: 'body-unverified',
+        revision: 'rev-current',
+      }),
+    )
+
+  // Regenerate has already put the preview in the editor by now, so without
+  // this the question is about bytes that are nowhere on screen.
+  it('shows the bytes that confirming would replace', async () => {
+    refuse()
+    renderDetail(
+      endpoint({
+        responses: { ok: { status: 200, body: { handwritten: 'keep me' } }, boom: { status: 500 } },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+
+    await screen.findByText(/what you would replace/i)
+    expect(screen.getByText(/keep me/)).toBeTruthy()
+  })
+
+  it('says the asking stops once laqi has written a body itself', async () => {
+    refuse()
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+
+    expect(await screen.findByText(/asks once per response/i)).toBeTruthy()
   })
 })

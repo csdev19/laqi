@@ -1650,3 +1650,23 @@ button.log-path:hover {
   max-width: 62ch;
   line-height: 1.5;
 }
+
+/* The bytes a confirmation would replace. Collapsed by default: it is there
+   to be checked when the answer is not obvious, not to fill the screen every
+   time someone regenerates. */
+.conflict-discards summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.conflict-discards pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}

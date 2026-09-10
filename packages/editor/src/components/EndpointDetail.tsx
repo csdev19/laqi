@@ -67,7 +67,21 @@ export function EndpointDetail(props: {
     revision: string
   } | null>(null)
   /** A refused write, with the reason and the revision that is current now. */
-  const [conflict, setConflict] = useState<{ message: string; revision: string } | null>(null)
+  const [conflict, setConflict] = useState<{
+    message: string
+    revision: string
+    /**
+     * The bytes on disk that confirming would replace.
+     *
+     * Captured when the write is refused, not read at render time: by then
+     * Regenerate has already put the preview in the editor, so the thing the
+     * question is about is no longer anywhere on screen. Asking "this would
+     * discard whatever it holds" while showing something else is a question
+     * nobody can answer, and a question nobody can answer gets clicked
+     * through.
+     */
+    discards: string
+  } | null>(null)
 
   /**
    * A model laqi drafted from the body, on screen for the person to accept
@@ -230,7 +244,12 @@ export function EndpointDetail(props: {
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
         if (error instanceof ApiError && error.conflict) {
-          setConflict({ message: error.message, revision: error.conflict.revision })
+          const stored = endpoint.responses[pending.response]?.body
+          setConflict({
+            message: error.message,
+            revision: error.conflict.revision,
+            discards: stored === undefined ? '(no body)' : JSON.stringify(stored, null, 2),
+          })
           return
         }
         setActionError(error instanceof Error ? error.message : String(error))
@@ -302,6 +321,17 @@ export function EndpointDetail(props: {
       {conflict !== null ? (
         <div className="band band-error conflict-band">
           <span>{conflict.message}</span>
+          {/* What is actually at stake, in full. The editor above already
+              shows the replacement, so without this the person is being
+              asked about bytes they cannot see. */}
+          <details className="conflict-discards">
+            <summary>what you would replace</summary>
+            <pre className="mono">{conflict.discards}</pre>
+          </details>
+          <span className="micro">
+            laqi asks once per response. Once it has written a body itself, it knows its own bytes
+            and stops asking.
+          </span>
           <button
             type="button"
             className="btn"
