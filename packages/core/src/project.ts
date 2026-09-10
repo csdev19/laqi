@@ -3,6 +3,7 @@ import { loadMocks, type LoadedEndpoint, type LoadError } from './loader'
 import { resolveResponse } from './resolve'
 import { buildRouteTable } from './route-table'
 import { StateStore } from './state-store'
+import { undeclaredResponseMessage } from './undeclared-response'
 import {
   createEndpointInFile,
   createEndpointsInFile,
@@ -390,7 +391,11 @@ export class Project {
 
     if (response !== null && !Object.hasOwn(endpoint.responses, response)) {
       return fail(
-        `${JSON.stringify(response)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+        undeclaredResponseMessage({
+          name: response,
+          id,
+          declared: Object.keys(endpoint.responses),
+        }),
       )
     }
 

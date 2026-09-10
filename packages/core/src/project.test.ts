@@ -84,6 +84,7 @@ describe('setResponse', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error).toContain('not declared')
+      expect(result.error).toContain('saved to the mock file before it can be served')
       expect(result.error).toContain('ok, boom')
     }
   })
