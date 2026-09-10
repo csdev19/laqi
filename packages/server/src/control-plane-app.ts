@@ -129,6 +129,16 @@ export type ControlPlaneRuntime = {
         code: WriteFailure
         conflict?: { reason: string; revision: string }
       }
+  /** A stored schema, printed into a target, with what that target lost. */
+  exportSchema: (input: {
+    snapshot: unknown
+    target?: string
+  }) => Promise<
+    | { ok: true; code: string; language: string; diagnostics: Diagnostic[] }
+    | { ok: false; error: string; code: WriteFailure; diagnostics?: Diagnostic[] }
+  >
+  /** What this build actually serves, so a caller does not offer what errors. */
+  getCapabilities: () => Promise<{ inputs: string[]; exports: { targets: string[] } }>
   /**
    * Resolves and digests a project module, and issues a token. Executes
    * nothing: the panel shows what came back and asks, and only then confirms.
@@ -197,6 +207,11 @@ const ApplyBodyRequestSchema = z.object({
   evidence: z.unknown(),
   revision: z.string().min(1),
   confirm: z.boolean().optional(),
+})
+
+const ExportRequestSchema = z.object({
+  snapshot: z.unknown(),
+  target: z.string().min(1).optional(),
 })
 
 const PrepareModuleRequestSchema = z.object({
@@ -620,6 +635,35 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     }
     return c.json({ revision: result.revision })
   })
+
+  app.post('/api/schema/export', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = ExportRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.exportSchema(parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({
+      code: result.code,
+      language: result.language,
+      diagnostics: result.diagnostics,
+      origin: 'schema',
+    })
+  })
+
+  app.get('/api/schema/capabilities', async (c) => c.json(await runtime.getCapabilities()))
 
   app.post('/api/schema/module/prepare', async (c) => {
     const raw = await readJson(c)

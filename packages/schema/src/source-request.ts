@@ -28,6 +28,15 @@ export const SourceRequestSchema = z.discriminatedUnion('kind', [
     file: z.string().min(1).optional(),
   }),
   z.object({
+    kind: z.literal('openapi'),
+    document: z.unknown(),
+    /** JSON Pointer to the response schema inside the document. */
+    pointer: z.string().min(1),
+    name: z.string().min(1).optional(),
+    /** Where the document was read from, so a refresh can re-extract it. */
+    file: z.string().min(1).optional(),
+  }),
+  z.object({
     kind: z.literal('project-module'),
     /** Relative to `schemaSources.root`. Resolved and confined before anything is read. */
     file: z.string().min(1),
@@ -45,4 +54,9 @@ export const SourceRequestSchema = z.discriminatedUnion('kind', [
 export type SourceRequest = z.infer<typeof SourceRequestSchema>
 
 /** Every kind the composition root serves, for the message when one is not. */
-export const KNOWN_SOURCE_KINDS = ['typescript-paste', 'json-schema', 'project-module'] as const
+export const KNOWN_SOURCE_KINDS = [
+  'typescript-paste',
+  'json-schema',
+  'openapi',
+  'project-module',
+] as const

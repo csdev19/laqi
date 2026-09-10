@@ -17,6 +17,7 @@ import { GenerateError } from './errors'
 import { shapeToJsonSchema } from './json-schema'
 import { loadModuleSchema, type ModuleLoadFailure } from './load-module'
 import { normalizeDialect } from './normalize-dialect'
+import { extractResponseSchema } from './openapi-extract'
 import { parseTypesEffect } from './parse-types'
 import { generateFromPlanEffect, type GenerateOptions } from './plan'
 import { TypeScriptCompiler } from './services/compiler'
@@ -145,6 +146,8 @@ const dispatch = (
       return fromTypeScript(request)
     case 'json-schema':
       return fromJsonSchema(request)
+    case 'openapi':
+      return fromOpenApi(request)
     case 'project-module':
       return fromProjectModule(request, options)
     default:
@@ -217,6 +220,68 @@ const fromJsonSchema = (request: SourceRequest & { kind: 'json-schema' }) =>
       source: request.file
         ? ({ kind: 'json-schema', file: request.file } as const)
         : ({ kind: 'json-schema' } as const),
+      diagnostics,
+    } satisfies Draft
+  })
+
+/**
+ * One response schema out of an OpenAPI document.
+ *
+ * The schema is lifted into a document of its own, with the components it
+ * refers to carried along as `$defs`, so what gets stored can be compiled
+ * again after a reload without the specification it came from. The pointer
+ * is kept so a refresh can re-extract the same response rather than guess
+ * which one it was.
+ */
+const fromOpenApi = (request: SourceRequest & { kind: 'openapi' }) =>
+  Effect.gen(function* () {
+    const extracted = extractResponseSchema(request.document, request.pointer)
+    if (!extracted.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: extracted.diagnostics[0]?.message ?? 'that is not an OpenAPI response schema',
+          diagnostics: extracted.diagnostics,
+        }),
+      )
+    }
+
+    // 3.0 says `nullable: true` and `example`, which mean `type: [..., 'null']`
+    // and `examples` in 2020-12. The importer states the dialect rather than
+    // leaving the normalizer to guess: nothing in the document distinguishes
+    // a 3.0 schema from a plain one.
+    const normalized = normalizeDialect(extracted.document, { assume: 'openapi-3.0' })
+    if (!normalized.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: normalized.diagnostics[0]?.message ?? 'that is not a JSON Schema',
+          diagnostics: normalized.diagnostics,
+        }),
+      )
+    }
+
+    const compiled = compileSchema(normalized.document)
+    const diagnostics = [
+      ...extracted.diagnostics,
+      ...normalized.diagnostics,
+      ...compiled.diagnostics,
+    ]
+    if (!compiled.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: compiled.diagnostics[0]?.message ?? 'laqi cannot generate from that schema',
+          diagnostics,
+        }),
+      )
+    }
+
+    return {
+      name: request.name ?? nameFrom(request.file) ?? 'Response',
+      document: normalized.document,
+      source: {
+        kind: 'openapi',
+        pointer: request.pointer,
+        ...(request.file === undefined ? {} : { file: request.file }),
+      } as const,
       diagnostics,
     } satisfies Draft
   })

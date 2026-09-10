@@ -242,8 +242,7 @@ export async function startServer(options: {
           }
         }
 
-        const { inferShape, printDocument, printTypes, typeNameFor } =
-          await import('@laqi/generate')
+        const { exportTypes, inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
         try {
           // The stored schema when there is one, the live body otherwise —
           // and the panel is told which, because the two are not equally
@@ -252,21 +251,25 @@ export async function startServer(options: {
           // an absent optional or a fixed-length tuple.
           const snapshot = response.schema
           const printed = snapshot
-            ? await printDocument(snapshot.document, {
-                typeName: snapshot.name,
-                lang: typesOptions.lang,
-              })
-            : await printTypes(inferShape(response.body ?? null), {
-                typeName: typeNameFor(id),
-                lang: typesOptions.lang,
-              })
+            ? await exportTypes(snapshot, typesOptions.lang)
+            : {
+                ...(await printTypes(inferShape(response.body ?? null), {
+                  typeName: typeNameFor(id),
+                  lang: typesOptions.lang,
+                })),
+                diagnostics: [],
+              }
+
+          // Two different things, both worth seeing beside the types: what
+          // the IMPORT approximated, which is stored, and what this TARGET
+          // could not express, which depends on the language just picked.
+          const diagnostics = [...(snapshot?.diagnostics ?? []), ...printed.diagnostics]
           return {
             ok: true,
-            ...printed,
+            code: printed.code,
+            language: printed.language,
             origin: snapshot ? ('schema' as const) : ('body' as const),
-            ...(snapshot && snapshot.diagnostics.length > 0
-              ? { diagnostics: [...snapshot.diagnostics] }
-              : {}),
+            ...(diagnostics.length > 0 ? { diagnostics } : {}),
           }
         } catch (error) {
           return {
@@ -420,6 +423,33 @@ export async function startServer(options: {
         } catch (cause) {
           return failedImport(cause)
         }
+      },
+      exportSchema: async (input) => {
+        const parsed = SchemaSnapshotSchema.safeParse(input.snapshot)
+        if (!parsed.success) {
+          return {
+            ok: false,
+            error: parsed.error.issues.map((i) => i.message).join('; '),
+            code: 'invalid',
+          }
+        }
+
+        const { exportTypes } = await import('@laqi/generate')
+        try {
+          const exported = await exportTypes(parsed.data, input.target)
+          return {
+            ok: true,
+            code: exported.code,
+            language: exported.language,
+            diagnostics: [...parsed.data.diagnostics, ...exported.diagnostics],
+          }
+        } catch (cause) {
+          return failedImport(cause)
+        }
+      },
+      getCapabilities: async () => {
+        const { capabilities } = await import('@laqi/generate')
+        return capabilities()
       },
       getResponseRevision: (id, responseName) => {
         const result = project.getResponseRevision(id, responseName)

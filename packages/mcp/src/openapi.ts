@@ -43,7 +43,10 @@ const NAMES: Record<string, string> = {
  * reason, and the rest still gets imported. A spec with a hundred routes
  * and two odd ones is worth more imported at 98% than rejected whole.
  */
-export function importOpenapi(document: unknown): ImportResult {
+export async function importOpenapi(
+  document: unknown,
+  options: { allowLoss?: boolean } = {},
+): Promise<ImportResult> {
   const skipped: { where: string; reason: string }[] = []
   const endpoints: ImportedEndpoint[] = []
 
@@ -60,9 +63,6 @@ export function importOpenapi(document: unknown): ImportResult {
       ],
     }
   }
-
-  const components = isObject(document.components) ? document.components : {}
-  const schemas = isObject(components.schemas) ? components.schemas : {}
 
   for (const [rawPath, item] of Object.entries(paths)) {
     if (!isObject(item)) {
@@ -84,7 +84,15 @@ export function importOpenapi(document: unknown): ImportResult {
       const path = toLaqiPath(rawPath)
       const where = `${method.toUpperCase()} ${path}`
 
-      const built = buildResponses(operation.responses, schemas)
+      const built = await buildResponses({
+        raw: operation.responses,
+        document,
+        rawPath,
+        method,
+        where,
+        skipped,
+        allowLoss: options.allowLoss === true,
+      })
       if (built.names.length === 0) {
         skipped.push({ where, reason: 'no usable responses declared' })
         continue
@@ -119,15 +127,43 @@ function describe(operation: Record<string, unknown>): string | undefined {
   return description ? description.split('\n')[0]!.trim() : undefined
 }
 
-function buildResponses(
-  raw: unknown,
-  schemas: Record<string, unknown>,
-): { responses: Record<string, MockResponse>; names: string[]; defaultName: string } {
+/**
+ * One laqi response per declared status code, with what laqi knows about
+ * where its body came from.
+ *
+ * Two paths, and the difference is recorded rather than smoothed over:
+ *
+ * - The spec supplies an example. That example IS the body, byte for value —
+ *   it is what the API's authors say the response looks like, and improving
+ *   on it would be laqi substituting its own guess for their statement. The
+ *   schema is still associated, so the response can be regenerated later on
+ *   purpose, but no `generation` is written: laqi did not produce these bytes
+ *   and must not claim it did.
+ * - Otherwise the body is generated from the schema through the same compiler
+ *   every other source uses, and `generation` records the seed and options
+ *   that reproduce it.
+ *
+ * A schema laqi cannot import is reported in `skipped`, and the response is
+ * still created with its status and description. An endpoint that serves the
+ * right status with no body beats an endpoint that was dropped.
+ */
+async function buildResponses(params: {
+  raw: unknown
+  document: Record<string, unknown>
+  rawPath: string
+  method: string
+  where: string
+  skipped: { where: string; reason: string }[]
+  allowLoss: boolean
+}): Promise<{ responses: Record<string, MockResponse>; names: string[]; defaultName: string }> {
+  const { raw, document, rawPath, method, where, skipped, allowLoss } = params
   const responses: Record<string, MockResponse> = {}
   const names: string[] = []
   const codes: number[] = []
 
   if (isObject(raw)) {
+    const { importSchema, previewBody, responsePointer } = await import('@laqi/generate')
+
     for (const [code, value] of Object.entries(raw)) {
       const status = statusOf(code)
       if (status === null) continue
@@ -137,12 +173,43 @@ function buildResponses(
       codes.push(status)
 
       const response: MockResponse = { status }
-      const body = exampleBody(value, schemas)
-      if (body !== undefined) response.body = body
 
       const description =
         isObject(value) && typeof value.description === 'string' ? value.description.trim() : ''
       if (description) response.description = description
+
+      const media = mediaType(value)
+      const example = declaredExample(media)
+
+      if (media?.schema !== undefined) {
+        try {
+          const { snapshot } = await importSchema(
+            {
+              kind: 'openapi',
+              document,
+              pointer: responsePointer(rawPath, method, code),
+              name: `${NAMES[String(status)] ?? name}`,
+            },
+            { allowLoss },
+          )
+          response.schema = snapshot
+
+          if (example === undefined) {
+            const preview = await previewBody(snapshot)
+            response.body = preview.body
+            response.generation = preview.evidence
+          }
+        } catch (cause) {
+          skipped.push({
+            where: `${where} (${name})`,
+            reason: cause instanceof Error ? cause.message : String(cause),
+          })
+        }
+      }
+
+      // Set after the schema branch so an example always wins, whatever the
+      // schema did: the spec's own example is the authors' statement.
+      if (example !== undefined) response.body = example
 
       responses[name] = response
     }
@@ -162,6 +229,31 @@ function buildResponses(
   return { responses, names, defaultName: names[defaultIndex] ?? '' }
 }
 
+/** The JSON media type of one response, when it declares one. */
+function mediaType(response: unknown): Record<string, unknown> | undefined {
+  if (!isObject(response) || !isObject(response.content)) return undefined
+  const json = response.content['application/json']
+  return isObject(json) ? json : undefined
+}
+
+/**
+ * The example the spec supplies, if any. `example` wins over `examples`,
+ * and the first entry of `examples` wins among those — OpenAPI gives them no
+ * order beyond the one they are written in.
+ */
+function declaredExample(media: Record<string, unknown> | undefined): unknown {
+  if (media === undefined) return undefined
+  if (media['example'] !== undefined) return media['example']
+
+  const examples = media['examples']
+  if (isObject(examples)) {
+    for (const example of Object.values(examples)) {
+      if (isObject(example) && example['value'] !== undefined) return example['value']
+    }
+  }
+  return undefined
+}
+
 function statusOf(code: string): number | null {
   // `default` and OpenAPI's `2XX` ranges aren't a concrete status.
   const parsed = Number(code)
@@ -174,123 +266,6 @@ function uniqueName(base: string, taken: string[]): string {
   let index = 2
   while (taken.includes(`${base}-${index}`)) index++
   return `${base}-${index}`
-}
-
-function exampleBody(response: unknown, schemas: Record<string, unknown>): unknown {
-  if (!isObject(response) || !isObject(response.content)) return undefined
-
-  const json = response.content['application/json']
-  if (!isObject(json)) return undefined
-
-  // A hand-written example always wins over one generated from the schema.
-  if (json.example !== undefined) return json.example
-
-  if (isObject(json.examples)) {
-    for (const example of Object.values(json.examples)) {
-      if (isObject(example) && example.value !== undefined) return example.value
-    }
-  }
-
-  if (json.schema !== undefined) return fromSchema(json.schema, schemas, new Set(), 0)
-
-  return undefined
-}
-
-const MAX_DEPTH = 8
-
-/**
- * A plausible example built from a JSON Schema. It doesn't aim to be
- * complete: it's enough for the frontend to receive the right shape and be
- * able to edit it. `seen` cuts off circular `$ref`s, which are common in
- * real specs.
- */
-function fromSchema(
-  schema: unknown,
-  schemas: Record<string, unknown>,
-  seen: Set<string>,
-  depth: number,
-): unknown {
-  if (depth > MAX_DEPTH || !isObject(schema)) return null
-
-  if (typeof schema.$ref === 'string') {
-    const name = schema.$ref.replace('#/components/schemas/', '')
-    if (seen.has(name)) return null
-    const target = schemas[name]
-    if (target === undefined) return null
-    return fromSchema(target, schemas, new Set([...seen, name]), depth + 1)
-  }
-
-  if (schema.example !== undefined) return schema.example
-  if (schema.default !== undefined) return schema.default
-  if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0]
-
-  for (const key of ['allOf', 'oneOf', 'anyOf'] as const) {
-    const branch = schema[key]
-    if (Array.isArray(branch) && branch.length > 0) {
-      if (key === 'allOf') {
-        // allOf is an intersection: merge all the branches into one object.
-        const merged: Record<string, unknown> = {}
-        for (const part of branch) {
-          const value = fromSchema(part, schemas, seen, depth + 1)
-          if (isObject(value)) Object.assign(merged, value)
-        }
-        return merged
-      }
-      return fromSchema(branch[0], schemas, seen, depth + 1)
-    }
-  }
-
-  switch (schema.type) {
-    case 'object':
-      return objectFrom(schema, schemas, seen, depth)
-    case 'array':
-      return [fromSchema(schema.items, schemas, seen, depth + 1)]
-    case 'string':
-      return stringFor(schema)
-    case 'integer':
-    case 'number':
-      return 0
-    case 'boolean':
-      return true
-    case 'null':
-      return null
-    default:
-      // No `type` but with `properties` is an object in practice.
-      return isObject(schema.properties) ? objectFrom(schema, schemas, seen, depth) : null
-  }
-}
-
-function objectFrom(
-  schema: Record<string, unknown>,
-  schemas: Record<string, unknown>,
-  seen: Set<string>,
-  depth: number,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-  if (!isObject(schema.properties)) return result
-
-  for (const [key, value] of Object.entries(schema.properties)) {
-    result[key] = fromSchema(value, schemas, seen, depth + 1)
-  }
-  return result
-}
-
-function stringFor(schema: Record<string, unknown>): string {
-  switch (schema.format) {
-    case 'date-time':
-      return '2026-01-01T00:00:00Z'
-    case 'date':
-      return '2026-01-01'
-    case 'email':
-      return 'ada@example.com'
-    case 'uuid':
-      return '00000000-0000-4000-8000-000000000000'
-    case 'uri':
-    case 'url':
-      return 'https://example.com'
-    default:
-      return 'string'
-  }
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

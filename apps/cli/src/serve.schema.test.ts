@@ -535,3 +535,61 @@ describe('executing a project module, from the panel', () => {
     expect(((await res.json()) as { message: string }).message).toContain('outside')
   }, 40_000)
 })
+
+describe('exporting a stored schema', () => {
+  async function seedSchema(): Promise<SchemaSnapshot> {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+    const imported = await send('/api/schema/import', 'POST', {
+      source: {
+        kind: 'typescript-paste',
+        source: 'export interface Point { at: [number, number] }',
+      },
+    })
+    return ((await imported.json()) as { snapshot: SchemaSnapshot }).snapshot
+  }
+
+  it('prints the schema and reports what the target could not express', async () => {
+    const snapshot = await seedSchema()
+
+    const res = await send('/api/schema/export', 'POST', { snapshot })
+
+    expect(res.status).toBe(200)
+    const exported = (await res.json()) as {
+      code: string
+      language: string
+      origin: string
+      diagnostics: { code: string }[]
+    }
+    expect(exported.origin).toBe('schema')
+    expect(exported.language).toBe('typescript')
+    expect(exported.code).toContain('Point')
+    // quicktype renders no fixed-arity tuple in any target it has.
+    expect(exported.diagnostics.map((item) => item.code)).toContain('export.tuple-approximated')
+  }, 40_000)
+
+  // Export is a read. A route that both prints and writes would make copying
+  // types a thing that changes the project.
+  it('writes nothing to the mock file', async () => {
+    const snapshot = await seedSchema()
+    const before = readFileSync(join(root, 'laqi', 'api.json'), 'utf8')
+
+    await send('/api/schema/export', 'POST', { snapshot })
+    await send('/api/schema/export', 'POST', { snapshot, target: 'python' })
+
+    expect(readFileSync(join(root, 'laqi', 'api.json'), 'utf8')).toBe(before)
+  }, 40_000)
+
+  it('lists what this build serves, and every listed target prints', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const res = await send('/api/schema/capabilities', 'GET')
+
+    expect(res.status).toBe(200)
+    const listed = (await res.json()) as { inputs: string[]; exports: { targets: string[] } }
+    expect(listed.inputs).toContain('openapi')
+    expect(listed.inputs).toContain('project-module')
+    expect(listed.exports.targets).toContain('typescript')
+  }, 40_000)
+})

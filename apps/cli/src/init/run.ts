@@ -330,7 +330,7 @@ async function buildScaffold(
   // which the "lazy loading" guard in package.test.ts forbids in the CLI's
   // own entry chunk. `laqi mcp` already does this for the same reason.
   const { importOpenapi } = await import('@laqi/mcp')
-  const imported = importOpenapi(document)
+  const imported = await importOpenapi(document)
 
   if (imported.endpoints.length === 0) {
     fail(level, {

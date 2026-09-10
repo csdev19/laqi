@@ -154,6 +154,15 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  exportSchema: (snapshot: SchemaSnapshot, target?: string) =>
+    request<{ code: string; language: string; diagnostics: Diagnostic[]; origin: 'schema' }>(
+      '/api/schema/export',
+      { method: 'POST', body: JSON.stringify({ snapshot, ...(target ? { target } : {}) }) },
+    ),
+
+  getCapabilities: () =>
+    request<{ inputs: string[]; exports: { targets: string[] } }>('/api/schema/capabilities'),
+
   prepareModule: (input: { file: string; exportName: string; side: 'input' | 'output' }) =>
     request<{ token: string; resolvedPath: string; exportName: string; side: string }>(
       '/api/schema/module/prepare',

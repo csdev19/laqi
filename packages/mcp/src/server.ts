@@ -241,7 +241,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Import an OpenAPI document',
       description:
-        'Use this when you already have an OpenAPI/Swagger document for the API you are mocking, instead of calling create_endpoint per route. Creates mock endpoints from an OpenAPI 3.x document, generating example bodies from the schemas. The document must be JSON — convert YAML before calling. Reports what it skipped and why, and never overwrites an endpoint that already exists unless overwrite is true.',
+        'Use this when you already have an OpenAPI/Swagger document for the API you are mocking, instead of calling create_endpoint per route. The document must be JSON — convert YAML before calling. A response with an example keeps it exactly; otherwise the body is generated from the schema, which is stored so it can be regenerated later. Reports what it skipped and why, and never overwrites an existing endpoint unless overwrite is true.',
       inputSchema: {
         document: z.unknown().describe('The parsed OpenAPI 3.x document, as JSON'),
         overwrite: z
@@ -250,10 +250,16 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
           .describe(
             'Replace endpoints that already exist (default false: they are reported as skipped)',
           ),
+        allowLoss: z
+          .boolean()
+          .optional()
+          .describe(
+            'Accept approximations rather than skipping the response that needs one. Ask the person first.',
+          ),
       },
     },
-    ({ document, overwrite }) => {
-      const imported = importOpenapi(document)
+    async ({ document, overwrite, allowLoss }) => {
+      const imported = await importOpenapi(document, { allowLoss: allowLoss === true })
       const skipped = [...imported.skipped]
 
       // One load and one write for the whole spec. It used to be one call
@@ -314,22 +320,33 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       if (!found.ok)
         return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
 
-      const { inferShape, printDocument, printTypes, typeNameFor } = await import('@laqi/generate')
+      const { exportTypes, inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
       try {
         // The stored schema states what the response may contain; the body is
         // one sample. An agent gets the better source when there is one, and
         // is told which it got — it cannot see the file to judge for itself.
         const snapshot = found.value.schema
         const printed = snapshot
-          ? await printDocument(snapshot.document, { typeName: snapshot.name, lang })
-          : await printTypes(inferShape(found.value.body ?? null), {
-              typeName: typeNameFor(endpointId),
-              lang,
-            })
+          ? await exportTypes(snapshot, lang)
+          : {
+              ...(await printTypes(inferShape(found.value.body ?? null), {
+                typeName: typeNameFor(endpointId),
+                lang,
+              })),
+              diagnostics: [],
+            }
         const origin = snapshot
           ? `// exported from the ${snapshot.name} schema this response carries`
           : '// derived from the response body — this response carries no schema'
-        return { content: [{ type: 'text' as const, text: `${origin}\n${printed.code}` }] }
+        // What this target could not express goes in the code, as comments:
+        // an agent that copies the output without them copies a type laqi
+        // already knows is looser than the schema.
+        const notes = [...(snapshot?.diagnostics ?? []), ...printed.diagnostics].map(
+          (item) => `// ${item.kind === 'loss' ? 'approximated' : 'note'}: ${item.message}`,
+        )
+        return {
+          content: [{ type: 'text' as const, text: [origin, ...notes, printed.code].join('\n') }],
+        }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
