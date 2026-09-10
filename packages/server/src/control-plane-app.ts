@@ -77,6 +77,12 @@ export type ControlPlaneRuntime = {
          * from it is a guess. The panel says which, always.
          */
         origin: 'schema' | 'body'
+        /**
+         * The root declaration the code defines. A caller that wants to turn
+         * these types into a model has to say which of them is the response,
+         * and it cannot tell from the text.
+         */
+        typeName: string
         diagnostics?: Diagnostic[]
       }
     | { ok: false; error: string; code: WriteFailure }
@@ -169,6 +175,25 @@ export type ControlPlaneRuntime = {
     id: string,
     response: string | undefined,
   ) => { ok: true; revision: string } | { ok: false; error: string; code: WriteFailure }
+  /**
+   * Stores a schema the caller already has. Never touches the body.
+   *
+   * Separate from `refreshResponseSchema`, which re-reads a source file: this
+   * one is for a schema that came from somewhere else entirely — a model the
+   * person just wrote, or one laqi drafted from the body and they approved.
+   */
+  setResponseSchema: (
+    id: string,
+    response: string | undefined,
+    input: { snapshot: unknown; revision: string },
+  ) =>
+    | { ok: true; revision: string }
+    | {
+        ok: false
+        error: string
+        code: WriteFailure
+        conflict?: { reason: string; revision: string }
+      }
   /** Re-reads the source and replaces the schema. Never touches the body. */
   refreshResponseSchema: (
     id: string,
@@ -223,6 +248,11 @@ const PrepareModuleRequestSchema = z.object({
 const ConfirmModuleRequestSchema = z.object({
   token: z.string().min(1),
   allowLoss: z.boolean().optional(),
+})
+
+const SetSchemaRequestSchema = z.object({
+  snapshot: z.unknown(),
+  revision: z.string().min(1),
 })
 
 const RefreshSchemaRequestSchema = z.object({
@@ -500,6 +530,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       code: result.code,
       language: result.language,
       origin: result.origin,
+      typeName: result.typeName,
       ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
     })
   })
@@ -719,6 +750,28 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
   app.get('/api/endpoints/:id/responses/:name/revision', (c) => {
     const result = runtime.getResponseRevision(c.req.param('id'), c.req.param('name'))
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ revision: result.revision })
+  })
+
+  app.put('/api/endpoints/:id/responses/:name/schema', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = SetSchemaRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = runtime.setResponseSchema(c.req.param('id'), c.req.param('name'), parsed.data)
     if (!result.ok) {
       const { payload, status } = refusal(result)
       return c.json(payload, status)

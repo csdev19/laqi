@@ -34,6 +34,7 @@ beforeEach(() => {
     code: 'interface Derived { id: string }',
     language: 'TypeScript',
     origin: 'body',
+    typeName: 'Derived',
   })
   getLanguages.mockResolvedValue([
     { name: 'typescript', displayName: 'TypeScript' },
@@ -57,6 +58,7 @@ function serverSays(origin: 'schema' | 'body', diagnostics?: SchemaSnapshot['dia
   getTypes.mockResolvedValue({
     code: 'interface Derived { id: string }',
     language: 'TypeScript',
+    typeName: 'Derived',
     origin,
     ...(diagnostics ? { diagnostics } : {}),
   })

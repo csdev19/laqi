@@ -1636,3 +1636,17 @@ button.log-path:hover {
   align-items: flex-start;
   gap: 4px;
 }
+
+/* The model laqi drafted from a body, waiting to be accepted or fixed. Sits
+   under the JSON so the two are read together: the sample above, what laqi
+   made of it below. */
+.model-draft {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.model-draft .micro {
+  max-width: 62ch;
+  line-height: 1.5;
+}

@@ -113,6 +113,8 @@ export const api = {
       code: string
       language: string
       origin: 'schema' | 'body'
+      /** The root declaration, so a caller can turn the code into a model. */
+      typeName: string
       diagnostics?: Diagnostic[]
     }>(`/api/endpoints/${encodeURIComponent(id)}/types${suffix}`)
   },
@@ -177,6 +179,16 @@ export const api = {
 
   getResponseRevision: (id: string, response: string) =>
     request<{ revision: string }>(`${responsePath(id, response)}/revision`),
+
+  setResponseSchema: (
+    id: string,
+    response: string,
+    input: { snapshot: SchemaSnapshot; revision: string },
+  ) =>
+    request<{ revision: string }>(`${responsePath(id, response)}/schema`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
 
   refreshSchema: (id: string, response: string, input: { revision: string; allowLoss?: boolean }) =>
     request<{ snapshot: SchemaSnapshot; revision: string }>(

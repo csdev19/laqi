@@ -43,6 +43,7 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     prepareModule: () => ({ ok: false, error: 'stub', code: 'invalid' }),
     confirmModule: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
     getResponseRevision: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    setResponseSchema: () => ({ ok: false, error: 'stub', code: 'not-found' }),
     refreshResponseSchema: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
     ...overrides,
   }
@@ -657,6 +658,7 @@ describe('generation routes', () => {
       code: 'export interface X {}',
       language: 'typescript',
       origin: 'body' as const,
+      typeName: 'X',
     }))
     const app = createControlPlaneApp(makeRuntime({ getTypes }))
     const res = await app.request(

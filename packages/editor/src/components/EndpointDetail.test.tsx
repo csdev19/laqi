@@ -12,6 +12,8 @@ const {
   applyGeneratedBody,
   refreshSchema,
   getResponseRevision,
+  importSchema,
+  setResponseSchema,
   TestApiError,
 } = vi.hoisted(() => ({
   getLanguages: vi.fn(),
@@ -21,6 +23,8 @@ const {
   applyGeneratedBody: vi.fn(),
   refreshSchema: vi.fn(),
   getResponseRevision: vi.fn(),
+  importSchema: vi.fn(),
+  setResponseSchema: vi.fn(),
   // Declared here because vi.mock is hoisted: a top-level class would not
   // exist yet when the factory runs. The component narrows with
   // `instanceof`, so the mock has to hand back the same constructor.
@@ -47,6 +51,8 @@ vi.mock('../api', () => ({
     applyGeneratedBody,
     refreshSchema,
     getResponseRevision,
+    importSchema,
+    setResponseSchema,
   },
 }))
 
@@ -61,6 +67,8 @@ beforeEach(() => {
   getTypes.mockResolvedValue({
     code: 'export interface Users { id: number }',
     language: 'typescript',
+    origin: 'body',
+    typeName: 'Users',
   })
   generateData.mockResolvedValue({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
   regenerateResponse.mockResolvedValue({
@@ -72,6 +80,16 @@ beforeEach(() => {
   applyGeneratedBody.mockResolvedValue({ revision: 'rev-2' })
   refreshSchema.mockResolvedValue({ snapshot: {}, revision: 'rev-2' })
   getResponseRevision.mockResolvedValue({ revision: 'rev-1' })
+  importSchema.mockResolvedValue({
+    snapshot: {
+      name: 'Users',
+      document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+      source: { kind: 'typescript-paste' },
+      diagnostics: [],
+    },
+    candidates: ['Users'],
+  })
+  setResponseSchema.mockResolvedValue({ revision: 'rev-2' })
 })
 
 function endpoint(overrides: Partial<Endpoint> = {}): Endpoint {
@@ -526,5 +544,117 @@ describe('the response scaffold', () => {
     const deleted = onSave.mock.calls[0]![1].responses.deleted!
     expect(deleted.status).toBe(204)
     expect(Object.hasOwn(deleted, 'body')).toBe(false)
+  })
+})
+
+describe('building a model from a body that has no schema', () => {
+  /** The response laqi refuses to regenerate: a body, and nothing that says what it is. */
+  const noSchema = () =>
+    endpoint({ responses: { ok: { status: 200, body: { id: 1 } }, boom: { status: 500 } } })
+
+  const withSchema = () =>
+    endpoint({
+      responses: {
+        ok: {
+          status: 200,
+          body: { id: 1 },
+          schema: {
+            name: 'Users',
+            document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+            source: { kind: 'typescript-paste' },
+            diagnostics: [],
+          },
+        },
+        boom: { status: 500 },
+      },
+    })
+
+  it('offers Build model when there is no schema to regenerate from', () => {
+    renderDetail(noSchema())
+    expect(screen.getByRole('button', { name: /build model/i })).toBeTruthy()
+  })
+
+  it('offers nothing to build once the response knows its shape', () => {
+    renderDetail(withSchema())
+    expect(screen.queryByRole('button', { name: /build model/i })).toBeNull()
+  })
+
+  it('drafts the model from the body and writes nothing yet', async () => {
+    renderDetail(noSchema())
+
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect((screen.getByLabelText('model') as HTMLTextAreaElement).value).toContain(
+      'interface Users',
+    )
+    expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+
+  // Inference reads one sample. Saying so where the person can act on it is
+  // the whole difference between this and guessing silently.
+  it('names the two things one sample cannot show', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect(screen.getByText(/literal union reads as string/i)).toBeTruthy()
+    expect(screen.getByText(/fixed tuple as a list/i)).toBeTruthy()
+  })
+
+  it('stores what is on screen, edits included, as an ordinary model', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    // The person fixes what inference could not know.
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: "export interface Users { status: 'draft' | 'paid' }" },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    await waitFor(() => expect(setResponseSchema).toHaveBeenCalled())
+    expect(importSchema).toHaveBeenCalledWith({
+      kind: 'typescript-paste',
+      source: "export interface Users { status: 'draft' | 'paid' }",
+      typeName: 'Users',
+    })
+    const [id, response, input] = setResponseSchema.mock.calls[0]!
+    expect(id).toBe('GET /users')
+    expect(response).toBe('ok')
+    expect(input.revision).toBe('rev-1')
+  })
+
+  it('leaves the body alone: this writes a schema, not data', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    await waitFor(() => expect(setResponseSchema).toHaveBeenCalled())
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('drops the draft on Cancel without writing', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+
+  it('shows why a model was refused, instead of failing quietly', async () => {
+    importSchema.mockRejectedValueOnce(new Error('no interface or type alias found'))
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    expect(await screen.findByText(/no interface or type alias/)).toBeTruthy()
+    expect(setResponseSchema).not.toHaveBeenCalled()
   })
 })

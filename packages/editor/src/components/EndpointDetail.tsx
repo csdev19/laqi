@@ -9,6 +9,7 @@ import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { Dialog } from './Dialog'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
+import { ModelEditor } from './ModelEditor'
 import { WarningBand } from './WarningBand'
 
 type Draft = {
@@ -68,6 +69,18 @@ export function EndpointDetail(props: {
   /** A refused write, with the reason and the revision that is current now. */
   const [conflict, setConflict] = useState<{ message: string; revision: string } | null>(null)
 
+  /**
+   * A model laqi drafted from the body, on screen for the person to accept
+   * or fix before it becomes this response's schema.
+   *
+   * Drafted rather than stored on sight: inference reads one sample, so it
+   * cannot tell a literal union from a string or a fixed tuple from a list.
+   * Showing the draft is what turns that from a silent guess into something
+   * someone looked at — and if it is right, accepting it is one click.
+   */
+  const [draftModel, setDraftModel] = useState<{ source: string; typeName: string } | null>(null)
+  const [savingModel, setSavingModel] = useState(false)
+
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
   // if they no longer match, a reload won in the meantime and the late
@@ -121,6 +134,69 @@ export function EndpointDetail(props: {
       ...previous,
       responses: { ...previous.responses, [name]: { ...previous.responses[name]!, ...change } },
     }))
+  }
+
+  /** Whether this response already knows what shape it is. */
+  const hasSchema = endpoint.responses[selected]?.schema !== undefined
+
+  /**
+   * Reads back the types laqi derives from the body and puts them on screen
+   * as an editable model. Nothing is written; this is the draft step.
+   */
+  const buildModel = () => {
+    const epoch = epochRef.current
+    setActionError(null)
+    setConflict(null)
+    void api
+      .getTypes(endpoint.id, { response: selected, lang: 'typescript' })
+      .then((derived) => {
+        if (epochRef.current !== epoch) return
+        setDraftModel({ source: derived.code, typeName: derived.typeName })
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        setActionError(error instanceof Error ? error.message : String(error))
+      })
+  }
+
+  /**
+   * Turns the model on screen into this response's schema.
+   *
+   * Imported as an ordinary pasted model, because that is what it now is:
+   * text a person read and accepted. There is no separate "inferred" kind to
+   * store — it would be a new shape in everyone's mock files, and it would
+   * say less than this does, which is that someone approved this text.
+   */
+  const saveModel = () => {
+    if (draftModel === null) return
+    const epoch = epochRef.current
+    setActionError(null)
+    setSavingModel(true)
+    void api
+      .importSchema({
+        kind: 'typescript-paste',
+        source: draftModel.source,
+        typeName: draftModel.typeName,
+      })
+      .then(({ snapshot }) =>
+        api
+          .getResponseRevision(endpoint.id, selected)
+          .then(({ revision }) =>
+            api.setResponseSchema(endpoint.id, selected, { snapshot, revision }),
+          ),
+      )
+      .then(() => {
+        if (epochRef.current !== epoch) return
+        setDraftModel(null)
+        setWarnings(['schema saved — Regenerate now builds bodies from it'])
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        setActionError(error instanceof Error ? error.message : String(error))
+      })
+      .finally(() => {
+        if (epochRef.current === epoch) setSavingModel(false)
+      })
   }
 
   /** Whether this response's schema names a file a refresh could re-read. */
@@ -380,6 +456,14 @@ export function EndpointDetail(props: {
                   Apply generated
                 </button>
               ) : null}
+              {/* Regenerate refuses a response with no schema, so the way
+                  out of that refusal sits right next to it rather than in
+                  a menu the person has to go looking for. */}
+              {!hasSchema && draftModel === null ? (
+                <button type="button" className="btn" onClick={buildModel}>
+                  Build model
+                </button>
+              ) : null}
               {/* Only when there is a file to re-read. A pasted model was
                   never kept, so there is nothing to refresh from. */}
               {refreshable ? (
@@ -434,6 +518,40 @@ export function EndpointDetail(props: {
               }))
             }
           />
+
+          {/* The draft, in full and editable. laqi read one body to write
+              it, so the two things it cannot know are named — and the
+              person is the one who knows them. */}
+          {draftModel !== null ? (
+            <div className="model-draft">
+              <div className="editor-toolbar">
+                <span className="micro">
+                  model for {draftModel.typeName} — read from this body. A literal union reads as
+                  string here, and a fixed tuple as a list; fix those and it is exact.
+                </span>
+                <div className="header-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={savingModel}
+                    onClick={saveModel}
+                  >
+                    {savingModel ? 'Saving…' : 'Save as schema'}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setDraftModel(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              <ModelEditor
+                value={draftModel.source}
+                label="model"
+                onChange={(source) =>
+                  setDraftModel((previous) => (previous ? { ...previous, source } : previous))
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="detail-meta">

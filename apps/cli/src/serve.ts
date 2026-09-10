@@ -269,6 +269,7 @@ export async function startServer(options: {
             code: printed.code,
             language: printed.language,
             origin: snapshot ? ('schema' as const) : ('body' as const),
+            typeName: snapshot ? snapshot.name : typeNameFor(id),
             ...(diagnostics.length > 0 ? { diagnostics } : {}),
           }
         } catch (error) {
@@ -456,6 +457,35 @@ export async function startServer(options: {
         return result.ok
           ? { ok: true, revision: result.value }
           : { ok: false, error: result.error, code: result.code }
+      },
+      setResponseSchema: (id, responseName, input) => {
+        const parsed = SchemaSnapshotSchema.safeParse(input.snapshot)
+        if (!parsed.success) {
+          return {
+            ok: false,
+            error: parsed.error.issues.map((i) => i.message).join('; '),
+            code: 'invalid',
+          }
+        }
+
+        const result = project.refreshSchema({
+          id,
+          response: responseName,
+          schema: parsed.data,
+          revision: input.revision,
+        })
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.error,
+            code: result.code,
+            ...(result.conflict === undefined ? {} : { conflict: result.conflict }),
+          }
+        }
+
+        counters.recordWrite(result.value.file)
+        reload()
+        return { ok: true, revision: result.value.revision }
       },
       refreshResponseSchema: async (id, responseName, input) => {
         const found = project.getResponse(id, responseName)

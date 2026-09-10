@@ -593,3 +593,77 @@ describe('exporting a stored schema', () => {
     expect(listed.exports.targets).toContain('typescript')
   }, 40_000)
 })
+
+describe('giving a response a schema it never had', () => {
+  it('turns a body into a model, stores it, and unblocks regenerate', async () => {
+    writeMocks({
+      'GET /todos': {
+        default: 'ok',
+        responses: { ok: { status: 200, body: { id: 1, title: 'write it down' } } },
+      },
+    })
+    handle = await startServer({ root, config })
+
+    // Before: there is nothing to regenerate from, and laqi says so.
+    const refused = await send(`${RESPONSE}/regenerate`, 'POST', {})
+    expect(refused.status).toBe(400)
+
+    // The types laqi derives from the body are the draft.
+    const derived = await fetch(
+      `http://127.0.0.1:${handle.port}/__laqi/api/endpoints/${encodeURIComponent('GET /todos')}/types?response=ok&lang=typescript`,
+    )
+    const { code, typeName, origin } = (await derived.json()) as {
+      code: string
+      typeName: string
+      origin: string
+    }
+    expect(origin).toBe('body')
+    expect(code).toContain(typeName)
+
+    const imported = await send('/api/schema/import', 'POST', {
+      source: { kind: 'typescript-paste', source: code, typeName },
+    })
+    const { snapshot } = (await imported.json()) as { snapshot: SchemaSnapshot }
+
+    const revision = await send(`${RESPONSE}/revision`, 'GET')
+    const { revision: current } = (await revision.json()) as { revision: string }
+
+    const stored = await send(`${RESPONSE}/schema`, 'PUT', { snapshot, revision: current })
+    expect(stored.status).toBe(200)
+
+    // The body is untouched — this wrote a schema, not data.
+    expect(readMocks()['GET /todos']?.responses['ok']?.['body']).toEqual({
+      id: 1,
+      title: 'write it down',
+    })
+    expect(readMocks()['GET /todos']?.responses['ok']?.['schema']).toMatchObject({
+      source: { kind: 'typescript-paste' },
+    })
+
+    // After: regenerate works, and the types now come from the schema.
+    const allowed = await send(`${RESPONSE}/regenerate`, 'POST', { seed: 4 })
+    expect(allowed.status).toBe(200)
+    const regenerated = (await allowed.json()) as { body: Record<string, unknown> }
+    expect(typeof regenerated.body['title']).toBe('string')
+  }, 60_000)
+
+  it('refuses a stale revision, like every other write', async () => {
+    writeMocks({
+      'GET /todos': { default: 'ok', responses: { ok: { status: 200, body: { id: 1 } } } },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await send(`${RESPONSE}/schema`, 'PUT', {
+      snapshot: {
+        name: 'Todo',
+        document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+        source: { kind: 'typescript-paste' },
+        diagnostics: [],
+      },
+      revision: 'not-the-current-one',
+    })
+
+    expect(res.status).toBe(409)
+    expect(((await res.json()) as { reason: string }).reason).toBe('stale-revision')
+  }, 40_000)
+})
