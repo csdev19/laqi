@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./events": "./src/events.ts",
+    "./canonical-json": "./src/canonical-json.ts",
     "./package.json": "./package.json"
   },
   "scripts": {

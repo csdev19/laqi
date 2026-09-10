@@ -7,7 +7,7 @@ import {
   type SourceDescriptor,
 } from '@laqi/schema'
 import { Cause, Data, Effect, Exit, Option } from 'effect'
-import { bodyHash } from './canonical-json'
+import { bodyHash } from '@laqi/core/canonical-json'
 import { compileSchema } from './compile-schema'
 import { GenerateError } from './errors'
 import { shapeToJsonSchema } from './json-schema'

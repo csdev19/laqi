@@ -1,7 +1,6 @@
 export * from './shape'
 export * from './infer'
 export * from './json-schema'
-export * from './canonical-json'
 export * from './errors'
 export * from './services'
 export * from './parse-types'
