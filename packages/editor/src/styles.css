@@ -1618,23 +1618,16 @@ button.log-path:hover {
   color: var(--warn);
 }
 
-/* The two refusals a person can answer: a lossy import and a refused write.
-   Both put the way forward inside the message, where the decision is. */
+/* A lossy import, refused with the way forward inside the message. The other
+   refusal — a body about to be overwritten — is answered in the comparison
+   dialog instead, because that one needs both bodies on screen. */
 .loss-refusal ul {
   margin: 4px 0;
   padding-left: 18px;
 }
 
-.loss-refusal button,
-.conflict-band button {
+.loss-refusal button {
   margin-top: 6px;
-}
-
-.conflict-band {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
 }
 
 /* The model laqi drafted from a body, waiting to be accepted or fixed. Sits
@@ -1651,22 +1644,47 @@ button.log-path:hover {
   line-height: 1.5;
 }
 
-/* The bytes a confirmation would replace. Collapsed by default: it is there
-   to be checked when the answer is not obvious, not to fill the screen every
-   time someone regenerates. */
-.conflict-discards summary {
-  cursor: pointer;
-  font-size: 11px;
+/* A dialog that has to show two bodies at once. Wide, and capped so the
+   actions stay reachable without scrolling the page behind it. */
+.dialog-wide {
+  width: min(1100px, 94vw);
 }
 
-.conflict-discards pre {
-  margin: 6px 0 0;
+.body-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.body-compare > div {
+  min-width: 0;
+}
+
+.body-compare .micro {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.body-compare pre {
+  margin: 0;
   padding: 8px 10px;
-  max-height: 200px;
+  height: min(46vh, 420px);
   overflow: auto;
   font-size: 11px;
   line-height: 1.5;
+  white-space: pre;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 2px;
+}
+
+/* The side that would be written wins the eye. */
+.body-compare .compare-next {
+  border-color: var(--line2);
+}
+
+@media (max-width: 760px) {
+  .body-compare {
+    grid-template-columns: 1fr;
+  }
 }

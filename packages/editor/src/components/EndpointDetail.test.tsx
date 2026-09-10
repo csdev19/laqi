@@ -327,18 +327,33 @@ describe('generated types and data', () => {
     )
   })
 
-  it('regenerate previews into the draft and writes nothing on its own', async () => {
+  // The editor keeps showing what is on disk, because that is what the
+  // person is being asked to replace. Putting the preview there used to
+  // make the "overwrite?" question unanswerable.
+  it('regenerate opens the comparison and leaves the body on disk on screen', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
-    await waitFor(() => expect(body().value).toContain('"Fresh"'))
+    await screen.findByRole('dialog')
+    expect(body().value).not.toContain('"Fresh"')
     expect(applyGeneratedBody).not.toHaveBeenCalled()
   })
 
-  it('applies the preview with the evidence and the revision it was generated against', async () => {
+  it('shows both sides, so the decision can be made by looking', async () => {
+    renderDetail(
+      endpoint({ responses: { ok: { status: 200, body: { mine: 1 } }, boom: { status: 500 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    await screen.findByRole('dialog')
+    expect(screen.getByLabelText('body on disk').textContent).toContain('"mine"')
+    expect(screen.getByLabelText('generated body').textContent).toContain('"Fresh"')
+  })
+
+  it('applies with the evidence and the revision it was generated against', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
     await waitFor(() => expect(applyGeneratedBody).toHaveBeenCalled())
     const [id, response, input] = applyGeneratedBody.mock.calls[0]!
@@ -349,12 +364,21 @@ describe('generated types and data', () => {
     expect(input.confirm).toBeUndefined()
   })
 
-  it('offers no Apply until something has been regenerated', () => {
+  it('opens nothing until something has been regenerated', () => {
     renderDetail(endpoint())
-    expect(screen.queryByRole('button', { name: /apply generated/i })).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('shows a refused write with its reason, and confirms against the current revision', async () => {
+  it('writes nothing when the comparison is cancelled', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('answers a refused write inside the comparison, against the current revision', async () => {
     applyGeneratedBody.mockRejectedValueOnce(
       new TestApiError('the body on disk has changed since laqi wrote it', 409, undefined, {
         reason: 'body-modified',
@@ -363,9 +387,12 @@ describe('generated types and data', () => {
     )
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
     expect(await screen.findByText(/has changed since laqi wrote it/)).toBeTruthy()
+    // Both sides are still on screen: that is what makes the refusal answerable.
+    expect(screen.getByLabelText('body on disk')).toBeTruthy()
+    expect(screen.getByLabelText('generated body')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /overwrite anyway/i }))
 
@@ -413,8 +440,8 @@ describe('generated types and data', () => {
 
     expect(body().value).toContain('theirs')
     expect(body().value).not.toContain('Fresh')
-    // And nothing is left to apply: that preview was about the old file.
-    expect(screen.queryByRole('button', { name: /apply generated/i })).toBeNull()
+    // And no comparison opened: that preview was about the old file.
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('shows an error when Regenerate fails, instead of dying silently', async () => {
@@ -435,7 +462,7 @@ describe('generated types and data', () => {
     expect(await screen.findByText(/types generation crashed/)).toBeTruthy()
   })
 
-  it('renders generation warnings from Regenerate', async () => {
+  it('shows what generation approximated, in the comparison', async () => {
     regenerateResponse.mockResolvedValueOnce({
       body: { id: 99, name: 'Fresh' },
       evidence: {},
@@ -457,11 +484,11 @@ describe('generated types and data', () => {
     expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
   })
 
-  it('shows no warning region when Regenerate returns no warnings', async () => {
+  it('shows no warning region when generation had nothing to report', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
-    await waitFor(() => expect(body().value).toContain('"Fresh"'))
+    await screen.findByRole('dialog')
     expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
   })
 })
@@ -668,9 +695,9 @@ describe('answering a refused write', () => {
       }),
     )
 
-  // Regenerate has already put the preview in the editor by now, so without
-  // this the question is about bytes that are nowhere on screen.
-  it('shows the bytes that confirming would replace', async () => {
+  // The refusal is answered where both sides are visible, so "what would I
+  // lose" is a question the screen already answers.
+  it('keeps the bytes that confirming would replace on screen', async () => {
     refuse()
     renderDetail(
       endpoint({
@@ -678,17 +705,17 @@ describe('answering a refused write', () => {
       }),
     )
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
-    await screen.findByText(/what you would replace/i)
-    expect(screen.getByText(/keep me/)).toBeTruthy()
+    await screen.findByRole('button', { name: /overwrite anyway/i })
+    expect(screen.getByLabelText('body on disk').textContent).toContain('keep me')
   })
 
   it('says the asking stops once laqi has written a body itself', async () => {
     refuse()
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
     expect(await screen.findByText(/asks once per response/i)).toBeTruthy()
   })

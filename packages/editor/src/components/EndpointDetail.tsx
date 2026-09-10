@@ -52,36 +52,24 @@ export function EndpointDetail(props: {
   const [renameValue, setRenameValue] = useState<string | null>(null)
 
   /**
-   * A regenerate waiting to be written, with everything the write needs.
+   * A regenerated body waiting on a decision, with everything the write
+   * needs and nothing written yet.
    *
-   * The body also goes into the draft so it can be read and edited, but the
-   * draft alone cannot be applied: the evidence says how this body was
-   * produced and the revision says which response it was decided about, and
-   * a write without both is the silent overwrite the revision exists to
-   * prevent.
+   * It is NOT put into the editor. Doing that used to be the whole problem:
+   * by the time laqi asked whether to replace what was on disk, the editor
+   * was already showing the replacement, so the question was about bytes
+   * that were nowhere on screen. The comparison below shows both.
    */
-  const [pending, setPending] = useState<{
+  const [preview, setPreview] = useState<{
     response: string
     body: unknown
     evidence: GenerationEvidence
     revision: string
+    warnings: string[]
   } | null>(null)
-  /** A refused write, with the reason and the revision that is current now. */
-  const [conflict, setConflict] = useState<{
-    message: string
-    revision: string
-    /**
-     * The bytes on disk that confirming would replace.
-     *
-     * Captured when the write is refused, not read at render time: by then
-     * Regenerate has already put the preview in the editor, so the thing the
-     * question is about is no longer anywhere on screen. Asking "this would
-     * discard whatever it holds" while showing something else is a question
-     * nobody can answer, and a question nobody can answer gets clicked
-     * through.
-     */
-    discards: string
-  } | null>(null)
+  /** A refused write, answered inside the comparison that shows both sides. */
+  const [conflict, setConflict] = useState<{ message: string; revision: string } | null>(null)
+  const [applying, setApplying] = useState(false)
 
   /**
    * A model laqi drafted from the body, on screen for the person to accept
@@ -121,8 +109,9 @@ export function EndpointDetail(props: {
     setDraft(toDraft(endpoint))
     // The file moved under us, so a preview decided about the old one is no
     // longer something anyone agreed to write.
-    setPending(null)
+    setPreview(null)
     setConflict(null)
+    setDraftModel(null)
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` is deliberately omitted: see above
   }, [fingerprint])
@@ -220,40 +209,50 @@ export function EndpointDetail(props: {
   })()
 
   /**
-   * Writes the pending body through the one path that checks the revision
-   * and the evidence. A refusal is shown where the decision is, with the
-   * revision that is current now, so confirming resends against the file as
-   * it actually stands rather than against the one the preview saw.
+   * Writes the body being compared, through the one path that checks the
+   * revision and the evidence.
+   *
+   * A refusal is answered here, inside the comparison, because that is the
+   * only place both sides are visible. `confirm` resends against the
+   * revision that is current NOW — it means "overwrite what is there", never
+   * "ignore that something changed".
    */
-  const applyPending = (confirm?: { revision: string }) => {
-    if (pending === null) return
+  const applyPreview = (confirm?: { revision: string }) => {
+    if (preview === null) return
     const epoch = epochRef.current
     setActionError(null)
     setConflict(null)
+    setApplying(true)
     void api
-      .applyGeneratedBody(endpoint.id, pending.response, {
-        body: pending.body,
-        evidence: pending.evidence,
-        revision: confirm?.revision ?? pending.revision,
+      .applyGeneratedBody(endpoint.id, preview.response, {
+        body: preview.body,
+        evidence: preview.evidence,
+        revision: confirm?.revision ?? preview.revision,
         ...(confirm === undefined ? {} : { confirm: true }),
       })
       .then(() => {
         if (epochRef.current !== epoch) return
-        setPending(null)
+        setWarnings(preview.warnings)
+        setPreview(null)
       })
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
         if (error instanceof ApiError && error.conflict) {
-          const stored = endpoint.responses[pending.response]?.body
-          setConflict({
-            message: error.message,
-            revision: error.conflict.revision,
-            discards: stored === undefined ? '(no body)' : JSON.stringify(stored, null, 2),
-          })
+          setConflict({ message: error.message, revision: error.conflict.revision })
           return
         }
         setActionError(error instanceof Error ? error.message : String(error))
+        setPreview(null)
       })
+      .finally(() => {
+        if (epochRef.current === epoch) setApplying(false)
+      })
+  }
+
+  /** The body currently on disk, as the comparison shows it. */
+  const storedBody = (name: string): string => {
+    const body = endpoint.responses[name]?.body
+    return body === undefined ? '(no body)' : JSON.stringify(body, null, 2)
   }
 
   const save = () => {
@@ -314,34 +313,6 @@ export function EndpointDetail(props: {
         <div className="band band-error">{props.saveError ?? actionError}</div>
       ) : null}
       <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
-      {/* A refused write, answered where the decision is. The button resends
-          against the revision that is current NOW, not the one the preview
-          saw — confirming means "overwrite what is there", not "ignore that
-          something changed". */}
-      {conflict !== null ? (
-        <div className="band band-error conflict-band">
-          <span>{conflict.message}</span>
-          {/* What is actually at stake, in full. The editor above already
-              shows the replacement, so without this the person is being
-              asked about bytes they cannot see. */}
-          <details className="conflict-discards">
-            <summary>what you would replace</summary>
-            <pre className="mono">{conflict.discards}</pre>
-          </details>
-          <span className="micro">
-            laqi asks once per response. Once it has written a body itself, it knows its own bytes
-            and stops asking.
-          </span>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => applyPending({ revision: conflict.revision })}
-          >
-            Overwrite anyway
-          </button>
-        </div>
-      ) : null}
-
       <div className="detail-columns">
         <div className="detail-responses">
           {names.map((name) => (
@@ -455,20 +426,16 @@ export function EndpointDetail(props: {
                       // in flight: the reload already rebuilt the draft and
                       // this response no longer belongs to it.
                       if (epochRef.current !== epoch) return
-                      setDraft((previous) => ({
-                        ...previous,
-                        bodies: {
-                          ...previous.bodies,
-                          [selected]: JSON.stringify(generated.body, null, 2),
-                        },
-                      }))
-                      setPending({
+                      // Straight into the comparison. The editor is left
+                      // holding what is on disk, which is what the person
+                      // is deciding about.
+                      setPreview({
                         response: selected,
                         body: generated.body,
                         evidence: generated.evidence,
                         revision: generated.revision,
+                        warnings: generated.diagnostics.map((item) => item.message),
                       })
-                      setWarnings(generated.diagnostics.map((item) => item.message))
                     })
                     .catch((error: unknown) => {
                       if (epochRef.current !== epoch) return
@@ -478,14 +445,6 @@ export function EndpointDetail(props: {
               >
                 Regenerate
               </button>
-              {/* Only after a regenerate, and only for the response it was
-                  about: applying carries the evidence that says laqi produced
-                  these bytes, which a hand-edited draft cannot claim. */}
-              {pending?.response === selected ? (
-                <button type="button" className="btn btn-primary" onClick={() => applyPending()}>
-                  Apply generated
-                </button>
-              ) : null}
               {/* Regenerate refuses a response with no schema, so the way
                   out of that refusal sits right next to it rather than in
                   a menu the person has to go looking for. */}
@@ -658,6 +617,54 @@ export function EndpointDetail(props: {
           ) : null}
         </div>
       </div>
+
+      {/* Both sides, before anything is written. The point of showing what
+          is on disk beside what would replace it is that "overwrite?" is a
+          question you can only answer by seeing both. */}
+      {preview !== null ? (
+        <Dialog
+          wide
+          title={`Replace the body of "${preview.response}"?`}
+          description={
+            conflict === null ? 'Nothing has been written. Compare, then decide.' : conflict.message
+          }
+          confirmLabel={conflict === null ? 'Apply' : 'Overwrite anyway'}
+          confirmDisabled={applying}
+          onCancel={() => {
+            setPreview(null)
+            setConflict(null)
+          }}
+          onConfirm={() =>
+            applyPreview(conflict === null ? undefined : { revision: conflict.revision })
+          }
+        >
+          <div className="body-compare">
+            <div>
+              <span className="micro">on disk — what you would lose</span>
+              <pre className="mono" aria-label="body on disk">
+                {storedBody(preview.response)}
+              </pre>
+            </div>
+            <div>
+              <span className="micro">generated — what would replace it</span>
+              <pre className="mono compare-next" aria-label="generated body">
+                {JSON.stringify(preview.body, null, 2)}
+              </pre>
+            </div>
+          </div>
+          {conflict !== null ? (
+            <p className="micro">
+              laqi asks once per response. Once it has written a body itself, it knows its own bytes
+              and stops asking.
+            </p>
+          ) : null}
+          {preview.warnings.map((warning) => (
+            <p key={warning} className="micro">
+              {warning}
+            </p>
+          ))}
+        </Dialog>
+      ) : null}
 
       {renameValue !== null ? (
         <Dialog
