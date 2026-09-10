@@ -448,9 +448,9 @@ export function EndpointDetail(props: {
               {/* Regenerate refuses a response with no schema, so the way
                   out of that refusal sits right next to it rather than in
                   a menu the person has to go looking for. */}
-              {!hasSchema && draftModel === null ? (
+              {draftModel === null ? (
                 <button type="button" className="btn" onClick={buildModel}>
-                  Build model
+                  {hasSchema ? 'Rebuild model from body' : 'Build model'}
                 </button>
               ) : null}
               {/* Only when there is a file to re-read. A pasted model was
@@ -515,8 +515,10 @@ export function EndpointDetail(props: {
             <div className="model-draft">
               <div className="editor-toolbar">
                 <span className="micro">
-                  model for {draftModel.typeName} — read from this body. A literal union reads as
-                  string here, and a fixed tuple as a list; fix those and it is exact.
+                  model for {draftModel.typeName} — read from this body
+                  {hasSchema ? '; saving replaces the schema this response has' : ''}. A literal
+                  union reads as string here, and a fixed tuple as a list; fix those and it is
+                  exact.
                 </span>
                 <div className="header-actions">
                   <button

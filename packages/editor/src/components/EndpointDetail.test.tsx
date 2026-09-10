@@ -608,9 +608,15 @@ describe('building a model from a body that has no schema', () => {
     expect(screen.getByRole('button', { name: /build model/i })).toBeTruthy()
   })
 
-  it('offers nothing to build once the response knows its shape', () => {
+  // A schema can be stale — built from an older body, or by an older laqi —
+  // and the body is still the sample. Rebuilding replaces it, through the
+  // same revision-checked write as everything else.
+  it('offers to rebuild once the response has a schema, and says it replaces it', async () => {
     renderDetail(withSchema())
-    expect(screen.queryByRole('button', { name: /build model/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /rebuild model from body/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect(screen.getByText(/replaces the schema this response has/i)).toBeTruthy()
   })
 
   it('drafts the model from the body and writes nothing yet', async () => {
