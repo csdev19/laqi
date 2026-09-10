@@ -2,6 +2,7 @@ import { diagnostic, type Diagnostic, type SchemaSnapshot } from '@laqi/schema'
 import { Effect } from 'effect'
 import { KNOWN_SOURCE_KINDS } from '@laqi/schema'
 import { PrintError } from './errors'
+import { printDocumentTypeScript } from './print-document'
 import { printDocumentEffect, supportedLanguagesEffect } from './print-types'
 import { generateRuntime } from './services/runtime'
 import { Quicktype } from './services/quicktype'
@@ -29,9 +30,21 @@ export const exportTypesEffect = (
   target?: string,
 ): Effect.Effect<Exported, PrintError, Quicktype> =>
   Effect.gen(function* () {
+    // TypeScript is not a translation: it is the language a laqi schema is
+    // written in and read back from. laqi prints it itself, keys where the
+    // schema has them, `$defs` under their own names, real tuples. Every
+    // other language is a translation and goes to quicktype.
+    if (target === undefined || TYPESCRIPT.has(target)) {
+      return {
+        code: printDocumentTypeScript(snapshot.document, snapshot.name),
+        language: 'typescript',
+        diagnostics: [],
+      }
+    }
+
     const printed = yield* printDocumentEffect(snapshot.document, {
       typeName: snapshot.name,
-      ...(target === undefined ? {} : { lang: target }),
+      lang: target,
     })
 
     return {
@@ -41,6 +54,9 @@ export const exportTypesEffect = (
     }
   })
 
+/** The names quicktype accepts for its TypeScript target. */
+const TYPESCRIPT = new Set(['typescript', 'ts'])
+
 /**
  * What the exporter lost that the schema kept.
  *
@@ -49,6 +65,7 @@ export const exportTypesEffect = (
  * out as an array of `string | number` — a type that accepts three strings.
  * Generation is unaffected; it runs from the compiled plan, which knows the
  * arity. Anyone copying the exported types has to be told the difference.
+ * TypeScript never gets here: laqi prints it with real tuples.
  */
 export function exportDiagnostics(snapshot: SchemaSnapshot): Diagnostic[] {
   const pointer = firstTuple(snapshot.document, '')

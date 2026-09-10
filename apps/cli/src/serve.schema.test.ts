@@ -564,8 +564,15 @@ describe('exporting a stored schema', () => {
     expect(exported.origin).toBe('schema')
     expect(exported.language).toBe('typescript')
     expect(exported.code).toContain('Point')
-    // quicktype renders no fixed-arity tuple in any target it has.
-    expect(exported.diagnostics.map((item) => item.code)).toContain('export.tuple-approximated')
+    // laqi prints TypeScript itself, with a real tuple: nothing to report.
+    expect(exported.code).toContain('at: [number, number];')
+    expect(exported.diagnostics).toEqual([])
+
+    // Every other language goes through quicktype, which renders no
+    // fixed-arity tuple, and says so.
+    const python = await send('/api/schema/export', 'POST', { snapshot, target: 'python' })
+    const translated = (await python.json()) as { diagnostics: { code: string }[] }
+    expect(translated.diagnostics.map((item) => item.code)).toContain('export.tuple-approximated')
   }, 40_000)
 
   // Export is a read. A route that both prints and writes would make copying

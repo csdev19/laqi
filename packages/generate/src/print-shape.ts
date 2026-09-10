@@ -46,7 +46,7 @@ export function printShapeTypeScript(shape: Shape, typeName: string): string {
         const slot = declarations.push('') - 1
         const lines = value.fields.map(
           (field) =>
-            `  ${property(field.name)}${field.optional ? '?' : ''}: ${type(field.shape, typeNameFor(field.name))};`,
+            `  ${property(field.name)}${field.optional ? '?' : ''}: ${type(field.shape, fieldTypeName(field.name))};`,
         )
         declarations[slot] = `export interface ${name} {\n${lines.join('\n')}\n}`
         return name
@@ -90,7 +90,7 @@ function needsParens(shape: Shape): boolean {
 }
 
 /** `customer` → `Customer`, `billing_address` → `BillingAddress`. */
-function typeNameFor(field: string): string {
+export function fieldTypeName(field: string): string {
   const cleaned = field.replace(/[^A-Za-z0-9]+(.)?/g, (_, next: string | undefined) =>
     next ? next.toUpperCase() : '',
   )
@@ -103,7 +103,7 @@ function typeNameFor(field: string): string {
  * that does not obviously pluralise is left alone. A draft with `Status[]`
  * beats one with `Statu[]`, and the person edits it either way.
  */
-function singular(name: string): string {
+export function singular(name: string): string {
   if (name.endsWith('ies') && name.length > 4) return `${name.slice(0, -3)}y`
   if (name.endsWith('ses') || name.endsWith('us') || name.endsWith('ss')) return name
   if (name.endsWith('s') && name.length > 3) return name.slice(0, -1)
@@ -111,6 +111,6 @@ function singular(name: string): string {
 }
 
 /** Quotes a key TypeScript could not take bare. */
-function property(name: string): string {
+export function property(name: string): string {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) ? name : JSON.stringify(name)
 }

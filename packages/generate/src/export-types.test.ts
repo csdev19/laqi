@@ -57,18 +57,25 @@ describe('what the exporter cannot express', () => {
   // The exported type accepts three numbers; the schema does not, and
   // generation does not. Anyone copying the types has to be told.
   it('reports a tuple as approximated, pointing at where it is', async () => {
-    const exported = await exportTypes(TUPLE)
+    const exported = await exportTypes(TUPLE, 'python')
 
     expect(exported.diagnostics.map((item) => item.code)).toEqual(['export.tuple-approximated'])
     expect(exported.diagnostics[0]?.pointer).toBe('/properties/point/prefixItems')
   }, 30_000)
 
-  it('reports it on every target, because no target quicktype has renders one', async () => {
-    for (const target of ['typescript', 'python', 'go', 'rust']) {
+  it('reports it on every quicktype target, because none of them renders one', async () => {
+    for (const target of ['python', 'go', 'rust']) {
       const exported = await exportTypes(TUPLE, target)
       expect(exported.diagnostics.map((item) => item.code)).toEqual(['export.tuple-approximated'])
     }
   }, 60_000)
+
+  // TypeScript is printed by laqi, with real tuples: nothing was lost.
+  it('has nothing to report for TypeScript, which laqi prints itself', async () => {
+    const exported = await exportTypes(TUPLE, 'typescript')
+    expect(exported.code).toContain('point: [number, number];')
+    expect(exported.diagnostics).toEqual([])
+  }, 30_000)
 
   // The snapshot describes the import. A re-export must not rewrite it.
   it('returns the export diagnostics without touching the snapshot', async () => {
