@@ -1611,3 +1611,94 @@ button.log-path:hover {
   border-radius: 2px;
   color: var(--fg);
 }
+
+/* A stored loss: someone was shown this and said yes. Warn-coloured so it
+   reads as a caveat on the types above, not as an error to go and fix. */
+.types-acknowledged {
+  color: var(--warn);
+}
+
+/* A lossy import, refused with the way forward inside the message. The other
+   refusal — a body about to be overwritten — is answered in the comparison
+   dialog instead, because that one needs both bodies on screen. */
+.loss-refusal ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.loss-refusal button {
+  margin-top: 6px;
+}
+
+/* The model laqi drafted from a body, waiting to be accepted or fixed. Sits
+   under the JSON so the two are read together: the sample above, what laqi
+   made of it below. */
+.model-draft {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.model-draft .micro {
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+/* A dialog that has to show two bodies at once. Wide, and capped so the
+   actions stay reachable without scrolling the page behind it. */
+.dialog-wide {
+  width: min(1100px, 94vw);
+}
+
+.body-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.body-compare > div {
+  min-width: 0;
+}
+
+.body-compare .micro {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.body-compare pre {
+  margin: 0;
+  padding: 8px 10px;
+  height: min(46vh, 420px);
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+/* The side that would be written wins the eye. */
+.body-compare .compare-next {
+  border-color: var(--line2);
+}
+
+@media (max-width: 760px) {
+  .body-compare {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A warning inside a dialog: the same band as the panel's, but boxed and
+   spaced as a block rather than glued to a top edge. */
+.dialog-callout {
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 176, 32, 0.4);
+  border-radius: 2px;
+}
+
+.dialog-callout-text {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--fg);
+}

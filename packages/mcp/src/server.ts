@@ -1,9 +1,21 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { ResponseSchema, type EndpointDefinition, type LaqiConfig } from '@laqi/schema'
+import {
+  ResponseSchema,
+  SourceRequestSchema,
+  type EndpointDefinition,
+  type LaqiConfig,
+} from '@laqi/schema'
 import { z } from 'zod'
 import { MAX_SOURCE_LENGTH } from '@laqi/generate'
 import { importOpenapi } from './openapi'
-import { Project, type ProjectResult } from '@laqi/core'
+import { ModuleApprovals, Project, refreshRequestFor, type ProjectResult } from '@laqi/core'
+
+/**
+ * The wire form of a source, declared here so an agent reads the shapes it
+ * may send. The union itself is the schema package's, so this transport
+ * cannot drift from what the importer accepts.
+ */
+const SourceRequestShape = SourceRequestSchema
 
 const ResponsesShape = z
   .record(z.string(), ResponseSchema)
@@ -42,6 +54,12 @@ function errorMessage(error: unknown): string {
 
 export function createMcpServer(options: { root: string; config: LaqiConfig }): McpServer {
   const project = new Project(options.root, options.config)
+  /**
+   * MCP never redeems a panel token — it holds this only for the written-down
+   * list. The two approvals mean different things: one is a person looking at
+   * a file right now, the other is a standing decision about a project.
+   */
+  const approvals = new ModuleApprovals(options.root, options.config)
 
   const server = new McpServer(
     { name: 'laqi', version: '2.0.0' },
@@ -223,7 +241,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Import an OpenAPI document',
       description:
-        'Use this when you already have an OpenAPI/Swagger document for the API you are mocking, instead of calling create_endpoint per route. Creates mock endpoints from an OpenAPI 3.x document, generating example bodies from the schemas. The document must be JSON — convert YAML before calling. Reports what it skipped and why, and never overwrites an endpoint that already exists unless overwrite is true.',
+        'Use this when you already have an OpenAPI/Swagger document for the API you are mocking, instead of calling create_endpoint per route. The document must be JSON — convert YAML before calling. A response with an example keeps it exactly; otherwise the body is generated from the schema, which is stored so it can be regenerated later. Reports what it skipped and why, and never overwrites an existing endpoint unless overwrite is true.',
       inputSchema: {
         document: z.unknown().describe('The parsed OpenAPI 3.x document, as JSON'),
         overwrite: z
@@ -232,10 +250,16 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
           .describe(
             'Replace endpoints that already exist (default false: they are reported as skipped)',
           ),
+        allowLoss: z
+          .boolean()
+          .optional()
+          .describe(
+            'Accept approximations rather than skipping the response that needs one. Ask the person first.',
+          ),
       },
     },
-    ({ document, overwrite }) => {
-      const imported = importOpenapi(document)
+    async ({ document, overwrite, allowLoss }) => {
+      const imported = await importOpenapi(document, { allowLoss: allowLoss === true })
       const skipped = [...imported.skipped]
 
       // One load and one write for the whole spec. It used to be one call
@@ -296,22 +320,33 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       if (!found.ok)
         return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
 
-      const { inferShape, printDocument, printTypes, typeNameFor } = await import('@laqi/generate')
+      const { exportTypes, inferShape, printTypes, typeNameFor } = await import('@laqi/generate')
       try {
         // The stored schema states what the response may contain; the body is
         // one sample. An agent gets the better source when there is one, and
         // is told which it got — it cannot see the file to judge for itself.
         const snapshot = found.value.schema
         const printed = snapshot
-          ? await printDocument(snapshot.document, { typeName: snapshot.name, lang })
-          : await printTypes(inferShape(found.value.body ?? null), {
-              typeName: typeNameFor(endpointId),
-              lang,
-            })
+          ? await exportTypes(snapshot, lang)
+          : {
+              ...(await printTypes(inferShape(found.value.body ?? null), {
+                typeName: typeNameFor(endpointId),
+                lang,
+              })),
+              diagnostics: [],
+            }
         const origin = snapshot
           ? `// exported from the ${snapshot.name} schema this response carries`
           : '// derived from the response body — this response carries no schema'
-        return { content: [{ type: 'text' as const, text: `${origin}\n${printed.code}` }] }
+        // What this target could not express goes in the code, as comments:
+        // an agent that copies the output without them copies a type laqi
+        // already knows is looser than the schema.
+        const notes = [...(snapshot?.diagnostics ?? []), ...printed.diagnostics].map(
+          (item) => `// ${item.kind === 'loss' ? 'approximated' : 'note'}: ${item.message}`,
+        )
+        return {
+          content: [{ type: 'text' as const, text: [origin, ...notes, printed.code].join('\n') }],
+        }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
@@ -323,8 +358,15 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Generate mock data',
       description:
-        'Use this for a realistic body — an array of users, a paginated list — instead of hand-writing fake values: generate from a pasted TypeScript model, or regenerate from the shape of an existing response (from). Returns a preview; write it with create_endpoint or update_endpoint. Same seed, same output.',
+        'Use this for a realistic body — an array of users, a paginated list — instead of hand-writing fake values: from a pasted TypeScript model, a JSON Schema document (source), or the schema an existing response carries (from). Returns a preview; write it with apply_generated_body. Same seed, same output. Strict by default: an import that would lose what the source said is refused, naming what would have been approximated. Pass allowLoss only after showing that to the person.',
       inputSchema: {
+        source: SourceRequestShape.optional().describe(
+          'Any source laqi can import, e.g. { "kind": "json-schema", "document": { … } }',
+        ),
+        allowLoss: z
+          .boolean()
+          .optional()
+          .describe('Accept the approximations the reply names. Ask the person first.'),
         // Declared here as well as enforced inside parseTypes, so the limit
         // is part of the advertised schema: an agent reads it before
         // streaming a whole file down the pipe, instead of after.
@@ -357,9 +399,13 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ model, typeName, from, arrayLength, seed }) => {
+    async ({ source, allowLoss, model, typeName, from, arrayLength, seed }) => {
       const { compileSchema, importSchema, previewBody } = await import('@laqi/generate')
       const genOptions = { arrayLength, seed }
+      const importOptions = {
+        allowLoss: allowLoss === true,
+        paths: { root: options.root, sourceRoot: options.config.schemaSources.root },
+      }
 
       // Same shape as get_types just above: a malformed model or an
       // unrepresentable shape (a depth-guard trip in inferShape, a
@@ -368,20 +414,48 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       // own, but only with a generic message — this keeps the reported
       // error explicit and consistent with get_types.
       try {
-        if (model !== undefined) {
-          // Strict by default, and no way to acknowledge a loss over this
-          // transport: an agent cannot be shown diagnostics and asked. It is
-          // told what would have been approximated, and a person decides.
-          const snapshot = await importSchema({
-            kind: 'typescript-paste',
-            source: model,
-            ...(typeName === undefined ? {} : { typeName }),
-          })
+        // `model` is the shorthand for the commonest source; `source` is the
+        // same path with any kind. One import call for both, so a loss is
+        // refused identically however the caller spelled it.
+        const request =
+          source ??
+          (model === undefined
+            ? undefined
+            : ({
+                kind: 'typescript-paste',
+                source: model,
+                ...(typeName === undefined ? {} : { typeName }),
+              } as const))
+
+        if (request !== undefined) {
+          // An agent has nobody to ask, so the answer was written down in
+          // advance. Checked before anything is resolved or read: the point
+          // is that an unlisted module is never reached at all.
+          if (request.kind === 'project-module') {
+            const asked = {
+              file: request.file,
+              exportName: request.exportName,
+              side: request.side,
+            }
+            if (!approvals.allowedForAgents(asked)) {
+              return {
+                isError: true,
+                content: [{ type: 'text' as const, text: approvals.refusalForAgents(asked) }],
+              }
+            }
+          }
+
+          const { snapshot, candidates } = await importSchema(request, importOptions)
           const preview = await previewBody(snapshot, genOptions)
           return text({
             preview: preview.body,
             schema: snapshot,
             generation: preview.evidence,
+            diagnostics: snapshot.diagnostics,
+            // Which declaration was used is invisible in the body, and a
+            // paste that declares several silently mocks whichever came
+            // first. Named whenever there was a choice.
+            ...(candidates.length > 1 ? { typeName: snapshot.name, candidates } : {}),
             warnings: snapshot.diagnostics.map((item) => item.message),
           })
         }
@@ -426,11 +500,185 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
         }
         return {
           isError: true,
-          content: [{ type: 'text' as const, text: 'pass either "model" or "from"' }],
+          content: [{ type: 'text' as const, text: 'pass one of "model", "source" or "from"' }],
         }
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }
+    },
+  )
+
+  server.registerTool(
+    'regenerate_response',
+    {
+      title: 'Regenerate a response body',
+      description:
+        'Generate a fresh body for a response from the JSON Schema it already carries. Returns a preview and the revision it was generated against; it writes nothing. Pass both to apply_generated_body to keep it. A response with no schema is refused rather than guessed at: inferring a shape back from one sample cannot see a literal union, an absent optional or a fixed-length tuple.',
+      inputSchema: {
+        endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
+        response: z.string().optional().describe('Response name; defaults to the endpoint default'),
+        arrayLength: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .describe('How many items for a top-level array'),
+        seed: z.number().int().optional().describe('Fix this to get the same output on every call'),
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ endpointId, response, arrayLength, seed }) => {
+      const found = project.getResponse(endpointId, response)
+      if (!found.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
+
+      const snapshot = found.value.schema
+      if (!snapshot) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text' as const,
+              text:
+                `${endpointId} has no schema for ${JSON.stringify(response ?? 'its default response')}, so there is ` +
+                'nothing to regenerate from. Create the response from a model or a JSON Schema first.',
+            },
+          ],
+        }
+      }
+
+      const revision = project.getResponseRevision(endpointId, response)
+      if (!revision.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: revision.error }] }
+
+      const { previewBody } = await import('@laqi/generate')
+      try {
+        const preview = await previewBody(snapshot, { arrayLength, seed })
+        return text({
+          preview: preview.body,
+          generation: preview.evidence,
+          revision: revision.value,
+          diagnostics: preview.diagnostics,
+        })
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
+      }
+    },
+  )
+
+  server.registerTool(
+    'apply_generated_body',
+    {
+      title: 'Write a generated body to a response',
+      description:
+        'Write a body produced by regenerate_response or generate_data, together with the evidence that reproduces it. Pass the revision that came back with the preview. This can be refused: if the response changed since then, or if the body being replaced is not one laqi generated (hand-written, or edited afterwards), the reply names the reason and the current revision. Show the person what would be overwritten, then retry with that revision and confirm: true.',
+      inputSchema: {
+        endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
+        response: z.string().optional().describe('Response name; defaults to the endpoint default'),
+        body: z.unknown().describe('The generated body, exactly as the preview returned it'),
+        generation: z.unknown().describe('The evidence the preview returned beside the body'),
+        revision: z.string().describe('The revision the preview was generated against'),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe('Overwrite a body laqi did not generate. Ask the person first.'),
+      },
+    },
+    ({ endpointId, response, body, generation, revision, confirm }) => {
+      const result = project.applyGeneratedBody({
+        id: endpointId,
+        response,
+        body,
+        generation,
+        revision,
+        confirm,
+      })
+
+      if (!result.ok && result.conflict) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  conflict: result.conflict.reason,
+                  message: result.error,
+                  revision: result.conflict.revision,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        }
+      }
+      return reply(result)
+    },
+  )
+
+  server.registerTool(
+    'refresh_schema',
+    {
+      title: 'Re-read the source of a stored schema',
+      description:
+        "Re-read the file a response's schema was imported from and store the new version. The body is not touched and not regenerated: use regenerate_response for that, so the change to the served data is a separate, visible step. A schema imported from pasted TypeScript has no source to re-read.",
+      inputSchema: {
+        endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
+        response: z.string().optional().describe('Response name; defaults to the endpoint default'),
+        revision: z.string().describe('The revision you last read for this response'),
+        allowLoss: z
+          .boolean()
+          .optional()
+          .describe(
+            'Store the approximations the diagnostics name. Show them to the person first.',
+          ),
+      },
+    },
+    async ({ endpointId, response, revision, allowLoss }) => {
+      const found = project.getResponse(endpointId, response)
+      if (!found.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: found.error }] }
+
+      const request = refreshRequestFor({
+        snapshot: found.value.schema,
+        root: options.root,
+        sourceRoot: options.config.schemaSources.root,
+      })
+      if (!request.ok)
+        return { isError: true, content: [{ type: 'text' as const, text: request.error }] }
+
+      const { importSchema } = await import('@laqi/generate')
+      let snapshot
+      try {
+        snapshot = (await importSchema(request.value, { allowLoss: allowLoss === true })).snapshot
+      } catch (error) {
+        return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
+      }
+
+      const result = project.refreshSchema({ id: endpointId, response, schema: snapshot, revision })
+      if (!result.ok && result.conflict) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  conflict: result.conflict.reason,
+                  message: result.error,
+                  revision: result.conflict.revision,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        }
+      }
+      if (!result.ok) return reply(result)
+      return text({ schema: snapshot, revision: result.value.revision })
     },
   )
 

@@ -1,3 +1,4 @@
+import type { Diagnostic } from '@laqi/schema'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError, type EndpointDefinition } from './api'
 import { CommandPalette } from './components/CommandPalette'
@@ -39,6 +40,16 @@ export function App() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
+  /**
+   * A model refused because importing it would say less than the source
+   * does. Held rather than shown as a plain error, because the person can
+   * still say yes: the row renders the diagnostics and offers to import
+   * anyway. Strict stays the default; accepting is a visible act.
+   */
+  const [lossRefusal, setLossRefusal] = useState<{
+    message: string
+    diagnostics: Diagnostic[]
+  } | null>(null)
 
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -172,21 +183,24 @@ export function App() {
       typeName: string | undefined
       responseName: string
       status: number
+      /** Set by the row's accept-approximation control, never by default. */
+      allowLoss?: boolean
     }) => {
       setCreateError(null)
       setWarnings([])
+      setLossRefusal(null)
       try {
-        const {
-          preview,
-          warnings: generationWarnings,
-          typeName,
-          candidates,
-          schema,
-          generation,
-        } = await api.generateData({
-          model: input.model,
-          ...(input.typeName ? { typeName: input.typeName } : {}),
-        })
+        const { snapshot, candidates } = await api.importSchema(
+          {
+            kind: 'typescript-paste',
+            source: input.model,
+            ...(input.typeName ? { typeName: input.typeName } : {}),
+          },
+          { allowLoss: input.allowLoss === true },
+        )
+        const preview = await api.previewBody(snapshot)
+        const generationWarnings = snapshot.diagnostics.map((item) => item.message)
+        const typeName = snapshot.name
         // `create()` closes the CreateEndpointRow and opens the new
         // endpoint's detail — the warnings state lives here, not there, so
         // it survives that transition instead of unmounting with the row.
@@ -211,16 +225,98 @@ export function App() {
           path: input.path,
           responseName: input.responseName,
           status: input.status,
-          body: preview,
-          ...(schema ? { schema } : {}),
-          ...(generation ? { generation } : {}),
+          body: preview.body,
+          schema: snapshot,
+          generation: preview.evidence,
         })
       } catch (error) {
+        // A strict-loss refusal is not a dead end: the diagnostics say what
+        // would be approximated, and the row offers to accept them. Anything
+        // else is an error the person can only read.
+        if (error instanceof ApiError && error.diagnostics !== undefined) {
+          setLossRefusal({ message: error.message, diagnostics: error.diagnostics })
+          return
+        }
         setCreateError(error instanceof ApiError ? error.message : String(error))
       }
     },
     [create],
   )
+
+  /**
+   * A module laqi has resolved and is waiting to be told to run, with the
+   * token that says so. Held here rather than in the row because it survives
+   * the row rerendering, and because the token is a permission — losing track
+   * of one would mean asking the person again for something they answered.
+   */
+  const [pendingModule, setPendingModule] = useState<{
+    token: string
+    resolvedPath: string
+    exportName: string
+    side: string
+    create: { method: string; path: string; responseName: string; status: number }
+  } | null>(null)
+
+  const prepareModule = useCallback(
+    async (input: {
+      method: string
+      path: string
+      file: string
+      exportName: string
+      side: 'input' | 'output'
+      responseName: string
+      status: number
+    }) => {
+      setCreateError(null)
+      setWarnings([])
+      setLossRefusal(null)
+      setPendingModule(null)
+      try {
+        const prepared = await api.prepareModule({
+          file: input.file,
+          exportName: input.exportName,
+          side: input.side,
+        })
+        setPendingModule({
+          ...prepared,
+          create: {
+            method: input.method,
+            path: input.path,
+            responseName: input.responseName,
+            status: input.status,
+          },
+        })
+      } catch (error) {
+        setCreateError(error instanceof ApiError ? error.message : String(error))
+      }
+    },
+    [],
+  )
+
+  const confirmModule = useCallback(async () => {
+    if (pendingModule === null) return
+    // Spent either way: the token is single-use on the server, so keeping it
+    // on screen would only offer a button that cannot work twice.
+    setPendingModule(null)
+    setCreateError(null)
+    try {
+      const { snapshot } = await api.confirmModule({ token: pendingModule.token })
+      const preview = await api.previewBody(snapshot)
+      setWarnings(snapshot.diagnostics.map((item) => item.message))
+      await create({
+        ...pendingModule.create,
+        body: preview.body,
+        schema: snapshot,
+        generation: preview.evidence,
+      })
+    } catch (error) {
+      if (error instanceof ApiError && error.diagnostics !== undefined) {
+        setLossRefusal({ message: error.message, diagnostics: error.diagnostics })
+        return
+      }
+      setCreateError(error instanceof ApiError ? error.message : String(error))
+    }
+  }, [create, pendingModule])
 
   const save = useCallback(
     async (id: string, definition: EndpointDefinition) => {
@@ -368,7 +464,12 @@ export function App() {
               {creating ? (
                 <CreateEndpointRow
                   error={createError}
+                  lossRefusal={lossRefusal}
+                  pendingModule={pendingModule}
+                  schemaSourceRoot={status?.schemaSourceRoot}
                   onCreate={(input) => void create(input)}
+                  onCreateFromModule={(input) => void prepareModule(input)}
+                  onConfirmModule={() => void confirmModule()}
                   onCreateFromModel={(input) => void createFromModel(input)}
                   onCancel={() => setCreating(false)}
                 />

@@ -113,9 +113,25 @@ export function TypesPanel(props: {
           : 'derived from the body — this response carries no schema'}
       </p>
 
+      {/* Where the model is shown is where someone wonders what to do with
+          it. The action lives next to Regenerate, which is a column away,
+          so this says it is there rather than leaving it to be found. */}
+      {printed !== null && printed.origin === 'body' ? (
+        <p className="types-origin">
+          Build model, above, turns these types into a schema this response keeps.
+        </p>
+      ) : null}
+
       {/* What the source said that the schema could not keep. Shown next to
           the types, because copying them without knowing this is copying a
-          claim laqi already knows is incomplete. */}
+          claim laqi already knows is incomplete.
+
+          The heading says the approximation was ACKNOWLEDGED, not merely
+          detected: a stored loss is there because someone accepted it, and
+          reading the list without that reads like an unfixed bug. */}
+      {(printed?.diagnostics ?? []).some((item) => item.kind === 'loss') ? (
+        <p className="types-origin types-acknowledged">approximation acknowledged</p>
+      ) : null}
       {(printed?.diagnostics ?? []).map((item) => (
         <p key={`${item.code}${item.pointer}`} className="types-loss micro">
           {item.kind === 'loss' ? 'approximated' : 'note'}: {item.message}

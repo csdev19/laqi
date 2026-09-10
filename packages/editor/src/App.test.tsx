@@ -7,7 +7,8 @@ const putState = vi.fn()
 const createEndpoint = vi.fn()
 const updateEndpoint = vi.fn()
 const deleteEndpoint = vi.fn()
-const generateData = vi.fn()
+const importSchema = vi.fn()
+const previewBody = vi.fn()
 
 let endpoints: Endpoint[]
 let state: LaqiState
@@ -33,11 +34,15 @@ vi.mock('./api', async () => {
       deleteEndpoint,
       getLanguages: () => Promise.resolve([{ name: 'typescript', displayName: 'TypeScript' }]),
       getTypes: () => Promise.resolve({ code: '', language: 'typescript' }),
-      generateData,
+      importSchema,
+      previewBody,
     },
   }
 })
 
+// Imported after the mock, not at the top: a static import of a mocked
+// module hoists the factory above the consts it closes over.
+const { ApiError } = await import('./api')
 const { App } = await import('./App')
 
 function endpoint(partial: Partial<Endpoint> & Pick<Endpoint, 'id' | 'method' | 'path'>): Endpoint {
@@ -278,47 +283,77 @@ describe('creating an endpoint', () => {
     expect(await screen.findByText(/already exists/)).toBeTruthy()
   })
 
-  it('creates an endpoint from a pasted model, with the generated preview as the body', async () => {
-    generateData.mockResolvedValue({ preview: [{ id: 1, title: 'Generated' }], warnings: [] })
+  /**
+   * The two calls the model flow makes, set up together: importing says what
+   * the source is, previewing says what a body from it looks like.
+   */
+  function mockModel(options: {
+    name?: string
+    candidates?: string[]
+    preview?: unknown
+    diagnostics?: {
+      code: string
+      kind: string
+      severity: string
+      message: string
+      pointer: string
+    }[]
+  }) {
+    const name = options.name ?? 'Todo'
+    const diagnostics = options.diagnostics ?? []
+    importSchema.mockResolvedValue({
+      snapshot: {
+        name,
+        document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+        source: { kind: 'typescript-paste' },
+        diagnostics,
+      },
+      candidates: options.candidates ?? [name],
+    })
+    previewBody.mockResolvedValue({
+      body: options.preview ?? [{ id: 1, title: 'Generated' }],
+      evidence: { seed: 1, options: { arrayLength: 3 }, bodyHash: 'a'.repeat(64) },
+      diagnostics,
+    })
+  }
+
+  /** Fills the model form and submits it. */
+  function createFromModel(source: string, path: string, typeName?: string) {
+    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
+    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: source } })
+    if (typeName !== undefined) {
+      fireEvent.change(screen.getByLabelText('type'), { target: { value: typeName } })
+    }
+    fireEvent.change(screen.getByLabelText('path'), { target: { value: path } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+  }
+
+  it('creates an endpoint from a pasted model, with the preview and its provenance', async () => {
+    mockModel({})
     createEndpoint.mockResolvedValue({ id: 'GET /todos' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), {
-      target: { value: 'export interface Todo { id: number; title: string }' },
-    })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export interface Todo { id: number; title: string }', '/todos')
 
-    await waitFor(() =>
-      expect(createEndpoint).toHaveBeenCalledWith({
-        method: 'GET',
-        path: '/todos',
-        default: 'ok',
-        responses: { ok: { status: 200, body: [{ id: 1, title: 'Generated' }] } },
-      }),
-    )
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    const [written] = createEndpoint.mock.calls[0]!
+    expect(written.responses.ok.body).toEqual([{ id: 1, title: 'Generated' }])
+    // The schema and the evidence are written beside the body, not derived
+    // later: without them the response cannot be regenerated or refreshed.
+    expect(written.responses.ok.schema).toMatchObject({ name: 'Todo' })
+    expect(written.responses.ok.generation).toMatchObject({ seed: 1 })
   })
 
   // Which declaration the parser chose is the difference between mocking an
   // order and mocking the string 'viewer', and the preview alone does not
   // say. The panel reports it, and names what else it could have used.
   it('says which type it generated from, and what the alternatives were', async () => {
-    generateData.mockResolvedValue({
-      preview: { id: 1 },
-      warnings: [],
-      typeName: 'Role',
-      candidates: ['Role', 'User', 'Project'],
-    })
+    mockModel({ name: 'Role', candidates: ['Role', 'User', 'Project'], preview: { id: 1 } })
     createEndpoint.mockResolvedValue({ id: 'GET /projects' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export type Role = 1', '/projects')
 
     const said = await screen.findByText(/generated from Role/)
     expect(said.textContent).toContain('User, Project')
@@ -328,22 +363,11 @@ describe('creating an endpoint', () => {
   // "generated from Invoice" about it reads as a complaint about a model
   // that is perfectly fine.
   it('says nothing when the model declares only the type it used', async () => {
-    generateData.mockResolvedValue({
-      preview: { id: 1 },
-      warnings: [],
-      typeName: 'Invoice',
-      candidates: ['Invoice'],
-    })
+    mockModel({ name: 'Invoice', candidates: ['Invoice'], preview: { id: 1 } })
     createEndpoint.mockResolvedValue({ id: 'GET /invoices' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), {
-      target: { value: 'export interface Invoice { id: string }' },
-    })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/invoices' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export interface Invoice { id: string }', '/invoices')
 
     await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
     expect(screen.queryByText(/generated from/)).toBeNull()
@@ -351,94 +375,100 @@ describe('creating an endpoint', () => {
 
   // Naming the type is saying which one you want; repeating it back is noise.
   it('says nothing when the developer named the type themselves', async () => {
-    generateData.mockResolvedValue({
-      preview: { id: 1 },
-      warnings: [],
-      typeName: 'Project',
-      candidates: ['Role', 'User', 'Project'],
-    })
+    mockModel({ name: 'Project', candidates: ['Role', 'User', 'Project'], preview: { id: 1 } })
     createEndpoint.mockResolvedValue({ id: 'GET /projects' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
-    fireEvent.change(screen.getByLabelText('type'), { target: { value: 'Project' } })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export type Role = 1', '/projects', 'Project')
 
     await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
     expect(screen.queryByText(/generated from/)).toBeNull()
   })
 
-  it('passes the named type through to generation', async () => {
-    generateData.mockResolvedValue({ preview: { id: 1 }, warnings: [], typeName: 'Project' })
+  it('passes the named type through to the import', async () => {
+    mockModel({ name: 'Project', preview: { id: 1 } })
     createEndpoint.mockResolvedValue({ id: 'GET /projects' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'export type Role = 1' } })
-    fireEvent.change(screen.getByLabelText('type'), { target: { value: 'Project' } })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/projects' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export type Role = 1', '/projects', 'Project')
 
     await waitFor(() =>
-      expect(generateData).toHaveBeenCalledWith({
-        model: 'export type Role = 1',
-        typeName: 'Project',
-      }),
+      expect(importSchema).toHaveBeenCalledWith(
+        { kind: 'typescript-paste', source: 'export type Role = 1', typeName: 'Project' },
+        { allowLoss: false },
+      ),
     )
   })
 
   it('shows generation warnings after creating from a model', async () => {
-    generateData.mockResolvedValue({
-      preview: [{ id: 1, title: 'Generated' }],
-      warnings: ['dropped an index signature on Todo'],
+    mockModel({
+      diagnostics: [
+        {
+          code: 'loss.index-signature',
+          kind: 'loss',
+          severity: 'warning',
+          message: 'dropped an index signature on Todo',
+          pointer: '',
+        },
+      ],
     })
     createEndpoint.mockResolvedValue({ id: 'GET /todos' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), {
-      target: { value: 'export interface Todo { id: number; title: string }' },
-    })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export interface Todo { id: number; title: string }', '/todos')
 
     expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
   })
 
-  it('shows no warning region when generation returns no warnings', async () => {
-    generateData.mockResolvedValue({ preview: [{ id: 1, title: 'Generated' }], warnings: [] })
+  it('shows no warning region when the import had nothing to report', async () => {
+    mockModel({})
     createEndpoint.mockResolvedValue({ id: 'GET /todos' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), {
-      target: { value: 'export interface Todo { id: number; title: string }' },
-    })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export interface Todo { id: number; title: string }', '/todos')
 
     await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
     expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
   })
 
-  it('shows the generation error inline and does not create', async () => {
-    generateData.mockRejectedValue(new Error('no interface or type alias found'))
+  // Strict is the default, and it has to be answerable: the person sees what
+  // would be approximated and decides, rather than reading "generation
+  // failed" about a model that laqi could have imported.
+  it('lists what a refused import would approximate, and imports it once accepted', async () => {
+    const refusal = new ApiError('this import would lose information: dropped run()', 422, [
+      {
+        code: 'loss.function',
+        kind: 'loss',
+        severity: 'warning',
+        message: 'dropped run(), which JSON Schema cannot describe',
+        pointer: '/properties/run',
+      },
+    ])
+    importSchema.mockRejectedValueOnce(refusal)
+    createEndpoint.mockResolvedValue({ id: 'GET /jobs' })
     await renderApp()
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New endpoint' }))
-    fireEvent.click(screen.getByRole('button', { name: /from a model/i }))
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'const x = 1' } })
-    fireEvent.change(screen.getByLabelText('path'), { target: { value: '/todos' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    createFromModel('export interface Job { id: number; run: () => void }', '/jobs')
+
+    expect(
+      await screen.findByText(/dropped run\(\), which JSON Schema cannot describe/),
+    ).toBeTruthy()
+    expect(createEndpoint).not.toHaveBeenCalled()
+
+    mockModel({ name: 'Job', preview: { id: 1 } })
+    fireEvent.click(screen.getByRole('button', { name: /accept approximation/i }))
+
+    await waitFor(() => expect(createEndpoint).toHaveBeenCalled())
+    expect(importSchema).toHaveBeenLastCalledWith(expect.anything(), { allowLoss: true })
+  })
+
+  it('shows the generation error inline and does not create', async () => {
+    importSchema.mockRejectedValue(new Error('no interface or type alias found'))
+    await renderApp()
+
+    createFromModel('const x = 1', '/todos')
 
     expect(await screen.findByText(/no interface or type alias/)).toBeTruthy()
-    expect(createEndpoint).not.toHaveBeenCalled()
   })
 })
 

@@ -4,17 +4,65 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Endpoint } from '../types'
 import { EndpointDetail } from './EndpointDetail'
 
-const { getLanguages, getTypes, generateData } = vi.hoisted(() => ({
+const {
+  getLanguages,
+  getTypes,
+  generateData,
+  regenerateResponse,
+  applyGeneratedBody,
+  refreshSchema,
+  getResponseRevision,
+  importSchema,
+  setResponseSchema,
+  draftModel,
+  TestApiError,
+} = vi.hoisted(() => ({
   getLanguages: vi.fn(),
   getTypes: vi.fn(),
   generateData: vi.fn(),
+  regenerateResponse: vi.fn(),
+  applyGeneratedBody: vi.fn(),
+  refreshSchema: vi.fn(),
+  getResponseRevision: vi.fn(),
+  importSchema: vi.fn(),
+  setResponseSchema: vi.fn(),
+  draftModel: vi.fn(),
+  // Declared here because vi.mock is hoisted: a top-level class would not
+  // exist yet when the factory runs. The component narrows with
+  // `instanceof`, so the mock has to hand back the same constructor.
+  TestApiError: class TestApiError extends Error {
+    constructor(
+      message: string,
+      readonly status: number,
+      readonly diagnostics?: unknown,
+      readonly conflict?: { reason: string; revision: string },
+    ) {
+      super(message)
+      this.name = 'ApiError'
+    }
+  },
 }))
 
 vi.mock('../api', () => ({
-  api: { getLanguages, getTypes, generateData },
+  ApiError: TestApiError,
+  api: {
+    getLanguages,
+    getTypes,
+    generateData,
+    regenerateResponse,
+    applyGeneratedBody,
+    refreshSchema,
+    getResponseRevision,
+    importSchema,
+    setResponseSchema,
+    draftModel,
+  },
 }))
 
 beforeEach(() => {
+  // Call counts accumulated across tests before this: a test asserting "called
+  // twice" was really asserting the sum of every click in the file above it.
+  vi.clearAllMocks()
   getLanguages.mockResolvedValue([
     { name: 'typescript', displayName: 'TypeScript' },
     { name: 'typescript-zod', displayName: 'TypeScript + Zod' },
@@ -22,8 +70,33 @@ beforeEach(() => {
   getTypes.mockResolvedValue({
     code: 'export interface Users { id: number }',
     language: 'typescript',
+    origin: 'body',
+    typeName: 'Users',
   })
   generateData.mockResolvedValue({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+  regenerateResponse.mockResolvedValue({
+    body: { id: 99, name: 'Fresh' },
+    evidence: { seed: 1, options: { arrayLength: 3 }, bodyHash: 'a'.repeat(64) },
+    diagnostics: [],
+    revision: 'rev-1',
+  })
+  applyGeneratedBody.mockResolvedValue({ revision: 'rev-2' })
+  refreshSchema.mockResolvedValue({ snapshot: {}, revision: 'rev-2' })
+  getResponseRevision.mockResolvedValue({ revision: 'rev-1' })
+  importSchema.mockResolvedValue({
+    snapshot: {
+      name: 'Users',
+      document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+      source: { kind: 'typescript-paste' },
+      diagnostics: [],
+    },
+    candidates: ['Users'],
+  })
+  setResponseSchema.mockResolvedValue({ revision: 'rev-2' })
+  draftModel.mockResolvedValue({
+    source: 'export interface Users { id: number }',
+    typeName: 'Users',
+  })
 })
 
 function endpoint(overrides: Partial<Endpoint> = {}): Endpoint {
@@ -261,21 +334,90 @@ describe('generated types and data', () => {
     )
   })
 
-  it('regenerate fills the body draft with the preview and lets Save do the writing', async () => {
+  // The editor keeps showing what is on disk, because that is what the
+  // person is being asked to replace. Putting the preview there used to
+  // make the "overwrite?" question unanswerable.
+  it('regenerate opens the comparison and leaves the body on disk on screen', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
-    await waitFor(() => expect(body().value).toContain('"Fresh"'))
-    // No write happened: regenerate only edits the draft. Saving is the
-    // existing Save button — zero new write paths, verbatim from the spec.
-    expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(
-      false,
+    await screen.findByRole('dialog')
+    expect(body().value).not.toContain('"Fresh"')
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('shows both sides, so the decision can be made by looking', async () => {
+    renderDetail(
+      endpoint({ responses: { ok: { status: 200, body: { mine: 1 } }, boom: { status: 500 } } }),
     )
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+
+    await screen.findByRole('dialog')
+    expect(screen.getByLabelText('body on disk').textContent).toContain('"mine"')
+    expect(screen.getByLabelText('generated body').textContent).toContain('"Fresh"')
+  })
+
+  it('applies with the evidence and the revision it was generated against', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => expect(applyGeneratedBody).toHaveBeenCalled())
+    const [id, response, input] = applyGeneratedBody.mock.calls[0]!
+    expect(id).toBe('GET /users')
+    expect(response).toBe('ok')
+    expect(input.revision).toBe('rev-1')
+    expect(input.evidence).toMatchObject({ seed: 1 })
+    expect(input.confirm).toBeUndefined()
+  })
+
+  it('opens nothing until something has been regenerated', () => {
+    renderDetail(endpoint())
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('writes nothing when the comparison is cancelled', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('answers a refused write inside the comparison, against the current revision', async () => {
+    applyGeneratedBody.mockRejectedValueOnce(
+      new TestApiError('the body on disk has changed since laqi wrote it', 409, undefined, {
+        reason: 'body-modified',
+        revision: 'rev-current',
+      }),
+    )
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+    expect(await screen.findByText(/has changed since laqi wrote it/)).toBeTruthy()
+    // Both sides are still on screen: that is what makes the refusal answerable.
+    expect(screen.getByLabelText('body on disk')).toBeTruthy()
+    expect(screen.getByLabelText('generated body')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /overwrite anyway/i }))
+
+    await waitFor(() => expect(applyGeneratedBody).toHaveBeenCalledTimes(2))
+    const [, , retry] = applyGeneratedBody.mock.calls[1]!
+    expect(retry.confirm).toBe(true)
+    // The retry is against what is on disk NOW, not what the preview saw.
+    expect(retry.revision).toBe('rev-current')
   })
 
   it('discards a Regenerate response that resolves after the endpoint reloaded underneath it', async () => {
-    let resolveGenerate!: (value: { preview: unknown; warnings: string[] }) => void
-    generateData.mockImplementationOnce(
+    let resolveGenerate!: (value: {
+      body: unknown
+      evidence: unknown
+      diagnostics: unknown[]
+      revision: string
+    }) => void
+    regenerateResponse.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveGenerate = resolve
@@ -285,7 +427,7 @@ describe('generated types and data', () => {
     const { rerender } = renderDetail(original)
 
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    await waitFor(() => expect(generateData).toHaveBeenCalled())
+    await waitFor(() => expect(regenerateResponse).toHaveBeenCalled())
 
     // The watcher reloads with fresh data while the Regenerate promise is
     // still pending: the reload has to win.
@@ -295,15 +437,22 @@ describe('generated types and data', () => {
     rerender(reloaded)
     await waitFor(() => expect(body().value).toContain('theirs'))
 
-    resolveGenerate({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+    resolveGenerate({
+      body: { id: 99, name: 'Fresh' },
+      evidence: {},
+      diagnostics: [],
+      revision: 'rev-1',
+    })
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(body().value).toContain('theirs')
     expect(body().value).not.toContain('Fresh')
+    // And no comparison opened: that preview was about the old file.
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('shows an error when Regenerate fails, instead of dying silently', async () => {
-    generateData.mockRejectedValueOnce(new Error('the generator crashed'))
+    regenerateResponse.mockRejectedValueOnce(new Error('the generator crashed'))
     renderDetail(endpoint())
 
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
@@ -320,10 +469,20 @@ describe('generated types and data', () => {
     expect(await screen.findByText(/types generation crashed/)).toBeTruthy()
   })
 
-  it('renders generation warnings from Regenerate', async () => {
-    generateData.mockResolvedValueOnce({
-      preview: { id: 99, name: 'Fresh' },
-      warnings: ['dropped an index signature on Users'],
+  it('shows what generation approximated, in the comparison', async () => {
+    regenerateResponse.mockResolvedValueOnce({
+      body: { id: 99, name: 'Fresh' },
+      evidence: {},
+      diagnostics: [
+        {
+          code: 'loss.index-signature',
+          kind: 'loss',
+          severity: 'warning',
+          message: 'dropped an index signature on Users',
+          pointer: '',
+        },
+      ],
+      revision: 'rev-1',
     })
     renderDetail(endpoint())
 
@@ -332,11 +491,11 @@ describe('generated types and data', () => {
     expect(await screen.findByText(/dropped an index signature/)).toBeTruthy()
   })
 
-  it('shows no warning region when Regenerate returns no warnings', async () => {
+  it('shows no warning region when generation had nothing to report', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
-    await waitFor(() => expect(body().value).toContain('"Fresh"'))
+    await screen.findByRole('dialog')
     expect(screen.queryByRole('status', { name: /warning/i })).toBeNull()
   })
 })
@@ -419,5 +578,172 @@ describe('the response scaffold', () => {
     const deleted = onSave.mock.calls[0]![1].responses.deleted!
     expect(deleted.status).toBe(204)
     expect(Object.hasOwn(deleted, 'body')).toBe(false)
+  })
+})
+
+describe('building a model from a body that has no schema', () => {
+  /** The response laqi refuses to regenerate: a body, and nothing that says what it is. */
+  const noSchema = () =>
+    endpoint({ responses: { ok: { status: 200, body: { id: 1 } }, boom: { status: 500 } } })
+
+  const withSchema = () =>
+    endpoint({
+      responses: {
+        ok: {
+          status: 200,
+          body: { id: 1 },
+          schema: {
+            name: 'Users',
+            document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+            source: { kind: 'typescript-paste' },
+            diagnostics: [],
+          },
+        },
+        boom: { status: 500 },
+      },
+    })
+
+  it('offers Build model when there is no schema to regenerate from', () => {
+    renderDetail(noSchema())
+    expect(screen.getByRole('button', { name: /build model/i })).toBeTruthy()
+  })
+
+  // A schema can be stale — built from an older body, or by an older laqi —
+  // and the body is still the sample. Rebuilding replaces it, through the
+  // same revision-checked write as everything else.
+  it('offers to rebuild once the response has a schema, and says it replaces it', async () => {
+    renderDetail(withSchema())
+    fireEvent.click(screen.getByRole('button', { name: /rebuild model from body/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect(screen.getByText(/replaces the schema this response has/i)).toBeTruthy()
+  })
+
+  it('drafts the model from the body and writes nothing yet', async () => {
+    renderDetail(noSchema())
+
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect((screen.getByLabelText('model') as HTMLTextAreaElement).value).toContain(
+      'interface Users',
+    )
+    expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+
+  // Inference reads one sample. Saying so where the person can act on it is
+  // the whole difference between this and guessing silently.
+  it('names the two things one sample cannot show', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    expect(screen.getByText(/literal union reads as string/i)).toBeTruthy()
+    expect(screen.getByText(/fixed tuple as a list/i)).toBeTruthy()
+  })
+
+  it('stores what is on screen, edits included, as an ordinary model', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    // The person fixes what inference could not know.
+    fireEvent.change(screen.getByLabelText('model'), {
+      target: { value: "export interface Users { status: 'draft' | 'paid' }" },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    await waitFor(() => expect(setResponseSchema).toHaveBeenCalled())
+    expect(importSchema).toHaveBeenCalledWith({
+      kind: 'typescript-paste',
+      source: "export interface Users { status: 'draft' | 'paid' }",
+      typeName: 'Users',
+    })
+    const [id, response, input] = setResponseSchema.mock.calls[0]!
+    expect(id).toBe('GET /users')
+    expect(response).toBe('ok')
+    expect(input.revision).toBe('rev-1')
+  })
+
+  it('leaves the body alone: this writes a schema, not data', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    await waitFor(() => expect(setResponseSchema).toHaveBeenCalled())
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('drops the draft on Cancel without writing', async () => {
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }))
+
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+
+  it('shows why a model was refused, instead of failing quietly', async () => {
+    importSchema.mockRejectedValueOnce(new Error('no interface or type alias found'))
+    renderDetail(noSchema())
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /save as schema/i }))
+
+    expect(await screen.findByText(/no interface or type alias/)).toBeTruthy()
+    expect(setResponseSchema).not.toHaveBeenCalled()
+  })
+})
+
+describe('answering a refused write', () => {
+  const refuse = () =>
+    applyGeneratedBody.mockRejectedValueOnce(
+      new TestApiError('laqi did not write the body on disk', 409, undefined, {
+        reason: 'body-unverified',
+        revision: 'rev-current',
+      }),
+    )
+
+  // The refusal is answered where both sides are visible, so "what would I
+  // lose" is a question the screen already answers.
+  it('keeps the bytes that confirming would replace on screen', async () => {
+    refuse()
+    renderDetail(
+      endpoint({
+        responses: { ok: { status: 200, body: { handwritten: 'keep me' } }, boom: { status: 500 } },
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+    await screen.findByRole('button', { name: /overwrite anyway/i })
+    expect(screen.getByLabelText('body on disk').textContent).toContain('keep me')
+  })
+
+  // A refusal is a warning the person reads before the bodies, not a
+  // subtitle in italics: it names what laqi is about to replace and why it
+  // could not decide alone.
+  it('presents the refusal as a warning callout with a heading', async () => {
+    refuse()
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+    const callout = await screen.findByRole('alert')
+    expect(callout.textContent).toMatch(/this body was not generated by laqi/i)
+    expect(callout.textContent).toMatch(/laqi did not write the body on disk/i)
+  })
+
+  it('says the asking stops once laqi has written a body itself', async () => {
+    refuse()
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
+
+    expect(await screen.findByText(/asks once per response/i)).toBeTruthy()
   })
 })

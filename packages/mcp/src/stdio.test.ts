@@ -50,10 +50,23 @@ beforeEach(async () => {
   writeMocks({ offline: { 'GET /users': 'boom' } }, 'laqi/scenarios.json')
 
   // The real server, started the way an agent would start it.
+  await connect()
+}, 30_000)
+
+async function connect() {
   transport = new StdioClientTransport({ command: 'bun', args: [CLI, 'mcp'], cwd: root })
   client = new Client({ name: 'test', version: '1.0.0' })
   await client.connect(transport)
-}, 30_000)
+}
+
+/**
+ * Brings the server back up. The config is read at startup, so a test that
+ * writes laqi.config.json has to restart to be testing the config at all.
+ */
+async function restartClient() {
+  await client.close().catch(() => {})
+  await connect()
+}
 
 afterEach(async () => {
   await client?.close().catch(() => {})
@@ -64,6 +77,7 @@ describe('laqi mcp over stdio', () => {
   it('advertises every tool the ADR promises', async () => {
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
+      'apply_generated_body',
       'create_endpoint',
       'delete_endpoint',
       'generate_data',
@@ -71,6 +85,8 @@ describe('laqi mcp over stdio', () => {
       'get_types',
       'import_openapi',
       'list_endpoints',
+      'refresh_schema',
+      'regenerate_response',
       'reset_state',
       'scaffold_responses',
       'set_response',
@@ -409,4 +425,269 @@ describe('laqi mcp over stdio', () => {
     expect(result.isError).toBe(true)
     expect(result.text).not.toContain('FiberFailure')
   }, 30_000)
+})
+
+describe('regenerating and applying a body over stdio', () => {
+  const TODO = 'export interface Todo { id: number; title: string; kind: "task" | "note" }'
+
+  /** Puts a generated body and its schema on GET /users, through the tools. */
+  async function seed(): Promise<{ revision: string }> {
+    const generated = await call('generate_data', { model: TODO, seed: 42 })
+    const { preview, schema, generation } = generated.json() as Record<string, unknown>
+
+    const updated = await call('update_endpoint', {
+      id: 'GET /users',
+      default: 'ok',
+      responses: { ok: { status: 200, body: preview, schema, generation } },
+    })
+    expect(updated.isError).toBe(false)
+
+    const regenerated = await call('regenerate_response', { endpointId: 'GET /users' })
+    return regenerated.json() as { revision: string }
+  }
+
+  it('regenerates from the stored schema without writing', async () => {
+    const before = readApiFile()['GET /users']?.responses['ok']?.body
+    await seed()
+
+    const result = await call('regenerate_response', { endpointId: 'GET /users', seed: 9 })
+
+    expect(result.isError).toBe(false)
+    const { preview, revision } = result.json() as { preview: unknown; revision: string }
+    expect(revision).toMatch(/^[0-9a-f]{64}$/)
+    expect(preview).not.toEqual(before)
+    // The file still holds what seed() wrote, not the new preview.
+    expect(readApiFile()['GET /users']?.responses['ok']?.body).not.toEqual(preview)
+  }, 60_000)
+
+  it('refuses a response with no schema instead of inferring one', async () => {
+    const result = await call('regenerate_response', { endpointId: 'GET /users' })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('no schema')
+  }, 30_000)
+
+  it('applies a generated body and serves it from the file', async () => {
+    const { revision } = await seed()
+    const next = await call('regenerate_response', { endpointId: 'GET /users', seed: 9 })
+    const { preview, generation } = next.json() as Record<string, unknown>
+
+    const applied = await call('apply_generated_body', {
+      endpointId: 'GET /users',
+      body: preview,
+      generation,
+      revision,
+    })
+
+    expect(applied.isError).toBe(false)
+    expect(readApiFile()['GET /users']?.responses['ok']?.body).toEqual(preview)
+  }, 60_000)
+
+  it('returns the conflict and the current revision when the body is not laqi’s', async () => {
+    const regenerated = await call('generate_data', { model: TODO, seed: 42 })
+    const { preview, schema, generation } = regenerated.json() as Record<string, unknown>
+    // A schema, but a body nobody generated: the ordinary hand-written case.
+    await call('update_endpoint', {
+      id: 'GET /users',
+      default: 'ok',
+      responses: { ok: { status: 200, body: [{ id: 1, name: 'Ada' }], schema } },
+    })
+    const current = await call('regenerate_response', { endpointId: 'GET /users' })
+    const { revision } = current.json() as { revision: string }
+
+    const refused = await call('apply_generated_body', {
+      endpointId: 'GET /users',
+      body: preview,
+      generation,
+      revision,
+    })
+
+    expect(refused.isError).toBe(true)
+    const conflict = refused.json() as { conflict: string; revision: string }
+    expect(conflict.conflict).toBe('body-unverified')
+    expect(conflict.revision).toBe(revision)
+    expect(readApiFile()['GET /users']?.responses['ok']?.body).toEqual([{ id: 1, name: 'Ada' }])
+
+    const confirmed = await call('apply_generated_body', {
+      endpointId: 'GET /users',
+      body: preview,
+      generation,
+      revision: conflict.revision,
+      confirm: true,
+    })
+
+    expect(confirmed.isError).toBe(false)
+    expect(readApiFile()['GET /users']?.responses['ok']?.body).toEqual(preview)
+  }, 60_000)
+
+  it('refuses a stale revision even with confirm', async () => {
+    const { revision } = await seed()
+    const next = await call('regenerate_response', { endpointId: 'GET /users', seed: 9 })
+    const { preview, generation } = next.json() as Record<string, unknown>
+    await call('apply_generated_body', {
+      endpointId: 'GET /users',
+      body: preview,
+      generation,
+      revision,
+    })
+
+    const refused = await call('apply_generated_body', {
+      endpointId: 'GET /users',
+      body: preview,
+      generation,
+      revision,
+      confirm: true,
+    })
+
+    expect(refused.isError).toBe(true)
+    expect((refused.json() as { conflict: string }).conflict).toBe('stale-revision')
+  }, 60_000)
+
+  it('refuses to refresh a schema that came from a paste, and writes nothing', async () => {
+    const { revision } = await seed()
+    const before = readApiFile()['GET /users']?.responses['ok']
+
+    const result = await call('refresh_schema', { endpointId: 'GET /users', revision })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('paste it again')
+    expect(readApiFile()['GET /users']?.responses['ok']).toEqual(before)
+  }, 60_000)
+})
+
+describe('the strict loss policy over stdio', () => {
+  // A function-valued property cannot be represented in JSON Schema. The
+  // import refuses, names it, and writes nothing.
+  const LOSSY = 'export interface Job { id: number; run: () => void }'
+
+  it('refuses a lossy import and names what would be lost', async () => {
+    const result = await call('generate_data', { model: LOSSY })
+
+    expect(result.isError).toBe(true)
+    expect(result.text.toLowerCase()).toContain('lose')
+  }, 30_000)
+
+  it('imports the same model once the loss is acknowledged', async () => {
+    const result = await call('generate_data', { model: LOSSY, allowLoss: true, seed: 1 })
+
+    expect(result.isError).toBe(false)
+    const { diagnostics } = result.json() as { diagnostics: { code: string }[] }
+    expect(diagnostics.some((item) => item.code.startsWith('loss.'))).toBe(true)
+  }, 30_000)
+
+  it('imports a JSON Schema document handed straight to source', async () => {
+    const result = await call('generate_data', {
+      source: {
+        kind: 'json-schema',
+        document: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
+        name: 'Todo',
+      },
+      seed: 3,
+    })
+
+    expect(result.isError).toBe(false)
+    const { preview } = result.json() as { preview: Record<string, unknown> }
+    expect(typeof preview['id']).toBe('number')
+  }, 30_000)
+
+  it('names the known kinds when no adapter serves the one asked for', async () => {
+    const result = await call('generate_data', { source: { kind: 'protobuf', document: {} } })
+
+    expect(result.isError).toBe(true)
+  }, 30_000)
+})
+
+describe('executing a project module, from an agent', () => {
+  /** A dependency-free Standard JSON Schema source in the project. */
+  function writeTypes() {
+    const full = join(root, 'src', 'types.ts')
+    mkdirSync(join(full, '..'), { recursive: true })
+    writeFileSync(
+      full,
+      `export const Invoice = {\n` +
+        `  '~standard': {\n` +
+        `    version: 1,\n` +
+        `    vendor: 'handwritten',\n` +
+        `    validate: (value) => ({ value }),\n` +
+        `    jsonSchema: {\n` +
+        `      output: () => ({ type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }),\n` +
+        `      input: () => ({ type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }),\n` +
+        `    },\n` +
+        `  },\n` +
+        `}\n`,
+      'utf8',
+    )
+  }
+
+  const source = {
+    kind: 'project-module',
+    file: 'src/types.ts',
+    exportName: 'Invoice',
+    side: 'output',
+  }
+
+  it('refuses an unlisted module and names the config key to add it to', async () => {
+    writeTypes()
+
+    const result = await call('generate_data', { source })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('mcp.modules')
+    expect(result.text).toContain('laqi.config.json')
+    expect(result.text).toContain('"exportName": "Invoice"')
+  }, 30_000)
+
+  it('executes a listed module', async () => {
+    writeTypes()
+    writeFileSync(
+      join(root, 'laqi.config.json'),
+      JSON.stringify({ mcp: { modules: [{ file: 'src/types.ts', exportName: 'Invoice' }] } }),
+      'utf8',
+    )
+    await restartClient()
+
+    const result = await call('generate_data', { source, seed: 1 })
+
+    expect(result.isError).toBe(false)
+    const { preview, schema } = result.json() as {
+      preview: Record<string, unknown>
+      schema: { source: unknown }
+    }
+    expect(typeof preview['id']).toBe('string')
+    expect(schema.source).toEqual({
+      kind: 'project-module',
+      file: 'src/types.ts',
+      exportName: 'Invoice',
+      side: 'output',
+    })
+  }, 60_000)
+
+  // The list is the user's statement about their own project. An agent that
+  // could edit it would be granting itself the permission it was refused.
+  it('has no tool that writes mcp.modules', async () => {
+    const { tools } = await client.listTools()
+    const writesConfig = tools.filter((tool) =>
+      JSON.stringify(tool.inputSchema).includes('mcp.modules'),
+    )
+
+    expect(writesConfig).toEqual([])
+    expect(tools.map((tool) => tool.name)).not.toContain('set_config')
+  }, 30_000)
+
+  it('refuses a listed module asked for on the other side', async () => {
+    writeTypes()
+    writeFileSync(
+      join(root, 'laqi.config.json'),
+      JSON.stringify({
+        mcp: { modules: [{ file: 'src/types.ts', exportName: 'Invoice', side: 'output' }] },
+      }),
+      'utf8',
+    )
+    await restartClient()
+
+    const result = await call('generate_data', { source: { ...source, side: 'input' } })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('mcp.modules')
+  }, 60_000)
 })

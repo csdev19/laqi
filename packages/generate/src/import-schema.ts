@@ -1,17 +1,23 @@
 import {
   DIALECT_2020_12,
+  diagnostic,
   isAcknowledgeable,
+  KNOWN_SOURCE_KINDS,
   type Diagnostic,
   type GenerationEvidence,
   type SchemaSnapshot,
   type SourceDescriptor,
+  type SourceRequest,
 } from '@laqi/schema'
 import { Cause, Data, Effect, Exit, Option } from 'effect'
-import { bodyHash } from './canonical-json'
+import { bodyHash } from '@laqi/core/canonical-json'
+import { resolveSourcePath } from '@laqi/core'
 import { compileSchema } from './compile-schema'
 import { GenerateError } from './errors'
 import { shapeToJsonSchema } from './json-schema'
+import { loadModuleSchema, type ModuleLoadFailure } from './load-module'
 import { normalizeDialect } from './normalize-dialect'
+import { extractResponseSchema } from './openapi-extract'
 import { parseTypesEffect } from './parse-types'
 import { generateFromPlanEffect, type GenerateOptions } from './plan'
 import { TypeScriptCompiler } from './services/compiler'
@@ -22,20 +28,12 @@ import { generateRuntime } from './services/runtime'
  * An import that produced no snapshot. Its diagnostics travel on the error,
  * so a transport can show what went wrong without asking again.
  */
+export type { SourceRequest } from '@laqi/schema'
+
 export class ImportError extends Data.TaggedError('ImportError')<{
   readonly message: string
   readonly diagnostics: readonly Diagnostic[]
 }> {}
-
-/**
- * What a transport hands to `importSchema`. A discriminated union rather
- * than four entry points, so every transport builds the same thing and the
- * composition root is the only place that knows which adapter serves which
- * kind.
- */
-export type SourceRequest =
-  | { kind: 'typescript-paste'; source: string; typeName?: string }
-  | { kind: 'json-schema'; document: unknown; name?: string; file?: string }
 
 export type ImportOptions = {
   /**
@@ -44,6 +42,14 @@ export type ImportOptions = {
    * never can.
    */
   allowLoss?: boolean
+  /**
+   * Where a `project-module` source may be read from. Required for that kind
+   * and ignored by every other: resolving a path is laqi-wide policy, and a
+   * transport that forgets to supply it must be told so rather than have a
+   * default invented for it — the default would be whatever directory the
+   * process happens to be in.
+   */
+  paths?: { root: string; sourceRoot: string }
 }
 
 export type BodyPreview = {
@@ -83,29 +89,79 @@ function applyLossPolicy(
 export const importSchemaEffect = (
   request: SourceRequest,
   options: ImportOptions = {},
-): Effect.Effect<SchemaSnapshot, ImportError, TypeScriptCompiler> =>
+): Effect.Effect<ImportResult, ImportError, TypeScriptCompiler> =>
   Effect.gen(function* () {
-    const draft =
-      request.kind === 'typescript-paste'
-        ? yield* fromTypeScript(request)
-        : yield* fromJsonSchema(request)
+    const draft = yield* dispatch(request, options)
 
     const settled = applyLossPolicy(draft.diagnostics, options)
     if (settled instanceof ImportError) return yield* Effect.fail(settled)
 
     return {
-      name: draft.name,
-      document: draft.document,
-      source: draft.source,
-      diagnostics: settled,
+      snapshot: {
+        name: draft.name,
+        document: draft.document,
+        source: draft.source,
+        diagnostics: settled,
+      },
+      candidates: draft.candidates ?? [draft.name],
     }
   })
+
+/**
+ * What an import produced, and what else it could have.
+ *
+ * `candidates` is about the REQUEST, not about the stored schema: a pasted
+ * file declaring three interfaces has one snapshot and three candidates, and
+ * a caller that never named one needs to be told which was picked. It is not
+ * on the snapshot because a snapshot describes a document, and which
+ * declarations sat beside it in a paste is not part of that document.
+ */
+export type ImportResult = {
+  snapshot: SchemaSnapshot
+  candidates: string[]
+}
 
 type Draft = {
   name: string
   document: Record<string, unknown>
   source: SourceDescriptor
   diagnostics: Diagnostic[]
+  /** Present when the source offered a choice of declaration. */
+  candidates?: string[]
+}
+
+/**
+ * The composition root: the one place that knows which adapter serves which
+ * kind. Exhaustive on purpose — a kind nobody serves is named as such, with
+ * the kinds that do exist, rather than falling through to whichever branch
+ * happens to be last and failing later with a confusing message about a
+ * document that was never there.
+ */
+const dispatch = (
+  request: SourceRequest,
+  options: ImportOptions,
+): Effect.Effect<Draft, ImportError, TypeScriptCompiler> => {
+  switch (request.kind) {
+    case 'typescript-paste':
+      return fromTypeScript(request)
+    case 'json-schema':
+      return fromJsonSchema(request)
+    case 'openapi':
+      return fromOpenApi(request)
+    case 'project-module':
+      return fromProjectModule(request, options)
+    default:
+      return Effect.fail(unknownAdapter(request))
+  }
+}
+
+function unknownAdapter(request: never): ImportError {
+  const kind = (request as { kind?: unknown }).kind
+  const message = `no adapter serves the source kind ${JSON.stringify(kind)}. Known kinds: ${KNOWN_SOURCE_KINDS.join(', ')}`
+  return new ImportError({
+    message,
+    diagnostics: [diagnostic('adapter.unknown', message)],
+  })
 }
 
 /**
@@ -125,6 +181,7 @@ const fromTypeScript = (request: SourceRequest & { kind: 'typescript-paste' }) =
       document: { $schema: DIALECT_2020_12, ...shapeToJsonSchema(parsed.shape) },
       source: { kind: 'typescript-paste' } as const,
       diagnostics: parsed.diagnostics,
+      candidates: parsed.candidates,
     } satisfies Draft
   })
 
@@ -166,6 +223,173 @@ const fromJsonSchema = (request: SourceRequest & { kind: 'json-schema' }) =>
       diagnostics,
     } satisfies Draft
   })
+
+/**
+ * One response schema out of an OpenAPI document.
+ *
+ * The schema is lifted into a document of its own, with the components it
+ * refers to carried along as `$defs`, so what gets stored can be compiled
+ * again after a reload without the specification it came from. The pointer
+ * is kept so a refresh can re-extract the same response rather than guess
+ * which one it was.
+ */
+const fromOpenApi = (request: SourceRequest & { kind: 'openapi' }) =>
+  Effect.gen(function* () {
+    const extracted = extractResponseSchema(request.document, request.pointer)
+    if (!extracted.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: extracted.diagnostics[0]?.message ?? 'that is not an OpenAPI response schema',
+          diagnostics: extracted.diagnostics,
+        }),
+      )
+    }
+
+    // 3.0 says `nullable: true` and `example`, which mean `type: [..., 'null']`
+    // and `examples` in 2020-12. The importer states the dialect rather than
+    // leaving the normalizer to guess: nothing in the document distinguishes
+    // a 3.0 schema from a plain one.
+    const normalized = normalizeDialect(extracted.document, { assume: 'openapi-3.0' })
+    if (!normalized.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: normalized.diagnostics[0]?.message ?? 'that is not a JSON Schema',
+          diagnostics: normalized.diagnostics,
+        }),
+      )
+    }
+
+    const compiled = compileSchema(normalized.document)
+    const diagnostics = [
+      ...extracted.diagnostics,
+      ...normalized.diagnostics,
+      ...compiled.diagnostics,
+    ]
+    if (!compiled.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: compiled.diagnostics[0]?.message ?? 'laqi cannot generate from that schema',
+          diagnostics,
+        }),
+      )
+    }
+
+    return {
+      name: request.name ?? nameFrom(request.file) ?? 'Response',
+      document: normalized.document,
+      source: {
+        kind: 'openapi',
+        pointer: request.pointer,
+        ...(request.file === undefined ? {} : { file: request.file }),
+      } as const,
+      diagnostics,
+    } satisfies Draft
+  })
+
+/**
+ * A schema object exported by one of the user's own modules, read through
+ * Standard JSON Schema.
+ *
+ * The module is executed to get at it — that is what importing a module
+ * means — so the path is resolved and confined here, before anything is
+ * read, and the execution itself happens in a child process. WHO may ask
+ * for this is decided by the transport, above; this function assumes the
+ * asking was already allowed.
+ */
+const fromProjectModule = (
+  request: SourceRequest & { kind: 'project-module' },
+  options: ImportOptions,
+) =>
+  Effect.gen(function* () {
+    const paths = options.paths
+    if (paths === undefined) {
+      return yield* Effect.fail(
+        new ImportError({
+          message:
+            'laqi cannot read a project module without a source root — this is a laqi bug, not something you did',
+          diagnostics: [],
+        }),
+      )
+    }
+
+    const resolved = resolveSourcePath({
+      root: paths.root,
+      sourceRoot: paths.sourceRoot,
+      file: request.file,
+    })
+    if (!resolved.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: resolved.error,
+          diagnostics: [diagnostic('invalid.document', resolved.error)],
+        }),
+      )
+    }
+
+    const loaded = yield* Effect.promise(() =>
+      loadModuleSchema({
+        resolvedPath: resolved.path,
+        exportName: request.exportName,
+        side: request.side,
+      }),
+    )
+    if (!loaded.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: loaded.error,
+          diagnostics: [diagnostic(codeFor(loaded.code), loaded.error)],
+        }),
+      )
+    }
+
+    const normalized = normalizeDialect(loaded.document)
+    if (!normalized.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: normalized.diagnostics[0]?.message ?? 'that export is not a JSON Schema',
+          diagnostics: normalized.diagnostics,
+        }),
+      )
+    }
+
+    const compiled = compileSchema(normalized.document)
+    const diagnostics = [
+      // Which side was converted is invisible in the document and changes
+      // what it describes whenever the schema has a default or a transform.
+      diagnostic('side.selected', `converted the ${request.side} side of ${request.exportName}`),
+      ...normalized.diagnostics,
+      ...compiled.diagnostics,
+    ]
+    if (!compiled.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: compiled.diagnostics[0]?.message ?? 'laqi cannot generate from that export',
+          diagnostics,
+        }),
+      )
+    }
+
+    return {
+      name: request.exportName,
+      document: normalized.document,
+      source: {
+        kind: 'project-module',
+        file: request.file,
+        exportName: request.exportName,
+        side: request.side,
+      } as const,
+      diagnostics,
+    } satisfies Draft
+  })
+
+/**
+ * A loader failure, as a diagnostic code. All of them are errors nobody may
+ * acknowledge: there is no approximation on offer, only a source laqi could
+ * not read.
+ */
+function codeFor(failure: ModuleLoadFailure): 'unsupported.combination' | 'invalid.document' {
+  return failure === 'capability' ? 'unsupported.combination' : 'invalid.document'
+}
 
 /** A file name, minus its extensions, is a better label than "Schema". */
 function nameFrom(file: string | undefined): string | undefined {
@@ -240,9 +464,9 @@ async function reject<A, E>(effect: Effect.Effect<A, E, never>): Promise<A> {
 export async function importSchema(
   request: SourceRequest,
   options: ImportOptions = {},
-): Promise<SchemaSnapshot> {
+): Promise<ImportResult> {
   return reject(
-    importSchemaEffect(request, options) as Effect.Effect<SchemaSnapshot, ImportError, never>,
+    importSchemaEffect(request, options) as Effect.Effect<ImportResult, ImportError, never>,
   )
 }
 

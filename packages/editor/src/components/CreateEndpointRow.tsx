@@ -3,6 +3,7 @@ import {
   parseStatusCode,
   STATUS_MAX,
   STATUS_MIN,
+  type Diagnostic,
   type GenerationEvidence,
   type SchemaSnapshot,
 } from '@laqi/schema'
@@ -16,6 +17,7 @@ const MODES = [
   { id: 'blank', label: 'blank' },
   { id: 'model', label: 'from a model' },
   { id: 'json', label: 'from JSON' },
+  { id: 'module', label: 'from a schema in the project' },
 ] as const
 
 type Mode = (typeof MODES)[number]['id']
@@ -39,7 +41,31 @@ export type CreateInput = {
 
 export function CreateEndpointRow(props: {
   error: string | null
+  /**
+   * A model refused because importing it would say less than the source
+   * does. Shown with what would be approximated, and an explicit control to
+   * import anyway — the strict default only means something if accepting it
+   * is a separate act the person takes.
+   */
+  lossRefusal?: { message: string; diagnostics: Diagnostic[] } | null
   onCreate: (input: CreateInput) => void
+  /**
+   * Where a schema source may live, so the field says what a path is
+   * relative to instead of leaving it to be discovered by being wrong.
+   */
+  schemaSourceRoot?: string
+  /** What laqi resolved and is waiting to be told to run. Null until prepared. */
+  pendingModule?: { resolvedPath: string; exportName: string; side: string } | null
+  onCreateFromModule: (
+    input: {
+      method: string
+      path: string
+      file: string
+      exportName: string
+      side: 'input' | 'output'
+    } & ResponseChoice,
+  ) => void
+  onConfirmModule: () => void
   onCreateFromModel: (
     input: {
       method: string
@@ -47,6 +73,8 @@ export function CreateEndpointRow(props: {
       model: string
       /** Which declaration to generate from; the parser chooses when absent. */
       typeName: string | undefined
+      /** Set only by the accept-approximation control below. */
+      allowLoss?: boolean
     } & ResponseChoice,
   ) => void
   onCancel: () => void
@@ -57,6 +85,9 @@ export function CreateEndpointRow(props: {
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
   const [model, setModel] = useState('')
+  const [modulePath, setModulePath] = useState('')
+  const [exportName, setExportName] = useState('')
+  const [side, setSide] = useState<'input' | 'output'>('output')
   const [typeName, setTypeName] = useState('')
   const [json, setJson] = useState('')
   const [complaint, setComplaint] = useState<string | null>(null)
@@ -73,6 +104,12 @@ export function CreateEndpointRow(props: {
     const trimmed = path.trim()
     if (trimmed.length === 0) return 'a path is needed, starting with a slash'
     if (!trimmed.startsWith('/')) return `paths start with a slash — did you mean /${trimmed}?`
+    if (mode === 'module') {
+      if (modulePath.trim().length === 0)
+        return 'a file is needed — the module that exports the schema'
+      if (exportName.trim().length === 0)
+        return 'an export name is needed — which schema in that file'
+    }
     if (mode === 'model' && model.trim().length === 0) {
       return 'paste a model, or switch back to blank'
     }
@@ -92,7 +129,7 @@ export function CreateEndpointRow(props: {
     return null
   }
 
-  const submit = () => {
+  const submit = (options: { allowLoss?: boolean } = {}) => {
     const wrong = problem()
     setComplaint(wrong)
     if (wrong) return
@@ -101,12 +138,24 @@ export function CreateEndpointRow(props: {
       // Never null here: `problem()` above has already refused anything else.
       status: parseStatusCode(status) ?? 200,
     }
+    if (mode === 'module') {
+      props.onCreateFromModule({
+        method,
+        path: path.trim(),
+        file: modulePath.trim(),
+        exportName: exportName.trim(),
+        side,
+        ...response,
+      })
+      return
+    }
     if (mode === 'model') {
       props.onCreateFromModel({
         method,
         path: path.trim(),
         model: model.trim(),
         typeName: typeName.trim() || undefined,
+        ...(options.allowLoss === true ? { allowLoss: true } : {}),
         ...response,
       })
       return
@@ -189,12 +238,70 @@ export function CreateEndpointRow(props: {
         ))}
       </div>
 
-      <button type="button" className="btn btn-primary" onClick={submit}>
+      <button type="button" className="btn btn-primary" onClick={() => submit()}>
         Create
       </button>
       <button type="button" className="btn" onClick={props.onCancel}>
         Cancel
       </button>
+
+      {mode === 'module' ? (
+        <div className="create-model create-module">
+          {/* A path is meaningless without its base, and this base is
+              configurable. Saying it here is cheaper than a refusal. */}
+          <p className="micro">
+            relative to {props.schemaSourceRoot ?? '.'} — laqi will run this file to read the schema
+          </p>
+          <input
+            className="meta-input"
+            aria-label="module file"
+            placeholder="src/types/api.ts"
+            value={modulePath}
+            onChange={(event) => {
+              setModulePath(event.target.value)
+              setComplaint(null)
+            }}
+          />
+          <input
+            className="meta-input"
+            aria-label="export name"
+            placeholder="Invoice"
+            value={exportName}
+            onChange={(event) => {
+              setExportName(event.target.value)
+              setComplaint(null)
+            }}
+          />
+          <select
+            className="meta-input"
+            aria-label="conversion side"
+            value={side}
+            onChange={(event) => setSide(event.target.value === 'input' ? 'input' : 'output')}
+          >
+            <option value="output">output — what the API returns</option>
+            <option value="input">input — what a caller must send</option>
+          </select>
+
+          {/* The confirmation is about the RESOLVED file, because that is
+              what will run. Approving a string that has not been resolved
+              approves whatever it turns out to point at. */}
+          {props.pendingModule ? (
+            <div className="module-confirm">
+              <p>
+                Run <code>{props.pendingModule.resolvedPath}</code> and read{' '}
+                <code>{props.pendingModule.exportName}</code> ({props.pendingModule.side})?
+              </p>
+              <p className="micro">
+                Importing a module runs it and everything it imports. laqi runs it in a separate
+                process so a crash cannot take the server down — that is not a sandbox.
+              </p>
+              <button type="button" className="btn btn-primary" onClick={props.onConfirmModule}>
+                Run it
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {mode === 'json' ? (
         <>
@@ -285,6 +392,25 @@ export function CreateEndpointRow(props: {
       {(complaint ?? props.error) ? (
         <div className="form-error" role="alert">
           {complaint ?? props.error}
+        </div>
+      ) : null}
+
+      {/* What the source says that laqi cannot keep, listed before the
+          person decides — not summarised as "some information would be
+          lost", which is not something anyone can weigh. */}
+      {props.lossRefusal ? (
+        <div className="form-error loss-refusal" role="alert">
+          <p>{props.lossRefusal.message}</p>
+          <ul>
+            {props.lossRefusal.diagnostics
+              .filter((item) => item.kind === 'loss')
+              .map((item) => (
+                <li key={`${item.code}${item.pointer}`}>{item.message}</li>
+              ))}
+          </ul>
+          <button type="button" className="btn" onClick={() => submit({ allowLoss: true })}>
+            Accept approximation
+          </button>
         </div>
       ) : null}
     </div>

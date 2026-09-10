@@ -7,7 +7,10 @@ import {
   createEndpointInFile,
   createEndpointsInFile,
   deleteEndpointFromFile,
+  readResponseRevision,
   updateEndpointInFile,
+  updateResponseInFile,
+  type ConflictReason,
 } from './writer'
 import {
   formatEndpointId,
@@ -33,7 +36,17 @@ export type ProjectFailure = 'invalid' | 'conflict' | 'not-found'
 
 export type ProjectResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string; code: ProjectFailure }
+  | {
+      ok: false
+      error: string
+      code: ProjectFailure
+      /**
+       * Present when the failure was a concurrent-write refusal. Carries the
+       * revision that is current now, so a caller that decides to go ahead
+       * can retry without a second round trip to read it.
+       */
+      conflict?: { reason: ConflictReason; revision: string }
+    }
 
 const ok = <T>(value: T): ProjectResult<T> => ({ ok: true, value })
 const fail = <T>(error: string, code: ProjectFailure = 'invalid'): ProjectResult<T> => ({
@@ -442,6 +455,111 @@ export class Project {
       )
     }
     return ok(response)
+  }
+
+  /**
+   * What the caller must quote back to change this response. See
+   * `responseRevision` for why it is read from the raw file.
+   */
+  getResponseRevision(id: string, responseName?: string): ProjectResult<string> {
+    const located = this.locate(id, responseName)
+    if (!located.ok) return located
+
+    const result = readResponseRevision({
+      root: this.root,
+      bounds: this.bounds(),
+      file: located.value.file,
+      id,
+      response: located.value.name,
+    })
+    return result.ok ? ok(result.revision) : fail(result.error)
+  }
+
+  /**
+   * Replaces a response's body with one laqi generated, together with the
+   * evidence that says how.
+   *
+   * The two are written in one operation because they are one fact: a body
+   * with someone else's evidence beside it would claim a provenance it does
+   * not have, and the next regenerate would trust that claim.
+   *
+   * Refuses when the response changed since `revision` was read, or when the
+   * body about to be overwritten is not one laqi vouches for — `confirm`
+   * waives the second, never the first.
+   */
+  applyGeneratedBody(params: {
+    id: string
+    response?: string
+    body: unknown
+    generation: unknown
+    revision: string
+    confirm?: boolean
+  }): ProjectResult<{ revision: string; file: string }> {
+    const located = this.locate(params.id, params.response)
+    if (!located.ok) return located
+
+    const result = updateResponseInFile({
+      root: this.root,
+      bounds: this.bounds(),
+      file: located.value.file,
+      id: params.id,
+      response: located.value.name,
+      revision: params.revision,
+      confirm: params.confirm,
+      patch: { body: params.body, generation: params.generation },
+    })
+
+    if (result.ok) return ok({ revision: result.revision, file: located.value.file })
+    return result.conflict
+      ? { ok: false, error: result.error, code: 'conflict', conflict: result.conflict }
+      : fail(result.error)
+  }
+
+  /**
+   * Replaces a response's schema, leaving the body and its evidence alone.
+   *
+   * Re-reading a source is not a decision about the body: the body stays
+   * exactly as it was, still describing itself with the same evidence, and
+   * whoever wants it regenerated asks for that separately and sees it happen.
+   */
+  refreshSchema(params: {
+    id: string
+    response?: string
+    schema: unknown
+    revision: string
+  }): ProjectResult<{ revision: string; file: string }> {
+    const located = this.locate(params.id, params.response)
+    if (!located.ok) return located
+
+    const result = updateResponseInFile({
+      root: this.root,
+      bounds: this.bounds(),
+      file: located.value.file,
+      id: params.id,
+      response: located.value.name,
+      revision: params.revision,
+      patch: { schema: params.schema },
+    })
+
+    if (result.ok) return ok({ revision: result.revision, file: located.value.file })
+    return result.conflict
+      ? { ok: false, error: result.error, code: 'conflict', conflict: result.conflict }
+      : fail(result.error)
+  }
+
+  /** The file and the resolved response name, or why neither exists. */
+  private locate(id: string, responseName?: string): ProjectResult<{ file: string; name: string }> {
+    const endpoint = this.load().byId.get(id)
+    if (endpoint === undefined) return fail(this.unknownEndpoint(id), 'not-found')
+
+    const name = responseName ?? endpoint.default
+    if (!Object.hasOwn(endpoint.responses, name)) {
+      return fail(
+        `${JSON.stringify(name)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+        'not-found',
+      )
+    }
+    return ok({ file: endpoint.file, name })
   }
 
   /** The raw body of one response — what the generators derive shapes from. */

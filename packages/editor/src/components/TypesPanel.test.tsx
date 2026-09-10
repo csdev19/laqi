@@ -34,6 +34,7 @@ beforeEach(() => {
     code: 'interface Derived { id: string }',
     language: 'TypeScript',
     origin: 'body',
+    typeName: 'Derived',
   })
   getLanguages.mockResolvedValue([
     { name: 'typescript', displayName: 'TypeScript' },
@@ -57,6 +58,7 @@ function serverSays(origin: 'schema' | 'body', diagnostics?: SchemaSnapshot['dia
   getTypes.mockResolvedValue({
     code: 'interface Derived { id: string }',
     language: 'TypeScript',
+    typeName: 'Derived',
     origin,
     ...(diagnostics ? { diagnostics } : {}),
   })
@@ -128,5 +130,22 @@ describe('TypesPanel', () => {
 
     await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
     expect((screen.getByLabelText('types language') as HTMLSelectElement).options).toHaveLength(1)
+  })
+})
+
+describe('finding the way out of having no schema', () => {
+  it('points at Build model when the types came from the body', async () => {
+    serverSays('body')
+    renderPanel({ status: 200, body: { id: 'x' } })
+
+    expect(await screen.findByText(/Build model, above/)).toBeTruthy()
+  })
+
+  it('says nothing about it once the response carries a schema', async () => {
+    serverSays('schema')
+    renderPanel({ status: 200, schema: SCHEMA })
+
+    await screen.findByText(/exported from the/)
+    expect(screen.queryByText(/Build model, above/)).toBeNull()
   })
 })

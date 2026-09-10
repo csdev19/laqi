@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, type EndpointDefinition } from '../api'
-import { checkJson } from '../highlight'
+import { api, ApiError, type EndpointDefinition } from '../api'
+import { checkJson, tokenizeJson } from '../highlight'
 import { statusClass } from '../log'
-import { parseStatusCode, suggestResponses } from '@laqi/schema'
+import { parseStatusCode, suggestResponses, type GenerationEvidence } from '@laqi/schema'
 import { StatusSelect } from './StatusSelect'
 import { TypesPanel } from './TypesPanel'
 import { liveResponse } from '../resolve'
 import type { Endpoint, LaqiState, MockResponse, Scenarios } from '../types'
 import { Dialog } from './Dialog'
 import { JsonEditor, ValidityReadout } from './JsonEditor'
+import { ModelEditor } from './ModelEditor'
 import { WarningBand } from './WarningBand'
 
 type Draft = {
@@ -50,6 +51,42 @@ export function EndpointDetail(props: {
   const [warnings, setWarnings] = useState<string[]>([])
   const [renameValue, setRenameValue] = useState<string | null>(null)
 
+  /**
+   * A regenerated body waiting on a decision, with everything the write
+   * needs and nothing written yet.
+   *
+   * It is NOT put into the editor. Doing that used to be the whole problem:
+   * by the time laqi asked whether to replace what was on disk, the editor
+   * was already showing the replacement, so the question was about bytes
+   * that were nowhere on screen. The comparison below shows both.
+   */
+  const [preview, setPreview] = useState<{
+    response: string
+    body: unknown
+    evidence: GenerationEvidence
+    revision: string
+    warnings: string[]
+  } | null>(null)
+  /** A refused write, answered inside the comparison that shows both sides. */
+  const [conflict, setConflict] = useState<{
+    reason: string
+    message: string
+    revision: string
+  } | null>(null)
+  const [applying, setApplying] = useState(false)
+
+  /**
+   * A model laqi drafted from the body, on screen for the person to accept
+   * or fix before it becomes this response's schema.
+   *
+   * Drafted rather than stored on sight: inference reads one sample, so it
+   * cannot tell a literal union from a string or a fixed tuple from a list.
+   * Showing the draft is what turns that from a silent guess into something
+   * someone looked at — and if it is right, accepting it is one click.
+   */
+  const [draftModel, setDraftModel] = useState<{ source: string; typeName: string } | null>(null)
+  const [savingModel, setSavingModel] = useState(false)
+
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
   // if they no longer match, a reload won in the meantime and the late
@@ -74,6 +111,11 @@ export function EndpointDetail(props: {
   useEffect(() => {
     epochRef.current += 1
     setDraft(toDraft(endpoint))
+    // The file moved under us, so a preview decided about the old one is no
+    // longer something anyone agreed to write.
+    setPreview(null)
+    setConflict(null)
+    setDraftModel(null)
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` is deliberately omitted: see above
   }, [fingerprint])
@@ -99,6 +141,126 @@ export function EndpointDetail(props: {
       ...previous,
       responses: { ...previous.responses, [name]: { ...previous.responses[name]!, ...change } },
     }))
+  }
+
+  /** Whether this response already knows what shape it is. */
+  const hasSchema = endpoint.responses[selected]?.schema !== undefined
+
+  /**
+   * Puts the body on screen as an editable model, keys in the body's own
+   * order. Nothing is written; this is the draft step.
+   */
+  const buildModel = () => {
+    const epoch = epochRef.current
+    setActionError(null)
+    setConflict(null)
+    void api
+      .draftModel(endpoint.id, selected)
+      .then((drafted) => {
+        if (epochRef.current !== epoch) return
+        setDraftModel(drafted)
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        setActionError(error instanceof Error ? error.message : String(error))
+      })
+  }
+
+  /**
+   * Turns the model on screen into this response's schema.
+   *
+   * Imported as an ordinary pasted model, because that is what it now is:
+   * text a person read and accepted. There is no separate "inferred" kind to
+   * store — it would be a new shape in everyone's mock files, and it would
+   * say less than this does, which is that someone approved this text.
+   */
+  const saveModel = () => {
+    if (draftModel === null) return
+    const epoch = epochRef.current
+    setActionError(null)
+    setSavingModel(true)
+    void api
+      .importSchema({
+        kind: 'typescript-paste',
+        source: draftModel.source,
+        typeName: draftModel.typeName,
+      })
+      .then(({ snapshot }) =>
+        api
+          .getResponseRevision(endpoint.id, selected)
+          .then(({ revision }) =>
+            api.setResponseSchema(endpoint.id, selected, { snapshot, revision }),
+          ),
+      )
+      .then(() => {
+        if (epochRef.current !== epoch) return
+        setDraftModel(null)
+        setWarnings(['schema saved — Regenerate now builds bodies from it'])
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        setActionError(error instanceof Error ? error.message : String(error))
+      })
+      .finally(() => {
+        if (epochRef.current === epoch) setSavingModel(false)
+      })
+  }
+
+  /** Whether this response's schema names a file a refresh could re-read. */
+  const refreshable = (() => {
+    const source = endpoint.responses[selected]?.schema?.source
+    return source !== undefined && source.kind !== 'typescript-paste' && source.file !== undefined
+  })()
+
+  /**
+   * Writes the body being compared, through the one path that checks the
+   * revision and the evidence.
+   *
+   * A refusal is answered here, inside the comparison, because that is the
+   * only place both sides are visible. `confirm` resends against the
+   * revision that is current NOW — it means "overwrite what is there", never
+   * "ignore that something changed".
+   */
+  const applyPreview = (confirm?: { revision: string }) => {
+    if (preview === null) return
+    const epoch = epochRef.current
+    setActionError(null)
+    setConflict(null)
+    setApplying(true)
+    void api
+      .applyGeneratedBody(endpoint.id, preview.response, {
+        body: preview.body,
+        evidence: preview.evidence,
+        revision: confirm?.revision ?? preview.revision,
+        ...(confirm === undefined ? {} : { confirm: true }),
+      })
+      .then(() => {
+        if (epochRef.current !== epoch) return
+        setWarnings(preview.warnings)
+        setPreview(null)
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        if (error instanceof ApiError && error.conflict) {
+          setConflict({
+            reason: error.conflict.reason,
+            message: error.message,
+            revision: error.conflict.revision,
+          })
+          return
+        }
+        setActionError(error instanceof Error ? error.message : String(error))
+        setPreview(null)
+      })
+      .finally(() => {
+        if (epochRef.current === epoch) setApplying(false)
+      })
+  }
+
+  /** The body currently on disk, as the comparison shows it. */
+  const storedBody = (name: string): string => {
+    const body = endpoint.responses[name]?.body
+    return body === undefined ? '(no body)' : JSON.stringify(body, null, 2)
   }
 
   const save = () => {
@@ -159,7 +321,6 @@ export function EndpointDetail(props: {
         <div className="band band-error">{props.saveError ?? actionError}</div>
       ) : null}
       <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
-
       <div className="detail-columns">
         <div className="detail-responses">
           {names.map((name) => (
@@ -265,21 +426,24 @@ export function EndpointDetail(props: {
                   const epoch = epochRef.current
                   setActionError(null)
                   setWarnings([])
+                  setConflict(null)
                   void api
-                    .generateData({ from: { endpointId: endpoint.id, response: selected } })
-                    .then(({ preview, warnings: generationWarnings }) => {
+                    .regenerateResponse(endpoint.id, selected)
+                    .then((generated) => {
                       // Discard if the endpoint reloaded while the call was
                       // in flight: the reload already rebuilt the draft and
                       // this response no longer belongs to it.
                       if (epochRef.current !== epoch) return
-                      setDraft((previous) => ({
-                        ...previous,
-                        bodies: {
-                          ...previous.bodies,
-                          [selected]: JSON.stringify(preview, null, 2),
-                        },
-                      }))
-                      setWarnings(generationWarnings)
+                      // Straight into the comparison. The editor is left
+                      // holding what is on disk, which is what the person
+                      // is deciding about.
+                      setPreview({
+                        response: selected,
+                        body: generated.body,
+                        evidence: generated.evidence,
+                        revision: generated.revision,
+                        warnings: generated.diagnostics.map((item) => item.message),
+                      })
                     })
                     .catch((error: unknown) => {
                       if (epochRef.current !== epoch) return
@@ -289,6 +453,42 @@ export function EndpointDetail(props: {
               >
                 Regenerate
               </button>
+              {/* Regenerate refuses a response with no schema, so the way
+                  out of that refusal sits right next to it rather than in
+                  a menu the person has to go looking for. */}
+              {draftModel === null ? (
+                <button type="button" className="btn" onClick={buildModel}>
+                  {hasSchema ? 'Rebuild model from body' : 'Build model'}
+                </button>
+              ) : null}
+              {/* Only when there is a file to re-read. A pasted model was
+                  never kept, so there is nothing to refresh from. */}
+              {refreshable ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    const epoch = epochRef.current
+                    setActionError(null)
+                    setConflict(null)
+                    void api
+                      .getResponseRevision(endpoint.id, selected)
+                      .then(({ revision }) =>
+                        api.refreshSchema(endpoint.id, selected, { revision }),
+                      )
+                      .then(() => {
+                        if (epochRef.current !== epoch) return
+                        setWarnings(['schema refreshed from its source — the body is unchanged'])
+                      })
+                      .catch((error: unknown) => {
+                        if (epochRef.current !== epoch) return
+                        setActionError(error instanceof Error ? error.message : String(error))
+                      })
+                  }}
+                >
+                  Refresh schema
+                </button>
+              ) : null}
               <button type="button" className="btn" onClick={() => setRenameValue(selected)}>
                 Rename
               </button>
@@ -315,6 +515,42 @@ export function EndpointDetail(props: {
               }))
             }
           />
+
+          {/* The draft, in full and editable. laqi read one body to write
+              it, so the two things it cannot know are named — and the
+              person is the one who knows them. */}
+          {draftModel !== null ? (
+            <div className="model-draft">
+              <div className="editor-toolbar">
+                <span className="micro">
+                  model for {draftModel.typeName} — read from this body
+                  {hasSchema ? '; saving replaces the schema this response has' : ''}. A literal
+                  union reads as string here, and a fixed tuple as a list; fix those and it is
+                  exact.
+                </span>
+                <div className="header-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={savingModel}
+                    onClick={saveModel}
+                  >
+                    {savingModel ? 'Saving…' : 'Save as schema'}
+                  </button>
+                  <button type="button" className="btn" onClick={() => setDraftModel(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              <ModelEditor
+                value={draftModel.source}
+                label="model"
+                onChange={(source) =>
+                  setDraftModel((previous) => (previous ? { ...previous, source } : previous))
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="detail-meta">
@@ -392,6 +628,65 @@ export function EndpointDetail(props: {
         </div>
       </div>
 
+      {/* Both sides, before anything is written. The point of showing what
+          is on disk beside what would replace it is that "overwrite?" is a
+          question you can only answer by seeing both. */}
+      {preview !== null ? (
+        <Dialog
+          wide
+          title={`Replace the body of "${preview.response}"?`}
+          description="Nothing has been written. Compare, then decide."
+          confirmLabel={conflict === null ? 'Apply' : 'Overwrite anyway'}
+          confirmDisabled={applying}
+          onCancel={() => {
+            setPreview(null)
+            setConflict(null)
+          }}
+          onConfirm={() =>
+            applyPreview(conflict === null ? undefined : { revision: conflict.revision })
+          }
+        >
+          {/* A refusal is a warning, not a subtitle. It says what laqi is
+              about to replace and why it could not decide alone, in the
+              same voice as every other warning in the panel — and before
+              the two bodies, because it is the reason to read them. */}
+          {conflict !== null ? (
+            <div className="band band-warning dialog-callout" role="alert">
+              <div className="band-body">
+                <div className="band-title">
+                  {CONFLICT_TITLES[conflict.reason] ?? 'write refused'}
+                </div>
+                <p className="dialog-callout-text">{conflict.message}</p>
+                <p className="dialog-callout-text">
+                  laqi asks once per response. Once it has written a body itself, it knows its own
+                  bytes and stops asking.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="body-compare">
+            <div>
+              <span className="micro">on disk — what you would lose</span>
+              <pre className="mono" aria-label="body on disk">
+                {highlightJson(storedBody(preview.response))}
+              </pre>
+            </div>
+            <div>
+              <span className="micro">generated — what would replace it</span>
+              <pre className="mono compare-next" aria-label="generated body">
+                {highlightJson(JSON.stringify(preview.body, null, 2))}
+              </pre>
+            </div>
+          </div>
+          {preview.warnings.map((warning) => (
+            <p key={warning} className="micro">
+              {warning}
+            </p>
+          ))}
+        </Dialog>
+      ) : null}
+
       {renameValue !== null ? (
         <Dialog
           title="Rename response"
@@ -424,6 +719,22 @@ export function EndpointDetail(props: {
       ) : null}
     </div>
   )
+}
+
+/** What each refusal is, as a heading a person reads before the reason. */
+const CONFLICT_TITLES: Record<string, string> = {
+  'body-unverified': 'this body was not generated by laqi',
+  'body-modified': 'this body was edited since laqi wrote it',
+  'stale-revision': 'this response changed since you read it',
+}
+
+/** The same colours as the editor, so the two sides read the way the body does. */
+function highlightJson(source: string) {
+  return tokenizeJson(source).map((token, index) => (
+    <span key={index} className={`tok-${token.kind}`}>
+      {token.text}
+    </span>
+  ))
 }
 
 function curlFor(endpoint: Endpoint, response: string, address: string): string {

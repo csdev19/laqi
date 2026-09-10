@@ -13,9 +13,29 @@ describe('ConfigSchema', () => {
       dir: 'laqi',
       file: 'laqi.json',
       cors: '*',
+      schemaSources: { root: '.' },
+      mcp: { modules: [] },
       density: 'regular',
       showDescriptions: true,
     })
+  })
+
+  // The mocks area bounds where laqi WRITES. A project's types live in
+  // src/types, outside laqi/, so reads are bounded separately and default to
+  // the whole project rather than to the mocks folder.
+  it('lets a schema source come from anywhere in the project by default', () => {
+    expect(ConfigSchema.parse({}).schemaSources.root).toBe('.')
+    expect(ConfigSchema.parse({ schemaSources: { root: 'src' } }).schemaSources.root).toBe('src')
+  })
+
+  // Executing a project module is off unless someone wrote it down, and the
+  // side defaults to what a response is: what the API gives back.
+  it('allows no MCP module by default, and defaults a listed one to output', () => {
+    expect(ConfigSchema.parse({}).mcp.modules).toEqual([])
+    expect(
+      ConfigSchema.parse({ mcp: { modules: [{ file: 'src/types.ts', exportName: 'Invoice' }] } })
+        .mcp.modules,
+    ).toEqual([{ file: 'src/types.ts', exportName: 'Invoice', side: 'output' }])
   })
 
   // Loopback, not 0.0.0.0: reaching laqi from another device is what

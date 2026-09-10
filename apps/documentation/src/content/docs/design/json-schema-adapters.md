@@ -746,9 +746,16 @@ the phase-2 invariant.
 
 **Phase 4 — Standard JSON Schema and modules.**
 
-- Real Zod, Valibot and ArkType fixtures at their pinned versions convert on both
-  sides; an object without `~standard.jsonSchema` fails with a capability error; a
+- Real Zod and ArkType fixtures at their pinned versions convert on both sides; a
   converter that throws becomes `ImportError` with the vendor message.
+- Valibot is the capability failure, not a third conversion. Measured at
+  implementation: Valibot 1.5.0 implements Standard Schema validation but not the
+  JSON Schema extension — its `~standard` has `validate`, `vendor` and `version`
+  and no `jsonSchema`. It is therefore the real fixture for "an object without
+  `~standard.jsonSchema` fails with a capability error", which is a better test
+  than a hand-made stand-in. This row changes back to a conversion the day Valibot
+  ships the extension, and nothing in laqi has to change for that: capability is
+  discovered per object, never from a vendor name.
 - Panel flow: prepare returns a token; confirm with it executes once; a second
   confirm fails; confirm after 120 seconds fails; confirm after the file changed
   fails; `confirmed: true` in the body does nothing.

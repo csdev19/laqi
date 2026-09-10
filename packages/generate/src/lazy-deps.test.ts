@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const HEAVY = ['typescript', '@faker-js/faker', 'quicktype-core'] as const
@@ -114,5 +117,40 @@ describe('heavy dependencies stay lazy', () => {
     const { afterAct } = await loadedDuring((m) => m.supportedLanguages())
 
     expect([...afterAct]).toEqual(['quicktype-core'])
+  })
+})
+
+// A schema library is the USER's dependency, in the user's project, loaded
+// in the child process that imports their module. laqi reads the Standard
+// JSON Schema interface those libraries expose and never links against one:
+// shipping zod would mean shipping a second copy of it into every project
+// that already has its own, at whatever version laqi happened to pin.
+describe('the vendor libraries laqi does not ship', () => {
+  const VENDORS = ['zod', 'valibot', 'arktype', '@standard-schema/spec']
+
+  it('lists none of them as a runtime dependency', () => {
+    const manifest = JSON.parse(
+      readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
+    ) as { dependencies?: Record<string, string> }
+
+    expect(
+      Object.keys(manifest.dependencies ?? {}).filter((name) => VENDORS.includes(name)),
+    ).toEqual([])
+  })
+
+  it('imports none of them from any source file', () => {
+    const dir = fileURLToPath(new URL('.', import.meta.url))
+    const offenders: string[] = []
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.ts') || name.endsWith('.test.ts')) continue
+      const source = readFileSync(join(dir, name), 'utf8')
+      for (const vendor of VENDORS) {
+        if (source.includes(`from '${vendor}'`) || source.includes(`import('${vendor}')`)) {
+          offenders.push(`${name} imports ${vendor}`)
+        }
+      }
+    }
+
+    expect(offenders).toEqual([])
   })
 })

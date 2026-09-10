@@ -34,7 +34,18 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     subscribe: () => () => {},
     getLanguages: async () => [],
     getTypes: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
-    generateData: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    importSchema: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    previewBody: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    regenerateResponse: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    applyGeneratedBody: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    exportSchema: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    getCapabilities: async () => ({ inputs: [], exports: { targets: [] } }),
+    prepareModule: () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    confirmModule: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    getResponseRevision: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    draftModel: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    setResponseSchema: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    refreshResponseSchema: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
     ...overrides,
   }
 }
@@ -648,6 +659,7 @@ describe('generation routes', () => {
       code: 'export interface X {}',
       language: 'typescript',
       origin: 'body' as const,
+      typeName: 'X',
     }))
     const app = createControlPlaneApp(makeRuntime({ getTypes }))
     const res = await app.request(
@@ -668,108 +680,5 @@ describe('generation routes', () => {
       }),
     )
     expect((await app.request('/api/endpoints/GET%20%2Fnope/types')).status).toBe(404)
-  })
-
-  it('POST /api/generate/data forwards the body and returns the preview', async () => {
-    const generateData = vi.fn(async () => ({
-      ok: true as const,
-      preview: [{ id: 1 }],
-      warnings: ['w'],
-      typeName: 'X',
-      candidates: ['X', 'Y'],
-    }))
-    const app = createControlPlaneApp(makeRuntime({ generateData }))
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'export interface X { id: number }', seed: 7 }),
-    })
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      preview: [{ id: 1 }],
-      warnings: ['w'],
-      typeName: 'X',
-      candidates: ['X', 'Y'],
-    })
-    expect(generateData).toHaveBeenCalledWith({
-      model: 'export interface X { id: number }',
-      seed: 7,
-    })
-  })
-
-  // A model file declares several types and the parser picks one. Which
-  // one it picked is the difference between mocking an order and mocking
-  // the string 'viewer', so it cannot stay inside the server.
-  it('omits the type name when the request generated from an existing response', async () => {
-    const generateData = vi.fn(async () => ({
-      ok: true as const,
-      preview: [{ id: 1 }],
-      warnings: [],
-    }))
-    const app = createControlPlaneApp(makeRuntime({ generateData }))
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: { endpointId: 'GET /todos', response: 'ok' } }),
-    })
-    expect(await res.json()).toEqual({ preview: [{ id: 1 }], warnings: [] })
-  })
-
-  it('rejects a body that is neither model nor from as 400, without calling the runtime', async () => {
-    const generateData = vi.fn()
-    const app = createControlPlaneApp(makeRuntime({ generateData }))
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nothing: true }),
-    })
-    expect(res.status).toBe(400)
-    expect(generateData).not.toHaveBeenCalled()
-  })
-
-  it('maps an invalid model failure to 400', async () => {
-    const app = createControlPlaneApp(
-      makeRuntime({
-        generateData: async () => ({
-          ok: false as const,
-          error: 'no type found',
-          code: 'invalid' as const,
-        }),
-      }),
-    )
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'const x = 1' }),
-    })
-    expect(res.status).toBe(400)
-  })
-
-  it('names the missing field when a "from" body is missing "response"', async () => {
-    const generateData = vi.fn()
-    const app = createControlPlaneApp(makeRuntime({ generateData }))
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: { endpointId: 'x' } }),
-    })
-    expect(res.status).toBe(400)
-    const body = (await res.json()) as { message: string }
-    expect(body.message).toMatch(/response/)
-    expect(generateData).not.toHaveBeenCalled()
-  })
-
-  it('names the field when "seed" has the wrong type', async () => {
-    const generateData = vi.fn()
-    const app = createControlPlaneApp(makeRuntime({ generateData }))
-    const res = await app.request('/api/generate/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'x', seed: '42' }),
-    })
-    expect(res.status).toBe(400)
-    const body = (await res.json()) as { message: string }
-    expect(body.message).toMatch(/seed/)
-    expect(generateData).not.toHaveBeenCalled()
   })
 })

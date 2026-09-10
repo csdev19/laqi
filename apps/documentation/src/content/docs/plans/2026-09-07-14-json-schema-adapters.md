@@ -460,6 +460,48 @@ replacement in release notes. Publishing is a separate release operation.
 
 **Exit:** acceptance checks pass and the final diff is ready for review.
 
+#### Measured results
+
+Produced by `bun packages/generate/scripts/measure.ts` on an Apple Silicon
+laptop, Bun 1.4.2 / Node v26.3.0, darwin/arm64. Absolute milliseconds are
+about this machine; the comparison between columns is the finding.
+
+| fixture | strict  | cold import | warm import (TS) | warm import (JSON Schema) | generate | export | document (min) | document (pretty) |   body |
+| ------- | :-----: | ----------: | ---------------: | ------------------------: | -------: | -----: | -------------: | ----------------: | -----: |
+| simple  |  clean  |      352 ms |           119 ms |                      0 ms |     0 ms |   2 ms |          340 B |             472 B |  113 B |
+| medium  |  clean  |      357 ms |           116 ms |                      0 ms |     0 ms |   3 ms |         1565 B |            2740 B | 1294 B |
+| complex | refused |      357 ms |           115 ms |                      0 ms |     1 ms |   6 ms |         4209 B |            8182 B | 2427 B |
+| flat    |  clean  |      365 ms |           113 ms |                      0 ms |     0 ms |   3 ms |         2869 B |            5386 B | 1946 B |
+
+Peak RSS 782 MB. 27 export targets. Cold is measured in a fresh child
+process; measured as "the first call in this process" it came out equal to
+warm, because the TypeScript compiler was already loaded and the number was
+measuring nothing.
+
+What the numbers say:
+
+- **The whole import cost is `tsc`.** The same document re-imported as JSON
+  Schema takes 0 ms against 115 ms from TypeScript source. laqi's own
+  normalization, compilation and reference resolution do not register.
+  Any future work on import latency belongs in how the compiler is invoked,
+  not in the schema pipeline.
+- **Generation is free at these sizes** — under a millisecond for every
+  fixture. The `MAX_GENERATED_VALUES` budget exists for amplification
+  (`string[][][]` at length 100), not for ordinary models.
+- **Cold start is ~3× warm**, and it is paid once per process. This is the
+  number a developer feels on their first paste.
+- **Pretty-printing roughly doubles the document**, 340 B → 472 B at the
+  small end and 4209 B → 8182 B at the large end, with `required` and `enum`
+  on one line each. That is the writer's layout cost, and it buys a file a
+  person can read and diff.
+- **Peak RSS is dominated by what is loaded, not by what is generated.**
+  quicktype's 27 target languages and the TypeScript compiler are the
+  residents; the documents and bodies are kilobytes.
+- **One of the four fixtures is refused by the strict default.** `complex`
+  has a mixed union that narrows, so it needs an acknowledged approximation.
+  A quarter of the hand-written fixtures tripping the policy is worth knowing
+  before calling strict-by-default comfortable.
+
 ## Acceptance and testing
 
 - The full shapeToJsonSchema output vocabulary compiles without rejection and

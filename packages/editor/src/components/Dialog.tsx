@@ -22,6 +22,12 @@ const FOCUSABLE_SELECTOR = [
 export function Dialog(props: {
   title: string
   description?: string
+  /**
+   * Room for two bodies side by side. The default width is sized for a
+   * rename field; a comparison needs the screen, and a comparison squeezed
+   * into 420px is one nobody makes.
+   */
+  wide?: boolean
   confirmLabel?: string
   cancelLabel?: string
   confirmDisabled?: boolean
@@ -95,7 +101,7 @@ export function Dialog(props: {
     >
       <div
         ref={cardRef}
-        className="dialog"
+        className={props.wide ? 'dialog dialog-wide' : 'dialog'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

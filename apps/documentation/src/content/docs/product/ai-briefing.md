@@ -8,7 +8,7 @@ description: Self-contained context document for giving another AI a complete, a
 > **How to use this document:** paste it whole into another AI's context. It
 > is self-contained — every fact needed to reason about laqi correctly is in
 > this file, with no repo access or link-following required. Facts are
-> current as of 2026-09-01, pre-release of 2.0.0.
+> current as of 2026-09-10, pre-release of 2.0.0.
 
 ## What laqi is
 
@@ -152,22 +152,41 @@ definition and writes back to its source file, and offers a ready-made
 
 `laqi mcp` runs an MCP server over **stdio**. It operates on the mock files
 in its working directory, so it works whether or not the HTTP server is
-running. Eleven tools:
+running. Fourteen tools:
 
 `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
 `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
-`import_openapi`, `get_types`, `generate_data`.
+`import_openapi`, `get_types`, `generate_data`, `regenerate_response`,
+`apply_generated_body`, `refresh_schema`.
 
-- `import_openapi`: OpenAPI 3.x JSON (not YAML) → mocks with example bodies
-  generated from schemas; never overwrites existing endpoints unless asked;
-  reports skips instead of failing the import.
-- `get_types`: derive types from a live response body — TypeScript, Zod,
-  Effect Schema, Python, Go, Rust, Swift, Kotlin, Dart and ~20 more
+- `import_openapi`: OpenAPI 3.x JSON (not YAML) → mocks. A response with an
+  example keeps it exactly; otherwise the body is generated from the schema,
+  which is stored beside it. Never overwrites existing endpoints unless
+  asked; reports skips instead of failing the import.
+- `get_types`: types for a response — from its stored schema when it has one,
+  inferred from the body otherwise, and the output says which. TypeScript,
+  Zod, Effect Schema, Python, Go, Rust, Swift, Kotlin, Dart and ~20 more
   (quicktype under the hood).
-- `generate_data`: paste a TypeScript interface (dirty real-world ones are
-  fine — `extends`, `Pick`, unresolvable imports) → realistic seeded data
+- `generate_data`: a pasted TypeScript interface (dirty real-world ones are
+  fine — `extends`, `Pick`, unresolvable imports), a JSON Schema document, or
+  a schema exported by the project's own code → realistic seeded data
   (`email` fields get emails, `createdAt` gets dates, ids sequential).
-  Generated data lands in ordinary mock JSON; models are never stored.
+- `regenerate_response` / `apply_generated_body` / `refresh_schema`: change a
+  body from its stored schema, deliberately. Regenerating previews and writes
+  nothing; applying is refused if the response changed since it was read, or
+  if the body being replaced is not one laqi generated.
+
+**A response remembers its schema.** The JSON Schema a body was generated
+from is stored beside it, so the response can be regenerated later without
+the source. Generated data still lands in ordinary mock JSON.
+
+**Strict by default.** An import that would say less than its source is
+refused, naming what would be approximated, and someone has to accept it.
+
+**Executing project code is gated.** Reading a schema out of the project runs
+that module. The panel asks a person, showing the resolved path; an agent may
+only run what is listed in `mcp.modules` in `laqi.config.json`, which MCP has
+no tool to write.
 
 Agent guidance: **prefer an MCP tool call over hand-writing a mock file.**
 
