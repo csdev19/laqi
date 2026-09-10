@@ -1,5 +1,6 @@
 import {
   DIALECT_2020_12,
+  diagnostic,
   isAcknowledgeable,
   type Diagnostic,
   type GenerationEvidence,
@@ -85,10 +86,7 @@ export const importSchemaEffect = (
   options: ImportOptions = {},
 ): Effect.Effect<SchemaSnapshot, ImportError, TypeScriptCompiler> =>
   Effect.gen(function* () {
-    const draft =
-      request.kind === 'typescript-paste'
-        ? yield* fromTypeScript(request)
-        : yield* fromJsonSchema(request)
+    const draft = yield* dispatch(request)
 
     const settled = applyLossPolicy(draft.diagnostics, options)
     if (settled instanceof ImportError) return yield* Effect.fail(settled)
@@ -106,6 +104,38 @@ type Draft = {
   document: Record<string, unknown>
   source: SourceDescriptor
   diagnostics: Diagnostic[]
+}
+
+/**
+ * The composition root: the one place that knows which adapter serves which
+ * kind. Exhaustive on purpose — a kind nobody serves is named as such, with
+ * the kinds that do exist, rather than falling through to whichever branch
+ * happens to be last and failing later with a confusing message about a
+ * document that was never there.
+ */
+const dispatch = (
+  request: SourceRequest,
+): Effect.Effect<Draft, ImportError, TypeScriptCompiler> => {
+  switch (request.kind) {
+    case 'typescript-paste':
+      return fromTypeScript(request)
+    case 'json-schema':
+      return fromJsonSchema(request)
+    default:
+      return Effect.fail(unknownAdapter(request))
+  }
+}
+
+/** Every kind the composition root serves, for the message below. */
+const KNOWN_KINDS = ['typescript-paste', 'json-schema'] as const
+
+function unknownAdapter(request: never): ImportError {
+  const kind = (request as { kind?: unknown }).kind
+  const message = `no adapter serves the source kind ${JSON.stringify(kind)}. Known kinds: ${KNOWN_KINDS.join(', ')}`
+  return new ImportError({
+    message,
+    diagnostics: [diagnostic('adapter.unknown', message)],
+  })
 }
 
 /**

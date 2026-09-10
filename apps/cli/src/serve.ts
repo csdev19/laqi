@@ -1,8 +1,22 @@
 // apps/cli/src/serve.ts
 
 import { serve, type ServerType } from '@hono/node-server'
-import { EventBus, Project, SessionCounters, StateStore, type LaqiEvent } from '@laqi/core'
-import type { Diagnostic, EndpointDefinition, LaqiConfig } from '@laqi/schema'
+import { readFileSync } from 'node:fs'
+import {
+  EventBus,
+  Project,
+  resolveSourcePath,
+  SessionCounters,
+  StateStore,
+  type LaqiEvent,
+} from '@laqi/core'
+import {
+  SchemaSnapshotSchema,
+  type Diagnostic,
+  type EndpointDefinition,
+  type LaqiConfig,
+  type SchemaSnapshot,
+} from '@laqi/schema'
 import {
   createControlPlaneApp,
   createMockApp,
@@ -10,6 +24,7 @@ import {
   type ControlPlaneRuntime,
 } from '@laqi/server'
 import { Hono } from 'hono'
+import type { SourceRequest } from '@laqi/generate'
 import { createEditorApp } from './editor-assets'
 import { buildRuntime, type Runtime } from './runtime'
 
@@ -356,6 +371,140 @@ export async function startServer(options: {
           }
         }
       },
+      importSchema: async (input) => {
+        const { importSchema } = await import('@laqi/generate')
+        try {
+          return {
+            ok: true,
+            snapshot: await importSchema(input.source as never, {
+              allowLoss: input.allowLoss === true,
+            }),
+          }
+        } catch (cause) {
+          return failedImport(cause)
+        }
+      },
+      previewBody: async (input) => {
+        const parsed = SchemaSnapshotSchema.safeParse(input.snapshot)
+        if (!parsed.success) {
+          return {
+            ok: false,
+            error: parsed.error.issues.map((i) => i.message).join('; '),
+            code: 'invalid',
+          }
+        }
+
+        const { previewBody } = await import('@laqi/generate')
+        try {
+          const preview = await previewBody(parsed.data, {
+            seed: input.seed,
+            arrayLength: input.arrayLength,
+          })
+          return {
+            ok: true,
+            body: preview.body,
+            evidence: preview.evidence,
+            diagnostics: [...preview.diagnostics],
+          }
+        } catch (cause) {
+          return failedImport(cause)
+        }
+      },
+      regenerateResponse: async (id, responseName, options) => {
+        const found = project.getResponse(id, responseName)
+        if (!found.ok) return { ok: false, error: found.error, code: found.code }
+
+        // Same refusal as the `from:` branch above, for the same reason:
+        // inferring a shape back from one sample cannot see a literal union,
+        // an absent optional or a fixed-length tuple.
+        const snapshot = found.value.schema
+        if (!snapshot) {
+          return {
+            ok: false,
+            error:
+              `${id} has no schema for ${JSON.stringify(responseName ?? 'its default response')}, ` +
+              'so there is nothing to regenerate from — create it from a model or a JSON Schema first',
+            code: 'invalid',
+          }
+        }
+
+        // Read BEFORE generating: the revision names the response this
+        // preview was decided about, and the caller hands it back to apply.
+        const revision = project.getResponseRevision(id, responseName)
+        if (!revision.ok) return { ok: false, error: revision.error, code: revision.code }
+
+        const { previewBody } = await import('@laqi/generate')
+        try {
+          const preview = await previewBody(snapshot, options)
+          return {
+            ok: true,
+            body: preview.body,
+            evidence: preview.evidence,
+            diagnostics: [...preview.diagnostics],
+            revision: revision.value,
+          }
+        } catch (cause) {
+          return failedImport(cause)
+        }
+      },
+      applyGeneratedBody: (id, responseName, input) => {
+        const result = project.applyGeneratedBody({
+          id,
+          response: responseName,
+          body: input.body,
+          generation: input.evidence,
+          revision: input.revision,
+          confirm: input.confirm,
+        })
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.error,
+            code: result.code,
+            ...(result.conflict === undefined ? {} : { conflict: result.conflict }),
+          }
+        }
+
+        counters.recordWrite(result.value.file)
+        reload()
+        return { ok: true, revision: result.value.revision }
+      },
+      refreshResponseSchema: async (id, responseName, input) => {
+        const found = project.getResponse(id, responseName)
+        if (!found.ok) return { ok: false, error: found.error, code: found.code }
+
+        const request = refreshRequestFor(found.value.schema, root, config)
+        if (!request.ok) return { ok: false, error: request.error, code: 'invalid' }
+
+        const { importSchema } = await import('@laqi/generate')
+        let snapshot
+        try {
+          snapshot = await importSchema(request.value, {
+            allowLoss: input.allowLoss === true,
+          })
+        } catch (cause) {
+          return failedImport(cause)
+        }
+
+        const result = project.refreshSchema({
+          id,
+          response: responseName,
+          schema: snapshot,
+          revision: input.revision,
+        })
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: result.error,
+            code: result.code,
+            ...(result.conflict === undefined ? {} : { conflict: result.conflict }),
+          }
+        }
+
+        counters.recordWrite(result.value.file)
+        reload()
+        return { ok: true, snapshot, revision: result.value.revision }
+      },
     }
     const controlPlaneApp = createControlPlaneApp(controlPlaneRuntime)
 
@@ -460,5 +609,94 @@ export async function startServer(options: {
           ),
       )
     },
+  }
+}
+
+/**
+ * An import that threw, turned into a refusal the caller can act on.
+ *
+ * The diagnostics ride along on purpose: a caller deciding whether to
+ * acknowledge an approximation needs to see what would be approximated, and
+ * asking it to make a second call to find out is how a strict default turns
+ * into a habit of passing `allowLoss` blindly.
+ */
+function failedImport(cause: unknown): {
+  ok: false
+  error: string
+  code: 'invalid'
+  diagnostics?: Diagnostic[]
+} {
+  const diagnostics = (cause as { diagnostics?: Diagnostic[] }).diagnostics
+  return {
+    ok: false,
+    error: cause instanceof Error ? cause.message : String(cause),
+    code: 'invalid',
+    ...(diagnostics === undefined ? {} : { diagnostics }),
+  }
+}
+
+/**
+ * Rebuilds the request that produced a stored snapshot, so the source can be
+ * read again.
+ *
+ * A paste has no source to re-read — the text was never kept, by design —
+ * and saying so is the honest answer; the panel offers re-import instead of
+ * pretending a refresh happened.
+ */
+function refreshRequestFor(
+  snapshot: SchemaSnapshot | undefined,
+  root: string,
+  config: LaqiConfig,
+): { ok: true; value: SourceRequest } | { ok: false; error: string } {
+  if (!snapshot) {
+    return { ok: false, error: 'this response has no schema, so there is nothing to refresh' }
+  }
+
+  const source = snapshot.source
+  if (source.kind === 'typescript-paste') {
+    return {
+      ok: false,
+      error:
+        'this schema came from pasted TypeScript, which laqi does not keep — paste it again to update the schema',
+    }
+  }
+
+  if (source.file === undefined) {
+    return {
+      ok: false,
+      error: `this schema was imported without a file, so there is no source to re-read`,
+    }
+  }
+
+  // Checked BEFORE the read: a project module is TypeScript, and parsing it
+  // as JSON would fail first with a message about column 1 rather than about
+  // the adapter that is missing.
+  if (source.kind !== 'json-schema') {
+    return {
+      ok: false,
+      error: `laqi cannot yet refresh a schema imported from ${JSON.stringify(source.kind)}`,
+    }
+  }
+
+  const resolved = resolveSourcePath({
+    root,
+    sourceRoot: config.schemaSources.root,
+    file: source.file,
+  })
+  if (!resolved.ok) return resolved
+
+  let document: unknown
+  try {
+    document = JSON.parse(readFileSync(resolved.path, 'utf8'))
+  } catch (cause) {
+    return {
+      ok: false,
+      error: `could not read ${source.file}: ${cause instanceof Error ? cause.message : String(cause)}`,
+    }
+  }
+
+  return {
+    ok: true,
+    value: { kind: 'json-schema', document, name: snapshot.name, file: source.file },
   }
 }

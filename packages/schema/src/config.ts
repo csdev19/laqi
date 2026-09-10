@@ -10,6 +10,15 @@ export const ConfigSchema = z.object({
   file: z.string().default('laqi.json'),
   /** '*' or an allowlist of origins. Never '*' with --share (ADR-0007). */
   cors: z.union([z.literal('*'), z.array(z.string())]).default('*'),
+  /**
+   * Where a schema source may be read from, relative to the project root.
+   *
+   * Separate from `dir`/`file` on purpose: those bound where laqi WRITES,
+   * and a project's types legitimately live outside the mocks folder —
+   * `src/types/api.ts` is the ordinary case. A source path never grants a
+   * write anywhere, and a write bound never widens what may be read.
+   */
+  schemaSources: z.object({ root: z.string().default('.') }).default({ root: '.' }),
   /** Panel preferences (finding H12). */
   density: z.enum(['regular', 'compact']).default('regular'),
   showDescriptions: z.boolean().default(true),

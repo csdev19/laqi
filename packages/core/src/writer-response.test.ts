@@ -1,9 +1,9 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { bodyHash } from './canonical-json'
-import { readResponseRevision, updateResponseInFile } from './writer'
+import { readResponseRevision, resolveSourcePath, updateResponseInFile } from './writer'
 
 let root: string
 const FILE = 'api.json'
@@ -224,5 +224,36 @@ describe('reaching a response', () => {
 
     expect(result).toMatchObject({ ok: false })
     expect(result.ok === false && result.error).toContain('outside')
+  })
+})
+
+describe('resolving a schema source', () => {
+  it('accepts a source under the source root, outside the mocks folder', () => {
+    const result = resolveSourcePath({ root, sourceRoot: '.', file: 'src/types/api.ts' })
+
+    expect(result).toMatchObject({ ok: true })
+    expect(result.ok && result.path).toBe(join(root, 'src/types/api.ts'))
+  })
+
+  it('refuses a traversal out of the source root', () => {
+    const result = resolveSourcePath({ root, sourceRoot: 'src', file: '../../secrets.json' })
+
+    expect(result).toMatchObject({ ok: false })
+    expect(result.ok === false && result.error).toContain('outside')
+  })
+
+  it('refuses a symlink that escapes the source root', () => {
+    mkdirSync(join(root, 'src'), { recursive: true })
+    symlinkSync(tmpdir(), join(root, 'src', 'out'))
+
+    const result = resolveSourcePath({ root, sourceRoot: 'src', file: 'out/anything.ts' })
+
+    expect(result).toMatchObject({ ok: false })
+  })
+
+  it('does not require the file to exist yet', () => {
+    expect(resolveSourcePath({ root, sourceRoot: '.', file: 'nope.ts' })).toMatchObject({
+      ok: true,
+    })
   })
 })

@@ -13,9 +13,18 @@ describe('ConfigSchema', () => {
       dir: 'laqi',
       file: 'laqi.json',
       cors: '*',
+      schemaSources: { root: '.' },
       density: 'regular',
       showDescriptions: true,
     })
+  })
+
+  // The mocks area bounds where laqi WRITES. A project's types live in
+  // src/types, outside laqi/, so reads are bounded separately and default to
+  // the whole project rather than to the mocks folder.
+  it('lets a schema source come from anywhere in the project by default', () => {
+    expect(ConfigSchema.parse({}).schemaSources.root).toBe('.')
+    expect(ConfigSchema.parse({ schemaSources: { root: 'src' } }).schemaSources.root).toBe('src')
   })
 
   // Loopback, not 0.0.0.0: reaching laqi from another device is what

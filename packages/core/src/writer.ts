@@ -85,6 +85,38 @@ function realOrSelf(path: string): string {
   }
 }
 
+/**
+ * Resolves a SCHEMA SOURCE path and refuses if it lands outside the source
+ * bounds.
+ *
+ * The source bounds are `schemaSources.root`, not the mocks area. A project's
+ * types live in `src/types`, outside `laqi/`, and confining reads to the
+ * mocks would make the ordinary case impossible. The reverse never holds:
+ * being allowed to READ a path grants no write anywhere, because the writers
+ * check their own bounds and never consult this one.
+ *
+ * Uses the same realpath-with-missing-tail algorithm as the writer, so a
+ * symlink inside the source root pointing outward is refused too — the check
+ * a lexical `resolve` silently passes.
+ */
+export function resolveSourcePath(params: {
+  root: string
+  sourceRoot: string
+  file: string
+}): { ok: true; path: string } | { ok: false; error: string } {
+  const base = resolve(params.root, params.sourceRoot)
+  const target = resolve(base, params.file)
+  const real = realish(target)
+  const realBase = realish(base)
+
+  return real === realBase || real.startsWith(realBase + sep)
+    ? { ok: true, path: target }
+    : {
+        ok: false,
+        error: `refusing to read ${JSON.stringify(params.file)}: it resolves outside ${JSON.stringify(params.sourceRoot)}`,
+      }
+}
+
 function readFileObject(
   fullPath: string,
 ): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {

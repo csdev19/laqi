@@ -126,6 +126,12 @@ export const DIAGNOSTIC_CODES = {
     acknowledgeable: false,
     raisedWhen: 'which Standard JSON Schema side was used',
   },
+  'adapter.unknown': {
+    kind: 'loss',
+    severity: 'error',
+    acknowledgeable: false,
+    raisedWhen: 'the request names a source kind no adapter serves',
+  },
   'export.tuple-approximated': {
     kind: 'loss',
     severity: 'warning',

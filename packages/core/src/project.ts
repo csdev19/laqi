@@ -494,7 +494,7 @@ export class Project {
     generation: unknown
     revision: string
     confirm?: boolean
-  }): ProjectResult<{ revision: string }> {
+  }): ProjectResult<{ revision: string; file: string }> {
     const located = this.locate(params.id, params.response)
     if (!located.ok) return located
 
@@ -509,7 +509,7 @@ export class Project {
       patch: { body: params.body, generation: params.generation },
     })
 
-    if (result.ok) return ok({ revision: result.revision })
+    if (result.ok) return ok({ revision: result.revision, file: located.value.file })
     return result.conflict
       ? { ok: false, error: result.error, code: 'conflict', conflict: result.conflict }
       : fail(result.error)
@@ -527,7 +527,7 @@ export class Project {
     response?: string
     schema: unknown
     revision: string
-  }): ProjectResult<{ revision: string }> {
+  }): ProjectResult<{ revision: string; file: string }> {
     const located = this.locate(params.id, params.response)
     if (!located.ok) return located
 
@@ -541,7 +541,7 @@ export class Project {
       patch: { schema: params.schema },
     })
 
-    if (result.ok) return ok({ revision: result.revision })
+    if (result.ok) return ok({ revision: result.revision, file: located.value.file })
     return result.conflict
       ? { ok: false, error: result.error, code: 'conflict', conflict: result.conflict }
       : fail(result.error)

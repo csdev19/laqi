@@ -141,7 +141,96 @@ export type ControlPlaneRuntime = {
           diagnostics?: Diagnostic[]
         }
   >
+  importSchema: (input: {
+    source: unknown
+    allowLoss?: boolean
+  }) => Promise<
+    | { ok: true; snapshot: SchemaSnapshot }
+    | { ok: false; error: string; code: WriteFailure; diagnostics?: Diagnostic[] }
+  >
+  previewBody: (input: {
+    snapshot: unknown
+    seed?: number
+    arrayLength?: number
+  }) => Promise<
+    | { ok: true; body: unknown; evidence: GenerationEvidence; diagnostics: Diagnostic[] }
+    | { ok: false; error: string; code: WriteFailure; diagnostics?: Diagnostic[] }
+  >
+  /**
+   * Generates from the response's STORED schema. Writes nothing: the caller
+   * looks at what came back and decides, and `revision` is what it hands to
+   * `applyGeneratedBody` when it does.
+   */
+  regenerateResponse: (
+    id: string,
+    response: string | undefined,
+    options: { seed?: number; arrayLength?: number },
+  ) => Promise<
+    | {
+        ok: true
+        body: unknown
+        evidence: GenerationEvidence
+        diagnostics: Diagnostic[]
+        revision: string
+      }
+    | { ok: false; error: string; code: WriteFailure }
+  >
+  applyGeneratedBody: (
+    id: string,
+    response: string | undefined,
+    input: { body: unknown; evidence: unknown; revision: string; confirm?: boolean },
+  ) =>
+    | { ok: true; revision: string }
+    | {
+        ok: false
+        error: string
+        code: WriteFailure
+        conflict?: { reason: string; revision: string }
+      }
+  /** Re-reads the source and replaces the schema. Never touches the body. */
+  refreshResponseSchema: (
+    id: string,
+    response: string | undefined,
+    input: { revision: string; allowLoss?: boolean },
+  ) => Promise<
+    | { ok: true; snapshot: SchemaSnapshot; revision: string }
+    | {
+        ok: false
+        error: string
+        code: WriteFailure
+        diagnostics?: Diagnostic[]
+        conflict?: { reason: string; revision: string }
+      }
+  >
 }
+
+const ImportRequestSchema = z.object({
+  source: z.looseObject({ kind: z.string().min(1) }),
+  allowLoss: z.boolean().optional(),
+})
+
+const PreviewRequestSchema = z.object({
+  snapshot: z.unknown(),
+  seed: z.number().int().optional(),
+  arrayLength: z.number().int().optional(),
+})
+
+const RegenerateRequestSchema = z.object({
+  seed: z.number().int().optional(),
+  arrayLength: z.number().int().optional(),
+})
+
+const ApplyBodyRequestSchema = z.object({
+  body: z.unknown(),
+  evidence: z.unknown(),
+  revision: z.string().min(1),
+  confirm: z.boolean().optional(),
+})
+
+const RefreshSchemaRequestSchema = z.object({
+  revision: z.string().min(1),
+  allowLoss: z.boolean().optional(),
+})
 
 export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
   const app = new Hono()
@@ -477,6 +566,164 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       ...(result.generation === undefined ? {} : { generation: result.generation }),
       ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
     })
+  })
+
+  /**
+   * Reads a JSON body, or says so. Every route below needs the same three
+   * lines, and a missing one is a 500 nobody can act on.
+   */
+  const readJson = async (c: {
+    req: { json: () => Promise<unknown> }
+  }): Promise<{ ok: true; value: unknown } | { ok: false }> => {
+    try {
+      return { ok: true, value: await c.req.json() }
+    } catch {
+      return { ok: false }
+    }
+  }
+
+  /**
+   * A refusal the caller can act on. Diagnostics mean laqi understood the
+   * request and refuses what it says (422); no diagnostics means it could
+   * not read the request at all (the code's own status).
+   */
+  const refusal = (result: {
+    error: string
+    code: WriteFailure
+    diagnostics?: Diagnostic[]
+    conflict?: { reason: string; revision: string }
+  }) =>
+    ({
+      payload: {
+        error: 'laqi-control-plane',
+        message: result.error,
+        ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
+        ...(result.conflict === undefined
+          ? {}
+          : { reason: result.conflict.reason, revision: result.conflict.revision }),
+      },
+      status:
+        result.diagnostics !== undefined && result.code === 'invalid' ? 422 : STATUS[result.code],
+    }) as const
+
+  app.post('/api/schema/import', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = ImportRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.importSchema(parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ snapshot: result.snapshot })
+  })
+
+  app.post('/api/schema/preview', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = PreviewRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.previewBody(parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ body: result.body, evidence: result.evidence, diagnostics: result.diagnostics })
+  })
+
+  app.post('/api/endpoints/:id/responses/:name/regenerate', async (c) => {
+    const raw = await readJson(c)
+    // An empty body is a legitimate regenerate: no seed, no length, defaults.
+    const parsed = RegenerateRequestSchema.safeParse(raw.ok ? (raw.value ?? {}) : {})
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.regenerateResponse(
+      c.req.param('id'),
+      c.req.param('name'),
+      parsed.data,
+    )
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({
+      body: result.body,
+      evidence: result.evidence,
+      diagnostics: result.diagnostics,
+      revision: result.revision,
+    })
+  })
+
+  app.put('/api/endpoints/:id/responses/:name/body', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = ApplyBodyRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = runtime.applyGeneratedBody(c.req.param('id'), c.req.param('name'), parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ revision: result.revision })
+  })
+
+  app.post('/api/endpoints/:id/responses/:name/schema/refresh', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = RefreshSchemaRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.refreshResponseSchema(
+      c.req.param('id'),
+      c.req.param('name'),
+      parsed.data,
+    )
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ snapshot: result.snapshot, revision: result.revision })
   })
 
   // Insertion point for future routes: they go HERE, before this
