@@ -995,6 +995,13 @@ button.log-path:hover {
   color: var(--viol);
 }
 
+.serve-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  padding: 2px 0;
+}
+
 .detail-columns {
   flex: 1;
   min-height: 0;

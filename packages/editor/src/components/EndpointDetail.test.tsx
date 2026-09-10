@@ -193,6 +193,29 @@ describe('the draft survives an unrelated reload', () => {
 })
 
 describe('serving a response', () => {
+  it('keeps draft actions local until save and reload make the response available', async () => {
+    const original = endpoint({
+      id: 'GET /orders/:id',
+      path: '/orders/:id',
+      responses: { ok: { status: 200 } },
+    })
+    const { onSave, onFlip, rerender } = renderDetail(original)
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(regenerateResponse).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save to file' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+    // A save request alone is not evidence the write succeeded.
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+    const [id, definition] = onSave.mock.calls[0]!
+    expect(id).toBe(original.id)
+    rerender({ ...original, ...definition })
+    fireEvent.click(await screen.findByRole('button', { name: 'Serve this' }))
+    expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: original.id }), 'not-found')
+  })
+
   it('shows a primary "Serve this" action for a response that is not live, and calls onFlip', () => {
     const { onFlip } = renderDetail(endpoint())
 
@@ -202,6 +225,23 @@ describe('serving a response', () => {
     fireEvent.click(serve)
 
     expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: 'GET /users' }), 'boom')
+  })
+
+  it('does not offer "Serve this" for a response that only exists in the draft', () => {
+    // Serving goes through PUT /api/state, and the server only knows what
+    // is on disk. Offering the button for an unsaved response produced a
+    // "not declared on GET /x. Available: ok" band that said nothing about
+    // the fix: save first.
+    const { onFlip } = renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+    expect(screen.getByText(/save to file/i, { selector: '.serve-note' }).textContent).toMatch(
+      /"not-found" is not on disk yet/,
+    )
+    expect(onFlip).not.toHaveBeenCalled()
   })
 
   it('renders the live response as a Serving state pill instead of a clickable button', () => {

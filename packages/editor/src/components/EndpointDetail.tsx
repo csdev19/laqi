@@ -33,6 +33,15 @@ function toDraft(endpoint: Endpoint): Draft {
   }
 }
 
+/**
+ * Shown wherever a draft-only response would otherwise be handed to the
+ * server. The control plane answers such a name with what *is* declared,
+ * which is accurate and tells the reader nothing about the fix.
+ */
+function notOnDisk(name: string): string {
+  return `Save to file first — ${JSON.stringify(name)} is not on disk yet`
+}
+
 export function EndpointDetail(props: {
   endpoint: Endpoint
   state: LaqiState
@@ -121,6 +130,9 @@ export function EndpointDetail(props: {
   }, [fingerprint])
 
   const live = liveResponse({ endpoint, state, scenarios })
+  // Every action that leaves the browser addresses the response by name, so
+  // it only works once the file on disk has that name.
+  const onDisk = Object.hasOwn(endpoint.responses, selected)
   const names = Object.keys(draft.responses)
   const current = draft.responses[selected]
   const bodySource = draft.bodies[selected] ?? ''
@@ -410,6 +422,13 @@ export function EndpointDetail(props: {
                 <span className={`live-pill layer-${live.layer}`}>
                   <span className="live-dot" aria-hidden="true" /> Serving
                 </span>
+              ) : !onDisk ? (
+                // Serving is an override in state.json, and the server only
+                // accepts names it has loaded from disk. A response that so
+                // far exists only in this draft would be refused with a
+                // message about what *is* declared — accurate, and useless
+                // as a hint. Say the fix instead of offering the failure.
+                <span className="serve-note">{notOnDisk(selected)}</span>
               ) : (
                 <button
                   type="button"
@@ -423,6 +442,13 @@ export function EndpointDetail(props: {
                 type="button"
                 className="btn"
                 onClick={() => {
+                  // Same reason as the Serve pill above: the endpoint route
+                  // this posts to is keyed by a response name the server has
+                  // loaded, so a draft-only name would 404.
+                  if (!onDisk) {
+                    setActionError(notOnDisk(selected))
+                    return
+                  }
                   const epoch = epochRef.current
                   setActionError(null)
                   setWarnings([])
