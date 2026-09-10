@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, type EndpointDefinition } from '../api'
+import { api, ApiError, type EndpointDefinition } from '../api'
 import { checkJson } from '../highlight'
 import { statusClass } from '../log'
-import { parseStatusCode, suggestResponses } from '@laqi/schema'
+import { parseStatusCode, suggestResponses, type GenerationEvidence } from '@laqi/schema'
 import { StatusSelect } from './StatusSelect'
 import { TypesPanel } from './TypesPanel'
 import { liveResponse } from '../resolve'
@@ -50,6 +50,24 @@ export function EndpointDetail(props: {
   const [warnings, setWarnings] = useState<string[]>([])
   const [renameValue, setRenameValue] = useState<string | null>(null)
 
+  /**
+   * A regenerate waiting to be written, with everything the write needs.
+   *
+   * The body also goes into the draft so it can be read and edited, but the
+   * draft alone cannot be applied: the evidence says how this body was
+   * produced and the revision says which response it was decided about, and
+   * a write without both is the silent overwrite the revision exists to
+   * prevent.
+   */
+  const [pending, setPending] = useState<{
+    response: string
+    body: unknown
+    evidence: GenerationEvidence
+    revision: string
+  } | null>(null)
+  /** A refused write, with the reason and the revision that is current now. */
+  const [conflict, setConflict] = useState<{ message: string; revision: string } | null>(null)
+
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
   // if they no longer match, a reload won in the meantime and the late
@@ -74,6 +92,10 @@ export function EndpointDetail(props: {
   useEffect(() => {
     epochRef.current += 1
     setDraft(toDraft(endpoint))
+    // The file moved under us, so a preview decided about the old one is no
+    // longer something anyone agreed to write.
+    setPending(null)
+    setConflict(null)
     setSelected((current) => (current in endpoint.responses ? current : endpoint.default))
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `endpoint` is deliberately omitted: see above
   }, [fingerprint])
@@ -99,6 +121,44 @@ export function EndpointDetail(props: {
       ...previous,
       responses: { ...previous.responses, [name]: { ...previous.responses[name]!, ...change } },
     }))
+  }
+
+  /** Whether this response's schema names a file a refresh could re-read. */
+  const refreshable = (() => {
+    const source = endpoint.responses[selected]?.schema?.source
+    return source !== undefined && source.kind !== 'typescript-paste' && source.file !== undefined
+  })()
+
+  /**
+   * Writes the pending body through the one path that checks the revision
+   * and the evidence. A refusal is shown where the decision is, with the
+   * revision that is current now, so confirming resends against the file as
+   * it actually stands rather than against the one the preview saw.
+   */
+  const applyPending = (confirm?: { revision: string }) => {
+    if (pending === null) return
+    const epoch = epochRef.current
+    setActionError(null)
+    setConflict(null)
+    void api
+      .applyGeneratedBody(endpoint.id, pending.response, {
+        body: pending.body,
+        evidence: pending.evidence,
+        revision: confirm?.revision ?? pending.revision,
+        ...(confirm === undefined ? {} : { confirm: true }),
+      })
+      .then(() => {
+        if (epochRef.current !== epoch) return
+        setPending(null)
+      })
+      .catch((error: unknown) => {
+        if (epochRef.current !== epoch) return
+        if (error instanceof ApiError && error.conflict) {
+          setConflict({ message: error.message, revision: error.conflict.revision })
+          return
+        }
+        setActionError(error instanceof Error ? error.message : String(error))
+      })
   }
 
   const save = () => {
@@ -159,6 +219,22 @@ export function EndpointDetail(props: {
         <div className="band band-error">{props.saveError ?? actionError}</div>
       ) : null}
       <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
+      {/* A refused write, answered where the decision is. The button resends
+          against the revision that is current NOW, not the one the preview
+          saw — confirming means "overwrite what is there", not "ignore that
+          something changed". */}
+      {conflict !== null ? (
+        <div className="band band-error conflict-band">
+          <span>{conflict.message}</span>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => applyPending({ revision: conflict.revision })}
+          >
+            Overwrite anyway
+          </button>
+        </div>
+      ) : null}
 
       <div className="detail-columns">
         <div className="detail-responses">
@@ -265,9 +341,10 @@ export function EndpointDetail(props: {
                   const epoch = epochRef.current
                   setActionError(null)
                   setWarnings([])
+                  setConflict(null)
                   void api
-                    .generateData({ from: { endpointId: endpoint.id, response: selected } })
-                    .then(({ preview, warnings: generationWarnings }) => {
+                    .regenerateResponse(endpoint.id, selected)
+                    .then((generated) => {
                       // Discard if the endpoint reloaded while the call was
                       // in flight: the reload already rebuilt the draft and
                       // this response no longer belongs to it.
@@ -276,10 +353,16 @@ export function EndpointDetail(props: {
                         ...previous,
                         bodies: {
                           ...previous.bodies,
-                          [selected]: JSON.stringify(preview, null, 2),
+                          [selected]: JSON.stringify(generated.body, null, 2),
                         },
                       }))
-                      setWarnings(generationWarnings)
+                      setPending({
+                        response: selected,
+                        body: generated.body,
+                        evidence: generated.evidence,
+                        revision: generated.revision,
+                      })
+                      setWarnings(generated.diagnostics.map((item) => item.message))
                     })
                     .catch((error: unknown) => {
                       if (epochRef.current !== epoch) return
@@ -289,6 +372,42 @@ export function EndpointDetail(props: {
               >
                 Regenerate
               </button>
+              {/* Only after a regenerate, and only for the response it was
+                  about: applying carries the evidence that says laqi produced
+                  these bytes, which a hand-edited draft cannot claim. */}
+              {pending?.response === selected ? (
+                <button type="button" className="btn btn-primary" onClick={() => applyPending()}>
+                  Apply generated
+                </button>
+              ) : null}
+              {/* Only when there is a file to re-read. A pasted model was
+                  never kept, so there is nothing to refresh from. */}
+              {refreshable ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    const epoch = epochRef.current
+                    setActionError(null)
+                    setConflict(null)
+                    void api
+                      .getResponseRevision(endpoint.id, selected)
+                      .then(({ revision }) =>
+                        api.refreshSchema(endpoint.id, selected, { revision }),
+                      )
+                      .then(() => {
+                        if (epochRef.current !== epoch) return
+                        setWarnings(['schema refreshed from its source — the body is unchanged'])
+                      })
+                      .catch((error: unknown) => {
+                        if (epochRef.current !== epoch) return
+                        setActionError(error instanceof Error ? error.message : String(error))
+                      })
+                  }}
+                >
+                  Refresh schema
+                </button>
+              ) : null}
               <button type="button" className="btn" onClick={() => setRenameValue(selected)}>
                 Rename
               </button>

@@ -78,7 +78,7 @@ function applyLossPolicy(
 export const importSchemaEffect = (
   request: SourceRequest,
   options: ImportOptions = {},
-): Effect.Effect<SchemaSnapshot, ImportError, TypeScriptCompiler> =>
+): Effect.Effect<ImportResult, ImportError, TypeScriptCompiler> =>
   Effect.gen(function* () {
     const draft = yield* dispatch(request)
 
@@ -86,18 +86,37 @@ export const importSchemaEffect = (
     if (settled instanceof ImportError) return yield* Effect.fail(settled)
 
     return {
-      name: draft.name,
-      document: draft.document,
-      source: draft.source,
-      diagnostics: settled,
+      snapshot: {
+        name: draft.name,
+        document: draft.document,
+        source: draft.source,
+        diagnostics: settled,
+      },
+      candidates: draft.candidates ?? [draft.name],
     }
   })
+
+/**
+ * What an import produced, and what else it could have.
+ *
+ * `candidates` is about the REQUEST, not about the stored schema: a pasted
+ * file declaring three interfaces has one snapshot and three candidates, and
+ * a caller that never named one needs to be told which was picked. It is not
+ * on the snapshot because a snapshot describes a document, and which
+ * declarations sat beside it in a paste is not part of that document.
+ */
+export type ImportResult = {
+  snapshot: SchemaSnapshot
+  candidates: string[]
+}
 
 type Draft = {
   name: string
   document: Record<string, unknown>
   source: SourceDescriptor
   diagnostics: Diagnostic[]
+  /** Present when the source offered a choice of declaration. */
+  candidates?: string[]
 }
 
 /**
@@ -146,6 +165,7 @@ const fromTypeScript = (request: SourceRequest & { kind: 'typescript-paste' }) =
       document: { $schema: DIALECT_2020_12, ...shapeToJsonSchema(parsed.shape) },
       source: { kind: 'typescript-paste' } as const,
       diagnostics: parsed.diagnostics,
+      candidates: parsed.candidates,
     } satisfies Draft
   })
 
@@ -261,9 +281,9 @@ async function reject<A, E>(effect: Effect.Effect<A, E, never>): Promise<A> {
 export async function importSchema(
   request: SourceRequest,
   options: ImportOptions = {},
-): Promise<SchemaSnapshot> {
+): Promise<ImportResult> {
   return reject(
-    importSchemaEffect(request, options) as Effect.Effect<SchemaSnapshot, ImportError, never>,
+    importSchemaEffect(request, options) as Effect.Effect<ImportResult, ImportError, never>,
   )
 }
 

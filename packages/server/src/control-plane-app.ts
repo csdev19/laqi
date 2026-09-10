@@ -29,38 +29,6 @@ const STATUS: Record<WriteFailure, 400 | 404 | 409> = {
   'not-found': 404,
 }
 
-export type GenerateRequest =
-  | {
-      model: string
-      typeName?: string
-      arrayLength?: number
-      seed?: number
-      /** Acknowledge the approximations the diagnostics name, and import anyway. */
-      allowLoss?: boolean
-    }
-  | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
-
-// Two separate schemas instead of a z.union: a union emits a single
-// invalid_union with the generic "Invalid input" message at the top level,
-// and the per-branch detail (which field is missing, what type it had)
-// stays buried in nested errors that `issues.map(i => i.message)` never
-// reaches. Parsing against the right branch once we already know which one
-// it is (via the `model`/`from` discriminant key) yields flat issues with
-// the correct path.
-const ModelVariantSchema = z.object({
-  model: z.string().min(1),
-  typeName: z.string().optional(),
-  arrayLength: z.number().int().optional(),
-  seed: z.number().int().optional(),
-  allowLoss: z.boolean().optional(),
-})
-
-const FromVariantSchema = z.object({
-  from: z.object({ endpointId: z.string(), response: z.string() }),
-  arrayLength: z.number().int().optional(),
-  seed: z.number().int().optional(),
-})
-
 /** Only builds a readable message carrying the path of the failed field. */
 function issuesToMessage(issues: readonly { path: PropertyKey[]; message: string }[]): string {
   return issues.map((i) => [i.path.join('.'), i.message].filter(Boolean).join(': ')).join('; ')
@@ -111,41 +79,13 @@ export type ControlPlaneRuntime = {
       }
     | { ok: false; error: string; code: WriteFailure }
   >
-  generateData: (input: GenerateRequest) => Promise<
-      // `typeName` is the declaration the parser generated from. A model file
-      // declares several, and which one was picked is the difference between
-      // mocking an order and mocking the string 'viewer' — the caller cannot
-      // tell from the preview alone. Absent when generating from a response
-      // that already exists, where there is no model and no choice to report.
-      | {
-          ok: true
-          preview: unknown
-          warnings: string[]
-          typeName?: string
-          /** Every declaration the source offered, in source order. */
-          candidates?: string[]
-          /**
-           * The schema the preview was generated from, and the evidence that
-           * reproduces it. The caller saves both beside the body it keeps.
-           */
-          schema?: SchemaSnapshot
-          generation?: GenerationEvidence
-          /** What the import approximated or noted, replayed on every later read. */
-          diagnostics?: Diagnostic[]
-        }
-      | {
-          ok: false
-          error: string
-          code: WriteFailure
-          /** Present when the refusal was a loss the caller may acknowledge. */
-          diagnostics?: Diagnostic[]
-        }
-  >
-  importSchema: (input: {
-    source: unknown
-    allowLoss?: boolean
-  }) => Promise<
-    | { ok: true; snapshot: SchemaSnapshot }
+  importSchema: (input: { source: unknown; allowLoss?: boolean }) => Promise<
+    | {
+        ok: true
+        snapshot: SchemaSnapshot
+        /** Every declaration the source offered, so a caller that named none is told which was picked. */
+        candidates: string[]
+      }
     | { ok: false; error: string; code: WriteFailure; diagnostics?: Diagnostic[] }
   >
   previewBody: (input: {
@@ -187,6 +127,17 @@ export type ControlPlaneRuntime = {
         code: WriteFailure
         conflict?: { reason: string; revision: string }
       }
+  /**
+   * The revision of one response, without generating anything.
+   *
+   * Refreshing a schema needs a revision but has no reason to produce a
+   * body, and making the panel regenerate first to learn one would mean
+   * every refresh silently burned a generation.
+   */
+  getResponseRevision: (
+    id: string,
+    response: string | undefined,
+  ) => { ok: true; revision: string } | { ok: false; error: string; code: WriteFailure }
   /** Re-reads the source and replaces the schema. Never touches the body. */
   refreshResponseSchema: (
     id: string,
@@ -506,68 +457,6 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     })
   })
 
-  app.post('/api/generate/data', async (c) => {
-    let raw: unknown
-    try {
-      raw = await c.req.json()
-    } catch {
-      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
-    }
-
-    // We pick the branch by the discriminant key BEFORE parsing, and
-    // validate only against that branch's schema. If we handed both to a
-    // z.union, the only issue that comes out is the generic invalid_union
-    // ("Invalid input") — the branch-specific detail (which field is
-    // missing, what type it had) stays buried inside and never reaches the
-    // user. A present `model` (of any type) wins over `from`, same as
-    // before.
-    const body = raw as Record<string, unknown>
-    const hasModel = typeof body === 'object' && body !== null && 'model' in body
-    const hasFrom = typeof body === 'object' && body !== null && 'from' in body
-
-    if (!hasModel && !hasFrom) {
-      return c.json(
-        {
-          error: 'laqi-control-plane',
-          message: 'body needs either "model" (TS source) or "from" ({endpointId, response})',
-        },
-        400,
-      )
-    }
-
-    const parsed = hasModel ? ModelVariantSchema.safeParse(raw) : FromVariantSchema.safeParse(raw)
-    if (!parsed.success) {
-      return c.json(
-        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
-        400,
-      )
-    }
-
-    const result = await runtime.generateData(parsed.data)
-    if (!result.ok) {
-      // The diagnostics ride on the refusal: a caller deciding whether to
-      // acknowledge an approximation needs to see it without asking twice.
-      return c.json(
-        {
-          error: 'laqi-control-plane',
-          message: result.error,
-          ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
-        },
-        STATUS[result.code],
-      )
-    }
-    return c.json({
-      preview: result.preview,
-      warnings: result.warnings,
-      ...(result.typeName === undefined
-        ? {}
-        : { typeName: result.typeName, candidates: result.candidates ?? [result.typeName] }),
-      ...(result.schema === undefined ? {} : { schema: result.schema }),
-      ...(result.generation === undefined ? {} : { generation: result.generation }),
-      ...(result.diagnostics === undefined ? {} : { diagnostics: result.diagnostics }),
-    })
-  })
-
   /**
    * Reads a JSON body, or says so. Every route below needs the same three
    * lines, and a missing one is a 500 nobody can act on.
@@ -625,7 +514,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       const { payload, status } = refusal(result)
       return c.json(payload, status)
     }
-    return c.json({ snapshot: result.snapshot })
+    return c.json({ snapshot: result.snapshot, candidates: result.candidates })
   })
 
   app.post('/api/schema/preview', async (c) => {
@@ -693,6 +582,15 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     }
 
     const result = runtime.applyGeneratedBody(c.req.param('id'), c.req.param('name'), parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ revision: result.revision })
+  })
+
+  app.get('/api/endpoints/:id/responses/:name/revision', (c) => {
+    const result = runtime.getResponseRevision(c.req.param('id'), c.req.param('name'))
     if (!result.ok) {
       const { payload, status } = refusal(result)
       return c.json(payload, status)

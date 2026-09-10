@@ -1611,3 +1611,28 @@ button.log-path:hover {
   border-radius: 2px;
   color: var(--fg);
 }
+
+/* A stored loss: someone was shown this and said yes. Warn-coloured so it
+   reads as a caveat on the types above, not as an error to go and fix. */
+.types-acknowledged {
+  color: var(--warn);
+}
+
+/* The two refusals a person can answer: a lossy import and a refused write.
+   Both put the way forward inside the message, where the decision is. */
+.loss-refusal ul {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.loss-refusal button,
+.conflict-band button {
+  margin-top: 6px;
+}
+
+.conflict-band {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}

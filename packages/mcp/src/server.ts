@@ -402,13 +402,17 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
               } as const))
 
         if (request !== undefined) {
-          const snapshot = await importSchema(request, importOptions)
+          const { snapshot, candidates } = await importSchema(request, importOptions)
           const preview = await previewBody(snapshot, genOptions)
           return text({
             preview: preview.body,
             schema: snapshot,
             generation: preview.evidence,
             diagnostics: snapshot.diagnostics,
+            // Which declaration was used is invisible in the body, and a
+            // paste that declares several silently mocks whichever came
+            // first. Named whenever there was a choice.
+            ...(candidates.length > 1 ? { typeName: snapshot.name, candidates } : {}),
             warnings: snapshot.diagnostics.map((item) => item.message),
           })
         }
@@ -605,7 +609,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
       const { importSchema } = await import('@laqi/generate')
       let snapshot
       try {
-        snapshot = await importSchema(request.value, { allowLoss: allowLoss === true })
+        snapshot = (await importSchema(request.value, { allowLoss: allowLoss === true })).snapshot
       } catch (error) {
         return { isError: true, content: [{ type: 'text' as const, text: errorMessage(error) }] }
       }

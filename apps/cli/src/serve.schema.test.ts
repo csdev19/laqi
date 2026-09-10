@@ -360,3 +360,52 @@ describe('refreshing a schema', () => {
     expect(((await res.json()) as { message: string }).message).toContain('outside')
   })
 })
+
+describe('the budgets, through a live server', () => {
+  it('400s a stored schema nested past the depth budget, with a real message', async () => {
+    // Deep enough to clear the compiler's MAX_SHAPE_DEPTH (500) with room to
+    // spare, but shallow enough that serialising the fixture itself does not
+    // hit its own stack limit.
+    let document: Record<string, unknown> = { type: 'string' }
+    for (let i = 0; i < 2_000; i++) document = { type: 'array', items: document }
+    writeMocks({
+      'GET /todos': {
+        default: 'ok',
+        responses: {
+          ok: {
+            status: 200,
+            body: null,
+            schema: {
+              name: 'Deep',
+              source: { kind: 'typescript-paste' },
+              diagnostics: [],
+              document: { $schema: 'https://json-schema.org/draft/2020-12/schema', ...document },
+            },
+          },
+        },
+      },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await send(`${RESPONSE}/regenerate`, 'POST', {})
+
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { message: string }).message).toMatch(/nests deeper|depth/i)
+  }, 30_000)
+
+  it('400s a model that would blow the generation budget, instead of a bare 500', async () => {
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    // string[][][] at arrayLength 100 is 100^3 = 1,000,000 leaf values.
+    const imported = await send('/api/schema/import', 'POST', {
+      source: { kind: 'typescript-paste', source: 'export interface Big { a: string[][][] }' },
+    })
+    const { snapshot } = (await imported.json()) as { snapshot: SchemaSnapshot }
+
+    const res = await send('/api/schema/preview', 'POST', { snapshot, arrayLength: 100 })
+
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { message: string }).message).toMatch(/more than 100000 values/)
+  }, 30_000)
+})

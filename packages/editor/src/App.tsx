@@ -1,3 +1,4 @@
+import type { Diagnostic } from '@laqi/schema'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError, type EndpointDefinition } from './api'
 import { CommandPalette } from './components/CommandPalette'
@@ -39,6 +40,16 @@ export function App() {
   const [createError, setCreateError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
+  /**
+   * A model refused because importing it would say less than the source
+   * does. Held rather than shown as a plain error, because the person can
+   * still say yes: the row renders the diagnostics and offers to import
+   * anyway. Strict stays the default; accepting is a visible act.
+   */
+  const [lossRefusal, setLossRefusal] = useState<{
+    message: string
+    diagnostics: Diagnostic[]
+  } | null>(null)
 
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -172,21 +183,24 @@ export function App() {
       typeName: string | undefined
       responseName: string
       status: number
+      /** Set by the row's accept-approximation control, never by default. */
+      allowLoss?: boolean
     }) => {
       setCreateError(null)
       setWarnings([])
+      setLossRefusal(null)
       try {
-        const {
-          preview,
-          warnings: generationWarnings,
-          typeName,
-          candidates,
-          schema,
-          generation,
-        } = await api.generateData({
-          model: input.model,
-          ...(input.typeName ? { typeName: input.typeName } : {}),
-        })
+        const { snapshot, candidates } = await api.importSchema(
+          {
+            kind: 'typescript-paste',
+            source: input.model,
+            ...(input.typeName ? { typeName: input.typeName } : {}),
+          },
+          { allowLoss: input.allowLoss === true },
+        )
+        const preview = await api.previewBody(snapshot)
+        const generationWarnings = snapshot.diagnostics.map((item) => item.message)
+        const typeName = snapshot.name
         // `create()` closes the CreateEndpointRow and opens the new
         // endpoint's detail — the warnings state lives here, not there, so
         // it survives that transition instead of unmounting with the row.
@@ -211,11 +225,18 @@ export function App() {
           path: input.path,
           responseName: input.responseName,
           status: input.status,
-          body: preview,
-          ...(schema ? { schema } : {}),
-          ...(generation ? { generation } : {}),
+          body: preview.body,
+          schema: snapshot,
+          generation: preview.evidence,
         })
       } catch (error) {
+        // A strict-loss refusal is not a dead end: the diagnostics say what
+        // would be approximated, and the row offers to accept them. Anything
+        // else is an error the person can only read.
+        if (error instanceof ApiError && error.diagnostics !== undefined) {
+          setLossRefusal({ message: error.message, diagnostics: error.diagnostics })
+          return
+        }
         setCreateError(error instanceof ApiError ? error.message : String(error))
       }
     },
@@ -368,6 +389,7 @@ export function App() {
               {creating ? (
                 <CreateEndpointRow
                   error={createError}
+                  lossRefusal={lossRefusal}
                   onCreate={(input) => void create(input)}
                   onCreateFromModel={(input) => void createFromModel(input)}
                   onCancel={() => setCreating(false)}

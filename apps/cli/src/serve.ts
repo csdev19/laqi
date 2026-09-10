@@ -266,117 +266,13 @@ export async function startServer(options: {
           }
         }
       },
-      generateData: async (input) => {
-        const { compileSchema, importSchema, previewBody } = await import('@laqi/generate')
-        const generateOptions = { seed: input.seed, arrayLength: input.arrayLength }
-
-        // Same shape as getTypes just above: a malformed or unrepresentable
-        // model is the caller's problem to see, not a 500.
-        try {
-          if ('model' in input) {
-            // The strict loss policy lives in the use case, not here. A model
-            // that would lose information is refused with the diagnostics
-            // that say what, and the caller decides whether to acknowledge.
-            let snapshot
-            try {
-              snapshot = await importSchema(
-                { kind: 'typescript-paste', source: input.model, typeName: input.typeName },
-                { allowLoss: input.allowLoss === true },
-              )
-            } catch (cause) {
-              return {
-                ok: false,
-                error: cause instanceof Error ? cause.message : String(cause),
-                code: 'invalid' as const,
-                diagnostics: (cause as { diagnostics?: Diagnostic[] }).diagnostics,
-              }
-            }
-
-            const preview = await previewBody(snapshot, generateOptions)
-            return {
-              ok: true,
-              preview: preview.body,
-              // The prose the panel already shows, derived from the coded
-              // diagnostics rather than kept as a second source of truth.
-              warnings: snapshot.diagnostics.map((item) => item.message),
-              typeName: snapshot.name,
-              candidates: [snapshot.name],
-              schema: snapshot,
-              generation: preview.evidence,
-              diagnostics: [...snapshot.diagnostics],
-            }
-          }
-
-          const endpoint = runtime.table.byId.get(input.from.endpointId)
-          if (!endpoint) {
-            return {
-              ok: false,
-              error: `no endpoint with id ${JSON.stringify(input.from.endpointId)}`,
-              code: 'not-found',
-            }
-          }
-          const response = endpoint.responses[input.from.response]
-          if (!response) {
-            return {
-              ok: false,
-              error: `${JSON.stringify(input.from.response)} is not declared on ${input.from.endpointId}`,
-              code: 'not-found',
-            }
-          }
-          // The stored schema, and only that. Inferring a shape back from
-          // one sample cannot show that a field was a literal union, that an
-          // absent optional exists, or that an array was a fixed-length
-          // tuple — regenerating a `[number, number]` from data produced
-          // three numbers. Falling back to it silently would hand the caller
-          // a worse mock with no sign that anything was lost, so a response
-          // with no schema is told to say so instead.
-          const snapshot = response.schema
-          if (!snapshot) {
-            return {
-              ok: false,
-              error:
-                `${input.from.endpointId} has no schema for ${JSON.stringify(input.from.response)}, ` +
-                'so there is nothing to regenerate from — create it from a model or a JSON Schema first',
-              code: 'invalid' as const,
-            }
-          }
-
-          const compiled = compileSchema(snapshot.document)
-          if (!compiled.ok) {
-            return {
-              ok: false,
-              error: compiled.diagnostics[0]?.message ?? 'the stored schema no longer compiles',
-              code: 'invalid' as const,
-              diagnostics: compiled.diagnostics,
-            }
-          }
-
-          const regenerated = await previewBody(snapshot, generateOptions)
-          return {
-            ok: true,
-            preview: regenerated.body,
-            warnings: snapshot.diagnostics.map((item) => item.message),
-            typeName: snapshot.name,
-            generation: regenerated.evidence,
-            diagnostics: [...snapshot.diagnostics],
-          }
-        } catch (error) {
-          return {
-            ok: false,
-            error: error instanceof Error ? error.message : String(error),
-            code: 'invalid',
-          }
-        }
-      },
       importSchema: async (input) => {
         const { importSchema } = await import('@laqi/generate')
         try {
-          return {
-            ok: true,
-            snapshot: await importSchema(input.source as never, {
-              allowLoss: input.allowLoss === true,
-            }),
-          }
+          const { snapshot, candidates } = await importSchema(input.source as never, {
+            allowLoss: input.allowLoss === true,
+          })
+          return { ok: true, snapshot, candidates }
         } catch (cause) {
           return failedImport(cause)
         }
@@ -466,6 +362,12 @@ export async function startServer(options: {
         reload()
         return { ok: true, revision: result.value.revision }
       },
+      getResponseRevision: (id, responseName) => {
+        const result = project.getResponseRevision(id, responseName)
+        return result.ok
+          ? { ok: true, revision: result.value }
+          : { ok: false, error: result.error, code: result.code }
+      },
       refreshResponseSchema: async (id, responseName, input) => {
         const found = project.getResponse(id, responseName)
         if (!found.ok) return { ok: false, error: found.error, code: found.code }
@@ -480,9 +382,8 @@ export async function startServer(options: {
         const { importSchema } = await import('@laqi/generate')
         let snapshot
         try {
-          snapshot = await importSchema(request.value, {
-            allowLoss: input.allowLoss === true,
-          })
+          snapshot = (await importSchema(request.value, { allowLoss: input.allowLoss === true }))
+            .snapshot
         } catch (cause) {
           return failedImport(cause)
         }

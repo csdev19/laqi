@@ -6,7 +6,7 @@ const codes = (diagnostics: readonly Diagnostic[]) => diagnostics.map((d) => d.c
 
 describe('importing a JSON Schema document', () => {
   it('stores the document as produced, with the dialect stamped on it', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
       name: 'Thing',
@@ -18,13 +18,13 @@ describe('importing a JSON Schema document', () => {
   })
 
   it('never adds additionalProperties: false, and never strips one the source gave', async () => {
-    const open = await importSchema({
+    const { snapshot: open } = await importSchema({
       kind: 'json-schema',
       document: { type: 'object', properties: { a: { type: 'string' } } },
     })
     expect(open.document.additionalProperties).toBeUndefined()
 
-    const closed = await importSchema({
+    const { snapshot: closed } = await importSchema({
       kind: 'json-schema',
       document: {
         type: 'object',
@@ -36,7 +36,7 @@ describe('importing a JSON Schema document', () => {
   })
 
   it('keeps an explicit empty schema without calling it loss', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { type: 'object', properties: { metadata: {} }, required: ['metadata'] },
     })
@@ -47,7 +47,7 @@ describe('importing a JSON Schema document', () => {
   })
 
   it('records the file a document came from, relative to the source root', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { type: 'string' },
       file: 'src/types/a.schema.json',
@@ -58,7 +58,7 @@ describe('importing a JSON Schema document', () => {
 
 describe('importing a pasted TypeScript model', () => {
   it('emits a closed object, because that is what an interface means', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'typescript-paste',
       source: 'export interface Invoice { id: string; total?: number }',
     })
@@ -72,7 +72,7 @@ describe('importing a pasted TypeScript model', () => {
   })
 
   it('picks the declaration the caller names', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'typescript-paste',
       source: 'export type Role = "a" | "b"\nexport interface User { role: Role }',
       typeName: 'User',
@@ -105,14 +105,14 @@ describe('the strict loss policy', () => {
   })
 
   it('stores the approximation and its diagnostic when the loss is acknowledged', async () => {
-    const snapshot = await importSchema(unresolvable, { allowLoss: true })
+    const { snapshot } = await importSchema(unresolvable, { allowLoss: true })
     expect(codes(snapshot.diagnostics)).toContain('loss.unresolved-type')
     expect(snapshot.diagnostics.every((d) => isAcknowledgeable(d.code))).toBe(true)
   })
 
   it('acknowledges a cut cycle, which is on the list', async () => {
     const circular = { $defs: { A: { $ref: '#/$defs/A' } }, $ref: '#/$defs/A' }
-    const snapshot = await importSchema(
+    const { snapshot } = await importSchema(
       { kind: 'json-schema', document: circular },
       { allowLoss: true },
     )
@@ -137,7 +137,7 @@ describe('the strict loss policy', () => {
   })
 
   it('does not block on an information diagnostic', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { $schema: 'http://json-schema.org/draft-07/schema#', type: 'string' },
     })
@@ -147,7 +147,7 @@ describe('the strict loss policy', () => {
 
 describe('previewing a body from a snapshot', () => {
   it('returns the body with the evidence that reproduces it', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { type: 'object', properties: { a: { type: 'string' } }, required: ['a'] },
     })
@@ -160,7 +160,7 @@ describe('previewing a body from a snapshot', () => {
   })
 
   it('allocates a seed when the caller gives none, so the body stays reproducible', async () => {
-    const snapshot = await importSchema({ kind: 'json-schema', document: { type: 'string' } })
+    const { snapshot } = await importSchema({ kind: 'json-schema', document: { type: 'string' } })
     const preview = await previewBody(snapshot)
 
     expect(Number.isInteger(preview.evidence.seed)).toBe(true)
@@ -169,7 +169,7 @@ describe('previewing a body from a snapshot', () => {
   })
 
   it('records the effective arrayLength, not the one asked for', async () => {
-    const snapshot = await importSchema({
+    const { snapshot } = await importSchema({
       kind: 'json-schema',
       document: { type: 'array', items: { type: 'integer' } },
     })
@@ -179,7 +179,7 @@ describe('previewing a body from a snapshot', () => {
   })
 
   it('replays the snapshot diagnostics, so an approximation stays visible after a reload', async () => {
-    const snapshot = await importSchema(
+    const { snapshot } = await importSchema(
       {
         kind: 'typescript-paste',
         source: "import type { M } from 'nowhere'\nexport interface B { total: M }",

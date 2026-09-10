@@ -115,7 +115,14 @@ export function TypesPanel(props: {
 
       {/* What the source said that the schema could not keep. Shown next to
           the types, because copying them without knowing this is copying a
-          claim laqi already knows is incomplete. */}
+          claim laqi already knows is incomplete.
+
+          The heading says the approximation was ACKNOWLEDGED, not merely
+          detected: a stored loss is there because someone accepted it, and
+          reading the list without that reads like an unfixed bug. */}
+      {(printed?.diagnostics ?? []).some((item) => item.kind === 'loss') ? (
+        <p className="types-origin types-acknowledged">approximation acknowledged</p>
+      ) : null}
       {(printed?.diagnostics ?? []).map((item) => (
         <p key={`${item.code}${item.pointer}`} className="types-loss micro">
           {item.kind === 'loss' ? 'approximated' : 'note'}: {item.message}

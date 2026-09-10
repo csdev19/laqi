@@ -3,6 +3,7 @@ import {
   parseStatusCode,
   STATUS_MAX,
   STATUS_MIN,
+  type Diagnostic,
   type GenerationEvidence,
   type SchemaSnapshot,
 } from '@laqi/schema'
@@ -39,6 +40,13 @@ export type CreateInput = {
 
 export function CreateEndpointRow(props: {
   error: string | null
+  /**
+   * A model refused because importing it would say less than the source
+   * does. Shown with what would be approximated, and an explicit control to
+   * import anyway — the strict default only means something if accepting it
+   * is a separate act the person takes.
+   */
+  lossRefusal?: { message: string; diagnostics: Diagnostic[] } | null
   onCreate: (input: CreateInput) => void
   onCreateFromModel: (
     input: {
@@ -47,6 +55,8 @@ export function CreateEndpointRow(props: {
       model: string
       /** Which declaration to generate from; the parser chooses when absent. */
       typeName: string | undefined
+      /** Set only by the accept-approximation control below. */
+      allowLoss?: boolean
     } & ResponseChoice,
   ) => void
   onCancel: () => void
@@ -92,7 +102,7 @@ export function CreateEndpointRow(props: {
     return null
   }
 
-  const submit = () => {
+  const submit = (options: { allowLoss?: boolean } = {}) => {
     const wrong = problem()
     setComplaint(wrong)
     if (wrong) return
@@ -107,6 +117,7 @@ export function CreateEndpointRow(props: {
         path: path.trim(),
         model: model.trim(),
         typeName: typeName.trim() || undefined,
+        ...(options.allowLoss === true ? { allowLoss: true } : {}),
         ...response,
       })
       return
@@ -189,7 +200,7 @@ export function CreateEndpointRow(props: {
         ))}
       </div>
 
-      <button type="button" className="btn btn-primary" onClick={submit}>
+      <button type="button" className="btn btn-primary" onClick={() => submit()}>
         Create
       </button>
       <button type="button" className="btn" onClick={props.onCancel}>
@@ -285,6 +296,25 @@ export function CreateEndpointRow(props: {
       {(complaint ?? props.error) ? (
         <div className="form-error" role="alert">
           {complaint ?? props.error}
+        </div>
+      ) : null}
+
+      {/* What the source says that laqi cannot keep, listed before the
+          person decides — not summarised as "some information would be
+          lost", which is not something anyone can weigh. */}
+      {props.lossRefusal ? (
+        <div className="form-error loss-refusal" role="alert">
+          <p>{props.lossRefusal.message}</p>
+          <ul>
+            {props.lossRefusal.diagnostics
+              .filter((item) => item.kind === 'loss')
+              .map((item) => (
+                <li key={`${item.code}${item.pointer}`}>{item.message}</li>
+              ))}
+          </ul>
+          <button type="button" className="btn" onClick={() => submit({ allowLoss: true })}>
+            Accept approximation
+          </button>
         </div>
       ) : null}
     </div>

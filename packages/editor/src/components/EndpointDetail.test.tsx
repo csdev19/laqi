@@ -4,17 +4,56 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Endpoint } from '../types'
 import { EndpointDetail } from './EndpointDetail'
 
-const { getLanguages, getTypes, generateData } = vi.hoisted(() => ({
+const {
+  getLanguages,
+  getTypes,
+  generateData,
+  regenerateResponse,
+  applyGeneratedBody,
+  refreshSchema,
+  getResponseRevision,
+  TestApiError,
+} = vi.hoisted(() => ({
   getLanguages: vi.fn(),
   getTypes: vi.fn(),
   generateData: vi.fn(),
+  regenerateResponse: vi.fn(),
+  applyGeneratedBody: vi.fn(),
+  refreshSchema: vi.fn(),
+  getResponseRevision: vi.fn(),
+  // Declared here because vi.mock is hoisted: a top-level class would not
+  // exist yet when the factory runs. The component narrows with
+  // `instanceof`, so the mock has to hand back the same constructor.
+  TestApiError: class TestApiError extends Error {
+    constructor(
+      message: string,
+      readonly status: number,
+      readonly diagnostics?: unknown,
+      readonly conflict?: { reason: string; revision: string },
+    ) {
+      super(message)
+      this.name = 'ApiError'
+    }
+  },
 }))
 
 vi.mock('../api', () => ({
-  api: { getLanguages, getTypes, generateData },
+  ApiError: TestApiError,
+  api: {
+    getLanguages,
+    getTypes,
+    generateData,
+    regenerateResponse,
+    applyGeneratedBody,
+    refreshSchema,
+    getResponseRevision,
+  },
 }))
 
 beforeEach(() => {
+  // Call counts accumulated across tests before this: a test asserting "called
+  // twice" was really asserting the sum of every click in the file above it.
+  vi.clearAllMocks()
   getLanguages.mockResolvedValue([
     { name: 'typescript', displayName: 'TypeScript' },
     { name: 'typescript-zod', displayName: 'TypeScript + Zod' },
@@ -24,6 +63,15 @@ beforeEach(() => {
     language: 'typescript',
   })
   generateData.mockResolvedValue({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+  regenerateResponse.mockResolvedValue({
+    body: { id: 99, name: 'Fresh' },
+    evidence: { seed: 1, options: { arrayLength: 3 }, bodyHash: 'a'.repeat(64) },
+    diagnostics: [],
+    revision: 'rev-1',
+  })
+  applyGeneratedBody.mockResolvedValue({ revision: 'rev-2' })
+  refreshSchema.mockResolvedValue({ snapshot: {}, revision: 'rev-2' })
+  getResponseRevision.mockResolvedValue({ revision: 'rev-1' })
 })
 
 function endpoint(overrides: Partial<Endpoint> = {}): Endpoint {
@@ -261,21 +309,63 @@ describe('generated types and data', () => {
     )
   })
 
-  it('regenerate fills the body draft with the preview and lets Save do the writing', async () => {
+  it('regenerate previews into the draft and writes nothing on its own', async () => {
     renderDetail(endpoint())
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
 
     await waitFor(() => expect(body().value).toContain('"Fresh"'))
-    // No write happened: regenerate only edits the draft. Saving is the
-    // existing Save button — zero new write paths, verbatim from the spec.
-    expect(screen.getByRole('button', { name: 'Save to file' }).hasAttribute('disabled')).toBe(
-      false,
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('applies the preview with the evidence and the revision it was generated against', async () => {
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+
+    await waitFor(() => expect(applyGeneratedBody).toHaveBeenCalled())
+    const [id, response, input] = applyGeneratedBody.mock.calls[0]!
+    expect(id).toBe('GET /users')
+    expect(response).toBe('ok')
+    expect(input.revision).toBe('rev-1')
+    expect(input.evidence).toMatchObject({ seed: 1 })
+    expect(input.confirm).toBeUndefined()
+  })
+
+  it('offers no Apply until something has been regenerated', () => {
+    renderDetail(endpoint())
+    expect(screen.queryByRole('button', { name: /apply generated/i })).toBeNull()
+  })
+
+  it('shows a refused write with its reason, and confirms against the current revision', async () => {
+    applyGeneratedBody.mockRejectedValueOnce(
+      new TestApiError('this body has changed since laqi generated it', 409, undefined, {
+        reason: 'body-modified',
+        revision: 'rev-current',
+      }),
     )
+    renderDetail(endpoint())
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply generated/i }))
+
+    expect(await screen.findByText(/has changed since laqi generated it/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /overwrite anyway/i }))
+
+    await waitFor(() => expect(applyGeneratedBody).toHaveBeenCalledTimes(2))
+    const [, , retry] = applyGeneratedBody.mock.calls[1]!
+    expect(retry.confirm).toBe(true)
+    // The retry is against what is on disk NOW, not what the preview saw.
+    expect(retry.revision).toBe('rev-current')
   })
 
   it('discards a Regenerate response that resolves after the endpoint reloaded underneath it', async () => {
-    let resolveGenerate!: (value: { preview: unknown; warnings: string[] }) => void
-    generateData.mockImplementationOnce(
+    let resolveGenerate!: (value: {
+      body: unknown
+      evidence: unknown
+      diagnostics: unknown[]
+      revision: string
+    }) => void
+    regenerateResponse.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveGenerate = resolve
@@ -285,7 +375,7 @@ describe('generated types and data', () => {
     const { rerender } = renderDetail(original)
 
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
-    await waitFor(() => expect(generateData).toHaveBeenCalled())
+    await waitFor(() => expect(regenerateResponse).toHaveBeenCalled())
 
     // The watcher reloads with fresh data while the Regenerate promise is
     // still pending: the reload has to win.
@@ -295,15 +385,22 @@ describe('generated types and data', () => {
     rerender(reloaded)
     await waitFor(() => expect(body().value).toContain('theirs'))
 
-    resolveGenerate({ preview: { id: 99, name: 'Fresh' }, warnings: [] })
+    resolveGenerate({
+      body: { id: 99, name: 'Fresh' },
+      evidence: {},
+      diagnostics: [],
+      revision: 'rev-1',
+    })
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(body().value).toContain('theirs')
     expect(body().value).not.toContain('Fresh')
+    // And nothing is left to apply: that preview was about the old file.
+    expect(screen.queryByRole('button', { name: /apply generated/i })).toBeNull()
   })
 
   it('shows an error when Regenerate fails, instead of dying silently', async () => {
-    generateData.mockRejectedValueOnce(new Error('the generator crashed'))
+    regenerateResponse.mockRejectedValueOnce(new Error('the generator crashed'))
     renderDetail(endpoint())
 
     fireEvent.click(screen.getByRole('button', { name: /regenerate/i }))
@@ -321,9 +418,19 @@ describe('generated types and data', () => {
   })
 
   it('renders generation warnings from Regenerate', async () => {
-    generateData.mockResolvedValueOnce({
-      preview: { id: 99, name: 'Fresh' },
-      warnings: ['dropped an index signature on Users'],
+    regenerateResponse.mockResolvedValueOnce({
+      body: { id: 99, name: 'Fresh' },
+      evidence: {},
+      diagnostics: [
+        {
+          code: 'loss.index-signature',
+          kind: 'loss',
+          severity: 'warning',
+          message: 'dropped an index signature on Users',
+          pointer: '',
+        },
+      ],
+      revision: 'rev-1',
     })
     renderDetail(endpoint())
 

@@ -1,4 +1,4 @@
-import type { Diagnostic, GenerationEvidence, SchemaSnapshot } from '@laqi/schema'
+import type { Diagnostic, GenerationEvidence, SchemaSnapshot, SourceRequest } from '@laqi/schema'
 import type { Endpoint, LaqiState, MockResponse, Scenarios, Status } from './types'
 
 /**
@@ -9,11 +9,22 @@ import type { Endpoint, LaqiState, MockResponse, Scenarios, Status } from './typ
  */
 const BASE = '/__laqi'
 
-/** A control plane failure, with the message the server already wrote. */
+/**
+ * A control plane failure, with the message the server already wrote.
+ *
+ * A refusal carries what the panel needs to offer the way forward: the
+ * diagnostics behind a strict-loss refusal, so it can show what would be
+ * approximated and offer to accept it, and the conflict reason and current
+ * revision behind a refused write, so it can say what would be overwritten
+ * and offer to confirm. Dropping them here would force a second request to
+ * find out why the first one failed.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly diagnostics?: Diagnostic[],
+    readonly conflict?: { reason: string; revision: string },
   ) {
     super(message)
     this.name = 'ApiError'
@@ -34,21 +45,34 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new ApiError(await errorMessage(response), response.status)
+    throw await failure(response)
   }
 
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
 }
 
-async function errorMessage(response: Response): Promise<string> {
+async function failure(response: Response): Promise<ApiError> {
+  let body: { message?: unknown; diagnostics?: unknown; reason?: unknown; revision?: unknown } = {}
   try {
-    const body = (await response.json()) as { message?: unknown }
-    if (typeof body.message === 'string') return body.message
+    body = (await response.json()) as typeof body
   } catch {
     // The body wasn't JSON. The status alone already says something.
   }
-  return `${response.status} ${response.statusText}`.trim()
+
+  const message =
+    typeof body.message === 'string'
+      ? body.message
+      : `${response.status} ${response.statusText}`.trim()
+
+  return new ApiError(
+    message,
+    response.status,
+    Array.isArray(body.diagnostics) ? (body.diagnostics as Diagnostic[]) : undefined,
+    typeof body.reason === 'string' && typeof body.revision === 'string'
+      ? { reason: body.reason, revision: body.revision }
+      : undefined,
+  )
 }
 
 export type EndpointDefinition = {
@@ -56,10 +80,6 @@ export type EndpointDefinition = {
   default: string
   responses: Record<string, MockResponse>
 }
-
-export type GenerateDataInput =
-  | { model: string; typeName?: string; arrayLength?: number; seed?: number }
-  | { from: { endpointId: string; response: string }; arrayLength?: number; seed?: number }
 
 export const api = {
   getEndpoints: () => request<Endpoint[]>('/api/endpoints'),
@@ -97,19 +117,55 @@ export const api = {
     }>(`/api/endpoints/${encodeURIComponent(id)}/types${suffix}`)
   },
 
-  generateData: (input: GenerateDataInput) =>
-    request<{
-      preview: unknown
-      warnings: string[]
-      typeName?: string
-      candidates?: string[]
-      /** Saved beside the body, so the response can be regenerated later. */
-      schema?: SchemaSnapshot
-      generation?: GenerationEvidence
-    }>('/api/generate/data', {
+  importSchema: (source: SourceRequest, options: { allowLoss?: boolean } = {}) =>
+    request<{ snapshot: SchemaSnapshot; candidates: string[] }>('/api/schema/import', {
       method: 'POST',
+      body: JSON.stringify({ source, ...options }),
+    }),
+
+  previewBody: (snapshot: SchemaSnapshot, options: { seed?: number; arrayLength?: number } = {}) =>
+    request<{ body: unknown; evidence: GenerationEvidence; diagnostics: Diagnostic[] }>(
+      '/api/schema/preview',
+      { method: 'POST', body: JSON.stringify({ snapshot, ...options }) },
+    ),
+
+  regenerateResponse: (
+    id: string,
+    response: string,
+    options: { seed?: number; arrayLength?: number } = {},
+  ) =>
+    request<{
+      body: unknown
+      evidence: GenerationEvidence
+      diagnostics: Diagnostic[]
+      revision: string
+    }>(`${responsePath(id, response)}/regenerate`, {
+      method: 'POST',
+      body: JSON.stringify(options),
+    }),
+
+  applyGeneratedBody: (
+    id: string,
+    response: string,
+    input: { body: unknown; evidence: GenerationEvidence; revision: string; confirm?: boolean },
+  ) =>
+    request<{ revision: string }>(`${responsePath(id, response)}/body`, {
+      method: 'PUT',
       body: JSON.stringify(input),
     }),
+
+  getResponseRevision: (id: string, response: string) =>
+    request<{ revision: string }>(`${responsePath(id, response)}/revision`),
+
+  refreshSchema: (id: string, response: string, input: { revision: string; allowLoss?: boolean }) =>
+    request<{ snapshot: SchemaSnapshot; revision: string }>(
+      `${responsePath(id, response)}/schema/refresh`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+}
+
+function responsePath(id: string, response: string): string {
+  return `/api/endpoints/${encodeURIComponent(id)}/responses/${encodeURIComponent(response)}`
 }
 
 /** The SSE URL. Exposed separately because EventSource consumes it, not fetch. */

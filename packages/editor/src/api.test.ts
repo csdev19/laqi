@@ -126,14 +126,49 @@ describe('generate reads/writes', () => {
     expect(calls[0]?.url).toBe('/__laqi/api/endpoints/GET%20%2Fusers/types')
   })
 
-  it('POSTs generate/data with the body verbatim', async () => {
-    const calls = mockFetch(() => json({ preview: [], warnings: [] }))
-    await api.generateData({ from: { endpointId: 'GET /users', response: 'ok' }, seed: 7 })
+  it('POSTs an import with the source and the loss policy verbatim', async () => {
+    const calls = mockFetch(() => json({ snapshot: {}, candidates: [] }))
+    await api.importSchema(
+      { kind: 'typescript-paste', source: 'interface A {}' },
+      {
+        allowLoss: true,
+      },
+    )
+    expect(calls[0]?.url).toBe('/__laqi/api/schema/import')
     expect(calls[0]?.init?.method).toBe('POST')
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({
-      from: { endpointId: 'GET /users', response: 'ok' },
-      seed: 7,
+      source: { kind: 'typescript-paste', source: 'interface A {}' },
+      allowLoss: true,
     })
+  })
+
+  it('escapes both the endpoint id and the response name in a response path', async () => {
+    const calls = mockFetch(() => json({ revision: 'r' }))
+    await api.getResponseRevision('GET /users/:id', 'not ok')
+    expect(calls[0]?.url).toBe(
+      '/__laqi/api/endpoints/GET%20%2Fusers%2F%3Aid/responses/not%20ok/revision',
+    )
+  })
+
+  it('carries the conflict reason and the current revision off a refused write', async () => {
+    mockFetch(
+      () =>
+        new Response(
+          JSON.stringify({ message: 'nope', reason: 'stale-revision', revision: 'rev-2' }),
+          { status: 409 },
+        ),
+    )
+
+    const failure = await api
+      .applyGeneratedBody('GET /users', 'ok', {
+        body: {},
+        evidence: { seed: 1, options: { arrayLength: 3 }, bodyHash: 'a'.repeat(64) },
+        revision: 'rev-1',
+      })
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ApiError)
+    expect((failure as ApiError).conflict).toEqual({ reason: 'stale-revision', revision: 'rev-2' })
   })
 })
 

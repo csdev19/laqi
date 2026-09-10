@@ -105,11 +105,11 @@ describe('H1 — the control plane never reaches the tunnel', () => {
         subscribe: () => () => {},
         getLanguages: async () => [],
         getTypes: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
-        generateData: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
         importSchema: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
         previewBody: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
         regenerateResponse: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
         applyGeneratedBody: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+        getResponseRevision: () => ({ ok: false, error: 'stub', code: 'not-found' }),
         refreshResponseSchema: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
       }),
     )
