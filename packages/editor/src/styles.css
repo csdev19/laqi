@@ -1688,3 +1688,17 @@ button.log-path:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* A warning inside a dialog: the same band as the panel's, but boxed and
+   spaced as a block rather than glued to a top edge. */
+.dialog-callout {
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 176, 32, 0.4);
+  border-radius: 2px;
+}
+
+.dialog-callout-text {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--fg);
+}
