@@ -2,10 +2,12 @@ import {
   DIALECT_2020_12,
   diagnostic,
   isAcknowledgeable,
+  KNOWN_SOURCE_KINDS,
   type Diagnostic,
   type GenerationEvidence,
   type SchemaSnapshot,
   type SourceDescriptor,
+  type SourceRequest,
 } from '@laqi/schema'
 import { Cause, Data, Effect, Exit, Option } from 'effect'
 import { bodyHash } from '@laqi/core/canonical-json'
@@ -23,20 +25,12 @@ import { generateRuntime } from './services/runtime'
  * An import that produced no snapshot. Its diagnostics travel on the error,
  * so a transport can show what went wrong without asking again.
  */
+export type { SourceRequest } from '@laqi/schema'
+
 export class ImportError extends Data.TaggedError('ImportError')<{
   readonly message: string
   readonly diagnostics: readonly Diagnostic[]
 }> {}
-
-/**
- * What a transport hands to `importSchema`. A discriminated union rather
- * than four entry points, so every transport builds the same thing and the
- * composition root is the only place that knows which adapter serves which
- * kind.
- */
-export type SourceRequest =
-  | { kind: 'typescript-paste'; source: string; typeName?: string }
-  | { kind: 'json-schema'; document: unknown; name?: string; file?: string }
 
 export type ImportOptions = {
   /**
@@ -126,12 +120,9 @@ const dispatch = (
   }
 }
 
-/** Every kind the composition root serves, for the message below. */
-const KNOWN_KINDS = ['typescript-paste', 'json-schema'] as const
-
 function unknownAdapter(request: never): ImportError {
   const kind = (request as { kind?: unknown }).kind
-  const message = `no adapter serves the source kind ${JSON.stringify(kind)}. Known kinds: ${KNOWN_KINDS.join(', ')}`
+  const message = `no adapter serves the source kind ${JSON.stringify(kind)}. Known kinds: ${KNOWN_SOURCE_KINDS.join(', ')}`
   return new ImportError({
     message,
     diagnostics: [diagnostic('adapter.unknown', message)],

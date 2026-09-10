@@ -1,11 +1,10 @@
 // apps/cli/src/serve.ts
 
 import { serve, type ServerType } from '@hono/node-server'
-import { readFileSync } from 'node:fs'
 import {
   EventBus,
   Project,
-  resolveSourcePath,
+  refreshRequestFor,
   SessionCounters,
   StateStore,
   type LaqiEvent,
@@ -15,7 +14,6 @@ import {
   type Diagnostic,
   type EndpointDefinition,
   type LaqiConfig,
-  type SchemaSnapshot,
 } from '@laqi/schema'
 import {
   createControlPlaneApp,
@@ -24,7 +22,6 @@ import {
   type ControlPlaneRuntime,
 } from '@laqi/server'
 import { Hono } from 'hono'
-import type { SourceRequest } from '@laqi/generate'
 import { createEditorApp } from './editor-assets'
 import { buildRuntime, type Runtime } from './runtime'
 
@@ -473,7 +470,11 @@ export async function startServer(options: {
         const found = project.getResponse(id, responseName)
         if (!found.ok) return { ok: false, error: found.error, code: found.code }
 
-        const request = refreshRequestFor(found.value.schema, root, config)
+        const request = refreshRequestFor({
+          snapshot: found.value.schema,
+          root,
+          sourceRoot: config.schemaSources.root,
+        })
         if (!request.ok) return { ok: false, error: request.error, code: 'invalid' }
 
         const { importSchema } = await import('@laqi/generate')
@@ -632,71 +633,5 @@ function failedImport(cause: unknown): {
     error: cause instanceof Error ? cause.message : String(cause),
     code: 'invalid',
     ...(diagnostics === undefined ? {} : { diagnostics }),
-  }
-}
-
-/**
- * Rebuilds the request that produced a stored snapshot, so the source can be
- * read again.
- *
- * A paste has no source to re-read — the text was never kept, by design —
- * and saying so is the honest answer; the panel offers re-import instead of
- * pretending a refresh happened.
- */
-function refreshRequestFor(
-  snapshot: SchemaSnapshot | undefined,
-  root: string,
-  config: LaqiConfig,
-): { ok: true; value: SourceRequest } | { ok: false; error: string } {
-  if (!snapshot) {
-    return { ok: false, error: 'this response has no schema, so there is nothing to refresh' }
-  }
-
-  const source = snapshot.source
-  if (source.kind === 'typescript-paste') {
-    return {
-      ok: false,
-      error:
-        'this schema came from pasted TypeScript, which laqi does not keep — paste it again to update the schema',
-    }
-  }
-
-  if (source.file === undefined) {
-    return {
-      ok: false,
-      error: `this schema was imported without a file, so there is no source to re-read`,
-    }
-  }
-
-  // Checked BEFORE the read: a project module is TypeScript, and parsing it
-  // as JSON would fail first with a message about column 1 rather than about
-  // the adapter that is missing.
-  if (source.kind !== 'json-schema') {
-    return {
-      ok: false,
-      error: `laqi cannot yet refresh a schema imported from ${JSON.stringify(source.kind)}`,
-    }
-  }
-
-  const resolved = resolveSourcePath({
-    root,
-    sourceRoot: config.schemaSources.root,
-    file: source.file,
-  })
-  if (!resolved.ok) return resolved
-
-  let document: unknown
-  try {
-    document = JSON.parse(readFileSync(resolved.path, 'utf8'))
-  } catch (cause) {
-    return {
-      ok: false,
-      error: `could not read ${source.file}: ${cause instanceof Error ? cause.message : String(cause)}`,
-    }
-  }
-
-  return {
-    ok: true,
-    value: { kind: 'json-schema', document, name: snapshot.name, file: source.file },
   }
 }
