@@ -19,6 +19,27 @@ export const ConfigSchema = z.object({
    * write anywhere, and a write bound never widens what may be read.
    */
   schemaSources: z.object({ root: z.string().default('.') }).default({ root: '.' }),
+  /**
+   * The only project modules MCP may execute.
+   *
+   * Importing a module runs it and everything it imports, so an agent that
+   * could name any file could run any file. The panel asks a person instead;
+   * an agent has no one to ask, so the answer is written down here in
+   * advance, by hand, in a file MCP cannot write.
+   */
+  mcp: z
+    .object({
+      modules: z
+        .array(
+          z.object({
+            file: z.string().min(1),
+            exportName: z.string().min(1),
+            side: z.enum(['input', 'output']).default('output'),
+          }),
+        )
+        .default([]),
+    })
+    .default({ modules: [] }),
   /** Panel preferences (finding H12). */
   density: z.enum(['regular', 'compact']).default('regular'),
   showDescriptions: z.boolean().default(true),

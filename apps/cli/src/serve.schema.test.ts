@@ -409,3 +409,129 @@ describe('the budgets, through a live server', () => {
     expect(((await res.json()) as { message: string }).message).toMatch(/more than 100000 values/)
   }, 30_000)
 })
+
+describe('executing a project module, from the panel', () => {
+  /**
+   * A Standard JSON Schema source with no dependencies.
+   *
+   * Self-contained on purpose: whether laqi reads what Zod and ArkType
+   * actually emit is settled in packages/generate against the installed
+   * libraries. What is under test here is the two-step approval — resolve,
+   * show, confirm — and making it also depend on module resolution inside a
+   * temporary directory would only give it a second way to fail.
+   */
+  function writeTypes(properties = `{ id: { type: 'string' }, total: { type: 'number' } }`) {
+    mkdirSync(join(root, 'src'), { recursive: true })
+    writeFileSync(
+      join(root, 'src', 'types.ts'),
+      `export const Invoice = {\n` +
+        `  '~standard': {\n` +
+        `    version: 1,\n` +
+        `    vendor: 'handwritten',\n` +
+        `    validate: (value) => ({ value }),\n` +
+        `    jsonSchema: {\n` +
+        `      output: () => ({ type: 'object', properties: ${properties}, required: ['id'] }),\n` +
+        `      input: () => ({ type: 'object', properties: ${properties}, required: ['id'] }),\n` +
+        `    },\n` +
+        `  },\n` +
+        `}\n`,
+      'utf8',
+    )
+  }
+
+  const ask = { file: 'src/types.ts', exportName: 'Invoice', side: 'output' }
+
+  it('resolves and shows the file without running it, then imports on confirm', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const prepared = await send('/api/schema/module/prepare', 'POST', ask)
+    expect(prepared.status).toBe(200)
+    const ready = (await prepared.json()) as { token: string; resolvedPath: string }
+    expect(ready.resolvedPath).toContain('src/types.ts')
+    expect(ready.token).toMatch(/^[0-9a-f]{64}$/)
+
+    const confirmed = await send('/api/schema/module/confirm', 'POST', { token: ready.token })
+    expect(confirmed.status).toBe(200)
+    const { snapshot } = (await confirmed.json()) as { snapshot: SchemaSnapshot }
+    expect(snapshot.name).toBe('Invoice')
+    expect(snapshot.source).toEqual({
+      kind: 'project-module',
+      file: 'src/types.ts',
+      exportName: 'Invoice',
+      side: 'output',
+    })
+  }, 40_000)
+
+  it('refuses a second confirmation with the same token', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const prepared = await send('/api/schema/module/prepare', 'POST', ask)
+    const { token } = (await prepared.json()) as { token: string }
+    await send('/api/schema/module/confirm', 'POST', { token })
+
+    const again = await send('/api/schema/module/confirm', 'POST', { token })
+
+    expect(again.status).toBe(400)
+  }, 40_000)
+
+  it('refuses a confirmation once the file has changed underneath it', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const prepared = await send('/api/schema/module/prepare', 'POST', ask)
+    const { token } = (await prepared.json()) as { token: string }
+    writeTypes(`{ id: { type: 'string' } }`)
+
+    const confirmed = await send('/api/schema/module/confirm', 'POST', { token })
+
+    expect(confirmed.status).toBe(400)
+    expect(((await confirmed.json()) as { message: string }).message).toContain('changed')
+  }, 40_000)
+
+  // The only approval that counts is one laqi handed out. A caller asserting
+  // it has approved itself is not approval.
+  it('does not treat a confirmed flag as approval', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const res = await send('/api/schema/module/confirm', 'POST', { ...ask, confirmed: true })
+
+    expect(res.status).toBe(400)
+  }, 40_000)
+
+  it('sends a project module through the two-step flow, not the plain import', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({ root, config })
+
+    const res = await send('/api/schema/import', 'POST', {
+      source: { kind: 'project-module', ...ask },
+    })
+
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { message: string }).message).toContain('module/prepare')
+  }, 40_000)
+
+  it('refuses to prepare a path outside the source root', async () => {
+    writeTypes()
+    writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
+    handle = await startServer({
+      root,
+      config: ConfigSchema.parse({ port: 0, host: '127.0.0.1', schemaSources: { root: 'laqi' } }),
+    })
+
+    const res = await send('/api/schema/module/prepare', 'POST', {
+      ...ask,
+      file: '../src/types.ts',
+    })
+
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { message: string }).message).toContain('outside')
+  }, 40_000)
+})

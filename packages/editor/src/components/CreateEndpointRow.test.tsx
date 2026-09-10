@@ -13,12 +13,16 @@ afterEach(cleanup)
 function renderRow(props: Partial<Parameters<typeof CreateEndpointRow>[0]> = {}) {
   const onCreate = vi.fn()
   const onCreateFromModel = vi.fn()
+  const onCreateFromModule = vi.fn()
+  const onConfirmModule = vi.fn()
   const onCancel = vi.fn()
   render(
     <CreateEndpointRow
       error={null}
       onCreate={onCreate}
       onCreateFromModel={onCreateFromModel}
+      onCreateFromModule={onCreateFromModule}
+      onConfirmModule={onConfirmModule}
       onCancel={onCancel}
       {...props}
     />,
@@ -26,6 +30,8 @@ function renderRow(props: Partial<Parameters<typeof CreateEndpointRow>[0]> = {})
   return {
     onCreate,
     onCreateFromModel,
+    onCreateFromModule,
+    onConfirmModule,
     onCancel,
     path: screen.getByLabelText('path'),
     create: screen.getByRole('button', { name: 'Create' }),
@@ -496,5 +502,76 @@ describe('the example models', () => {
     expect(screen.getByRole('button', { name: 'complex' }).getAttribute('title')).toContain(
       'Four levels deep',
     )
+  })
+})
+
+describe('creating from a schema in the project', () => {
+  function pickModule() {
+    fireEvent.click(screen.getByRole('button', { name: /from a schema in the project/i }))
+  }
+
+  it('says what a path is relative to, so it is not discovered by being wrong', () => {
+    renderRow({ schemaSourceRoot: 'src' })
+    pickModule()
+
+    expect(screen.getByText(/relative to src/)).toBeTruthy()
+  })
+
+  it('asks laqi to resolve the module rather than running it straight away', () => {
+    const row = renderRow()
+    pickModule()
+    fireEvent.change(row.path, { target: { value: '/invoices' } })
+    fireEvent.change(screen.getByLabelText('module file'), {
+      target: { value: 'src/types/api.ts' },
+    })
+    fireEvent.change(screen.getByLabelText('export name'), { target: { value: 'Invoice' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(row.onCreateFromModule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'GET',
+        path: '/invoices',
+        file: 'src/types/api.ts',
+        exportName: 'Invoice',
+        side: 'output',
+      }),
+    )
+    expect(row.onCreate).not.toHaveBeenCalled()
+  })
+
+  it('refuses to submit without a file or an export name', () => {
+    const row = renderRow()
+    pickModule()
+    fireEvent.change(row.path, { target: { value: '/invoices' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    expect(row.onCreateFromModule).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toMatch(/a file is needed/)
+  })
+
+  // The person is approving running code. What they are shown has to be the
+  // resolved path, not the string they typed.
+  it('confirms against the resolved path, and says the child is not a sandbox', () => {
+    const row = renderRow({
+      pendingModule: {
+        resolvedPath: '/home/me/project/src/types/api.ts',
+        exportName: 'Invoice',
+        side: 'output',
+      },
+    })
+    pickModule()
+
+    expect(screen.getByText('/home/me/project/src/types/api.ts')).toBeTruthy()
+    expect(screen.getByText(/not a sandbox/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /run it/i }))
+    expect(row.onConfirmModule).toHaveBeenCalled()
+  })
+
+  it('offers nothing to run until laqi has resolved something', () => {
+    renderRow()
+    pickModule()
+
+    expect(screen.queryByRole('button', { name: /run it/i })).toBeNull()
   })
 })

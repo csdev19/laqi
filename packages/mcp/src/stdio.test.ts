@@ -50,10 +50,23 @@ beforeEach(async () => {
   writeMocks({ offline: { 'GET /users': 'boom' } }, 'laqi/scenarios.json')
 
   // The real server, started the way an agent would start it.
+  await connect()
+}, 30_000)
+
+async function connect() {
   transport = new StdioClientTransport({ command: 'bun', args: [CLI, 'mcp'], cwd: root })
   client = new Client({ name: 'test', version: '1.0.0' })
   await client.connect(transport)
-}, 30_000)
+}
+
+/**
+ * Brings the server back up. The config is read at startup, so a test that
+ * writes laqi.config.json has to restart to be testing the config at all.
+ */
+async function restartClient() {
+  await client.close().catch(() => {})
+  await connect()
+}
 
 afterEach(async () => {
   await client?.close().catch(() => {})
@@ -582,4 +595,99 @@ describe('the strict loss policy over stdio', () => {
 
     expect(result.isError).toBe(true)
   }, 30_000)
+})
+
+describe('executing a project module, from an agent', () => {
+  /** A dependency-free Standard JSON Schema source in the project. */
+  function writeTypes() {
+    const full = join(root, 'src', 'types.ts')
+    mkdirSync(join(full, '..'), { recursive: true })
+    writeFileSync(
+      full,
+      `export const Invoice = {\n` +
+        `  '~standard': {\n` +
+        `    version: 1,\n` +
+        `    vendor: 'handwritten',\n` +
+        `    validate: (value) => ({ value }),\n` +
+        `    jsonSchema: {\n` +
+        `      output: () => ({ type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }),\n` +
+        `      input: () => ({ type: 'object', properties: { id: { type: 'string' } }, required: ['id'] }),\n` +
+        `    },\n` +
+        `  },\n` +
+        `}\n`,
+      'utf8',
+    )
+  }
+
+  const source = {
+    kind: 'project-module',
+    file: 'src/types.ts',
+    exportName: 'Invoice',
+    side: 'output',
+  }
+
+  it('refuses an unlisted module and names the config key to add it to', async () => {
+    writeTypes()
+
+    const result = await call('generate_data', { source })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('mcp.modules')
+    expect(result.text).toContain('laqi.config.json')
+    expect(result.text).toContain('"exportName": "Invoice"')
+  }, 30_000)
+
+  it('executes a listed module', async () => {
+    writeTypes()
+    writeFileSync(
+      join(root, 'laqi.config.json'),
+      JSON.stringify({ mcp: { modules: [{ file: 'src/types.ts', exportName: 'Invoice' }] } }),
+      'utf8',
+    )
+    await restartClient()
+
+    const result = await call('generate_data', { source, seed: 1 })
+
+    expect(result.isError).toBe(false)
+    const { preview, schema } = result.json() as {
+      preview: Record<string, unknown>
+      schema: { source: unknown }
+    }
+    expect(typeof preview['id']).toBe('string')
+    expect(schema.source).toEqual({
+      kind: 'project-module',
+      file: 'src/types.ts',
+      exportName: 'Invoice',
+      side: 'output',
+    })
+  }, 60_000)
+
+  // The list is the user's statement about their own project. An agent that
+  // could edit it would be granting itself the permission it was refused.
+  it('has no tool that writes mcp.modules', async () => {
+    const { tools } = await client.listTools()
+    const writesConfig = tools.filter((tool) =>
+      JSON.stringify(tool.inputSchema).includes('mcp.modules'),
+    )
+
+    expect(writesConfig).toEqual([])
+    expect(tools.map((tool) => tool.name)).not.toContain('set_config')
+  }, 30_000)
+
+  it('refuses a listed module asked for on the other side', async () => {
+    writeTypes()
+    writeFileSync(
+      join(root, 'laqi.config.json'),
+      JSON.stringify({
+        mcp: { modules: [{ file: 'src/types.ts', exportName: 'Invoice', side: 'output' }] },
+      }),
+      'utf8',
+    )
+    await restartClient()
+
+    const result = await call('generate_data', { source: { ...source, side: 'input' } })
+
+    expect(result.isError).toBe(true)
+    expect(result.text).toContain('mcp.modules')
+  }, 60_000)
 })

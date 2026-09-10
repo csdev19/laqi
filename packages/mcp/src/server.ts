@@ -8,7 +8,7 @@ import {
 import { z } from 'zod'
 import { MAX_SOURCE_LENGTH } from '@laqi/generate'
 import { importOpenapi } from './openapi'
-import { Project, refreshRequestFor, type ProjectResult } from '@laqi/core'
+import { ModuleApprovals, Project, refreshRequestFor, type ProjectResult } from '@laqi/core'
 
 /**
  * The wire form of a source, declared here so an agent reads the shapes it
@@ -54,6 +54,12 @@ function errorMessage(error: unknown): string {
 
 export function createMcpServer(options: { root: string; config: LaqiConfig }): McpServer {
   const project = new Project(options.root, options.config)
+  /**
+   * MCP never redeems a panel token — it holds this only for the written-down
+   * list. The two approvals mean different things: one is a person looking at
+   * a file right now, the other is a standing decision about a project.
+   */
+  const approvals = new ModuleApprovals(options.root, options.config)
 
   const server = new McpServer(
     { name: 'laqi', version: '2.0.0' },
@@ -379,7 +385,10 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     async ({ source, allowLoss, model, typeName, from, arrayLength, seed }) => {
       const { compileSchema, importSchema, previewBody } = await import('@laqi/generate')
       const genOptions = { arrayLength, seed }
-      const importOptions = { allowLoss: allowLoss === true }
+      const importOptions = {
+        allowLoss: allowLoss === true,
+        paths: { root: options.root, sourceRoot: options.config.schemaSources.root },
+      }
 
       // Same shape as get_types just above: a malformed model or an
       // unrepresentable shape (a depth-guard trip in inferShape, a
@@ -402,6 +411,23 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
               } as const))
 
         if (request !== undefined) {
+          // An agent has nobody to ask, so the answer was written down in
+          // advance. Checked before anything is resolved or read: the point
+          // is that an unlisted module is never reached at all.
+          if (request.kind === 'project-module') {
+            const asked = {
+              file: request.file,
+              exportName: request.exportName,
+              side: request.side,
+            }
+            if (!approvals.allowedForAgents(asked)) {
+              return {
+                isError: true,
+                content: [{ type: 'text' as const, text: approvals.refusalForAgents(asked) }],
+              }
+            }
+          }
+
           const { snapshot, candidates } = await importSchema(request, importOptions)
           const preview = await previewBody(snapshot, genOptions)
           return text({

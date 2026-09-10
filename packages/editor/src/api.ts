@@ -154,6 +154,18 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  prepareModule: (input: { file: string; exportName: string; side: 'input' | 'output' }) =>
+    request<{ token: string; resolvedPath: string; exportName: string; side: string }>(
+      '/api/schema/module/prepare',
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+
+  confirmModule: (input: { token: string; allowLoss?: boolean }) =>
+    request<{ snapshot: SchemaSnapshot; candidates: string[] }>('/api/schema/module/confirm', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+
   getResponseRevision: (id: string, response: string) =>
     request<{ revision: string }>(`${responsePath(id, response)}/revision`),
 

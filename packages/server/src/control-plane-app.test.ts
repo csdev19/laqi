@@ -38,6 +38,8 @@ function makeRuntime(overrides: Partial<ControlPlaneRuntime> = {}): ControlPlane
     previewBody: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
     regenerateResponse: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
     applyGeneratedBody: () => ({ ok: false, error: 'stub', code: 'not-found' }),
+    prepareModule: () => ({ ok: false, error: 'stub', code: 'invalid' }),
+    confirmModule: async () => ({ ok: false, error: 'stub', code: 'invalid' }),
     getResponseRevision: () => ({ ok: false, error: 'stub', code: 'not-found' }),
     refreshResponseSchema: async () => ({ ok: false, error: 'stub', code: 'not-found' }),
     ...overrides,

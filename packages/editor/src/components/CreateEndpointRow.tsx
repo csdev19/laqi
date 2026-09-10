@@ -17,6 +17,7 @@ const MODES = [
   { id: 'blank', label: 'blank' },
   { id: 'model', label: 'from a model' },
   { id: 'json', label: 'from JSON' },
+  { id: 'module', label: 'from a schema in the project' },
 ] as const
 
 type Mode = (typeof MODES)[number]['id']
@@ -48,6 +49,23 @@ export function CreateEndpointRow(props: {
    */
   lossRefusal?: { message: string; diagnostics: Diagnostic[] } | null
   onCreate: (input: CreateInput) => void
+  /**
+   * Where a schema source may live, so the field says what a path is
+   * relative to instead of leaving it to be discovered by being wrong.
+   */
+  schemaSourceRoot?: string
+  /** What laqi resolved and is waiting to be told to run. Null until prepared. */
+  pendingModule?: { resolvedPath: string; exportName: string; side: string } | null
+  onCreateFromModule: (
+    input: {
+      method: string
+      path: string
+      file: string
+      exportName: string
+      side: 'input' | 'output'
+    } & ResponseChoice,
+  ) => void
+  onConfirmModule: () => void
   onCreateFromModel: (
     input: {
       method: string
@@ -67,6 +85,9 @@ export function CreateEndpointRow(props: {
   const [responseName, setResponseName] = useState('ok')
   const [status, setStatus] = useState('200')
   const [model, setModel] = useState('')
+  const [modulePath, setModulePath] = useState('')
+  const [exportName, setExportName] = useState('')
+  const [side, setSide] = useState<'input' | 'output'>('output')
   const [typeName, setTypeName] = useState('')
   const [json, setJson] = useState('')
   const [complaint, setComplaint] = useState<string | null>(null)
@@ -83,6 +104,12 @@ export function CreateEndpointRow(props: {
     const trimmed = path.trim()
     if (trimmed.length === 0) return 'a path is needed, starting with a slash'
     if (!trimmed.startsWith('/')) return `paths start with a slash — did you mean /${trimmed}?`
+    if (mode === 'module') {
+      if (modulePath.trim().length === 0)
+        return 'a file is needed — the module that exports the schema'
+      if (exportName.trim().length === 0)
+        return 'an export name is needed — which schema in that file'
+    }
     if (mode === 'model' && model.trim().length === 0) {
       return 'paste a model, or switch back to blank'
     }
@@ -110,6 +137,17 @@ export function CreateEndpointRow(props: {
       responseName: responseName.trim(),
       // Never null here: `problem()` above has already refused anything else.
       status: parseStatusCode(status) ?? 200,
+    }
+    if (mode === 'module') {
+      props.onCreateFromModule({
+        method,
+        path: path.trim(),
+        file: modulePath.trim(),
+        exportName: exportName.trim(),
+        side,
+        ...response,
+      })
+      return
     }
     if (mode === 'model') {
       props.onCreateFromModel({
@@ -206,6 +244,64 @@ export function CreateEndpointRow(props: {
       <button type="button" className="btn" onClick={props.onCancel}>
         Cancel
       </button>
+
+      {mode === 'module' ? (
+        <div className="create-model create-module">
+          {/* A path is meaningless without its base, and this base is
+              configurable. Saying it here is cheaper than a refusal. */}
+          <p className="micro">
+            relative to {props.schemaSourceRoot ?? '.'} — laqi will run this file to read the schema
+          </p>
+          <input
+            className="meta-input"
+            aria-label="module file"
+            placeholder="src/types/api.ts"
+            value={modulePath}
+            onChange={(event) => {
+              setModulePath(event.target.value)
+              setComplaint(null)
+            }}
+          />
+          <input
+            className="meta-input"
+            aria-label="export name"
+            placeholder="Invoice"
+            value={exportName}
+            onChange={(event) => {
+              setExportName(event.target.value)
+              setComplaint(null)
+            }}
+          />
+          <select
+            className="meta-input"
+            aria-label="conversion side"
+            value={side}
+            onChange={(event) => setSide(event.target.value === 'input' ? 'input' : 'output')}
+          >
+            <option value="output">output — what the API returns</option>
+            <option value="input">input — what a caller must send</option>
+          </select>
+
+          {/* The confirmation is about the RESOLVED file, because that is
+              what will run. Approving a string that has not been resolved
+              approves whatever it turns out to point at. */}
+          {props.pendingModule ? (
+            <div className="module-confirm">
+              <p>
+                Run <code>{props.pendingModule.resolvedPath}</code> and read{' '}
+                <code>{props.pendingModule.exportName}</code> ({props.pendingModule.side})?
+              </p>
+              <p className="micro">
+                Importing a module runs it and everything it imports. laqi runs it in a separate
+                process so a crash cannot take the server down — that is not a sandbox.
+              </p>
+              <button type="button" className="btn btn-primary" onClick={props.onConfirmModule}>
+                Run it
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {mode === 'json' ? (
         <>

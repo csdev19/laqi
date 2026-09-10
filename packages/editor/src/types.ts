@@ -44,6 +44,8 @@ export type Share = {
 
 export type Status = {
   watching: string
+  /** Where a schema source may be read from, relative to the project root. */
+  schemaSourceRoot?: string
   endpointCount: number
   address: string
   errors: LoadError[]

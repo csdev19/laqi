@@ -41,6 +41,8 @@ export type ControlPlaneRuntime = {
   getScenarios: () => Scenarios
   getStatus: () => {
     watching: string
+    /** Where a schema source may be read from, relative to the project root. */
+    schemaSourceRoot?: string
     endpointCount: number
     address: string
     errors: LoadError[]
@@ -128,6 +130,25 @@ export type ControlPlaneRuntime = {
         conflict?: { reason: string; revision: string }
       }
   /**
+   * Resolves and digests a project module, and issues a token. Executes
+   * nothing: the panel shows what came back and asks, and only then confirms.
+   */
+  prepareModule: (input: {
+    file: string
+    exportName: string
+    side: 'input' | 'output'
+  }) =>
+    | { ok: true; token: string; resolvedPath: string; exportName: string; side: string }
+    | { ok: false; error: string; code: WriteFailure }
+  /** Spends a token and runs the import it stands for. */
+  confirmModule: (input: {
+    token: string
+    allowLoss?: boolean
+  }) => Promise<
+    | { ok: true; snapshot: SchemaSnapshot; candidates: string[] }
+    | { ok: false; error: string; code: WriteFailure; diagnostics?: Diagnostic[] }
+  >
+  /**
    * The revision of one response, without generating anything.
    *
    * Refreshing a schema needs a revision but has no reason to produce a
@@ -176,6 +197,17 @@ const ApplyBodyRequestSchema = z.object({
   evidence: z.unknown(),
   revision: z.string().min(1),
   confirm: z.boolean().optional(),
+})
+
+const PrepareModuleRequestSchema = z.object({
+  file: z.string().min(1),
+  exportName: z.string().min(1),
+  side: z.enum(['input', 'output']).default('output'),
+})
+
+const ConfirmModuleRequestSchema = z.object({
+  token: z.string().min(1),
+  allowLoss: z.boolean().optional(),
 })
 
 const RefreshSchemaRequestSchema = z.object({
@@ -587,6 +619,58 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       return c.json(payload, status)
     }
     return c.json({ revision: result.revision })
+  })
+
+  app.post('/api/schema/module/prepare', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    const parsed = PrepareModuleRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = runtime.prepareModule(parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({
+      token: result.token,
+      resolvedPath: result.resolvedPath,
+      exportName: result.exportName,
+      side: result.side,
+    })
+  })
+
+  app.post('/api/schema/module/confirm', async (c) => {
+    const raw = await readJson(c)
+    if (!raw.ok) {
+      return c.json({ error: 'laqi-control-plane', message: 'body is not valid JSON' }, 400)
+    }
+
+    // Only the token. A `confirmed: true` beside it is not approval and is
+    // not read: approval is something laqi handed out, not something a
+    // caller can assert about itself.
+    const parsed = ConfirmModuleRequestSchema.safeParse(raw.value)
+    if (!parsed.success) {
+      return c.json(
+        { error: 'laqi-control-plane', message: issuesToMessage(parsed.error.issues) },
+        400,
+      )
+    }
+
+    const result = await runtime.confirmModule(parsed.data)
+    if (!result.ok) {
+      const { payload, status } = refusal(result)
+      return c.json(payload, status)
+    }
+    return c.json({ snapshot: result.snapshot, candidates: result.candidates })
   })
 
   app.get('/api/endpoints/:id/responses/:name/revision', (c) => {

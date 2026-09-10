@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { DIALECT_2020_12, isAcknowledgeable, type Diagnostic } from '@laqi/schema'
 import { describe, expect, it } from 'vitest'
 import { importSchema, previewBody } from './import-schema'
@@ -189,4 +190,76 @@ describe('previewing a body from a snapshot', () => {
     const preview = await previewBody(snapshot, { seed: 1 })
     expect(codes(preview.diagnostics)).toContain('loss.unresolved-type')
   })
+})
+
+describe('importing a schema from a project module', () => {
+  const paths = {
+    root: fileURLToPath(new URL('..', import.meta.url)),
+    sourceRoot: 'fixtures',
+  }
+
+  it('reads a real Zod export and records where it came from', async () => {
+    const { snapshot } = await importSchema(
+      { kind: 'project-module', file: 'vendors.ts', exportName: 'ZodInvoice', side: 'output' },
+      { paths },
+    )
+
+    expect(snapshot.name).toBe('ZodInvoice')
+    expect(snapshot.source).toEqual({
+      kind: 'project-module',
+      file: 'vendors.ts',
+      exportName: 'ZodInvoice',
+      side: 'output',
+    })
+    expect(snapshot.document['type']).toBe('object')
+  }, 30_000)
+
+  it('records which side was converted, because the document does not say', async () => {
+    const { snapshot } = await importSchema(
+      { kind: 'project-module', file: 'vendors.ts', exportName: 'ArkInvoice', side: 'input' },
+      { paths },
+    )
+
+    expect(codes(snapshot.diagnostics)).toContain('side.selected')
+    expect(snapshot.diagnostics.some((item) => item.message.includes('input'))).toBe(true)
+  }, 30_000)
+
+  it('refuses a library that offers no JSON Schema conversion', async () => {
+    await expect(
+      importSchema(
+        {
+          kind: 'project-module',
+          file: 'vendors.ts',
+          exportName: 'ValibotInvoice',
+          side: 'output',
+        },
+        { paths },
+      ),
+    ).rejects.toThrow(/Standard JSON Schema/)
+  }, 30_000)
+
+  it('refuses a path that escapes the source root, before reading anything', async () => {
+    await expect(
+      importSchema(
+        {
+          kind: 'project-module',
+          file: '../src/import-schema.ts',
+          exportName: 'importSchema',
+          side: 'output',
+        },
+        { paths },
+      ),
+    ).rejects.toThrow(/outside/)
+  }, 30_000)
+
+  it('refuses to guess a source root when the transport supplied none', async () => {
+    await expect(
+      importSchema({
+        kind: 'project-module',
+        file: 'vendors.ts',
+        exportName: 'ZodInvoice',
+        side: 'output',
+      }),
+    ).rejects.toThrow(/source root/)
+  }, 30_000)
 })

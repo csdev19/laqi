@@ -27,9 +27,22 @@ export const SourceRequestSchema = z.discriminatedUnion('kind', [
     /** Where the document was read from, so a refresh can read it again. */
     file: z.string().min(1).optional(),
   }),
+  z.object({
+    kind: z.literal('project-module'),
+    /** Relative to `schemaSources.root`. Resolved and confined before anything is read. */
+    file: z.string().min(1),
+    exportName: z.string().min(1),
+    /**
+     * Which Standard JSON Schema conversion to ask for. A response is what
+     * the API gives back, so `output` is the default; `input` is for the
+     * shape a caller must send, which is a different document whenever the
+     * schema has a default or a transform.
+     */
+    side: z.enum(['input', 'output']).default('output'),
+  }),
 ])
 
 export type SourceRequest = z.infer<typeof SourceRequestSchema>
 
 /** Every kind the composition root serves, for the message when one is not. */
-export const KNOWN_SOURCE_KINDS = ['typescript-paste', 'json-schema'] as const
+export const KNOWN_SOURCE_KINDS = ['typescript-paste', 'json-schema', 'project-module'] as const

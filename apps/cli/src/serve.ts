@@ -3,6 +3,7 @@
 import { serve, type ServerType } from '@hono/node-server'
 import {
   EventBus,
+  ModuleApprovals,
   Project,
   refreshRequestFor,
   SessionCounters,
@@ -81,6 +82,12 @@ export async function startServer(options: {
   const store = new StateStore(root)
   const bus = new EventBus()
   const project = new Project(root, config)
+  /**
+   * Pending module approvals, for this process only. A restart forgets them,
+   * which is right: nobody approved running a file in a session that no
+   * longer exists.
+   */
+  const approvals = new ModuleApprovals(root, config)
   // Shared by both listeners (local and, with --share, the tunnel-facing
   // one): a request is a request regardless of which port answered it, and
   // `recordRequest` is exactly what Task 5 built — an integer increment, no
@@ -157,6 +164,9 @@ export async function startServer(options: {
       getScenarios: () => runtime.scenarios,
       getStatus: () => ({
         watching: runtime.source === 'file' ? config.file : config.dir,
+        // Where a schema source may be read from. The panel says it beside
+        // the field, so a path is not discovered to be wrong by being wrong.
+        schemaSourceRoot: config.schemaSources.root,
         endpointCount: runtime.table.endpoints.length,
         address: `${config.host}:${boundPort}`,
         errors: runtime.errors,
@@ -267,10 +277,24 @@ export async function startServer(options: {
         }
       },
       importSchema: async (input) => {
+        // A project module is executed, so it does not come in through the
+        // door every other source uses. It goes through prepare/confirm,
+        // where a person sees the resolved path first — and routing it here
+        // would be a one-call way to run a file nobody looked at.
+        if ((input.source as { kind?: unknown } | null)?.kind === 'project-module') {
+          return {
+            ok: false,
+            error:
+              'importing a project module runs it, so it goes through /api/schema/module/prepare and /api/schema/module/confirm',
+            code: 'invalid',
+          }
+        }
+
         const { importSchema } = await import('@laqi/generate')
         try {
           const { snapshot, candidates } = await importSchema(input.source as never, {
             allowLoss: input.allowLoss === true,
+            paths: { root, sourceRoot: config.schemaSources.root },
           })
           return { ok: true, snapshot, candidates }
         } catch (cause) {
@@ -361,6 +385,41 @@ export async function startServer(options: {
         counters.recordWrite(result.value.file)
         reload()
         return { ok: true, revision: result.value.revision }
+      },
+      prepareModule: (input) => {
+        const prepared = approvals.prepare(input)
+        return prepared.ok
+          ? {
+              ok: true,
+              token: prepared.value.token,
+              resolvedPath: prepared.value.resolvedPath,
+              exportName: prepared.value.exportName,
+              side: prepared.value.side,
+            }
+          : { ok: false, error: prepared.error, code: prepared.code }
+      },
+      confirmModule: async (input) => {
+        const redeemed = approvals.confirm(input.token)
+        if (!redeemed.ok) return { ok: false, error: redeemed.error, code: redeemed.code }
+
+        const { importSchema } = await import('@laqi/generate')
+        try {
+          const { snapshot, candidates } = await importSchema(
+            {
+              kind: 'project-module',
+              file: redeemed.value.file,
+              exportName: redeemed.value.exportName,
+              side: redeemed.value.side,
+            },
+            {
+              allowLoss: input.allowLoss === true,
+              paths: { root, sourceRoot: config.schemaSources.root },
+            },
+          )
+          return { ok: true, snapshot, candidates }
+        } catch (cause) {
+          return failedImport(cause)
+        }
       },
       getResponseRevision: (id, responseName) => {
         const result = project.getResponseRevision(id, responseName)

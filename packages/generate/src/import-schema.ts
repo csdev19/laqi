@@ -11,9 +11,11 @@ import {
 } from '@laqi/schema'
 import { Cause, Data, Effect, Exit, Option } from 'effect'
 import { bodyHash } from '@laqi/core/canonical-json'
+import { resolveSourcePath } from '@laqi/core'
 import { compileSchema } from './compile-schema'
 import { GenerateError } from './errors'
 import { shapeToJsonSchema } from './json-schema'
+import { loadModuleSchema, type ModuleLoadFailure } from './load-module'
 import { normalizeDialect } from './normalize-dialect'
 import { parseTypesEffect } from './parse-types'
 import { generateFromPlanEffect, type GenerateOptions } from './plan'
@@ -39,6 +41,14 @@ export type ImportOptions = {
    * never can.
    */
   allowLoss?: boolean
+  /**
+   * Where a `project-module` source may be read from. Required for that kind
+   * and ignored by every other: resolving a path is laqi-wide policy, and a
+   * transport that forgets to supply it must be told so rather than have a
+   * default invented for it — the default would be whatever directory the
+   * process happens to be in.
+   */
+  paths?: { root: string; sourceRoot: string }
 }
 
 export type BodyPreview = {
@@ -80,7 +90,7 @@ export const importSchemaEffect = (
   options: ImportOptions = {},
 ): Effect.Effect<ImportResult, ImportError, TypeScriptCompiler> =>
   Effect.gen(function* () {
-    const draft = yield* dispatch(request)
+    const draft = yield* dispatch(request, options)
 
     const settled = applyLossPolicy(draft.diagnostics, options)
     if (settled instanceof ImportError) return yield* Effect.fail(settled)
@@ -128,12 +138,15 @@ type Draft = {
  */
 const dispatch = (
   request: SourceRequest,
+  options: ImportOptions,
 ): Effect.Effect<Draft, ImportError, TypeScriptCompiler> => {
   switch (request.kind) {
     case 'typescript-paste':
       return fromTypeScript(request)
     case 'json-schema':
       return fromJsonSchema(request)
+    case 'project-module':
+      return fromProjectModule(request, options)
     default:
       return Effect.fail(unknownAdapter(request))
   }
@@ -207,6 +220,111 @@ const fromJsonSchema = (request: SourceRequest & { kind: 'json-schema' }) =>
       diagnostics,
     } satisfies Draft
   })
+
+/**
+ * A schema object exported by one of the user's own modules, read through
+ * Standard JSON Schema.
+ *
+ * The module is executed to get at it — that is what importing a module
+ * means — so the path is resolved and confined here, before anything is
+ * read, and the execution itself happens in a child process. WHO may ask
+ * for this is decided by the transport, above; this function assumes the
+ * asking was already allowed.
+ */
+const fromProjectModule = (
+  request: SourceRequest & { kind: 'project-module' },
+  options: ImportOptions,
+) =>
+  Effect.gen(function* () {
+    const paths = options.paths
+    if (paths === undefined) {
+      return yield* Effect.fail(
+        new ImportError({
+          message:
+            'laqi cannot read a project module without a source root — this is a laqi bug, not something you did',
+          diagnostics: [],
+        }),
+      )
+    }
+
+    const resolved = resolveSourcePath({
+      root: paths.root,
+      sourceRoot: paths.sourceRoot,
+      file: request.file,
+    })
+    if (!resolved.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: resolved.error,
+          diagnostics: [diagnostic('invalid.document', resolved.error)],
+        }),
+      )
+    }
+
+    const loaded = yield* Effect.promise(() =>
+      loadModuleSchema({
+        resolvedPath: resolved.path,
+        exportName: request.exportName,
+        side: request.side,
+      }),
+    )
+    if (!loaded.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: loaded.error,
+          diagnostics: [diagnostic(codeFor(loaded.code), loaded.error)],
+        }),
+      )
+    }
+
+    const normalized = normalizeDialect(loaded.document)
+    if (!normalized.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: normalized.diagnostics[0]?.message ?? 'that export is not a JSON Schema',
+          diagnostics: normalized.diagnostics,
+        }),
+      )
+    }
+
+    const compiled = compileSchema(normalized.document)
+    const diagnostics = [
+      // Which side was converted is invisible in the document and changes
+      // what it describes whenever the schema has a default or a transform.
+      diagnostic('side.selected', `converted the ${request.side} side of ${request.exportName}`),
+      ...normalized.diagnostics,
+      ...compiled.diagnostics,
+    ]
+    if (!compiled.ok) {
+      return yield* Effect.fail(
+        new ImportError({
+          message: compiled.diagnostics[0]?.message ?? 'laqi cannot generate from that export',
+          diagnostics,
+        }),
+      )
+    }
+
+    return {
+      name: request.exportName,
+      document: normalized.document,
+      source: {
+        kind: 'project-module',
+        file: request.file,
+        exportName: request.exportName,
+        side: request.side,
+      } as const,
+      diagnostics,
+    } satisfies Draft
+  })
+
+/**
+ * A loader failure, as a diagnostic code. All of them are errors nobody may
+ * acknowledge: there is no approximation on offer, only a source laqi could
+ * not read.
+ */
+function codeFor(failure: ModuleLoadFailure): 'unsupported.combination' | 'invalid.document' {
+  return failure === 'capability' ? 'unsupported.combination' : 'invalid.document'
+}
 
 /** A file name, minus its extensions, is a better label than "Schema". */
 function nameFrom(file: string | undefined): string | undefined {
