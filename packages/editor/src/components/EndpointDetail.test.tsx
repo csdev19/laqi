@@ -193,6 +193,29 @@ describe('the draft survives an unrelated reload', () => {
 })
 
 describe('serving a response', () => {
+  it('keeps draft actions local until save and reload make the response available', async () => {
+    const original = endpoint({
+      id: 'GET /orders/:id',
+      path: '/orders/:id',
+      responses: { ok: { status: 200 } },
+    })
+    const { onSave, onFlip, rerender } = renderDetail(original)
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate' }))
+    expect(regenerateResponse).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save to file' }))
+    expect(onSave).toHaveBeenCalledTimes(1)
+    // A save request alone is not evidence the write succeeded.
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+    const [id, definition] = onSave.mock.calls[0]!
+    expect(id).toBe(original.id)
+    rerender({ ...original, ...definition })
+    fireEvent.click(await screen.findByRole('button', { name: 'Serve this' }))
+    expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: original.id }), 'not-found')
+  })
+
   it('shows a primary "Serve this" action for a response that is not live, and calls onFlip', () => {
     const { onFlip } = renderDetail(endpoint())
 
@@ -204,12 +227,73 @@ describe('serving a response', () => {
     expect(onFlip).toHaveBeenCalledWith(expect.objectContaining({ id: 'GET /users' }), 'boom')
   })
 
-  it('renders the live response as a Serving state pill instead of a clickable button', () => {
+  it('does not offer "Serve this" for a response that only exists in the draft', () => {
+    // Serving goes through PUT /api/state, and the server only knows what
+    // is on disk. Offering the button for an unsaved response produced a
+    // "not declared on GET /x. Available: ok" band that said nothing about
+    // the fix: save first.
+    const { onFlip } = renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+
+    expect(screen.queryByRole('button', { name: 'Serve this' })).toBeNull()
+    expect(screen.getByText(/save to file/i, { selector: '.serve-note' }).textContent).toMatch(
+      /"not-found" is not on disk yet/,
+    )
+    expect(screen.queryByRole('button', { name: /build model/i })).toBeNull()
+    expect(screen.getAllByText(/save to file first/i)).toHaveLength(2)
+    expect(onFlip).not.toHaveBeenCalled()
+  })
+
+  it('discards a model draft before selecting a response that is not on disk', async () => {
+    renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save as schema' })).toBeNull()
+  })
+
+  it('ignores a late model draft after the selected response changes', async () => {
+    let resolveDraft: (value: { source: string; typeName: string }) => void
+    draftModel.mockReturnValueOnce(
+      new Promise<{ source: string; typeName: string }>((resolve) => {
+        resolveDraft = resolve
+      }),
+    )
     renderDetail(endpoint())
 
-    // `ok` is the default, so it starts live/selected.
-    expect(screen.getByText('Serving')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /serve this/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'boom' }))
+    resolveDraft!({ source: 'export interface Users { id: number }', typeName: 'Users' })
+
+    await Promise.resolve()
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(screen.getByRole('button', { name: /build model/i })).toBeTruthy()
+  })
+
+  it('keeps the live response visible when editing a different response', () => {
+    renderDetail(endpoint())
+
+    // `ok` is the default. Live is an execution state, not the editor
+    // selection, so it stays visible after selecting another response.
+    const live = screen.getByRole('button', { name: 'ok, live via default' })
+    expect(live.getAttribute('aria-current')).toBe('true')
+    expect(live.textContent).toContain('Live · default')
+    expect(screen.getByLabelText('Live response: ok, via default')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'boom' }))
+
+    expect(
+      screen.getByRole('button', { name: 'ok, live via default' }).getAttribute('aria-current'),
+    ).toBe('true')
+    expect(screen.getByRole('button', { name: 'boom' }).className).toContain('is-selected')
+    expect(screen.getByRole('button', { name: 'Serve this' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^live now$/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /^set live$/i })).toBeNull()
   })

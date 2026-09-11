@@ -90,6 +90,10 @@ describe('resolveResponse failure', () => {
     expect(r.message).toContain('ghost')
     expect(r.message).toContain('ok')
     expect(r.layer).toBe('header')
+    // The name usually exists in the panel's draft and not on disk. Listing
+    // what is declared is accurate and leaves the reader stuck; the fix is
+    // the part worth saying.
+    expect(r.message).toContain('saved to the mock file before it can be served')
   })
 
   it('fails loudly when an override names a response that does not exist', () => {

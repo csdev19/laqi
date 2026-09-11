@@ -146,6 +146,12 @@ describe('PUT /api/state', () => {
 
     expect(res.status).toBe(400)
     expect(setState).not.toHaveBeenCalled()
+    // The caller usually just added the response somewhere the server cannot
+    // see yet. Naming what is declared is not enough; say what to do.
+    const body = (await res.json()) as { message: string }
+    expect(body.message).toContain('"no-such-response" is not declared on GET /users')
+    expect(body.message).toContain('Available: ok, boom')
+    expect(body.message).toMatch(/saved to the mock file before it can be served/)
   })
 
   it('fills in defaults for a partial body', async () => {

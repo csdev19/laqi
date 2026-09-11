@@ -588,7 +588,7 @@ textarea::-moz-selection {
 }
 
 .row-layer {
-  width: 62px;
+  width: 104px;
   flex: none;
   text-align: right;
   font-family: var(--mono);
@@ -833,6 +833,14 @@ textarea::-moz-selection {
   background: var(--dim2);
 }
 
+.live-dot.layer-state {
+  background: var(--mag);
+}
+
+.live-dot.layer-scenario {
+  background: var(--viol);
+}
+
 .log-actions {
   margin-left: auto;
   display: flex;
@@ -977,6 +985,9 @@ button.log-path:hover {
 }
 
 .live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--mono);
   font-size: 11px;
   border: 1px solid var(--line2);
@@ -993,6 +1004,13 @@ button.log-path:hover {
 .live-pill.layer-scenario {
   border-color: var(--viol);
   color: var(--viol);
+}
+
+.serve-note {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  padding: 2px 0;
 }
 
 .detail-columns {
@@ -1050,9 +1068,24 @@ button.log-path:hover {
 .response-marker {
   width: 5px;
   height: 5px;
-  border-radius: 1px;
+  border-radius: 50%;
   flex: none;
   background: transparent;
+}
+
+.response-marker.is-live.layer-default,
+.chip-live-dot.layer-default {
+  background: var(--mint);
+}
+
+.response-marker.is-live.layer-state,
+.chip-live-dot.layer-state {
+  background: var(--mag);
+}
+
+.response-marker.is-live.layer-scenario,
+.chip-live-dot.layer-scenario {
+  background: var(--viol);
 }
 
 .response-name {
@@ -1061,6 +1094,29 @@ button.log-path:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.response-live {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--mint);
+  letter-spacing: 0.04em;
+}
+
+.response-live.layer-state {
+  color: var(--mag);
+}
+
+.response-live.layer-scenario {
+  color: var(--viol);
+}
+
+.chip-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex: none;
 }
 
 .add-response {

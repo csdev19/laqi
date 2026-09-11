@@ -33,6 +33,15 @@ function toDraft(endpoint: Endpoint): Draft {
   }
 }
 
+/**
+ * Shown wherever a draft-only response would otherwise be handed to the
+ * server. The control plane answers such a name with what *is* declared,
+ * which is accurate and tells the reader nothing about the fix.
+ */
+function notOnDisk(name: string): string {
+  return `Save to file first — ${JSON.stringify(name)} is not on disk yet`
+}
+
 export function EndpointDetail(props: {
   endpoint: Endpoint
   state: LaqiState
@@ -84,8 +93,16 @@ export function EndpointDetail(props: {
    * Showing the draft is what turns that from a silent guess into something
    * someone looked at — and if it is right, accepting it is one click.
    */
-  const [draftModel, setDraftModel] = useState<{ source: string; typeName: string } | null>(null)
+  const [draftModel, setDraftModel] = useState<{
+    response: string
+    source: string
+    typeName: string
+  } | null>(null)
   const [savingModel, setSavingModel] = useState(false)
+  // A model draft belongs to exactly one response. This increments for every
+  // selection path so an asynchronous draft cannot surface after the person
+  // has moved on to another response.
+  const selectionEpochRef = useRef(0)
 
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
@@ -121,6 +138,15 @@ export function EndpointDetail(props: {
   }, [fingerprint])
 
   const live = liveResponse({ endpoint, state, scenarios })
+
+  const selectResponse = (name: string) => {
+    selectionEpochRef.current += 1
+    setDraftModel(null)
+    setSelected(name)
+  }
+  // Every action that leaves the browser addresses the response by name, so
+  // it only works once the file on disk has that name.
+  const onDisk = Object.hasOwn(endpoint.responses, selected)
   const names = Object.keys(draft.responses)
   const current = draft.responses[selected]
   const bodySource = draft.bodies[selected] ?? ''
@@ -152,13 +178,15 @@ export function EndpointDetail(props: {
    */
   const buildModel = () => {
     const epoch = epochRef.current
+    const selectionEpoch = selectionEpochRef.current
+    const response = selected
     setActionError(null)
     setConflict(null)
     void api
-      .draftModel(endpoint.id, selected)
+      .draftModel(endpoint.id, response)
       .then((drafted) => {
-        if (epochRef.current !== epoch) return
-        setDraftModel(drafted)
+        if (epochRef.current !== epoch || selectionEpochRef.current !== selectionEpoch) return
+        setDraftModel({ ...drafted, response })
       })
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
@@ -175,7 +203,7 @@ export function EndpointDetail(props: {
    * say less than this does, which is that someone approved this text.
    */
   const saveModel = () => {
-    if (draftModel === null) return
+    if (draftModel === null || draftModel.response !== selected || !onDisk) return
     const epoch = epochRef.current
     setActionError(null)
     setSavingModel(true)
@@ -187,9 +215,9 @@ export function EndpointDetail(props: {
       })
       .then(({ snapshot }) =>
         api
-          .getResponseRevision(endpoint.id, selected)
+          .getResponseRevision(endpoint.id, draftModel.response)
           .then(({ revision }) =>
-            api.setResponseSchema(endpoint.id, selected, { snapshot, revision }),
+            api.setResponseSchema(endpoint.id, draftModel.response, { snapshot, revision }),
           ),
       )
       .then(() => {
@@ -294,8 +322,11 @@ export function EndpointDetail(props: {
         {endpoint.description ? (
           <span className="detail-description">{endpoint.description}</span>
         ) : null}
-        <span className={`live-pill layer-${live.layer}`}>
-          {live.name} · {live.layer}
+        <span
+          className={`live-pill layer-${live.layer}`}
+          aria-label={`Live response: ${live.name}, via ${live.layer}`}
+        >
+          <span className={`live-dot layer-${live.layer}`} aria-hidden="true" /> Live · {live.layer}
         </span>
 
         <div className="header-actions">
@@ -323,25 +354,37 @@ export function EndpointDetail(props: {
       <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
       <div className="detail-columns">
         <div className="detail-responses">
-          {names.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={name === selected ? 'response-item is-selected' : 'response-item'}
-              onClick={() => setSelected(name)}
-            >
-              <span
-                className={
-                  name === live.name ? `response-marker layer-${live.layer}` : 'response-marker'
-                }
-                aria-hidden="true"
-              />
-              <span className="response-name">{name}</span>
-              <span className={`chip-status status-${statusClass(draft.responses[name]!.status)}`}>
-                {draft.responses[name]!.status}
-              </span>
-            </button>
-          ))}
+          {names.map((name) => {
+            const isLive = name === live.name
+            return (
+              <button
+                key={name}
+                type="button"
+                className={name === selected ? 'response-item is-selected' : 'response-item'}
+                aria-current={isLive ? 'true' : undefined}
+                aria-label={isLive ? `${name}, live via ${live.layer}` : name}
+                onClick={() => {
+                  selectResponse(name)
+                }}
+              >
+                <span
+                  className={
+                    isLive ? `response-marker is-live layer-${live.layer}` : 'response-marker'
+                  }
+                  aria-hidden="true"
+                />
+                <span className="response-name">{name}</span>
+                {isLive ? (
+                  <span className={`response-live layer-${live.layer}`}>Live · {live.layer}</span>
+                ) : null}
+                <span
+                  className={`chip-status status-${statusClass(draft.responses[name]!.status)}`}
+                >
+                  {draft.responses[name]!.status}
+                </span>
+              </button>
+            )
+          })}
 
           <button
             type="button"
@@ -353,7 +396,7 @@ export function EndpointDetail(props: {
                 responses: { ...previous.responses, [name]: { status: 200 } },
                 bodies: { ...previous.bodies, [name]: '{}' },
               }))
-              setSelected(name)
+              selectResponse(name)
             }}
           >
             + Add response
@@ -390,7 +433,7 @@ export function EndpointDetail(props: {
                     ),
                   },
                 }))
-                setSelected(missing[0]!.name)
+                selectResponse(missing[0]!.name)
               }}
             >
               + add {missing.map((suggestion) => suggestion.name).join(', ')}
@@ -408,8 +451,16 @@ export function EndpointDetail(props: {
                 // already has instead of a greyed-out button that still
                 // looks (uselessly) clickable.
                 <span className={`live-pill layer-${live.layer}`}>
-                  <span className="live-dot" aria-hidden="true" /> Serving
+                  <span className={`live-dot layer-${live.layer}`} aria-hidden="true" /> Live ·{' '}
+                  {live.layer}
                 </span>
+              ) : !onDisk ? (
+                // Serving is an override in state.json, and the server only
+                // accepts names it has loaded from disk. A response that so
+                // far exists only in this draft would be refused with a
+                // message about what *is* declared — accurate, and useless
+                // as a hint. Say the fix instead of offering the failure.
+                <span className="serve-note">{notOnDisk(selected)}</span>
               ) : (
                 <button
                   type="button"
@@ -423,6 +474,13 @@ export function EndpointDetail(props: {
                 type="button"
                 className="btn"
                 onClick={() => {
+                  // Same reason as the Serve pill above: the endpoint route
+                  // this posts to is keyed by a response name the server has
+                  // loaded, so a draft-only name would 404.
+                  if (!onDisk) {
+                    setActionError(notOnDisk(selected))
+                    return
+                  }
                   const epoch = epochRef.current
                   setActionError(null)
                   setWarnings([])
@@ -456,7 +514,7 @@ export function EndpointDetail(props: {
               {/* Regenerate refuses a response with no schema, so the way
                   out of that refusal sits right next to it rather than in
                   a menu the person has to go looking for. */}
-              {draftModel === null ? (
+              {draftModel === null && onDisk ? (
                 <button type="button" className="btn" onClick={buildModel}>
                   {hasSchema ? 'Rebuild model from body' : 'Build model'}
                 </button>
@@ -498,7 +556,7 @@ export function EndpointDetail(props: {
                 disabled={names.length <= 1}
                 onClick={() => {
                   setDraft((previous) => deleteResponse(previous, selected))
-                  setSelected(names.find((name) => name !== selected) ?? '')
+                  selectResponse(names.find((name) => name !== selected) ?? '')
                 }}
               >
                 Delete
@@ -519,7 +577,7 @@ export function EndpointDetail(props: {
           {/* The draft, in full and editable. laqi read one body to write
               it, so the two things it cannot know are named — and the
               person is the one who knows them. */}
-          {draftModel !== null ? (
+          {draftModel !== null && draftModel.response === selected && onDisk ? (
             <div className="model-draft">
               <div className="editor-toolbar">
                 <span className="micro">
@@ -615,6 +673,7 @@ export function EndpointDetail(props: {
                 responseName={selected}
                 response={endpoint.responses[selected]}
                 revision={fingerprint}
+                unavailableReason={onDisk ? undefined : notOnDisk(selected)}
               />
 
               <div className="meta-field">
@@ -702,7 +761,7 @@ export function EndpointDetail(props: {
             const next = renameValue.trim()
             if (next === '' || next === selected || next in draft.responses) return
             setDraft((previous) => renameResponse(previous, selected, next))
-            setSelected(next)
+            selectResponse(next)
             setRenameValue(null)
           }}
         >
