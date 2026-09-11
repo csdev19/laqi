@@ -81,6 +81,35 @@ describe('TypesPanel', () => {
     expect(screen.getByLabelText('types').textContent).toContain('save the endpoint to print types')
   })
 
+  it('clears fetched types before a response becomes unavailable', async () => {
+    const view = render(
+      <TypesPanel
+        endpointId="GET /invoices"
+        responseName="ok"
+        response={{ status: 200, body: { id: 'x' } }}
+        revision="1"
+      />,
+    )
+    await waitFor(() => expect(screen.getByLabelText('types').textContent).toContain('Derived'))
+
+    view.rerender(
+      <TypesPanel
+        endpointId="GET /invoices"
+        responseName="empty"
+        response={undefined}
+        revision="2"
+        unavailableReason={'Save to file first — "empty" is not on disk yet.'}
+      />,
+    )
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('types').textContent).toContain(
+        'save the endpoint to print types',
+      ),
+    )
+    expect(screen.getByRole('button', { name: 'Copy types' }).hasAttribute('disabled')).toBe(true)
+  })
+
   it('names the schema the types were exported from', async () => {
     serverSays('schema')
     renderPanel({ status: 200, schema: SCHEMA })

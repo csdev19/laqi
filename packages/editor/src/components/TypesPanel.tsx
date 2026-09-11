@@ -63,12 +63,12 @@ export function TypesPanel(props: {
   // response it happens to hold.
   useEffect(() => {
     let cancelled = false
+    setError(null)
+    setPrinted(null)
     if (props.unavailableReason !== undefined)
       return () => {
         cancelled = true
       }
-    setError(null)
-    setPrinted(null)
     api
       .getTypes(props.endpointId, { response: props.responseName, lang })
       .then((fetched) => {
@@ -103,7 +103,7 @@ export function TypesPanel(props: {
         <button
           type="button"
           className="btn"
-          disabled={code === null}
+          disabled={code === null || props.unavailableReason !== undefined}
           onClick={() => {
             if (code !== null) void navigator.clipboard?.writeText(code)
           }}

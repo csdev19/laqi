@@ -246,6 +246,19 @@ describe('serving a response', () => {
     expect(onFlip).not.toHaveBeenCalled()
   })
 
+  it('discards a model draft before selecting a response that is not on disk', async () => {
+    renderDetail(
+      endpoint({ id: 'GET /orders/:id', path: '/orders/:id', responses: { ok: { status: 200 } } }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    await waitFor(() => expect(screen.getByLabelText('model')).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /add not-found, error/ }))
+
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save as schema' })).toBeNull()
+  })
+
   it('keeps the live response visible when editing a different response', () => {
     renderDetail(endpoint())
 

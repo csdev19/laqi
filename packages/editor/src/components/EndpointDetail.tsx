@@ -93,7 +93,11 @@ export function EndpointDetail(props: {
    * Showing the draft is what turns that from a silent guess into something
    * someone looked at — and if it is right, accepting it is one click.
    */
-  const [draftModel, setDraftModel] = useState<{ source: string; typeName: string } | null>(null)
+  const [draftModel, setDraftModel] = useState<{
+    response: string
+    source: string
+    typeName: string
+  } | null>(null)
   const [savingModel, setSavingModel] = useState(false)
 
   // This bumps every time the fingerprint changes (see below). Regenerate
@@ -170,7 +174,7 @@ export function EndpointDetail(props: {
       .draftModel(endpoint.id, selected)
       .then((drafted) => {
         if (epochRef.current !== epoch) return
-        setDraftModel(drafted)
+        setDraftModel({ ...drafted, response: selected })
       })
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
@@ -187,7 +191,7 @@ export function EndpointDetail(props: {
    * say less than this does, which is that someone approved this text.
    */
   const saveModel = () => {
-    if (draftModel === null) return
+    if (draftModel === null || draftModel.response !== selected || !onDisk) return
     const epoch = epochRef.current
     setActionError(null)
     setSavingModel(true)
@@ -199,9 +203,9 @@ export function EndpointDetail(props: {
       })
       .then(({ snapshot }) =>
         api
-          .getResponseRevision(endpoint.id, selected)
+          .getResponseRevision(endpoint.id, draftModel.response)
           .then(({ revision }) =>
-            api.setResponseSchema(endpoint.id, selected, { snapshot, revision }),
+            api.setResponseSchema(endpoint.id, draftModel.response, { snapshot, revision }),
           ),
       )
       .then(() => {
@@ -347,7 +351,10 @@ export function EndpointDetail(props: {
                 className={name === selected ? 'response-item is-selected' : 'response-item'}
                 aria-current={isLive ? 'true' : undefined}
                 aria-label={isLive ? `${name}, live via ${live.layer}` : name}
-                onClick={() => setSelected(name)}
+                onClick={() => {
+                  setSelected(name)
+                  setDraftModel(null)
+                }}
               >
                 <span
                   className={
@@ -559,7 +566,7 @@ export function EndpointDetail(props: {
           {/* The draft, in full and editable. laqi read one body to write
               it, so the two things it cannot know are named — and the
               person is the one who knows them. */}
-          {draftModel !== null ? (
+          {draftModel !== null && draftModel.response === selected && onDisk ? (
             <div className="model-draft">
               <div className="editor-toolbar">
                 <span className="micro">
