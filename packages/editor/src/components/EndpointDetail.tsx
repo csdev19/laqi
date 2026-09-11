@@ -99,6 +99,10 @@ export function EndpointDetail(props: {
     typeName: string
   } | null>(null)
   const [savingModel, setSavingModel] = useState(false)
+  // A model draft belongs to exactly one response. This increments for every
+  // selection path so an asynchronous draft cannot surface after the person
+  // has moved on to another response.
+  const selectionEpochRef = useRef(0)
 
   // This bumps every time the fingerprint changes (see below). Regenerate
   // captures the current value when it starts and compares it on resolve:
@@ -134,6 +138,12 @@ export function EndpointDetail(props: {
   }, [fingerprint])
 
   const live = liveResponse({ endpoint, state, scenarios })
+
+  const selectResponse = (name: string) => {
+    selectionEpochRef.current += 1
+    setDraftModel(null)
+    setSelected(name)
+  }
   // Every action that leaves the browser addresses the response by name, so
   // it only works once the file on disk has that name.
   const onDisk = Object.hasOwn(endpoint.responses, selected)
@@ -168,13 +178,15 @@ export function EndpointDetail(props: {
    */
   const buildModel = () => {
     const epoch = epochRef.current
+    const selectionEpoch = selectionEpochRef.current
+    const response = selected
     setActionError(null)
     setConflict(null)
     void api
-      .draftModel(endpoint.id, selected)
+      .draftModel(endpoint.id, response)
       .then((drafted) => {
-        if (epochRef.current !== epoch) return
-        setDraftModel({ ...drafted, response: selected })
+        if (epochRef.current !== epoch || selectionEpochRef.current !== selectionEpoch) return
+        setDraftModel({ ...drafted, response })
       })
       .catch((error: unknown) => {
         if (epochRef.current !== epoch) return
@@ -352,8 +364,7 @@ export function EndpointDetail(props: {
                 aria-current={isLive ? 'true' : undefined}
                 aria-label={isLive ? `${name}, live via ${live.layer}` : name}
                 onClick={() => {
-                  setSelected(name)
-                  setDraftModel(null)
+                  selectResponse(name)
                 }}
               >
                 <span
@@ -385,7 +396,7 @@ export function EndpointDetail(props: {
                 responses: { ...previous.responses, [name]: { status: 200 } },
                 bodies: { ...previous.bodies, [name]: '{}' },
               }))
-              setSelected(name)
+              selectResponse(name)
             }}
           >
             + Add response
@@ -422,7 +433,7 @@ export function EndpointDetail(props: {
                     ),
                   },
                 }))
-                setSelected(missing[0]!.name)
+                selectResponse(missing[0]!.name)
               }}
             >
               + add {missing.map((suggestion) => suggestion.name).join(', ')}
@@ -545,7 +556,7 @@ export function EndpointDetail(props: {
                 disabled={names.length <= 1}
                 onClick={() => {
                   setDraft((previous) => deleteResponse(previous, selected))
-                  setSelected(names.find((name) => name !== selected) ?? '')
+                  selectResponse(names.find((name) => name !== selected) ?? '')
                 }}
               >
                 Delete
@@ -750,7 +761,7 @@ export function EndpointDetail(props: {
             const next = renameValue.trim()
             if (next === '' || next === selected || next in draft.responses) return
             setDraft((previous) => renameResponse(previous, selected, next))
-            setSelected(next)
+            selectResponse(next)
             setRenameValue(null)
           }}
         >

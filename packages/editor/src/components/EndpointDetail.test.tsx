@@ -259,6 +259,24 @@ describe('serving a response', () => {
     expect(screen.queryByRole('button', { name: 'Save as schema' })).toBeNull()
   })
 
+  it('ignores a late model draft after the selected response changes', async () => {
+    let resolveDraft: (value: { source: string; typeName: string }) => void
+    draftModel.mockReturnValueOnce(
+      new Promise<{ source: string; typeName: string }>((resolve) => {
+        resolveDraft = resolve
+      }),
+    )
+    renderDetail(endpoint())
+
+    fireEvent.click(screen.getByRole('button', { name: /build model/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'boom' }))
+    resolveDraft!({ source: 'export interface Users { id: number }', typeName: 'Users' })
+
+    await Promise.resolve()
+    expect(screen.queryByLabelText('model')).toBeNull()
+    expect(screen.getByRole('button', { name: /build model/i })).toBeTruthy()
+  })
+
   it('keeps the live response visible when editing a different response', () => {
     renderDetail(endpoint())
 
