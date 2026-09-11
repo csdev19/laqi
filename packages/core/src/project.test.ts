@@ -89,6 +89,14 @@ describe('setResponse', () => {
     }
   })
 
+  it('tells readers of an undeclared response to save the endpoint first', () => {
+    const result = project.getResponse('GET /users', 'ghost')
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toContain('saved to the mock file before it can be served')
+    }
+  })
+
   it('refuses an unknown endpoint and hints at the known ids', () => {
     const result = project.setResponse('GET /nope', 'ok')
     expect(result.ok).toBe(false)
@@ -389,6 +397,7 @@ describe('getResponseBody', () => {
       expect(result.code).toBe('not-found')
       expect(result.error).toContain('not declared')
       expect(result.error).toContain('ok, boom')
+      expect(result.error).toContain('saved to the mock file before it can be served')
     }
   })
 })

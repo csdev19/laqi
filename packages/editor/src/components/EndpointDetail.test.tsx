@@ -241,6 +241,8 @@ describe('serving a response', () => {
     expect(screen.getByText(/save to file/i, { selector: '.serve-note' }).textContent).toMatch(
       /"not-found" is not on disk yet/,
     )
+    expect(screen.queryByRole('button', { name: /build model/i })).toBeNull()
+    expect(screen.getAllByText(/save to file first/i)).toHaveLength(2)
     expect(onFlip).not.toHaveBeenCalled()
   })
 

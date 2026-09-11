@@ -496,7 +496,7 @@ export function EndpointDetail(props: {
               {/* Regenerate refuses a response with no schema, so the way
                   out of that refusal sits right next to it rather than in
                   a menu the person has to go looking for. */}
-              {draftModel === null ? (
+              {draftModel === null && onDisk ? (
                 <button type="button" className="btn" onClick={buildModel}>
                   {hasSchema ? 'Rebuild model from body' : 'Build model'}
                 </button>
@@ -655,6 +655,7 @@ export function EndpointDetail(props: {
                 responseName={selected}
                 response={endpoint.responses[selected]}
                 revision={fingerprint}
+                unavailableReason={onDisk ? undefined : notOnDisk(selected)}
               />
 
               <div className="meta-field">

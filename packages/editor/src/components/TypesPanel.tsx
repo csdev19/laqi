@@ -25,6 +25,8 @@ export function TypesPanel(props: {
   response: MockResponse | undefined
   /** Changes when the stored definition does, so derived types refetch. */
   revision: string
+  /** A draft-only response has no server-side shape to print yet. */
+  unavailableReason?: string
 }) {
   const [lang, setLang] = useState('typescript')
   const [languages, setLanguages] = useState<{ name: string; displayName: string }[]>([
@@ -61,6 +63,10 @@ export function TypesPanel(props: {
   // response it happens to hold.
   useEffect(() => {
     let cancelled = false
+    if (props.unavailableReason !== undefined)
+      return () => {
+        cancelled = true
+      }
     setError(null)
     setPrinted(null)
     api
@@ -74,7 +80,7 @@ export function TypesPanel(props: {
     return () => {
       cancelled = true
     }
-  }, [props.endpointId, props.responseName, props.revision, lang])
+  }, [props.endpointId, props.responseName, props.revision, props.unavailableReason, lang])
 
   return (
     <div className="meta-field types-panel">
@@ -85,6 +91,7 @@ export function TypesPanel(props: {
           className="meta-input"
           aria-label="types language"
           value={lang}
+          disabled={props.unavailableReason !== undefined}
           onChange={(event) => setLang(event.target.value)}
         >
           {languages.map((language) => (
@@ -108,9 +115,10 @@ export function TypesPanel(props: {
       {/* Never ambiguous about what is on screen: one of these states what
           the response may contain, the other is a guess made from one sample. */}
       <p className="types-origin">
-        {printed?.origin === 'schema' && schema !== undefined
-          ? `exported from the ${schema.name} schema this response carries`
-          : 'derived from the body — this response carries no schema'}
+        {props.unavailableReason ??
+          (printed?.origin === 'schema' && schema !== undefined
+            ? `exported from the ${schema.name} schema this response carries`
+            : 'derived from the body — this response carries no schema')}
       </p>
 
       {/* Where the model is shown is where someone wonders what to do with
@@ -141,15 +149,17 @@ export function TypesPanel(props: {
       {error !== null ? <p className="form-error">{error}</p> : null}
 
       <pre className="types-code mono" aria-label="types">
-        {code === null
-          ? 'reading…'
-          : lang === 'typescript'
-            ? tokenizeTypeScript(code).map((token, index) => (
-                <span key={index} className={`tok-${token.kind}`}>
-                  {token.text}
-                </span>
-              ))
-            : code}
+        {props.unavailableReason !== undefined
+          ? 'save the endpoint to print types'
+          : code === null
+            ? 'reading…'
+            : lang === 'typescript'
+              ? tokenizeTypeScript(code).map((token, index) => (
+                  <span key={index} className={`tok-${token.kind}`}>
+                    {token.text}
+                  </span>
+                ))
+              : code}
       </pre>
     </div>
   )

@@ -69,14 +69,14 @@ describe('EndpointRow', () => {
   it('names the layer that decided the live response', () => {
     const { rerender } = renderChangeable()
 
-    expect(screen.getByText('default')).toBeTruthy()
+    expect(screen.getByText('Live · default')).toBeTruthy()
 
     rerender(aState({ overrides: { 'GET /todos': 'error' } }), noScenarios)
-    expect(screen.getByText('state')).toBeTruthy()
+    expect(screen.getByText('Live · state')).toBeTruthy()
     expect(chip('error').getAttribute('aria-pressed')).toBe('true')
 
     rerender(aState({ scenario: 'offline' }), { offline: { 'GET /todos': 'empty' } })
-    expect(screen.getByText('scenario')).toBeTruthy()
+    expect(screen.getByText('Live · scenario')).toBeTruthy()
     expect(chip('empty').getAttribute('aria-pressed')).toBe('true')
   })
 

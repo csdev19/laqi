@@ -588,7 +588,7 @@ textarea::-moz-selection {
 }
 
 .row-layer {
-  width: 62px;
+  width: 104px;
   flex: none;
   text-align: right;
   font-family: var(--mono);

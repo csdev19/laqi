@@ -455,7 +455,7 @@ export class Project {
     const response = endpoint.responses[name]
     if (response === undefined) {
       return fail(
-        `${JSON.stringify(name)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+        undeclaredResponseMessage({ name, id, declared: Object.keys(endpoint.responses) }),
         'not-found',
       )
     }
@@ -560,7 +560,7 @@ export class Project {
     const name = responseName ?? endpoint.default
     if (!Object.hasOwn(endpoint.responses, name)) {
       return fail(
-        `${JSON.stringify(name)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+        undeclaredResponseMessage({ name, id, declared: Object.keys(endpoint.responses) }),
         'not-found',
       )
     }
