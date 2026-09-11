@@ -37,9 +37,17 @@ export function EndpointRow(props: {
               type="button"
               className={isLive ? `chip is-live layer-${live.layer}` : 'chip'}
               aria-pressed={isLive}
-              title={`${name} · ${response.status}${response.delay ? ` · ${response.delay}ms` : ''}`}
+              aria-label={
+                isLive
+                  ? `${name}, ${response.status}, live via ${live.layer}`
+                  : `${name}, ${response.status}`
+              }
+              title={`${name} · ${response.status}${isLive ? ` · Live via ${live.layer}` : ''}${response.delay ? ` · ${response.delay}ms` : ''}`}
               onClick={() => props.onFlip(endpoint, name)}
             >
+              {isLive ? (
+                <span className={`chip-live-dot layer-${live.layer}`} aria-hidden="true" />
+              ) : null}
               {name}
               <span className={`chip-status status-${statusClass(response.status)}`}>
                 {response.status}

@@ -244,12 +244,23 @@ describe('serving a response', () => {
     expect(onFlip).not.toHaveBeenCalled()
   })
 
-  it('renders the live response as a Serving state pill instead of a clickable button', () => {
+  it('keeps the live response visible when editing a different response', () => {
     renderDetail(endpoint())
 
-    // `ok` is the default, so it starts live/selected.
-    expect(screen.getByText('Serving')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /serve this/i })).toBeNull()
+    // `ok` is the default. Live is an execution state, not the editor
+    // selection, so it stays visible after selecting another response.
+    const live = screen.getByRole('button', { name: 'ok, live via default' })
+    expect(live.getAttribute('aria-current')).toBe('true')
+    expect(live.textContent).toContain('Live · default')
+    expect(screen.getByLabelText('Live response: ok, via default')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'boom' }))
+
+    expect(
+      screen.getByRole('button', { name: 'ok, live via default' }).getAttribute('aria-current'),
+    ).toBe('true')
+    expect(screen.getByRole('button', { name: 'boom' }).className).toContain('is-selected')
+    expect(screen.getByRole('button', { name: 'Serve this' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^live now$/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /^set live$/i })).toBeNull()
   })

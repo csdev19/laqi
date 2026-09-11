@@ -306,8 +306,11 @@ export function EndpointDetail(props: {
         {endpoint.description ? (
           <span className="detail-description">{endpoint.description}</span>
         ) : null}
-        <span className={`live-pill layer-${live.layer}`}>
-          {live.name} · {live.layer}
+        <span
+          className={`live-pill layer-${live.layer}`}
+          aria-label={`Live response: ${live.name}, via ${live.layer}`}
+        >
+          <span className={`live-dot layer-${live.layer}`} aria-hidden="true" /> Live · {live.layer}
         </span>
 
         <div className="header-actions">
@@ -335,25 +338,35 @@ export function EndpointDetail(props: {
       <WarningBand warnings={warnings} onDismiss={() => setWarnings([])} />
       <div className="detail-columns">
         <div className="detail-responses">
-          {names.map((name) => (
-            <button
-              key={name}
-              type="button"
-              className={name === selected ? 'response-item is-selected' : 'response-item'}
-              onClick={() => setSelected(name)}
-            >
-              <span
-                className={
-                  name === live.name ? `response-marker layer-${live.layer}` : 'response-marker'
-                }
-                aria-hidden="true"
-              />
-              <span className="response-name">{name}</span>
-              <span className={`chip-status status-${statusClass(draft.responses[name]!.status)}`}>
-                {draft.responses[name]!.status}
-              </span>
-            </button>
-          ))}
+          {names.map((name) => {
+            const isLive = name === live.name
+            return (
+              <button
+                key={name}
+                type="button"
+                className={name === selected ? 'response-item is-selected' : 'response-item'}
+                aria-current={isLive ? 'true' : undefined}
+                aria-label={isLive ? `${name}, live via ${live.layer}` : name}
+                onClick={() => setSelected(name)}
+              >
+                <span
+                  className={
+                    isLive ? `response-marker is-live layer-${live.layer}` : 'response-marker'
+                  }
+                  aria-hidden="true"
+                />
+                <span className="response-name">{name}</span>
+                {isLive ? (
+                  <span className={`response-live layer-${live.layer}`}>Live · {live.layer}</span>
+                ) : null}
+                <span
+                  className={`chip-status status-${statusClass(draft.responses[name]!.status)}`}
+                >
+                  {draft.responses[name]!.status}
+                </span>
+              </button>
+            )
+          })}
 
           <button
             type="button"
@@ -420,7 +433,8 @@ export function EndpointDetail(props: {
                 // already has instead of a greyed-out button that still
                 // looks (uselessly) clickable.
                 <span className={`live-pill layer-${live.layer}`}>
-                  <span className="live-dot" aria-hidden="true" /> Serving
+                  <span className={`live-dot layer-${live.layer}`} aria-hidden="true" /> Live ·{' '}
+                  {live.layer}
                 </span>
               ) : !onDisk ? (
                 // Serving is an override in state.json, and the server only
