@@ -1,5 +1,6 @@
 import type { LaqiState, MockResponse, Scenarios } from '@laqi/schema'
 import type { LoadedEndpoint } from './loader'
+import { undeclaredResponseMessage } from './undeclared-response'
 
 /** The only four layer words. The panel maps each one to a color. */
 export type Layer = 'header' | 'state' | 'scenario' | 'default'
@@ -27,7 +28,11 @@ export function resolveResponse(input: {
       ok: false,
       name,
       layer,
-      message: `response ${JSON.stringify(name)} is not declared on ${endpoint.id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+      message: undeclaredResponseMessage({
+        name,
+        id: endpoint.id,
+        declared: Object.keys(endpoint.responses),
+      }),
     }
   }
 

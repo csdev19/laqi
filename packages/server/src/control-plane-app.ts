@@ -1,4 +1,9 @@
-import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
+import {
+  undeclaredResponseMessage,
+  type LaqiEvent,
+  type LoadedEndpoint,
+  type LoadError,
+} from '@laqi/core'
 import {
   EndpointSchema,
   isHttpMethod,
@@ -372,7 +377,11 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
         return c.json(
           {
             error: 'laqi-control-plane',
-            message: `${JSON.stringify(response)} is not declared on ${id}. Available: ${Object.keys(endpoint.responses).join(', ')}`,
+            message: undeclaredResponseMessage({
+              name: response,
+              id,
+              declared: Object.keys(endpoint.responses),
+            }),
           },
           400,
         )
