@@ -37,8 +37,15 @@ const log = [
 <section class="hero" id="intro">
   <div class="copy">
     <span class="ghost ghost-a" aria-hidden="true">500</span>
-    <p class="eyebrow">laqi · contract-first API mocks</p>
-    <p class="chip-line">local by default · no account · JSON in your repo</p>
+    <div class="intro">
+      <span class="brand-tile" aria-hidden="true">
+        <img src="/icon.svg" alt="" width="26" height="35" />
+      </span>
+      <div>
+        <p class="eyebrow">laqi · contract-first API mocks</p>
+        <p class="chip-line">local by default · no account · JSON in your repo</p>
+      </div>
+    </div>
 
     <h1>
       Build the frontend.<br />
@@ -201,8 +208,29 @@ const log = [
     isolation: isolate;
   }
 
+  .intro {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  /* 64px, the brand tile's larger of the two sizes. It is the one place on
+     the page the mark appears at display scale, so it carries the violet
+     cast the rest of the hero only hints at. */
+  .brand-tile {
+    display: grid;
+    width: 4rem;
+    height: 4rem;
+    flex: none;
+    place-items: center;
+    border-radius: 14px;
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
+  }
+
   .eyebrow {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.6rem;
     font-family: var(--mono);
     font-size: 0.75rem;
     letter-spacing: 0.16em;
@@ -212,7 +240,7 @@ const log = [
 
   .chip-line {
     display: inline-block;
-    margin: 0 0 1.75rem;
+    margin: 0;
     padding: 0.25rem 0.7rem;
     border: 1px solid var(--bd2);
     border-radius: 999px;
@@ -221,18 +249,26 @@ const log = [
     color: var(--dim);
   }
 
+  /* Two voices, and they are not the same size. The statement is set large
+     and tight; the reply answering it is roughly half that, light, and
+     italic. Until now the reply inherited the statement's size, so the pair
+     read as one long headline that happened to change colour halfway. */
   h1 {
-    margin: 0 0 1.5rem;
+    margin: 0 0 1.75rem;
     font-family: var(--serif);
-    font-size: clamp(2.75rem, 6vw, 4.5rem);
-    line-height: 1.05;
-    letter-spacing: -0.015em;
+    font-size: clamp(3.5rem, 7.6vw, 6.5rem);
+    line-height: 0.94;
+    letter-spacing: -0.045em;
     color: var(--fg);
   }
 
   h1 em {
+    display: block;
+    margin-top: 0.4em;
+    font-size: clamp(2.125rem, 4.4vw, 3.5rem);
     font-style: italic;
     font-weight: 300;
+    line-height: 1.02;
     letter-spacing: -0.02em;
     color: var(--viotx);
   }

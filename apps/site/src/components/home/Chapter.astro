@@ -135,15 +135,19 @@ const hasNote = Astro.slots.has('note')
   h2 {
     margin: 0 0 1.25rem;
     font-family: var(--serif);
-    font-size: clamp(2rem, 4vw, 3rem);
-    line-height: 1.1;
-    letter-spacing: -0.015em;
+    font-size: clamp(2.625rem, 5.2vw, 4.25rem);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
     color: var(--fg);
   }
 
   h2 em {
+    display: block;
+    margin-top: 0.35em;
+    font-size: clamp(1.625rem, 3vw, 2.375rem);
     font-style: italic;
     font-weight: 300;
+    line-height: 1.1;
     letter-spacing: -0.015em;
     color: var(--viotx);
   }
