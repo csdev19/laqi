@@ -25,6 +25,28 @@
   --palev: #c9a6ff;
   --palem: #7fefd8;
 
+  /* Surfaces the site needs and the panel does not have names for. The panel
+     builds its own raised surfaces from --panel/--panel2; these are the
+     marketing site's deeper ones, plus the two the product-window mockups
+     use so a drawn window reads darker than the page it sits on. */
+  --card: #151320;
+  --card2: #1c1929;
+  --win: #0d0b13;
+  --winbar: #100e17;
+
+  /* Translucent surfaces. Literal rgba rather than a color-mix of --panel,
+     because what sits behind them is the page's glow and dot grid and the
+     blend has to be predictable, not derived from a token that may move. */
+  --glass: rgb(18 16 25 / 0.74);
+  --glass2: rgb(21 19 32 / 0.95);
+
+  /* The marketing background texture. */
+  --dot: rgb(234 231 242 / 0.05);
+
+  /* TypeScript's own blue, for the TS badge and nothing else. It is a
+     third-party brand colour: it belongs to no layer and carries no state. */
+  --ts-badge: #3178c6;
+
   --serif: 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
