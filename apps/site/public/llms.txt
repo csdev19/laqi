@@ -35,11 +35,12 @@ on the port it serves (default 8000). Fastest path:
 ## For AI agents
 
 - [Using laqi with AI agents](https://laqi.dev/docs/ai-agents/): `laqi mcp`
-  runs a Model Context Protocol server over stdio with eleven typed
+  runs a Model Context Protocol server over stdio with fifteen typed
   tools — `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
-  `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
-  `import_openapi`, `get_types`, `generate_data`. Prefer a tool call over
-  hand-writing a mock file.
+  `reset_state`, `create_endpoint`, `scaffold_responses`,
+  `update_endpoint`, `delete_endpoint`, `import_openapi`, `get_types`,
+  `generate_data`, `regenerate_response`, `apply_generated_body`,
+  `refresh_schema`. Prefer a tool call over hand-writing a mock file.
 
 ## More
 
