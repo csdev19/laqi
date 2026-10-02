@@ -12,8 +12,7 @@
  * scenario layer, magenta is "I changed this", and mint is a healthy GET.
  */
 export const CHAPTERS = [
-  { id: 'intro', label: 'Intro', number: null, tint: null },
-  { id: 'moments', label: 'Moments', number: null, tint: 'viol' },
+  { id: 'intro', label: 'Top', number: null, tint: null },
   { id: 'why', label: 'Why it works', number: null, tint: 'mint' },
   { id: 'contract', label: 'Contract', number: '01', tint: 'vio' },
   { id: 'flip', label: 'Flip', number: '02', tint: 'mag' },
@@ -26,7 +25,7 @@ export const CHAPTERS = [
 export type Chapter = (typeof CHAPTERS)[number]
 export type ChapterId = Chapter['id']
 
-/** The four numbered moments only — what the overview section lists as chips. */
+/** The four numbered chapters only — what the "why" section lists as chips. */
 export const MOMENTS = CHAPTERS.filter(
   (c): c is Extract<Chapter, { number: string }> => c.number !== null,
 )

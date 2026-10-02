@@ -8,7 +8,6 @@
 import '../styles/global.css'
 import TopNav from '../components/home/TopNav.astro'
 import Hero from '../components/home/Hero.astro'
-import Moments from '../components/home/Moments.astro'
 import Why from '../components/home/Why.astro'
 import Chapter from '../components/home/Chapter.astro'
 import Window from '../components/home/Window.astro'
@@ -54,7 +53,6 @@ const description =
 
     <main>
       <Hero />
-      <Moments />
       <Why />
 
       <Chapter
@@ -69,10 +67,10 @@ const description =
       >
         <span slot="glyph">{'{}'}</span>
         <p slot="body">
-          Each route is a key, each state it can be in is a named response. The
-          file is the contract: reviewed in a pull request, versioned in git,
-          served by laqi the moment it is saved. When the real backend ships,
-          you change one base URL.
+          Routes are defined once. Each named response is a state that matters
+          — the empty list, the 401, the one that takes two seconds. The file
+          lives in git, so the contract is reviewed in a pull request like any
+          other code, and laqi serves it the moment it is saved.
         </p>
         <Window label="laqi/api.json" meta="saved 2s ago">
           <pre><code>{`{

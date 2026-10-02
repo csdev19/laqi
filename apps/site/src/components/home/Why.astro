@@ -11,7 +11,20 @@
 // (examples/todo-app reaches laqi through a dev-server proxy, so the switch
 // is one environment variable). The sprint numbers are laqi's own origin,
 // which is why the prose beside the heading says "was born on" rather than
-// promising a reader the same.
+// promising a reader the same. The prose says "born on", not "gets you".
+//
+// The closing chips reuse the chapters' own ids, numbers and tints so they
+// cannot drift from the sections they point at, and phrase them as what the
+// frontend track actually gets rather than as feature names.
+import { MOMENTS } from '../../lib/chapters'
+
+const GETS: Record<string, string> = {
+  contract: 'a contract',
+  flip: 'every state',
+  watch: 'the reason why',
+  share: 'a real device',
+}
+
 const steps = [
   {
     kicker: 'sprint 0',
@@ -41,12 +54,13 @@ const steps = [
       <h2>The team was ready. The API wasn't.</h2>
       <p class="sub"><em>Agree on the contract. Build everything else in parallel.</em></p>
     </div>
-    <p class="intro">
-      Define the API contract once. laqi serves it immediately while the backend
-      builds the real implementation. It was born on a frontend team running two
-      to three sprints ahead of its backend — and when the real endpoints
-      landed, the app was already speaking their shape.
-    </p>
+    <div>
+      <p class="intro">
+        Define the API contract once. laqi serves it immediately while the
+        backend builds the real implementation.
+      </p>
+      <p class="origin">born on a frontend team running 2–3 sprints ahead of its backend</p>
+    </div>
   </header>
 
   <div class="panel panel-before">
@@ -67,12 +81,12 @@ const steps = [
         <span class="line"></span>
         <span class="cross">×</span>
         <span class="line"></span>
-        <span class="blocked-label">waiting for API</span>
+        <span class="blocked-label">waiting for APIs</span>
       </div>
 
       <div class="box">
         <p class="box-label">backend</p>
-        <p class="box-title">In development</p>
+        <p class="box-title">Still in development</p>
         <p class="box-meta meta-mag">sprint 3 of 5</p>
       </div>
     </div>
@@ -156,10 +170,23 @@ const steps = [
     }
   </ol>
 
-  <blockquote class="pull">
-    The real gain was never the mock server. It was removing a dependency from
-    delivery — <em>sometimes the fastest team is simply the one that no longer waits.</em>
-  </blockquote>
+  <div class="coda">
+    <blockquote class="pull">
+      The real gain was never the mock server.<br />
+      <em>It was removing a dependency from delivery.</em>
+    </blockquote>
+    <p class="gets">
+      <span class="gets-label">what the frontend track gets</span>
+      {
+        MOMENTS.map((moment) => (
+          <a href={`#${moment.id}`} class="get">
+            <span class="get-n" style={`background: var(--${moment.tint})`}>{moment.number}</span>
+            {GETS[moment.id]}
+          </a>
+        ))
+      }
+    </p>
+  </div>
 </section>
 
 <style>
@@ -681,17 +708,86 @@ const steps = [
 
   /* ---- pull quote ---- */
 
+  .coda {
+    margin-top: 5rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--line);
+  }
+
   .pull {
-    max-width: 44rem;
-    margin: 5rem 0 0;
+    max-width: 48rem;
+    margin: 0 0 2rem;
     padding: 0;
     font-family: var(--serif);
-    font-size: clamp(1.4rem, 2.8vw, 2.1rem);
-    line-height: 1.35;
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
     color: var(--fg);
   }
 
   .pull em {
     color: var(--viol);
+  }
+
+  .gets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  .gets-label {
+    margin-right: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .get {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .get:hover {
+    border-color: var(--viol);
+  }
+
+  .get-n {
+    display: grid;
+    width: 1.4rem;
+    height: 1.4rem;
+    place-items: center;
+    border-radius: 7px;
+    color: #0b0a0f;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+  }
+
+  .origin {
+    margin: 0.9rem 0 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--dim2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .get {
+      transition: none;
+    }
   }
 </style>

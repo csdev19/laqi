@@ -1,10 +1,10 @@
 ---
 // apps/site/src/components/home/Hero.astro
 //
-// The eyebrow carries the category — "local mock server" — because the
-// headline carries the differentiator and the two are not interchangeable:
-// a visitor searching for this product types "mock server", and the previous
-// hero never used the word.
+// The eyebrow carries the category — "contract-first API mocks" — because the
+// headline carries the differentiator and the two are not interchangeable: a
+// visitor searching for this product types "mock", and the hero this replaced
+// never used the word at all.
 //
 // "no code change" is not among the hero's chips on purpose: pointing an app
 // at laqi means setting one base URL, which the third chip says plainly. The
@@ -39,25 +39,23 @@ const log = [
   <span class="ghost ghost-b" aria-hidden="true">X-Laqi-Resolved</span>
 
   <div class="copy">
-    <p class="eyebrow">laqi · local mock server</p>
-    <p class="chip-line">127.0.0.1 · no account · JSON in your repo</p>
+    <p class="eyebrow">laqi · contract-first API mocks</p>
+    <p class="chip-line">local by default · no account · JSON in your repo</p>
 
     <h1>
       Build the frontend.<br />
-      <em>The backend can wait.</em>
+      <em>Before the backend is ready.</em>
     </h1>
 
-    <p class="lede">
-      laqi answers your app's requests from plain JSON files in your repo.
-      Agree the API contract, build against it today, and flip any endpoint
-      into any state — empty, 401, 500, three seconds slow — in one click.
-    </p>
-
-    <p class="badges">
-      <span>no restart</span>
-      <span>one base URL</span>
-      <span>no cloud by default</span>
-    </p>
+    <ol class="steps">
+      <li><span class="n">01</span>Agree on the API contract.</li>
+      <li><span class="n">02</span>laqi serves it immediately.</li>
+      <li>
+        <span class="n">03</span>Build against realistic responses —
+        <span class="states">success, empty, slow, 401, 500</span>.
+      </li>
+      <li><span class="n">04</span>Switch to the real backend by changing one base URL.</li>
+    </ol>
 
     <div class="cta-row">
       <button type="button" class="btn-install" data-copy="npm i -g laqi">
@@ -65,7 +63,7 @@ const log = [
         <code>npm i -g laqi</code>
         <span class="copied" aria-hidden="true">copied</span>
       </button>
-      <a href="#moments" class="btn-secondary">See how it works</a>
+      <a href="#why" class="btn-secondary">See how it works</a>
     </div>
 
     <p class="meta">MIT · Node 20+ · <a href="https://github.com/csdev19/laqi">source on GitHub</a></p>
@@ -80,9 +78,8 @@ const log = [
       <div class="window-head">
         <img src="/icon.svg" alt="" width="11" height="15" />
         <span class="wordmark">laqi</span>
-        <span class="count">7 endpoints</span>
-        <span class="host">127.0.0.1:8000</span>
-        <span class="overridden">2 overridden</span>
+        <span class="host">serving laqi/api.json</span>
+        <span class="overridden">2 states set</span>
       </div>
       {
         rows.map((row) => (
@@ -216,27 +213,41 @@ const log = [
     color: var(--viol);
   }
 
-  .lede {
-    max-width: 34rem;
-    margin: 0 0 1.75rem;
-    color: var(--dim);
+  /* The four steps replace a paragraph and a row of badges. A paragraph asks
+     to be read; a numbered list with a rule under each row can be scanned in
+     the order the product actually happens, which is the claim being made. */
+  .steps {
+    max-width: 36rem;
+    margin: 0 0 2.25rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    align-items: baseline;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+    font-family: var(--serif);
     font-size: 1.0625rem;
-    line-height: 1.65;
+    line-height: 1.5;
+    color: var(--fg);
   }
 
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin: 0 0 2rem;
+  .steps li:first-child {
+    border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   }
 
-  .badges span {
-    padding: 0.35rem 0.8rem;
-    border: 1px solid var(--line2);
-    border-radius: 999px;
+  .steps .n {
     font-family: var(--mono);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  /* The states are the part a reader is meant to recognise, so they are set
+     apart from the sentence carrying them rather than emphasised inside it. */
+  .steps .states {
     color: var(--dim);
   }
 

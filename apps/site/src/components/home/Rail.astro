@@ -12,7 +12,7 @@ import { CHAPTERS, TOTAL } from '../../lib/chapters'
 ---
 
 <nav class="rail" aria-label="Sections">
-  <span class="bound" aria-hidden="true">01</span>
+  <span class="bound" id="rail-index" aria-hidden="true">01</span>
   {
     CHAPTERS.map((chapter) => (
       <button
@@ -59,11 +59,18 @@ import { CHAPTERS, TOTAL } from '../../lib/chapters'
         const section = id ? document.getElementById(id) : null
         if (section && section.getBoundingClientRect().top <= midpoint) active = dot
       }
-      for (const dot of dots) {
+      const readout = document.getElementById('rail-index')
+      for (const [i, dot] of dots.entries()) {
         const isActive = dot === active
         dot.classList.toggle('is-active', isActive)
-        if (isActive) dot.setAttribute('aria-current', 'true')
-        else dot.removeAttribute('aria-current')
+        if (isActive) {
+          dot.setAttribute('aria-current', 'true')
+          // The upper number is where you are, the lower one is how far the
+          // page goes — a position readout, not a decorative pair of labels.
+          if (readout) readout.textContent = String(i + 1).padStart(2, '0')
+        } else {
+          dot.removeAttribute('aria-current')
+        }
       }
     }
     const onScroll = () => {
