@@ -207,14 +207,14 @@ const log = [
     font-size: 0.75rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--viol);
+    color: var(--viotx);
   }
 
   .chip-line {
     display: inline-block;
     margin: 0 0 1.75rem;
     padding: 0.25rem 0.7rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 999px;
     font-family: var(--mono);
     font-size: 0.75rem;
@@ -234,7 +234,7 @@ const log = [
     font-style: italic;
     font-weight: 300;
     letter-spacing: -0.02em;
-    color: var(--viol);
+    color: var(--viotx);
   }
 
   /* The four steps replace a paragraph and a row of badges. A paragraph asks
@@ -252,7 +252,7 @@ const log = [
     grid-template-columns: 2.25rem minmax(0, 1fr);
     align-items: baseline;
     padding: 0.7rem 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--bd) 85%, transparent);
     font-family: var(--serif);
     font-size: 1.0625rem;
     line-height: 1.45;
@@ -260,13 +260,13 @@ const log = [
   }
 
   .steps li:first-child {
-    border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--bd) 85%, transparent);
   }
 
   .steps .n {
     font-family: var(--mono);
     font-size: 0.6875rem;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   /* The states are the part a reader is meant to recognise. Inline in the
@@ -282,7 +282,7 @@ const log = [
 
   .steps .states span {
     padding: 0.1rem 0.45rem;
-    border: 1px solid color-mix(in srgb, var(--line2) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--bd2) 80%, transparent);
     border-radius: 5px;
     background: color-mix(in srgb, var(--fg) 4%, transparent);
     font-family: var(--mono);
@@ -337,7 +337,7 @@ const log = [
 
   .btn-secondary {
     padding: 0.85rem 1.4rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 999px;
     color: var(--fg);
     text-decoration: none;
@@ -353,7 +353,7 @@ const log = [
     margin: 0;
     font-family: var(--mono);
     font-size: 0.75rem;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .meta a {
@@ -375,7 +375,7 @@ const log = [
   }
 
   .window {
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 10px;
     background: var(--panel);
     overflow: hidden;
@@ -387,7 +387,7 @@ const log = [
     align-items: center;
     gap: 0.4rem;
     padding: 0.6rem 0.85rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--bd);
     background: var(--panel2);
   }
 
@@ -395,7 +395,7 @@ const log = [
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 999px;
-    background: var(--line2);
+    background: var(--bd2);
   }
 
   .chrome .address {
@@ -410,7 +410,7 @@ const log = [
     align-items: center;
     gap: 0.6rem;
     padding: 0.7rem 0.9rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--bd);
     font-family: var(--mono);
     font-size: 0.6875rem;
     color: var(--dim2);
@@ -440,7 +440,7 @@ const log = [
     align-items: center;
     gap: 0.6rem;
     padding: 0.55rem 0.9rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--bd) 70%, transparent);
     font-family: var(--mono);
     font-size: 0.6875rem;
   }
@@ -459,7 +459,7 @@ const log = [
     border: 1px solid transparent;
     border-radius: 999px;
     background: color-mix(in srgb, var(--fg) 5%, transparent);
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   /* Magenta is the panel's own colour for "I changed this" — the state
@@ -480,7 +480,7 @@ const log = [
     left: -2.5rem;
     bottom: -2.25rem;
     padding: 0.7rem 0.9rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 10px;
     background: var(--glass2);
     backdrop-filter: blur(8px);

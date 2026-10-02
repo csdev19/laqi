@@ -52,27 +52,27 @@ const { src, poster, label, chrome, brief } = Astro.props as Demo
 <style>
   .demo {
     margin: 0;
-    border: 1px solid var(--line);
+    border: 1px solid var(--bd);
     border-radius: 8px;
     overflow: hidden;
     background: var(--panel);
   }
   .demo.pending {
     border-style: dashed;
-    border-color: var(--line2);
+    border-color: var(--bd2);
   }
   .chrome {
     display: flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0.6rem 0.9rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--bd);
   }
   .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--line2);
+    background: var(--bd2);
   }
   .address {
     margin-left: 0.75rem;
@@ -90,7 +90,7 @@ const { src, poster, label, chrome, brief } = Astro.props as Demo
   }
   figcaption {
     padding: 0.75rem 0.9rem;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--bd);
     font-family: var(--mono);
     font-size: 0.8rem;
     color: var(--dim);

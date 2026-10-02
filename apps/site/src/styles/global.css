@@ -51,8 +51,8 @@ p {
   --sl-color-text: var(--fg);
   --sl-color-text-accent: var(--viol);
   --sl-color-accent: var(--vio);
-  --sl-color-hairline: var(--line);
-  --sl-color-hairline-light: var(--line2);
+  --sl-color-hairline: var(--bd);
+  --sl-color-hairline-light: var(--bd2);
   --sl-font: var(--mono);
   --sl-font-mono: var(--mono);
 }
@@ -115,8 +115,8 @@ body.textured {
   --sl-color-text: var(--fg);
   --sl-color-text-accent: var(--viol);
   --sl-color-accent: var(--vio);
-  --sl-color-hairline: var(--line);
-  --sl-color-hairline-light: var(--line2);
+  --sl-color-hairline: var(--bd);
+  --sl-color-hairline-light: var(--bd2);
   --sl-font: var(--mono);
   --sl-font-mono: var(--mono);
 }
@@ -156,7 +156,7 @@ body {
 }
 .sl-markdown-content th,
 .sl-markdown-content td {
-  border: 1px solid var(--line);
+  border: 1px solid var(--bd);
   padding: 0.6rem 1rem;
   text-align: left;
   font-family: var(--mono);
@@ -174,5 +174,5 @@ body {
    consistently between the docs and the product. */
 .sl-markdown-content pre {
   background: var(--panel) !important;
-  border: 1px solid var(--line);
+  border: 1px solid var(--bd);
 }

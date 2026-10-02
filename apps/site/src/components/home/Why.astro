@@ -250,7 +250,7 @@ const steps = [
     font-size: 0.75rem;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   h2 {
@@ -267,7 +267,7 @@ const steps = [
     font-family: var(--serif);
     font-size: clamp(1.25rem, 2.4vw, 1.9rem);
     line-height: 1.2;
-    color: var(--viol);
+    color: var(--viotx);
   }
 
   .sub em,
@@ -287,7 +287,7 @@ const steps = [
 
   .panel {
     padding: 1.5rem;
-    border: 1px solid var(--line);
+    border: 1px solid var(--bd);
     border-radius: 14px;
     background: color-mix(in srgb, var(--panel) 55%, transparent);
   }
@@ -319,7 +319,7 @@ const steps = [
   }
 
   .panel-head .aside {
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .tag {
@@ -351,7 +351,7 @@ const steps = [
     align-items: center;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 10px;
     background: var(--panel);
   }
@@ -362,11 +362,11 @@ const steps = [
     font-size: 0.625rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .label-vio {
-    color: var(--viol);
+    color: var(--viotx);
   }
   .label-mag {
     color: var(--magl);
@@ -383,7 +383,7 @@ const steps = [
     margin: 0;
     font-family: var(--mono);
     font-size: 0.75rem;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .meta-mag {
@@ -411,7 +411,7 @@ const steps = [
 
   .blocked .line {
     flex: 1;
-    border-top: 1px dashed var(--line2);
+    border-top: 1px dashed var(--bd2);
   }
 
   .cross {
@@ -433,7 +433,7 @@ const steps = [
     translate: -50% 0;
     font-family: var(--mono);
     font-size: 0.6875rem;
-    color: var(--dim2);
+    color: var(--faint);
     white-space: nowrap;
   }
 
@@ -470,7 +470,7 @@ const steps = [
       border: 0;
       background: repeating-linear-gradient(
         to bottom,
-        var(--line2) 0 3px,
+        var(--bd2) 0 3px,
         transparent 3px 6px
       );
     }
@@ -556,7 +556,7 @@ const steps = [
   .contract-label {
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--viol);
+    color: var(--viotx);
   }
 
   .contract-file {
@@ -607,7 +607,7 @@ const steps = [
     font-family: var(--mono);
     font-size: 0.6875rem;
     text-align: center;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .map .contract {
@@ -635,19 +635,19 @@ const steps = [
     font-size: 0.6875rem;
     line-height: 1.6;
     white-space: nowrap;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .wire {
     width: 1px;
     height: 100%;
-    background: var(--line2);
+    background: var(--bd2);
   }
 
   .wire-dashed {
     background: repeating-linear-gradient(
       to bottom,
-      var(--line2) 0 3px,
+      var(--bd2) 0 3px,
       transparent 3px 6px
     );
   }
@@ -664,7 +664,7 @@ const steps = [
     translate: -50% 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid var(--line2);
+    border-top: 5px solid var(--bd2);
   }
 
   .card {
@@ -672,7 +672,7 @@ const steps = [
     align-items: center;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 10px;
     background: var(--panel);
   }
@@ -745,7 +745,7 @@ const steps = [
 
   .switch-right {
     left: calc(50% + 1rem);
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   /* ---- the elbows ----
@@ -771,7 +771,7 @@ const steps = [
     font-style: normal;
     line-height: 1.6;
     white-space: nowrap;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   /* frontend ↑ then → into the contract's left edge */
@@ -780,8 +780,8 @@ const steps = [
     height: var(--up);
     left: calc(var(--col) / 2);
     right: calc(100% - var(--mid-left));
-    border-top: 1px solid var(--line2);
-    border-left: 1px solid var(--line2);
+    border-top: 1px solid var(--bd2);
+    border-left: 1px solid var(--bd2);
     border-top-left-radius: 6px;
   }
 
@@ -792,7 +792,7 @@ const steps = [
     right: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-left: 5px solid var(--line2);
+    border-left: 5px solid var(--bd2);
   }
 
   .elbow-fl i {
@@ -806,8 +806,8 @@ const steps = [
     height: var(--up);
     right: calc(var(--col) / 2);
     left: var(--mid-right);
-    border-top: 1px solid var(--line2);
-    border-right: 1px solid var(--line2);
+    border-top: 1px solid var(--bd2);
+    border-right: 1px solid var(--bd2);
     border-top-right-radius: 6px;
   }
 
@@ -818,7 +818,7 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--line2);
+    border-right: 5px solid var(--bd2);
   }
 
   .elbow-br i {
@@ -832,8 +832,8 @@ const steps = [
     height: var(--down);
     right: calc(var(--col) / 2);
     left: var(--mid-right);
-    border-bottom: 1px solid var(--line2);
-    border-right: 1px solid var(--line2);
+    border-bottom: 1px solid var(--bd2);
+    border-right: 1px solid var(--bd2);
     border-bottom-right-radius: 6px;
   }
 
@@ -844,7 +844,7 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--line2);
+    border-right: 5px solid var(--bd2);
   }
 
   .elbow-done i {
@@ -863,7 +863,7 @@ const steps = [
     width: var(--map-gap);
     height: 1px;
     translate: 0 -50%;
-    background: var(--line2);
+    background: var(--bd2);
     pointer-events: none;
   }
 
@@ -874,7 +874,7 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--line2);
+    border-right: 5px solid var(--bd2);
   }
 
   .serves i {
@@ -886,7 +886,7 @@ const steps = [
     font-size: 0.6875rem;
     font-style: normal;
     white-space: nowrap;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   /* One column: the diamond becomes a list, and every elbow goes with it —
@@ -933,7 +933,7 @@ const steps = [
 
   .steps li {
     padding-top: 1.25rem;
-    border-top: 1px solid var(--line2);
+    border-top: 1px solid var(--bd2);
   }
 
   .step-kicker {
@@ -961,7 +961,7 @@ const steps = [
   .coda {
     margin-top: 5rem;
     padding-top: 3rem;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--bd);
   }
 
   .pull {
@@ -976,7 +976,7 @@ const steps = [
   }
 
   .pull em {
-    color: var(--viol);
+    color: var(--viotx);
   }
 
   .gets {
@@ -993,7 +993,7 @@ const steps = [
     font-size: 0.6875rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   .get {
@@ -1001,7 +1001,7 @@ const steps = [
     align-items: center;
     gap: 0.55rem;
     padding: 0.35rem 0.9rem 0.35rem 0.35rem;
-    border: 1px solid var(--line2);
+    border: 1px solid var(--bd2);
     border-radius: 999px;
     background: var(--panel);
     color: var(--fg);
@@ -1032,7 +1032,7 @@ const steps = [
     font-family: var(--mono);
     font-size: 0.75rem;
     line-height: 1.6;
-    color: var(--dim2);
+    color: var(--faint);
   }
 
   @media (prefers-reduced-motion: reduce) {
