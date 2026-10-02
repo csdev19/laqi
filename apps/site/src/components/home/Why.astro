@@ -999,18 +999,38 @@ const steps = [
     border-top: 1px solid var(--bd);
   }
 
+  /* The two editorial takeaways — the one closing the diagram and the one
+     closing the section — are the same voice at the same scale: a statement
+     in roman 600 answered by a reply in italic 300. .closing lost its rule
+     when the after panel was rewritten and had been rendering as a bare
+     paragraph at body size ever since. */
+  .closing,
   .pull {
-    max-width: 48rem;
-    margin: 0 0 2rem;
-    padding: 0;
     font-family: var(--serif);
+    font-weight: 600;
     font-size: clamp(1.875rem, 3.6vw, 2.875rem);
     line-height: 1.12;
     letter-spacing: -0.03em;
     color: var(--fg);
   }
 
+  .closing {
+    max-width: 58rem;
+    margin: 2.5rem auto 0;
+    text-align: center;
+  }
+
+  .pull {
+    /* Wide enough for each sentence to hold one line. At 48rem both broke
+       mid-phrase with a third of the section empty beside them. */
+    max-width: 62rem;
+    margin: 0 0 2rem;
+    padding: 0;
+  }
+
+  .closing em,
   .pull em {
+    font-weight: 300;
     color: var(--viotx);
   }
 
