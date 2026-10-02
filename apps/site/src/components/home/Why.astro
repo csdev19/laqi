@@ -1,55 +1,188 @@
 ---
 // apps/site/src/components/home/Why.astro
 //
-// The origin story, in the first person. It is the one place on the site that
-// may talk about a team moving ahead of its backend, because it is laqi's own
-// history rather than a claim about what a reader's team will get: laqi has
-// no customers to measure and no study to cite. "was born on" is doing real
-// work in that sentence — do not rewrite it into a promise.
+// The argument section: why removing the dependency is the point, drawn as a
+// before/after rather than asserted.
+//
+// A note on what the diagram is allowed to be. It EXPLAINS the mechanism; it
+// does not PROVE an outcome, and laqi has no customer evidence to prove one
+// with. Everything structural in it is checkable against the repository —
+// one JSON contract, laqi serving it, the switch being a base URL
+// (examples/todo-app reaches laqi through a dev-server proxy, so the switch
+// is one environment variable). The sprint numbers are laqi's own origin,
+// which is why the prose beside the heading says "was born on" rather than
+// promising a reader the same.
+const steps = [
+  {
+    kicker: 'sprint 0',
+    tint: 'viol',
+    title: 'Agree the contract',
+    body: 'Frontend and backend write the routes and their states into one JSON file, together.',
+  },
+  {
+    kicker: 'sprints 1–3',
+    tint: 'mint',
+    title: 'Build in parallel',
+    body: 'Frontend ships features against laqi, including the error and empty states. Backend implements the same contract.',
+  },
+  {
+    kicker: 'integration',
+    tint: 'magl',
+    title: "Switch, don't rebuild",
+    body: 'Point the app at the real API. What breaks is a contract mismatch, and a mismatch is a small, findable thing.',
+  },
+]
 ---
 
 <section class="why" id="why">
-  <div class="left">
-    <p class="eyebrow">why it works</p>
-    <h2>The team was ready.<br /><em>The endpoints were not.</em></h2>
+  <header class="head">
+    <div>
+      <p class="eyebrow">why it works</p>
+      <h2>The team was ready. The API wasn't.</h2>
+      <p class="sub"><em>Agree on the contract. Build everything else in parallel.</em></p>
+    </div>
+    <p class="intro">
+      Define the API contract once. laqi serves it immediately while the backend
+      builds the real implementation. It was born on a frontend team running two
+      to three sprints ahead of its backend — and when the real endpoints
+      landed, the app was already speaking their shape.
+    </p>
+  </header>
+
+  <div class="panel panel-before">
+    <p class="panel-head">
+      <span class="tag tag-before">before</span>
+      <strong>Implementation becomes the dependency.</strong>
+      <span class="aside">The frontend can't integrate until the backend exists.</span>
+    </p>
+
+    <div class="before-row">
+      <div class="box">
+        <p class="box-label">frontend</p>
+        <p class="box-title">Ready to build</p>
+        <p class="box-meta">fetch("/todos") → ?</p>
+      </div>
+
+      <div class="blocked" aria-hidden="true">
+        <span class="line"></span>
+        <span class="cross">×</span>
+        <span class="line"></span>
+        <span class="blocked-label">waiting for API</span>
+      </div>
+
+      <div class="box">
+        <p class="box-label">backend</p>
+        <p class="box-title">In development</p>
+        <p class="box-meta meta-mag">sprint 3 of 5</p>
+      </div>
+    </div>
   </div>
-  <div class="right">
-    <p>
-      laqi was born on a frontend team running two to three sprints ahead of
-      its backend. The work was not blocked on design or on decisions — it was
-      blocked on endpoints that did not exist yet, one at a time.
+
+  <div class="panel panel-after">
+    <p class="panel-head">
+      <span class="tag tag-after">after</span>
+      <strong>One contract. Two teams moving at once.</strong>
+      <span class="aside">laqi serves the agreed API today. The backend implements the same contract independently.</span>
     </p>
-    <p>
-      The fix was not to guess. Both sides wrote down what the API would look
-      like, and the frontend built against that agreement instead of against a
-      server. When the real endpoints arrived they answered the shape everyone
-      had already been working from.
-    </p>
-    <p>
-      That is the whole idea, and the reason laqi keeps the contract as plain
-      JSON in your repository rather than in a dashboard somewhere: the thing
-      both teams agreed on should be reviewable in a pull request.
-    </p>
+
+    <div class="contract">
+      <span class="contract-tile" aria-hidden="true">{'{}'}</span>
+      <span>
+        <span class="contract-label">api contract</span>
+        <span class="contract-file">laqi/api.json · agreed once</span>
+      </span>
+    </div>
+
+    <div class="branch" aria-hidden="true"></div>
+
+    <div class="tracks">
+      <div class="track track-now">
+        <div class="box">
+          <p class="box-label">frontend</p>
+          <p class="box-title">Builds today</p>
+          <p class="box-meta meta-mint">2–3 sprints ahead</p>
+        </div>
+        <div class="drop" aria-hidden="true"></div>
+        <div class="box box-laqi">
+          <p class="box-label label-vio">⚡ laqi</p>
+          <p class="box-title">Serves the contract</p>
+          <p class="box-meta">realistic API responses now</p>
+        </div>
+        <p class="verdict verdict-now">build now</p>
+      </div>
+
+      <div class="track">
+        <div class="box">
+          <p class="box-label">backend</p>
+          <p class="box-title">Builds the real thing</p>
+          <p class="box-meta">implements the same contract</p>
+        </div>
+        <div class="drop" aria-hidden="true"></div>
+        <div class="box">
+          <p class="box-label label-mag">real API</p>
+          <p class="box-title">In progress</p>
+          <p class="box-meta">sprint 3 of 5 → ready</p>
+        </div>
+        <p class="verdict">build in parallel</p>
+      </div>
+    </div>
+
+    <div class="merge" aria-hidden="true"></div>
+
+    <div class="handoff">
+      <p class="handoff-label">when the backend is ready</p>
+      <div class="handoff-row">
+        <span class="handoff-end">Frontend</span>
+        <span class="handoff-arrow">
+          <span class="over">same contract</span>
+          <span class="under">change base URL</span>
+        </span>
+        <span class="handoff-end">Real backend</span>
+      </div>
+    </div>
+
+    <p class="closing">No integration rewrite. <em>Just point to the real API.</em></p>
   </div>
+
+  <ol class="steps">
+    {
+      steps.map((step) => (
+        <li>
+          <p class="step-kicker" style={`color: var(--${step.tint})`}>{step.kicker}</p>
+          <p class="step-title">{step.title}</p>
+          <p class="step-body">{step.body}</p>
+        </li>
+      ))
+    }
+  </ol>
+
+  <blockquote class="pull">
+    The real gain was never the mock server. It was removing a dependency from
+    delivery — <em>sometimes the fastest team is simply the one that no longer waits.</em>
+  </blockquote>
 </section>
 
 <style>
   .why {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 4rem;
-    max-width: 82rem;
+    max-width: 76rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--panel) 40%, transparent);
   }
 
-  @media (max-width: 68rem) {
-    .why {
+  /* ---- header ---- */
+
+  .head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 3rem;
+    margin-bottom: 3.5rem;
+  }
+
+  @media (max-width: 64rem) {
+    .head {
       grid-template-columns: minmax(0, 1fr);
-      gap: 2rem;
+      gap: 1.5rem;
     }
   }
 
@@ -63,27 +196,502 @@
   }
 
   h2 {
-    margin: 0;
+    margin: 0 0 0.5rem;
     font-family: var(--serif);
-    font-size: clamp(2rem, 4vw, 3.25rem);
-    line-height: 1.1;
+    font-size: clamp(2rem, 4.2vw, 3.25rem);
+    line-height: 1.08;
     letter-spacing: -0.015em;
     color: var(--fg);
   }
 
-  h2 em {
-    font-style: italic;
-    font-weight: 400;
+  .sub {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: clamp(1.25rem, 2.4vw, 1.9rem);
+    line-height: 1.2;
     color: var(--viol);
   }
 
-  .right p {
-    margin: 0 0 1.25rem;
+  .sub em,
+  .closing em,
+  .pull em {
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  .intro {
+    margin: 0;
     color: var(--dim);
     line-height: 1.8;
   }
 
-  .right p:last-child {
-    margin-bottom: 0;
+  /* ---- shared panel ---- */
+
+  .panel {
+    padding: 1.5rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--panel) 55%, transparent);
+  }
+
+  .panel-before {
+    margin-bottom: 1.25rem;
+  }
+
+  /* The after panel is the one the reader is meant to want; a violet edge is
+     how the panel marks a thing that is active, so it carries that here. */
+  .panel-after {
+    border-color: color-mix(in srgb, var(--vio) 55%, transparent);
+    background: color-mix(in srgb, var(--vio) 4%, transparent);
+  }
+
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .panel-head strong {
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .panel-head .aside {
+    color: var(--dim2);
+  }
+
+  .tag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .tag-before {
+    border: 1px solid color-mix(in srgb, var(--red) 55%, transparent);
+    color: var(--red);
+  }
+
+  .tag-after {
+    border: 1px solid color-mix(in srgb, var(--mint) 55%, transparent);
+    color: var(--mint);
+  }
+
+  /* ---- boxes ---- */
+
+  .box {
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--line2);
+    border-radius: 10px;
+    background: var(--panel);
+  }
+
+  .box-label {
+    margin: 0 0 0.35rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .label-vio {
+    color: var(--viol);
+  }
+  .label-mag {
+    color: var(--magl);
+  }
+
+  .box-title {
+    margin: 0 0 0.25rem;
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    color: var(--fg);
+  }
+
+  .box-meta {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim2);
+  }
+
+  .meta-mag {
+    color: var(--magl);
+  }
+  .meta-mint {
+    color: var(--mint);
+  }
+
+  /* ---- before row ---- */
+
+  .before-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .blocked {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .blocked .line {
+    flex: 1;
+    border-top: 1px dashed var(--line2);
+  }
+
+  .cross {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--red) 60%, transparent);
+    border-radius: 999px;
+    color: var(--red);
+    font-size: 0.8125rem;
+  }
+
+  .blocked-label {
+    position: absolute;
+    top: calc(50% + 1.1rem);
+    left: 50%;
+    translate: -50% 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 54rem) {
+    .before-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .blocked {
+      justify-content: center;
+      padding: 1.75rem 0;
+    }
+    .blocked .line {
+      display: none;
+    }
+  }
+
+  /* ---- after: contract, branch, tracks ---- */
+
+  .contract {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin: 0 auto;
+    border: 1px solid color-mix(in srgb, var(--vio) 70%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--vio) 10%, transparent);
+  }
+
+  .panel-after > .contract {
+    display: flex;
+    width: fit-content;
+  }
+
+  .contract-tile {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+  }
+
+  .contract-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--viol);
+  }
+
+  .contract-file {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--fg);
+  }
+
+  /* The fork from the contract down into the two tracks. Drawn with borders
+     rather than an SVG so it reflows with the grid instead of being a fixed
+     viewBox that stops lining up the moment the columns change width. */
+  .branch {
+    height: 2.25rem;
+    margin: 0 25%;
+    border-left: 1px dashed var(--line2);
+    border-right: 1px dashed var(--line2);
+    border-bottom: 1px dashed var(--line2);
+    border-radius: 0 0 8px 8px;
+    position: relative;
+  }
+
+  .branch::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 1.1rem;
+    translate: -50% -100%;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--line2) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  .tracks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin-top: -1px;
+  }
+
+  .track {
+    display: grid;
+    gap: 0;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .track-now {
+    border-color: color-mix(in srgb, var(--mint) 45%, transparent);
+    background: color-mix(in srgb, var(--mint) 4%, transparent);
+  }
+
+  .box-laqi {
+    border-color: color-mix(in srgb, var(--vio) 65%, transparent);
+    background: color-mix(in srgb, var(--vio) 8%, transparent);
+  }
+
+  .drop {
+    justify-self: center;
+    width: 1px;
+    height: 1.5rem;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--line2) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  .verdict {
+    justify-self: center;
+    margin: 1rem 0 0;
+    padding: 0.3rem 0.9rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .verdict-now {
+    border-color: color-mix(in srgb, var(--mint) 55%, transparent);
+    color: var(--mint);
+  }
+
+  .merge {
+    height: 1.75rem;
+    margin: 0 25%;
+    border-left: 1px dashed var(--line2);
+    border-right: 1px dashed var(--line2);
+    border-top: 1px dashed var(--line2);
+    border-radius: 8px 8px 0 0;
+    position: relative;
+  }
+
+  .merge::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    height: 1rem;
+    translate: -50% 100%;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--line2) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  @media (max-width: 54rem) {
+    .tracks {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .branch,
+    .merge {
+      margin: 0 auto;
+      width: 1px;
+      border: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--line2) 0 3px,
+        transparent 3px 6px
+      );
+    }
+    .branch::before,
+    .merge::after {
+      display: none;
+    }
+  }
+
+  /* ---- handoff ---- */
+
+  .handoff {
+    margin-top: 1.25rem;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+
+  .handoff-label {
+    margin: 0 0 0.9rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: center;
+    color: var(--dim2);
+  }
+
+  .handoff-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .handoff-end {
+    flex: none;
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    color: var(--fg);
+  }
+
+  .handoff-arrow {
+    position: relative;
+    flex: 1;
+    height: 1px;
+    background: var(--line2);
+  }
+
+  .handoff-arrow::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 0;
+    translate: 0 -50%;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 7px solid var(--line2);
+  }
+
+  .handoff-arrow .over,
+  .handoff-arrow .under {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+
+  .handoff-arrow .over {
+    bottom: 0.4rem;
+    color: var(--mint);
+  }
+
+  .handoff-arrow .under {
+    top: 0.4rem;
+    color: var(--dim2);
+  }
+
+  .closing {
+    margin: 1.75rem 0 0;
+    font-family: var(--serif);
+    font-size: clamp(1.125rem, 2vw, 1.5rem);
+    text-align: center;
+    color: var(--fg);
+  }
+
+  .closing em {
+    color: var(--viol);
+  }
+
+  /* ---- steps ---- */
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 2rem;
+    margin: 4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line2);
+  }
+
+  .step-kicker {
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .step-title {
+    margin: 0 0 0.5rem;
+    font-family: var(--serif);
+    font-size: 1.1875rem;
+    color: var(--fg);
+  }
+
+  .step-body {
+    margin: 0;
+    color: var(--dim);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+
+  /* ---- pull quote ---- */
+
+  .pull {
+    max-width: 44rem;
+    margin: 5rem 0 0;
+    padding: 0;
+    font-family: var(--serif);
+    font-size: clamp(1.4rem, 2.8vw, 2.1rem);
+    line-height: 1.35;
+    color: var(--fg);
+  }
+
+  .pull em {
+    color: var(--viol);
   }
 </style>

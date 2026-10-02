@@ -1,5 +1,11 @@
 @import '@fontsource/source-serif-4/400.css';
 @import '@fontsource/source-serif-4/600.css';
+/* The display voice leans on true italic for every section's second line.
+   Without these two the browser slants the upright face instead — synthetic
+   oblique, the same defect as the faux bold described below, and the reason
+   the italics read as a different, worse typeface than the roman beside them. */
+@import '@fontsource/source-serif-4/400-italic.css';
+@import '@fontsource/source-serif-4/600-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/jetbrains-mono/600.css';

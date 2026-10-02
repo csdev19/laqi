@@ -14,7 +14,7 @@
 export const CHAPTERS = [
   { id: 'intro', label: 'Intro', number: null, tint: null },
   { id: 'moments', label: 'Moments', number: null, tint: 'viol' },
-  { id: 'why', label: 'Why', number: null, tint: 'viol' },
+  { id: 'why', label: 'Why it works', number: null, tint: 'mint' },
   { id: 'contract', label: 'Contract', number: '01', tint: 'vio' },
   { id: 'flip', label: 'Flip', number: '02', tint: 'mag' },
   { id: 'watch', label: 'Watch', number: '03', tint: 'mint' },
