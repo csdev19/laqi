@@ -130,26 +130,6 @@ const log = [
 </script>
 
 <style>
-  /* The one piece of atmosphere the design system allows: a single violet
-     radial behind the copy, no second light and no gradient on any surface.
-     It sits on the section rather than on body so it ends with the hero
-     instead of tinting the whole page. */
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -30%;
-    left: -10%;
-    width: 70%;
-    height: 130%;
-    background: radial-gradient(
-      ellipse at center,
-      color-mix(in srgb, var(--vio) 22%, transparent),
-      transparent 68%
-    );
-    pointer-events: none;
-    z-index: 0;
-  }
-
   .hero {
     position: relative;
     display: grid;
@@ -159,7 +139,11 @@ const log = [
     max-width: 82rem;
     margin: 0 auto;
     padding: 5rem 1.5rem 7rem;
-    overflow: hidden;
+    /* clip-path, not overflow: hidden. overflow clipped the hero's own
+       background too, which is what cut the glow off at the section edge
+       back when the glow lived here; clip-path bounds the ghosts without
+       creating a new containing block for anything else. */
+    clip-path: inset(0);
   }
 
   @media (max-width: 68rem) {

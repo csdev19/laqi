@@ -21,7 +21,7 @@ const links = [
 ]
 ---
 
-<header class="top-nav">
+<header class="top-nav" id="top-nav">
   <a href="/" class="brand">
     <span class="mark" aria-hidden="true">
       <img src="/icon.svg" alt="" width="13" height="18" />
@@ -36,6 +36,27 @@ const links = [
   <a href="/docs/installation/" class="install">Install</a>
 </header>
 
+<script>
+  // The bar has no surface until something is behind it. At the top of the
+  // page the glow and the dot grid run straight through where it sits, which
+  // is the whole point of the first screen; once the page moves, the links
+  // need something to sit on to stay readable.
+  const nav = document.getElementById('top-nav')
+  if (nav) {
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      nav.classList.toggle('is-scrolled', window.scrollY > 24)
+    }
+    const onScroll = () => {
+      if (frame) return
+      frame = requestAnimationFrame(measure)
+    }
+    measure()
+    window.addEventListener('scroll', onScroll, { passive: true })
+  }
+</script>
+
 <style>
   .top-nav {
     position: sticky;
@@ -46,9 +67,24 @@ const links = [
     justify-content: space-between;
     gap: 1.5rem;
     padding: 0.75rem 1.5rem;
-    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      backdrop-filter 0.2s ease;
+  }
+
+  .top-nav.is-scrolled {
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--line) 55%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .top-nav {
+      transition: none;
+    }
   }
 
   .brand {

@@ -55,6 +55,74 @@ body {
   color: var(--fg);
 }
 
+/* The marketing pages carry a dot grid and one violet glow. Both are opted
+   into with a class rather than set on every body, because the docs are a
+   Starlight layout with its own surfaces and a texture under them reads as
+   dirt rather than as atmosphere.
+
+   Both are background layers on the body rather than elements. An element
+   paints above the body's background, so a glow drawn that way would cover
+   the dots instead of sitting under them — and layers also mean the two
+   scroll together with the document for free, with nothing to stack and
+   nothing for a section to know about.
+
+   First layer listed paints on top: dots over glow, glow over the ground.
+   The grid is a repeating radial rather than an image — no request, no asset
+   to keep, and it takes the foreground token so it stays correct if the
+   neutral ramp ever moves. */
+body.textured {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(
+      circle at 1px 1px,
+      color-mix(in srgb, var(--fg) 8%, transparent) 1px,
+      transparent 0
+    ),
+    radial-gradient(
+      ellipse 42% 32% at 34% 10%,
+      color-mix(in srgb, var(--vio) 30%, transparent),
+      transparent 72%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size:
+    26px 26px,
+    100% 90rem;
+  background-position:
+    0 0,
+    50% 0;
+  background-attachment: scroll, scroll;
+}
+
+/* Starlight's own theme hooks — remapped onto our tokens so the docs
+   section (/docs/*) reads as the same product as the landing page and
+   the CLI's control panel, not a different, generic doc site. */
+:root {
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--panel);
+  --sl-color-bg-sidebar: var(--bg);
+  --sl-color-text: var(--fg);
+  --sl-color-text-accent: var(--viol);
+  --sl-color-accent: var(--vio);
+  --sl-color-hairline: var(--line);
+  --sl-color-hairline-light: var(--line2);
+  --sl-font: var(--mono);
+  --sl-font-mono: var(--mono);
+}
+
+/* Prose headings inside docs content use the display serif — Starlight's
+   own default keeps everything on --sl-font (mono), which is right for
+   labels and code but not for a page's own H1/H2/H3. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: var(--serif);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
 /* Sidebar: the current page gets a violet left border, matching the
    panel's own "you are here" convention. */
 .sidebar a[aria-current='page'] {
