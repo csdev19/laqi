@@ -1,5 +1,9 @@
 ---
 // apps/site/src/components/FeatureGrid.astro
+import Demo from './Demo.astro'
+import { demos, isVisible } from '../lib/demos'
+
+const gridDemos = [demos.scenarios, demos.generate].filter(isVisible)
 
 const features = [
   { kicker: 'one click', color: 'var(--mint)', title: 'Put one endpoint in any state', body: 'Make the next request succeed, fail, return empty data, or wait — without a rebuild or restart.' },
@@ -22,6 +26,11 @@ const features = [
       </div>
     ))}
   </div>
+  {gridDemos.length > 0 && (
+    <div class="demos">
+      {gridDemos.map((demo) => <Demo {...demo} />)}
+    </div>
+  )}
 </section>
 
 <style>
@@ -49,6 +58,17 @@ const features = [
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
     gap: 1.25rem;
+  }
+  .demos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+  @media (max-width: 48rem) {
+    .demos {
+      grid-template-columns: 1fr;
+    }
   }
   .card {
     padding: 1.5rem;

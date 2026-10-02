@@ -1,5 +1,11 @@
 ---
 // apps/site/src/components/Hero.astro
+import Demo from './Demo.astro'
+import { demos, isVisible } from '../lib/demos'
+
+// The CTA and the slot stand or fall together: a "watch the demo" button that
+// scrolls to nothing is worse than no button.
+const showDemo = isVisible(demos.hero)
 
 // The evidence line under the lede reuses the panel's response-chip motif:
 // each state a visitor will want to force, in the colors the panel gives
@@ -29,6 +35,7 @@ const states = [
   </p>
   <div class="cta-row">
     <a href="/docs/quick-start/" class="btn-primary">Quick start</a>
+    {showDemo && <a href="#demo" class="btn-secondary">Watch the 20-second demo</a>}
   </div>
   <p class="badges">
     <span>no account</span>
@@ -36,6 +43,11 @@ const states = [
     <span>one base URL, nothing else</span>
     <span>one binary</span>
   </p>
+  {showDemo && (
+    <div id="demo">
+      <Demo {...demos.hero} />
+    </div>
+  )}
 </section>
 
 <style>
@@ -107,6 +119,20 @@ const states = [
     text-decoration: none;
     font-family: var(--mono);
     font-weight: 600;
+  }
+  .btn-secondary {
+    padding: 0.85rem 1.5rem;
+    border: 1px solid var(--line2);
+    color: var(--fg);
+    border-radius: 6px;
+    text-decoration: none;
+    font-family: var(--mono);
+  }
+  /* The gap below the badges belongs to the demo, not to the badges: with no
+     recording the badges are the hero's last element and the section's own
+     padding is the right spacing. */
+  #demo {
+    margin-top: 3rem;
   }
   .badges {
     display: flex;

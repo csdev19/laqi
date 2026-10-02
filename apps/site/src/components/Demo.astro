@@ -1,0 +1,116 @@
+---
+// apps/site/src/components/Demo.astro
+//
+// Renders a recording when there is one. With no file yet it renders the
+// shooting note instead — and only under `astro dev`, because the previous
+// version of this component shipped that note to visitors as body text,
+// beside an upload control that did nothing.
+import type { Demo } from '../lib/demos'
+
+const { src, poster, label, chrome, brief } = Astro.props as Demo
+---
+<figure class:list={['demo', { pending: !src }]}>
+  {chrome && (
+    <div class="chrome">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="address">{chrome}</span>
+    </div>
+  )}
+  {
+    src
+      ? (
+        // Muted + playsinline is what lets iOS autoplay inline rather than
+        // taking over the screen; without both it opens fullscreen.
+        <video
+          src={src}
+          poster={poster ?? undefined}
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          aria-label={label}
+        />
+      )
+      : (
+        <div class="brief">
+          <p class="tag">not recorded yet — dev only</p>
+          <p class="text">{brief}</p>
+        </div>
+      )
+  }
+  {src && <figcaption>{label}</figcaption>}
+</figure>
+
+<style>
+  .demo {
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  .demo.pending {
+    border-style: dashed;
+    border-color: var(--line2);
+  }
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line2);
+  }
+  .address {
+    margin-left: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--dim);
+  }
+  video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: var(--bg);
+  }
+  figcaption {
+    padding: 0.75rem 0.9rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--dim);
+    text-align: left;
+  }
+  .brief {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+  }
+  .tag {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--warn);
+  }
+  .text {
+    max-width: 52ch;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--dim);
+  }
+</style>
