@@ -7,9 +7,10 @@
 > them, and lets a person or an agent flip which response is live with no
 > restart.
 
-Install: `npm i -g laqi@2`. Run `laqi` (or `laqi start`) from a project
-with mock files — `laqi init` scaffolds one. The panel is at `/__laqi`
-on the port it serves (default 8000). Fastest path:
+Install: `npm i -g laqi`, or `npm i -D laqi` plus a `"mock": "laqi"` script
+to pin it per project. Run `laqi` (or `laqi start`) from a project with mock
+files — `laqi init` scaffolds one. The panel is at `/__laqi` on the port it
+serves (default 8000). Fastest path:
 [Quick start](https://laqi.dev/docs/quick-start/).
 
 ## Core concepts

@@ -1,15 +1,18 @@
 ---
 // apps/site/src/components/SiteNav.astro
-import { getLaqiVersion } from '../lib/version'
-
-const version = getLaqiVersion()
+//
+// No version badge. It read the CLI's version at build time, but the site only
+// deploys on its own site-v* tag, so every CLI release left it stale — it said
+// v2.0.0 while npm served 2.0.1. Fixing it by deploying the site on CLI tags
+// would let a patch release publish unreleased site content; see Plan 15 task 5.
+// There is one laqi and the install command names no version, so the badge had
+// nothing to tell a visitor that the page does not already say.
 ---
 <header class="site-nav">
   <a href="/" class="brand">
     <img src="/icon.svg" alt="" width="15" height="20" />
     <span>laqi</span>
   </a>
-  <span class="version-badge">v{version}</span>
   <nav>
     <a href="/docs/">Docs</a>
     <a href="/docs/quick-start/">Quick start</a>
@@ -37,13 +40,6 @@ const version = getLaqiVersion()
     color: var(--fg);
     text-decoration: none;
     font-weight: 600;
-  }
-  .version-badge {
-    padding: 0.15rem 0.5rem;
-    border: 1px solid var(--line2);
-    border-radius: 4px;
-    color: var(--dim);
-    font-size: 0.85rem;
   }
   nav {
     display: flex;
