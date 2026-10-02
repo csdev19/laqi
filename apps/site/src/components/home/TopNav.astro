@@ -19,12 +19,13 @@ const links = [
   { href: '/docs/', label: 'Docs' },
   { href: '/the-name/', label: 'The name' },
 ]
+import BoltMark from './BoltMark.astro'
 ---
 
 <header class="top-nav" id="top-nav">
   <a href="/" class="brand">
     <span class="mark" aria-hidden="true">
-      <img src="/icon.svg" alt="" width="13" height="18" />
+      <BoltMark size={18} />
     </span>
     <span class="word">laqi</span>
   </a>
@@ -105,7 +106,8 @@ const links = [
     height: 1.75rem;
     place-items: center;
     border-radius: 8px;
-    background: linear-gradient(160deg, var(--viol), var(--vio));
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
   }
 
   .links {

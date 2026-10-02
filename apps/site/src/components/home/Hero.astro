@@ -32,6 +32,7 @@ const log = [
   { method: 'GET', path: '/todos', status: '200', statusColor: 'var(--mint)', note: 'empty (state)' },
   { method: 'GET', path: '/profile', status: '200', statusColor: 'var(--mint)', note: 'ok (default)' },
 ]
+import BoltMark from './BoltMark.astro'
 ---
 
 <section class="hero" id="intro">
@@ -39,7 +40,7 @@ const log = [
     <span class="ghost ghost-a" aria-hidden="true">500</span>
     <div class="intro">
       <span class="brand-tile" aria-hidden="true">
-        <img src="/icon.svg" alt="" width="26" height="35" />
+        <BoltMark size={34} />
       </span>
       <div>
         <p class="eyebrow">laqi · contract-first API mocks</p>
@@ -87,7 +88,7 @@ const log = [
         <span class="address">127.0.0.1:8000/__laqi</span>
       </div>
       <div class="window-head">
-        <img src="/icon.svg" alt="" width="11" height="15" />
+        <BoltMark size={15} class="head-bolt" />
         <span class="wordmark">laqi</span>
         <span class="host">serving laqi/api.json</span>
         <span class="overridden">2 states set</span>
@@ -226,6 +227,7 @@ const log = [
     place-items: center;
     border-radius: 14px;
     background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
     box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
   }
 
@@ -450,6 +452,10 @@ const log = [
     font-family: var(--mono);
     font-size: 0.6875rem;
     color: var(--dim2);
+  }
+
+  .window-head .head-bolt {
+    color: var(--vio);
   }
 
   .window-head .wordmark {
