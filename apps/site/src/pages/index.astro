@@ -99,7 +99,7 @@ const description =
             { label: 'backend', text: 'implements the same routes' },
           ]}
         >
-          <FloatCard label="reloaded">
+          <FloatCard slot="float" label="reloaded">
             <p><code>GET /todos</code> · 4 responses</p>
             <p class="live">↻ live in 12ms</p>
           </FloatCard>
@@ -129,16 +129,28 @@ const description =
           The mock and the frontend’s types can’t drift apart — they come from
           the same model.
         </Fragment>
-        <Window label="/orders/:id" meta="from a model → ok 200">
-          <pre><code>{`your model                    generated · ok 200
-
-export interface Order {      {
-  id: string                    "id": "ord_8f2a41",
-  total: number                 "total": 148.5,
-  status: 'paid' | 'pending'    "status": "paid",
-  createdAt: Date               "createdAt": "2026-08-24T14:32:07Z"
-}                             }`}</code></pre>
-        </Window>
+        <CodeWindow
+          file="Order.ts"
+          meta="your model"
+          lines={[
+            { html: '<span class="kw">export</span> <span class="kw">interface</span> <span class="typ">Order</span> <span class="p">{</span>' },
+            { html: '&nbsp;&nbsp;<span class="key">id</span><span class="p">:</span> <span class="typ">string</span>', note: 'pasted, or a file in your project' },
+            { html: '&nbsp;&nbsp;<span class="key">total</span><span class="p">:</span> <span class="typ">number</span>' },
+            { html: '&nbsp;&nbsp;<span class="key">status</span><span class="p">:</span> <span class="str">\'paid\'</span> <span class="p">|</span> <span class="str">\'pending\'</span>', note: 'a union, kept as a union' },
+            { html: '&nbsp;&nbsp;<span class="key">createdAt</span><span class="p">:</span> <span class="typ">Date</span>' },
+            { html: '<span class="p">}</span>' },
+          ]}
+          footer={[
+            { label: 'from', text: 'a model · JSON · a project schema', tint: 'palev' },
+            { label: 'repeatable', text: 'same seed, same output' },
+          ]}
+        >
+          <FloatCard slot="float" label="generated · ok 200">
+            <p><code>{'{ "id": "ord_8f2a41", "total": 148.5,'}</code></p>
+            <p><code>{'  "status": "paid", "createdAt": "2026-08-24" }'}</code></p>
+            <p class="live">and back again · types for any response</p>
+          </FloatCard>
+        </CodeWindow>
       </Chapter>
 
       <Chapter
@@ -161,11 +173,47 @@ export interface Order {      {
         <Fragment slot="note">
           The error path stops being the one nobody ever sees until a user does.
         </Fragment>
-        <Window label="127.0.0.1:8000/__laqi" meta="scenario · offline">
-          <pre><code>{`GET    /todos      ok 200   empty 200  [error 500]   scenario
-POST   /todos      created 201         [error 500]   scenario
-GET    /profile   [ok 200]  unauthorized 401          default
-GET    /health    [ok 200]  error 500                 state`}</code></pre>
+        <Window
+          label="127.0.0.1:8000/__laqi"
+          meta="scenario · offline"
+          footer={[
+            { label: 'you pick', text: 'error', tint: 'magl' },
+            { label: 'your app gets', text: '500, on its next ordinary request' },
+          ]}
+        >
+          <div class="panel-rows">
+            <p class="scenarios">
+              <span class="sc-label">scenarios</span>
+              <span class="sc">logged-out</span>
+              <span class="sc sc-on">offline</span>
+              <span class="sc">slow-network</span>
+            </p>
+            {
+              [
+                { m: 'GET', c: 'mint', path: '/todos', chips: ['ok 200', 'empty 200', 'error 500'], live: 2, layer: 'scenario' },
+                { m: 'POST', c: 'vio', path: '/todos', chips: ['created 201', 'error 500'], live: 1, layer: 'scenario' },
+                { m: 'GET', c: 'mint', path: '/profile', chips: ['ok 200', 'unauthorized 401'], live: 0, layer: 'default' },
+                { m: 'GET', c: 'mint', path: '/health', chips: ['ok 200', 'error 500'], live: 0, layer: 'state' },
+              ].map((row) => (
+                <p class="prow">
+                  <span class="m" style={`color: var(--${row.c})`}>{row.m}</span>
+                  <span class="path">{row.path}</span>
+                  <span class="chips">
+                    {row.chips.map((chip, i) => (
+                      <span class:list={['chip', i === row.live && 'chip-on']}>{chip}</span>
+                    ))}
+                  </span>
+                  <span class="layer">{row.layer}</span>
+                </p>
+              ))
+            }
+          </div>
+          <FloatCard slot="float" label="what happens next">
+            <p><span class="step-n">1</span> you pick <code>error</code></p>
+            <p><span class="step-n">2</span> the app sends <code>POST /todos</code>, as usual</p>
+            <p><span class="step-n">3</span> laqi returns <code>500</code></p>
+            <p class="live"><span class="step-n">4</span> your error UI gets tested</p>
+          </FloatCard>
         </Window>
       </Chapter>
 
@@ -192,13 +240,38 @@ GET    /health    [ok 200]  error 500                 state`}</code></pre>
           The panel, the terminal and the <code>x-laqi-resolved</code> header
           always say the same thing.
         </Fragment>
-        <Window label="requests" meta="218">
-          <pre><code>{`09:15:25  GET    /todos         200   state    → empty
-09:15:28  POST   /todos         500   scenario → error
-09:15:31  GET    /todos         200   header   → slow
-09:15:33  GET    /profile       401   state    → unauthorized
-09:15:36  PATCH  /todos/12      200   default  → ok
-09:15:38  GET    /favicon.ico   404   no matching route`}</code></pre>
+        <Window
+          label="requests"
+          meta="218"
+          footer={[
+            { label: 'always agrees', text: 'panel · terminal · x-laqi-resolved', tint: 'palem' },
+          ]}
+        >
+          <div class="panel-rows">
+            {
+              [
+                { t: '09:15:25', m: 'GET', c: 'mint', path: '/todos', s: '200', sc: 'mint', why: 'state → empty' },
+                { t: '09:15:28', m: 'POST', c: 'vio', path: '/todos', s: '500', sc: 'red', why: 'scenario → error' },
+                { t: '09:15:31', m: 'GET', c: 'mint', path: '/todos', s: '200', sc: 'mint', why: 'header → slow' },
+                { t: '09:15:33', m: 'GET', c: 'mint', path: '/profile', s: '401', sc: 'magl', why: 'state → unauthorized' },
+                { t: '09:15:36', m: 'PATCH', c: 'palev', path: '/todos/12', s: '200', sc: 'mint', why: 'default → ok' },
+                { t: '09:15:38', m: 'GET', c: 'mint', path: '/favicon.ico', s: '404', sc: 'red', why: 'no matching route', miss: true },
+              ].map((row) => (
+                <p class:list={['lrow', row.miss && 'lrow-miss']}>
+                  <span class="t">{row.t}</span>
+                  <span class="m" style={`color: var(--${row.c})`}>{row.m}</span>
+                  <span class="path">{row.path}</span>
+                  <span class="s" style={`color: var(--${row.sc})`}>{row.s}</span>
+                  <span class="why">{row.why}</span>
+                </p>
+              ))
+            }
+          </div>
+          <FloatCard slot="float" label="same answer, three places">
+            <p>panel&nbsp;&nbsp;&nbsp;&nbsp;<code>scenario → error</code></p>
+            <p>terminal <code>scenario → error</code></p>
+            <p class="live">header&nbsp;&nbsp;&nbsp;<code>x-laqi-resolved: error</code></p>
+          </FloatCard>
         </Window>
       </Chapter>
 
@@ -225,16 +298,30 @@ GET    /health    [ok 200]  error 500                 state`}</code></pre>
           You would be deploying a throwaway backend just so a phone could
           reach it.
         </Fragment>
-        <Window label="zsh — laqi" meta="public url open">
-          <pre><code>{`⚡ laqi --share
-
-serving   127.0.0.1:8000
-panel     127.0.0.1:8000/__laqi      local only
-public    https://cold-relay-7f2a.trycloudflare.com
-token     lq_7f2a41c8d93b            240 req/min
-
-09:22:04  GET   /todos      200   via public   iPhone
-09:22:06  POST  /todos      500   via public   iPhone`}</code></pre>
+        <Window
+          label="zsh — laqi"
+          meta="public url open"
+          footer={[
+            { label: 'travels', text: 'mock responses only', tint: 'palem' },
+            { label: 'stays local', text: 'the panel and its write API' },
+          ]}
+        >
+          <div class="term">
+            <p><span class="dim">$</span> laqi --share</p>
+            <p class="gap"></p>
+            <p><span class="dim">serving&nbsp;&nbsp;</span> 127.0.0.1:8000</p>
+            <p><span class="dim">panel&nbsp;&nbsp;&nbsp;&nbsp;</span> 127.0.0.1:8000/__laqi <span class="dim">local only</span></p>
+            <p>
+              <span class="dim">public&nbsp;&nbsp;&nbsp;</span>
+              <span class="url">https://cold-relay-7f2a.trycloudflare.com</span>
+            </p>
+            <p><span class="dim">token&nbsp;&nbsp;&nbsp;&nbsp;</span> lq_7f2a41c8d93b <span class="dim">240 req/min</span></p>
+          </div>
+          <FloatCard slot="float" label="from the phone">
+            <p>09:22:04 <code>GET /todos</code> <span class="ok">200</span> via public</p>
+            <p>09:22:06 <code>POST /todos</code> <span class="err">500</span> via public</p>
+            <p class="live">every request still lands in your own log</p>
+          </FloatCard>
         </Window>
       </Chapter>
 
@@ -358,6 +445,145 @@ package.json        "mock": "laqi start"
     font-style: italic;
     font-weight: 400;
     color: var(--viotx);
+  }
+
+
+  /* ---- the evidence windows ----
+     Rows inside a product window: a panel's endpoints, a request log, a
+     terminal. Each is its own small grid so a column lines up down the
+     window rather than per row. */
+  :global(.panel-rows) {
+    padding: 0.35rem 0;
+  }
+
+  :global(.scenarios) {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.5rem 1rem 0.7rem;
+    border-bottom: 1px solid var(--bd);
+  }
+
+  :global(.sc-label) {
+    margin-right: 0.4rem;
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  :global(.sc) {
+    padding: 0.1rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--dim2);
+  }
+
+  :global(.sc-on) {
+    border-color: color-mix(in srgb, var(--vio) 60%, transparent);
+    background: color-mix(in srgb, var(--vio) 14%, transparent);
+    color: var(--viotx);
+  }
+
+  :global(.prow) {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto 4.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.4rem 1rem;
+  }
+
+  :global(.prow .path),
+  :global(.lrow .path) {
+    color: var(--fg);
+  }
+
+  :global(.prow .chips) {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  :global(.prow .chip) {
+    padding: 0.08rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--fg) 5%, transparent);
+    color: var(--dim2);
+  }
+
+  /* Magenta is the panel's own colour for a state someone set. */
+  :global(.prow .chip-on) {
+    border-color: color-mix(in srgb, var(--mag) 55%, transparent);
+    background: color-mix(in srgb, var(--mag) 12%, transparent);
+    color: var(--magtx);
+  }
+
+  :global(.prow .layer) {
+    font-size: 0.5938rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-align: right;
+    color: var(--dim2);
+  }
+
+  :global(.lrow) {
+    display: grid;
+    grid-template-columns: 4.5rem 3.25rem minmax(0, 1fr) 2.5rem auto;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.35rem 1rem;
+  }
+
+  :global(.lrow .t),
+  :global(.lrow .why) {
+    color: var(--dim2);
+  }
+
+  /* The request that matched nothing is the one worth finding, so it is the
+     only row the log marks. */
+  :global(.lrow-miss) {
+    background: color-mix(in srgb, var(--red) 8%, transparent);
+  }
+
+  :global(.lrow-miss .path) {
+    color: var(--red);
+  }
+
+  :global(.term) {
+    padding: 0.9rem 1rem;
+  }
+
+  :global(.term p) {
+    margin: 0;
+  }
+
+  :global(.term .gap) {
+    height: 0.5rem;
+  }
+
+  :global(.term .dim) {
+    color: var(--dim2);
+  }
+
+  :global(.term .url) {
+    color: var(--palem);
+  }
+
+  :global(.float .body .step-n) {
+    display: inline-block;
+    width: 1rem;
+    color: var(--dim2);
+  }
+
+  :global(.float .body .ok) {
+    color: var(--mint);
+  }
+
+  :global(.float .body .err) {
+    color: var(--red);
   }
 
   :global(.float .body p) {

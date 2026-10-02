@@ -1,14 +1,23 @@
 ---
 // apps/site/src/components/home/Window.astro
 //
-// The framed still every chapter shows: a title bar with a file path or a
-// host, and whatever the chapter puts inside. One frame for all of them, so
-// four stills read as four views of one product rather than four designs.
+// The product window the chapters show their evidence in: a title bar, a
+// body, and an optional footer saying what each side does with what is in
+// it. CodeWindow is the same frame specialised for a file; this one is for
+// a panel, a log or a terminal, where the body is its own small layout.
+//
+// It is position: relative so a FloatCard can break out of its corner.
+export interface FooterCell {
+  label: string
+  text: string
+  tint?: string
+}
 interface Props {
   label: string
   meta?: string
+  footer?: FooterCell[]
 }
-const { label, meta } = Astro.props
+const { label, meta, footer = [] } = Astro.props
 ---
 
 <figure class="window">
@@ -16,28 +25,47 @@ const { label, meta } = Astro.props
     <span class="label">{label}</span>
     {meta && <span class="meta">{meta}</span>}
   </figcaption>
+
   <div class="body"><slot /></div>
+
+  {
+    footer.length > 0 && (
+      <div class="foot">
+        {footer.map((cell) => (
+          <div>
+            <p class="foot-label">{cell.label}</p>
+            <p class="foot-text" style={cell.tint ? `color: var(--${cell.tint})` : undefined}>
+              {cell.text}
+            </p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  <slot name="float" />
 </figure>
 
 <style>
   .window {
+    position: relative;
     margin: 0;
     border: 1px solid var(--bd2);
-    border-radius: 10px;
-    background: var(--panel);
-    overflow: hidden;
-    box-shadow: 0 40px 80px -45px #000;
+    border-radius: 14px;
+    background: var(--win);
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
   }
 
   .bar {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.65rem 0.9rem;
+    padding: 0.7rem 1rem;
     border-bottom: 1px solid var(--bd);
-    background: var(--panel2);
+    background: var(--winbar);
+    border-radius: 14px 14px 0 0;
     font-family: var(--mono);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 
   .label {
@@ -45,15 +73,45 @@ const { label, meta } = Astro.props
   }
 
   .meta {
+    margin-left: auto;
     color: var(--dim2);
   }
 
   .body {
-    padding: 0.9rem;
     font-family: var(--mono);
-    font-size: 0.6875rem;
-    line-height: 1.75;
+    font-size: 0.75rem;
+    line-height: 1.7;
     color: var(--dim);
     overflow-x: auto;
+  }
+
+  .foot {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    border-top: 1px solid var(--bd);
+  }
+
+  .foot > div {
+    padding: 0.75rem 1rem;
+  }
+
+  .foot > div + div {
+    border-left: 1px solid var(--bd);
+  }
+
+  .foot-label {
+    margin: 0 0 0.3rem;
+    font-family: var(--mono);
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .foot-text {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
   }
 </style>
