@@ -1,16 +1,29 @@
 ---
 // apps/site/src/pages/index.astro
+//
+// The home page is nine sections walked top to bottom, with a fixed rail on
+// the right tracking which one you are in. The chapter list in
+// src/lib/chapters.ts is the single source for the rail, the overview chips
+// and the section ids — add a section there, not here.
 import '../styles/global.css'
-import SiteNav from '../components/SiteNav.astro'
-import Hero from '../components/Hero.astro'
-import ForWhom from '../components/ForWhom.astro'
-import QuickStart from '../components/QuickStart.astro'
-import ResolutionLayers from '../components/ResolutionLayers.astro'
-import FeatureGrid from '../components/FeatureGrid.astro'
-import McpSection from '../components/McpSection.astro'
-import FinalCta from '../components/FinalCta.astro'
+import TopNav from '../components/home/TopNav.astro'
+import Hero from '../components/home/Hero.astro'
+import Moments from '../components/home/Moments.astro'
+import Why from '../components/home/Why.astro'
+import Chapter from '../components/home/Chapter.astro'
+import Window from '../components/home/Window.astro'
+import Start from '../components/home/Start.astro'
+import Rail from '../components/home/Rail.astro'
 import SiteFooter from '../components/SiteFooter.astro'
+import { MOMENTS } from '../lib/chapters'
+
+const total = String(MOMENTS.length).padStart(2, '0')
+
+const title = 'laqi — build the frontend, the backend can wait'
+const description =
+  'laqi is a local mock server with a control panel. It answers your app from plain JSON files in your repo, and flips any endpoint into any state — empty, 401, 500, slow — in one click.'
 ---
+
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -20,39 +33,230 @@ import SiteFooter from '../components/SiteFooter.astro'
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="canonical" href="https://laqi.dev/" />
     <meta name="theme-color" content="#0b0a0f" />
-    <title>laqi — your backend isn’t ready. Your frontend can be.</title>
-    <meta
-      name="description"
-      content="Create a controllable local API from JSON, models, or OpenAPI. Then flip any response, error, delay, or whole scenario from one panel."
-    />
+    <title>{title}</title>
+    <meta name="description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="laqi" />
     <meta property="og:url" content="https://laqi.dev/" />
-    <meta property="og:title" content="Your backend isn’t ready. Your frontend can be." />
-    <meta
-      property="og:description"
-      content="Create a controllable local API from JSON, models, or OpenAPI. Then flip any response, error, delay, or whole scenario from one panel."
-    />
+    <meta property="og:title" content="Build the frontend. The backend can wait." />
+    <meta property="og:description" content={description} />
     <meta property="og:image" content="https://laqi.dev/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Your backend isn’t ready. Your frontend can be." />
-    <meta
-      name="twitter:description"
-      content="Create a controllable local API from JSON, models, or OpenAPI. Then flip any response, error, delay, or whole scenario from one panel."
-    />
+    <meta name="twitter:title" content="Build the frontend. The backend can wait." />
+    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content="https://laqi.dev/og-image.png" />
   </head>
   <body>
-    <SiteNav />
-    <Hero />
-    <ForWhom />
-    <QuickStart />
-    <ResolutionLayers />
-    <FeatureGrid />
-    <McpSection />
-    <FinalCta />
+    <TopNav />
+    <Rail />
+
+    <main>
+      <Hero />
+      <Moments />
+      <Why />
+
+      <Chapter
+        id="contract"
+        number="01"
+        total={total}
+        kicker="contract · plain JSON"
+        tint="vio"
+        title="Agree the API once."
+        subtitle="Then both sides build against it."
+        chips={['named responses', 'hot reload', 'import OpenAPI']}
+      >
+        <span slot="glyph">{'{}'}</span>
+        <p slot="body">
+          Each route is a key, each state it can be in is a named response. The
+          file is the contract: reviewed in a pull request, versioned in git,
+          served by laqi the moment it is saved. When the real backend ships,
+          you change one base URL.
+        </p>
+        <Window label="laqi/api.json" meta="saved 2s ago">
+          <pre><code>{`{
+  "GET /todos": {
+    "default": "ok",
+    "responses": {
+      "ok":    { "body": [{ "id": 1 }] },
+      "empty": { "body": [] },
+      "slow":  { "delay": 2400 },
+      "error": { "status": 500 }
+    }
+  }
+}`}</code></pre>
+        </Window>
+      </Chapter>
+
+      <Chapter
+        id="flip"
+        number="02"
+        total={total}
+        kicker="flip · one click"
+        tint="mag"
+        title="Put any endpoint in any state."
+        subtitle="Without a restart, without a rebuild."
+        chips={['per endpoint', 'whole scenarios', 'per request header']}
+        flip
+      >
+        <span slot="glyph">⇄</span>
+        <p slot="body">
+          Click <code>empty</code> and the next request returns an empty list.
+          Click <code>error</code> and it fails with a 500. Activate a scenario
+          and several endpoints move together. Nothing restarts, nothing
+          rebuilds, and your app does not know the difference.
+        </p>
+        <Window label="127.0.0.1:8000/__laqi" meta="2 overridden">
+          <pre><code>{`GET    /todos       ok  [empty]  slow   error
+POST   /todos       created  invalid  [error]
+GET    /profile    [ok]  unauthorized
+
+scenario   offline        logged-out     empty-state
+active     —              —              —`}</code></pre>
+        </Window>
+      </Chapter>
+
+      <Chapter
+        id="watch"
+        number="03"
+        total={total}
+        kicker="watch · live log"
+        tint="mint"
+        title="See what your app actually asked for."
+        subtitle="Including the requests that missed."
+        chips={['every request', 'unmatched routes', 'which layer won']}
+      >
+        <span slot="glyph">◉</span>
+        <p slot="body">
+          Every request appears as it lands, with the response that answered it
+          and the layer that decided — a header, a panel click, an active
+          scenario, or the file's own default. Requests that matched no route
+          at all show up too. That one is usually the bug.
+        </p>
+        <Window label="requests" meta="live">
+          <pre><code>{`POST   /todos        500   error (state)
+GET    /todos        200   empty (state)
+GET    /profile      200   ok (default)
+GET    /todoss       404   no matching route`}</code></pre>
+        </Window>
+      </Chapter>
+
+      <Chapter
+        id="share"
+        number="04"
+        total={total}
+        kicker="share · public URL"
+        tint="warn"
+        title="Hand it to someone else."
+        subtitle="Without deploying anything."
+        chips={['bearer token', 'rate limited', 'CORS you name']}
+        flip
+      >
+        <span slot="glyph">↗</span>
+        <p slot="body">
+          <code>laqi --share</code> opens a public URL through a tunnel, so a
+          designer, a tester or a phone on mobile data can reach the same mocks.
+          Only the mock responses travel: the panel and its write API are not
+          mounted on that listener at all.
+        </p>
+        <Window label="laqi --share" meta="cloudflared">
+          <pre><code>{`⚡ laqi
+serving   127.0.0.1:8000
+panel     127.0.0.1:8000/__laqi    local only
+public    https://odd-forest-42.trycloudflare.com
+          bearer  ····  240 req/min`}</code></pre>
+        </Window>
+      </Chapter>
+
+      <section class="files" id="files">
+        <div class="files-inner">
+          <p class="eyebrow">your files</p>
+          <h2>It is a folder in your repository.<br /><em>That is the whole storage model.</em></h2>
+          <p class="lede">
+            No account, no database, no dashboard holding your API shapes. A
+            <code>laqi/</code> folder of JSON your team reviews like any other
+            code — and which an agent can edit for you over MCP, with the result
+            still readable in a diff.
+          </p>
+          <div class="tree">
+            <pre><code>{`your-app/
+  laqi/
+    api.json          routes and their named responses
+    scenarios.json    situations that move several at once
+  src/
+  package.json`}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <Start />
+    </main>
+
     <SiteFooter />
   </body>
 </html>
+
+<style>
+  .files {
+    border-top: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 40%, transparent);
+  }
+
+  .files-inner {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 6rem 1.5rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font-family: var(--serif);
+    font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--viol);
+  }
+
+  .lede {
+    max-width: 34rem;
+    margin: 0 0 2rem;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  .lede code,
+  .tree code {
+    font-family: var(--mono);
+  }
+
+  .tree {
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    font-size: 0.75rem;
+    line-height: 1.9;
+    color: var(--dim);
+    overflow-x: auto;
+  }
+
+  .tree pre {
+    margin: 0;
+  }
+</style>

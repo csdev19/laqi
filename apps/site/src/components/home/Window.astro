@@ -1,0 +1,59 @@
+---
+// apps/site/src/components/home/Window.astro
+//
+// The framed still every chapter shows: a title bar with a file path or a
+// host, and whatever the chapter puts inside. One frame for all of them, so
+// four stills read as four views of one product rather than four designs.
+interface Props {
+  label: string
+  meta?: string
+}
+const { label, meta } = Astro.props
+---
+
+<figure class="window">
+  <figcaption class="bar">
+    <span class="label">{label}</span>
+    {meta && <span class="meta">{meta}</span>}
+  </figcaption>
+  <div class="body"><slot /></div>
+</figure>
+
+<style>
+  .window {
+    margin: 0;
+    border: 1px solid var(--line2);
+    border-radius: 10px;
+    background: var(--panel);
+    overflow: hidden;
+    box-shadow: 0 40px 80px -45px #000;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel2);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .label {
+    color: var(--fg);
+  }
+
+  .meta {
+    color: var(--dim2);
+  }
+
+  .body {
+    padding: 0.9rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    line-height: 1.75;
+    color: var(--dim);
+    overflow-x: auto;
+  }
+</style>

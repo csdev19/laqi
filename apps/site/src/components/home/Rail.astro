@@ -1,0 +1,199 @@
+---
+// apps/site/src/components/home/Rail.astro
+//
+// The fixed chapter rail on the right: a dot per section, the active one
+// filled in that chapter's tint, with the chapter's name revealed as a pill
+// on hover or focus.
+//
+// Buttons, not anchors: these scroll the page you are already on, they do
+// not navigate anywhere. The sections still carry their ids, so a pasted
+// `#contract` link keeps working.
+import { CHAPTERS, TOTAL } from '../../lib/chapters'
+---
+
+<nav class="rail" aria-label="Sections">
+  <span class="bound" aria-hidden="true">01</span>
+  {
+    CHAPTERS.map((chapter) => (
+      <button
+        type="button"
+        class="dot"
+        data-target={chapter.id}
+        style={chapter.tint ? `--tint: var(--${chapter.tint})` : undefined}
+      >
+        <span class="pill" aria-hidden="true">{chapter.label}</span>
+        <span class="sr-only">{chapter.label}</span>
+      </button>
+    ))
+  }
+  <span class="bound" aria-hidden="true">{TOTAL}</span>
+</nav>
+
+<script>
+  // The active section is the last one whose top edge has crossed the middle
+  // of the viewport. Deliberately not IntersectionObserver's "most visible":
+  // these sections are tall enough that two are on screen for most of a
+  // scroll, and "most visible" flips back and forth at the boundary. A single
+  // midpoint threshold cannot flicker.
+  //
+  // Measured on a rAF-throttled listener, so a trackpad firing 120 scroll
+  // events a second still costs one layout read per frame.
+  const rail = document.querySelector<HTMLElement>('.rail')
+  if (rail) {
+    const dots = [...rail.querySelectorAll<HTMLButtonElement>('.dot')]
+
+    for (const dot of dots) {
+      dot.addEventListener('click', () => {
+        const id = dot.dataset.target
+        if (id) document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      const midpoint = window.innerHeight / 2
+      let active = dots[0]
+      for (const dot of dots) {
+        const id = dot.dataset.target
+        const section = id ? document.getElementById(id) : null
+        if (section && section.getBoundingClientRect().top <= midpoint) active = dot
+      }
+      for (const dot of dots) {
+        const isActive = dot === active
+        dot.classList.toggle('is-active', isActive)
+        if (isActive) dot.setAttribute('aria-current', 'true')
+        else dot.removeAttribute('aria-current')
+      }
+    }
+    const onScroll = () => {
+      if (frame) return
+      frame = requestAnimationFrame(measure)
+    }
+
+    measure() // the page can load already scrolled: a refresh, or a #hash
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+  }
+</script>
+
+<style>
+  .rail {
+    position: fixed;
+    top: 50%;
+    right: 1.25rem;
+    z-index: 40;
+    display: flex;
+    translate: 0 -50%;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.9rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Below this width the rail would sit on top of the content instead of
+     beside it, so it goes away and the page is read by scrolling. */
+  @media (max-width: 64rem) {
+    .rail {
+      display: none;
+    }
+  }
+
+  .bound {
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.1em;
+    color: var(--dim2);
+  }
+
+  .dot {
+    position: relative;
+    display: grid;
+    width: 1.25rem;
+    height: 1.25rem;
+    place-items: center;
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  /* The dot itself is a pseudo-element so the button keeps a 20px hit area
+     while the mark stays 6px. */
+  .dot::after {
+    content: '';
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--line2);
+    transition:
+      background 0.2s ease,
+      scale 0.2s ease;
+  }
+
+  .dot:hover::after {
+    background: var(--dim);
+  }
+
+  .dot.is-active::after {
+    background: var(--tint, var(--vio));
+    scale: 1.5;
+    box-shadow: 0 0 12px -2px var(--tint, var(--vio));
+  }
+
+  .dot:focus-visible {
+    outline: 2px solid var(--viol);
+    outline-offset: 2px;
+    border-radius: 999px;
+  }
+
+  /* The name rides to the left of the dot, and only while that dot is
+     hovered or focused — nothing floats over the page unless the reader put
+     the pointer on the rail. `pointer-events: none` keeps the pill from
+     stealing the hover it depends on. */
+  .pill {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 0.6rem);
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--line2);
+    border-radius: 6px;
+    background: var(--panel2);
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    translate: 0.375rem -50%;
+    transition:
+      opacity 0.16s ease,
+      translate 0.16s ease;
+  }
+
+  .dot:hover .pill,
+  .dot:focus-visible .pill {
+    opacity: 1;
+    translate: 0 -50%;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot::after,
+    .pill {
+      transition: none;
+    }
+  }
+</style>

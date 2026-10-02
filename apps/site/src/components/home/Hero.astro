@@ -1,0 +1,473 @@
+---
+// apps/site/src/components/home/Hero.astro
+//
+// The eyebrow carries the category — "local mock server" — because the
+// headline carries the differentiator and the two are not interchangeable:
+// a visitor searching for this product types "mock server", and the previous
+// hero never used the word.
+//
+// "no code change" is not among the hero's chips on purpose: pointing an app
+// at laqi means setting one base URL, which the third chip says plainly. The
+// page used to claim both, two sections apart.
+//
+// No version string either. The site deploys on its own tag, so a version
+// printed at build time goes stale on the next CLI release — which is exactly
+// how the nav badge came to read v2.0.0 against npm's 2.0.1. MIT and the
+// engine floor stay true for as long as the page is up.
+//
+// The endpoint table is a still of the real panel, built from markup rather
+// than a screenshot so it stays sharp, themes with the tokens, and costs no
+// image bytes. Every route, response name and status in it is taken from
+// examples/todo-app, so a visitor who installs laqi meets the same thing.
+const rows = [
+  { method: 'GET', color: 'var(--mint)', path: '/todos', responses: ['ok', 'empty', 'slow', 'error'], live: 'empty' },
+  { method: 'POST', color: 'var(--vio)', path: '/todos', responses: ['created', 'invalid', 'error'], live: 'error' },
+  { method: 'PATCH', color: 'var(--palev)', path: '/todos/:id', responses: ['ok', 'notfound'], live: 'ok' },
+  { method: 'DELETE', color: 'var(--mag)', path: '/todos/:id', responses: ['ok', 'notfound'], live: 'ok' },
+  { method: 'GET', color: 'var(--mint)', path: '/profile', responses: ['ok', 'unauthorized'], live: 'ok' },
+]
+
+const log = [
+  { method: 'POST', path: '/todos', status: '500', statusColor: 'var(--red)', note: 'error (state)' },
+  { method: 'GET', path: '/todos', status: '200', statusColor: 'var(--mint)', note: 'empty (state)' },
+  { method: 'GET', path: '/profile', status: '200', statusColor: 'var(--mint)', note: 'ok (default)' },
+]
+---
+
+<section class="hero" id="intro">
+  <span class="ghost ghost-a" aria-hidden="true">500</span>
+  <span class="ghost ghost-b" aria-hidden="true">X-Laqi-Resolved</span>
+
+  <div class="copy">
+    <p class="eyebrow">laqi · local mock server</p>
+    <p class="chip-line">127.0.0.1 · no account · JSON in your repo</p>
+
+    <h1>
+      Build the frontend.<br />
+      <em>The backend can wait.</em>
+    </h1>
+
+    <p class="lede">
+      laqi answers your app's requests from plain JSON files in your repo.
+      Agree the API contract, build against it today, and flip any endpoint
+      into any state — empty, 401, 500, three seconds slow — in one click.
+    </p>
+
+    <p class="badges">
+      <span>no restart</span>
+      <span>one base URL</span>
+      <span>no cloud by default</span>
+    </p>
+
+    <div class="cta-row">
+      <button type="button" class="btn-install" data-copy="npm i -g laqi">
+        <span class="prompt" aria-hidden="true">$</span>
+        <code>npm i -g laqi</code>
+        <span class="copied" aria-hidden="true">copied</span>
+      </button>
+      <a href="#moments" class="btn-secondary">See how it works</a>
+    </div>
+
+    <p class="meta">MIT · Node 20+ · <a href="https://github.com/csdev19/laqi">source on GitHub</a></p>
+  </div>
+
+  <div class="stage" aria-hidden="true">
+    <div class="window">
+      <div class="chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="address">127.0.0.1:8000/__laqi</span>
+      </div>
+      <div class="window-head">
+        <img src="/icon.svg" alt="" width="11" height="15" />
+        <span class="wordmark">laqi</span>
+        <span class="count">7 endpoints</span>
+        <span class="host">127.0.0.1:8000</span>
+        <span class="overridden">2 overridden</span>
+      </div>
+      {
+        rows.map((row) => (
+          <div class="row">
+            <span class="method" style={`color: ${row.color}`}>{row.method}</span>
+            <span class="path">{row.path}</span>
+            <span class="responses">
+              {row.responses.map((name) => (
+                <span class:list={['resp', name === row.live && 'resp-live']}>{name}</span>
+              ))}
+            </span>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="log">
+      <p class="log-head"><span class="pulse"></span> requests · live</p>
+      {
+        log.map((entry) => (
+          <p class="log-row">
+            <span class="log-method">{entry.method}</span>
+            <span class="log-path">{entry.path}</span>
+            <span class="log-status" style={`color: ${entry.statusColor}`}>{entry.status}</span>
+            <span class="log-note">{entry.note}</span>
+          </p>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  // Same clipboard behaviour the install block has always had, moved onto the
+  // hero's primary action: the command is the call to action, so it should be
+  // the thing you click, not a thing you select by hand.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.btn-install')) {
+    button.addEventListener('click', () => {
+      void navigator.clipboard.writeText(button.dataset.copy ?? '')
+      button.classList.add('is-copied')
+      setTimeout(() => button.classList.remove('is-copied'), 1500)
+    })
+  }
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: center;
+    gap: 3rem;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: 5rem 1.5rem 6rem;
+    overflow: hidden;
+  }
+
+  @media (max-width: 68rem) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      padding-top: 3rem;
+    }
+    .stage {
+      display: none;
+    }
+  }
+
+  /* Oversized type bled off the edges, at the opacity of a watermark. It is
+     the product's own vocabulary — a status code and the header laqi puts on
+     every response — used as texture instead of a decorative gradient. */
+  .ghost {
+    position: absolute;
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--fg);
+    opacity: 0.025;
+    pointer-events: none;
+    user-select: none;
+    line-height: 1;
+  }
+  .ghost-a {
+    bottom: -3rem;
+    left: -2rem;
+    font-size: 20rem;
+  }
+  .ghost-b {
+    right: -6rem;
+    bottom: 1rem;
+    font-family: var(--mono);
+    font-size: 6rem;
+  }
+
+  .copy {
+    position: relative;
+    z-index: 1;
+  }
+
+  .eyebrow {
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--viol);
+  }
+
+  .chip-line {
+    display: inline-block;
+    margin: 0 0 1.75rem;
+    padding: 0.25rem 0.7rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  h1 {
+    margin: 0 0 1.5rem;
+    font-family: var(--serif);
+    font-size: clamp(2.75rem, 6vw, 4.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--viol);
+  }
+
+  .lede {
+    max-width: 34rem;
+    margin: 0 0 1.75rem;
+    color: var(--dim);
+    font-size: 1.0625rem;
+    line-height: 1.65;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 2rem;
+  }
+
+  .badges span {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+    box-shadow: 0 14px 30px -16px var(--vio);
+  }
+
+  .btn-install .prompt {
+    opacity: 0.65;
+  }
+
+  /* The confirmation replaces nothing and moves nothing: it fades in after
+     the command, so the button does not resize under the pointer. */
+  .btn-install .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-install.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.8;
+  }
+
+  .btn-secondary {
+    padding: 0.85rem 1.4rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--viol);
+  }
+
+  .meta {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim2);
+  }
+
+  .meta a {
+    color: var(--dim);
+  }
+
+  /* ---- the panel still ---- */
+
+  .stage {
+    position: relative;
+    z-index: 1;
+  }
+
+  .window {
+    border: 1px solid var(--line2);
+    border-radius: 10px;
+    background: var(--panel);
+    overflow: hidden;
+    box-shadow: 0 40px 80px -40px #000;
+  }
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel2);
+  }
+
+  .chrome .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--line2);
+  }
+
+  .chrome .address {
+    margin-left: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .window-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .window-head .wordmark {
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    color: var(--fg);
+  }
+
+  .window-head .host {
+    color: var(--mint);
+  }
+
+  .window-head .overridden {
+    margin-left: auto;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--mag) 45%, transparent);
+    border-radius: 999px;
+    color: var(--magl);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 4.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .row .path {
+    color: var(--fg);
+  }
+
+  .responses {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .resp {
+    padding: 0.12rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--fg) 5%, transparent);
+    color: var(--dim2);
+  }
+
+  /* Magenta is the panel's own colour for "I changed this" — the state
+     layer. A reader who installs laqi sees the same colour mean the same
+     thing, which is the point of not inventing one for the marketing page. */
+  .resp-live {
+    border-color: color-mix(in srgb, var(--mag) 55%, transparent);
+    background: color-mix(in srgb, var(--mag) 12%, transparent);
+    color: var(--magl);
+  }
+
+  .log {
+    position: absolute;
+    right: 12%;
+    bottom: -2.5rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--line2);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel2) 94%, transparent);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 30px 60px -30px #000;
+  }
+
+  .log-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .pulse {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+  }
+
+  .log-row {
+    display: grid;
+    grid-template-columns: 2.75rem 5rem 2.25rem auto;
+    gap: 0.5rem;
+    margin: 0 0 0.2rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .log-method {
+    color: var(--dim);
+  }
+  .log-path {
+    color: var(--fg);
+  }
+  .log-note {
+    color: var(--dim2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-install .copied {
+      transition: none;
+    }
+  }
+</style>

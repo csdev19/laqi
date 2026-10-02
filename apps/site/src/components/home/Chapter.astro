@@ -1,0 +1,147 @@
+---
+// apps/site/src/components/home/Chapter.astro
+//
+// One numbered moment: copy on the left, a still of the product on the right.
+// The still is passed in as the default slot so each chapter can show the
+// surface it is actually about — a file, the panel, the terminal — instead of
+// this component guessing.
+//
+// `flip` puts the still on the left. Alternating sides is what keeps four
+// structurally identical sections from reading as a list.
+interface Props {
+  id: string
+  number: string
+  total: string
+  kicker: string
+  tint: string
+  title: string
+  subtitle: string
+  chips?: string[]
+  flip?: boolean
+}
+const { id, number, total, kicker, tint, title, subtitle, chips = [], flip = false } = Astro.props
+---
+
+<section class:list={['chapter', flip && 'is-flipped']} id={id} style={`--tint: var(--${tint})`}>
+  <div class="copy">
+    <span class="tile" aria-hidden="true"><slot name="glyph" /></span>
+    <p class="index">
+      <span class="n">{number}</span> / {total}
+      <span class="kicker">{kicker}</span>
+    </p>
+    <h2>
+      {title}<br />
+      <em>{subtitle}</em>
+    </h2>
+    <div class="body"><slot name="body" /></div>
+    {
+      chips.length > 0 && (
+        <p class="chips">
+          {chips.map((chip) => (
+            <span>{chip}</span>
+          ))}
+        </p>
+      )
+    }
+  </div>
+  <div class="still"><slot /></div>
+</section>
+
+<style>
+  .chapter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: center;
+    gap: 4rem;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: 6rem 1.5rem;
+  }
+
+  .is-flipped .copy {
+    order: 2;
+  }
+
+  @media (max-width: 68rem) {
+    .chapter {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+    .is-flipped .copy {
+      order: 0;
+    }
+  }
+
+  .tile {
+    display: grid;
+    width: 3.5rem;
+    height: 3.5rem;
+    place-items: center;
+    margin-bottom: 1.75rem;
+    border-radius: 14px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 70%, #fff 10%), var(--tint));
+    color: #0b0a0f;
+    font-family: var(--mono);
+    font-size: 1.125rem;
+    font-weight: 600;
+    box-shadow: 0 18px 40px -20px var(--tint);
+  }
+
+  .index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim2);
+  }
+
+  .index .n {
+    color: var(--fg);
+  }
+
+  .index .kicker {
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    color: var(--dim);
+  }
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--viol);
+  }
+
+  .body {
+    max-width: 32rem;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.75rem 0 0;
+  }
+
+  .chips span {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+</style>

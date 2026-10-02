@@ -1,0 +1,89 @@
+---
+// apps/site/src/components/home/Why.astro
+//
+// The origin story, in the first person. It is the one place on the site that
+// may talk about a team moving ahead of its backend, because it is laqi's own
+// history rather than a claim about what a reader's team will get: laqi has
+// no customers to measure and no study to cite. "was born on" is doing real
+// work in that sentence — do not rewrite it into a promise.
+---
+
+<section class="why" id="why">
+  <div class="left">
+    <p class="eyebrow">why it works</p>
+    <h2>The team was ready.<br /><em>The endpoints were not.</em></h2>
+  </div>
+  <div class="right">
+    <p>
+      laqi was born on a frontend team running two to three sprints ahead of
+      its backend. The work was not blocked on design or on decisions — it was
+      blocked on endpoints that did not exist yet, one at a time.
+    </p>
+    <p>
+      The fix was not to guess. Both sides wrote down what the API would look
+      like, and the frontend built against that agreement instead of against a
+      server. When the real endpoints arrived they answered the shape everyone
+      had already been working from.
+    </p>
+    <p>
+      That is the whole idea, and the reason laqi keeps the contract as plain
+      JSON in your repository rather than in a dashboard somewhere: the thing
+      both teams agreed on should be reviewable in a pull request.
+    </p>
+  </div>
+</section>
+
+<style>
+  .why {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4rem;
+    max-width: 82rem;
+    margin: 0 auto;
+    padding: 6rem 1.5rem;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel) 40%, transparent);
+  }
+
+  @media (max-width: 68rem) {
+    .why {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2rem;
+    }
+  }
+
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--viol);
+  }
+
+  .right p {
+    margin: 0 0 1.25rem;
+    color: var(--dim);
+    line-height: 1.8;
+  }
+
+  .right p:last-child {
+    margin-bottom: 0;
+  }
+</style>

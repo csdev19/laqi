@@ -1,0 +1,144 @@
+---
+// apps/site/src/components/home/Start.astro
+//
+// The closing action. One primary thing to do, and the two honest sentences
+// about what laqi does not take from you — both verifiable: the mocks are
+// files in your repository, and --share mounts only the mock listener, never
+// the control plane (packages/server/src/public-app.ts).
+---
+
+<section class="start" id="start">
+  <h2>Build your first controllable API.</h2>
+  <p class="lede">
+    A JSON file, one command, one base URL — and every state your frontend has
+    to handle is a click away.
+  </p>
+
+  <div class="cta-row">
+    <button type="button" class="btn-install" data-copy="npm i -g laqi">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code>npm i -g laqi</code>
+      <span class="copied" aria-hidden="true">copied</span>
+    </button>
+    <a href="/docs/quick-start/" class="btn-secondary">Quick start</a>
+    <a href="/docs/" class="btn-ghost">Read the docs</a>
+  </div>
+
+  <p class="proof">
+    Plain JSON in your repo · runs on your machine · <code>--share</code>
+    exposes only mock responses, never the control plane.
+  </p>
+</section>
+
+<style>
+  .start {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 7rem 1.5rem 8rem;
+    text-align: center;
+  }
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4.5vw, 3.25rem);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  .lede {
+    max-width: 32rem;
+    margin: 0 auto 2.5rem;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+    box-shadow: 0 14px 30px -16px var(--vio);
+  }
+
+  .btn-install .prompt {
+    opacity: 0.65;
+  }
+
+  .btn-install .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-install.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.8;
+  }
+
+  .btn-secondary {
+    padding: 0.85rem 1.4rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--viol);
+  }
+
+  .btn-ghost {
+    padding: 0.85rem 0.5rem;
+    color: var(--dim);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+  }
+
+  .btn-ghost:hover {
+    color: var(--fg);
+  }
+
+  .proof {
+    margin: 0;
+    color: var(--dim2);
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+
+  .proof code {
+    font-family: var(--mono);
+    color: var(--dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-install .copied {
+      transition: none;
+    }
+  }
+</style>
