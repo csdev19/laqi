@@ -35,10 +35,8 @@ const log = [
 ---
 
 <section class="hero" id="intro">
-  <span class="ghost ghost-a" aria-hidden="true">500</span>
-  <span class="ghost ghost-b" aria-hidden="true">X-Laqi-Resolved</span>
-
   <div class="copy">
+    <span class="ghost ghost-a" aria-hidden="true">500</span>
     <p class="eyebrow">laqi · contract-first API mocks</p>
     <p class="chip-line">local by default · no account · JSON in your repo</p>
 
@@ -75,6 +73,7 @@ const log = [
   </div>
 
   <div class="stage" aria-hidden="true">
+    <span class="ghost ghost-b">X-Laqi-Resolved</span>
     <div class="window">
       <div class="chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -156,10 +155,10 @@ const log = [
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
     align-items: center;
-    gap: 3rem;
+    gap: clamp(2rem, 4vw, 4rem);
     max-width: 82rem;
     margin: 0 auto;
-    padding: 5rem 1.5rem 6rem;
+    padding: 5rem 1.5rem 7rem;
     overflow: hidden;
   }
 
@@ -176,31 +175,46 @@ const log = [
   /* Oversized type bled off the edges, at the opacity of a watermark. It is
      the product's own vocabulary — a status code and the header laqi puts on
      every response — used as texture instead of a decorative gradient. */
+  /* Oversized type at watermark opacity: the product's own vocabulary — a
+     status code and the header laqi puts on every response — used as texture
+     instead of a decorative gradient.
+     
+     Anchored inside the column each one belongs to, not to the section's
+     edges. Against the section they drifted across the copy as the viewport
+     widened, because the section is centred with growing gutters while the
+     columns are not. Sized in em of a clamped parent so they scale with the
+     column rather than staying a fixed pixel size at every width. */
   .ghost {
     position: absolute;
+    z-index: -1;
     font-family: var(--serif);
     font-weight: 600;
     color: var(--fg);
-    opacity: 0.025;
+    opacity: 0.03;
     pointer-events: none;
     user-select: none;
-    line-height: 1;
+    line-height: 0.8;
+    white-space: nowrap;
   }
+
   .ghost-a {
-    bottom: -3rem;
-    left: -2rem;
-    font-size: 20rem;
+    bottom: -0.1em;
+    left: -0.06em;
+    font-size: clamp(9rem, 15vw, 15rem);
   }
+
   .ghost-b {
-    right: -6rem;
-    bottom: 1rem;
+    top: -0.55em;
+    right: 0;
     font-family: var(--mono);
-    font-size: 6rem;
+    font-size: clamp(2.5rem, 4vw, 4rem);
+    opacity: 0.045;
   }
 
   .copy {
     position: relative;
     z-index: 1;
+    isolation: isolate;
   }
 
   .eyebrow {
@@ -363,9 +377,16 @@ const log = [
 
   /* ---- the panel still ---- */
 
+  /* Capped so an ultra-wide viewport stops stretching the panel into a
+     letterbox; it stays the size it is on a laptop and the extra width
+     becomes margin. */
   .stage {
     position: relative;
     z-index: 1;
+    isolation: isolate;
+    width: 100%;
+    max-width: 38rem;
+    margin-left: auto;
   }
 
   .window {
@@ -465,10 +486,14 @@ const log = [
     color: var(--magl);
   }
 
+  /* Hangs off the panel's bottom-left corner rather than sitting over its
+     middle: at this height the panel has five or six rows, and anything
+     placed over them covers the response chips that are the whole point of
+     showing the panel at all. */
   .log {
     position: absolute;
-    right: 12%;
-    bottom: -2.5rem;
+    left: -2.5rem;
+    bottom: -2.25rem;
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--line2);
     border-radius: 10px;
