@@ -75,10 +75,10 @@ const hasNote = Astro.slots.has('note')
      begins again instead of carrying on down a column. */
   .chapter {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
     align-items: center;
-    gap: 4rem;
-    max-width: 82rem;
+    gap: 3.5rem;
+    max-width: 88rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
   }
@@ -97,8 +97,8 @@ const hasNote = Astro.slots.has('note')
     place-items: center;
     margin-bottom: 1.75rem;
     border-radius: 14px;
-    background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 70%, #fff 10%), var(--tint));
-    color: var(--bg);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tint) 70%, #fff 20%), var(--tint));
+    color: #fff;
     font-family: var(--mono);
     font-size: 1.125rem;
     font-weight: 600;

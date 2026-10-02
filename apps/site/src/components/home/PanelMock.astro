@@ -24,12 +24,19 @@ export interface PanelRow {
   /** Response name + status, in order. The live one is marked by index. */
   chips: { name: string; status: string; kind: 'ok' | 'client' | 'server' }[]
   live: number
+  /** The route's own description, as the panel shows it beside the path. */
+  description?: string
 }
 interface Props {
+  watching: string
+  address: string
+  overridden: number
   scenarios: { name: string; count?: number; active?: boolean }[]
   rows: PanelRow[]
 }
-const { scenarios, rows } = Astro.props
+const { watching, address, overridden, scenarios, rows } = Astro.props
+import BoltMark from './BoltMark.astro'
+
 const METHOD_TINT: Record<string, string> = {
   GET: 'mint',
   POST: 'viol',
@@ -40,6 +47,14 @@ const METHOD_TINT: Record<string, string> = {
 ---
 
 <figure class="panel">
+  <div class="head">
+    <span class="brand"><BoltMark size={13} /> laqi</span>
+    <span class="fact"><i>watching</i> {watching}</span>
+    <span class="fact"><i>endpoints</i> {rows.length}</span>
+    <span class="fact"><i>local</i> {address}</span>
+    <span class="fact"><i>overridden</i> {overridden}</span>
+  </div>
+
   <div class="strip">
     <span class="strip-label">scenarios</span>
     {
@@ -52,6 +67,12 @@ const METHOD_TINT: Record<string, string> = {
     }
   </div>
 
+  <div class="filter-row">
+    <span class="filter">filter by method, path, description or response name&nbsp;&nbsp;(/)</span>
+    <span class="shown">{rows.length} shown</span>
+    <span class="new">+ New endpoint</span>
+  </div>
+
   {
     rows.map((row) => (
       <div class:list={['row', row.layer === 'scenario' && 'is-scenario', row.layer === 'state' && 'is-state']}>
@@ -59,7 +80,10 @@ const METHOD_TINT: Record<string, string> = {
         <span class="method" style={`color: var(--${METHOD_TINT[row.method] ?? 'dim'})`}>
           {row.method}
         </span>
-        <span class="path">{row.path}</span>
+        <span class="path">
+          {row.path}
+          {row.description && <i class="description">{row.description}</i>}
+        </span>
         <span class="chips">
           {row.chips.map((chip, i) => (
             <span class:list={['chip', i === row.live && ['is-live', `layer-${row.layer}`]]}>
@@ -90,12 +114,87 @@ const METHOD_TINT: Record<string, string> = {
     box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
   }
 
+  /* The fact bar. The real panel keeps these four on one line and lets the
+     window be the width it needs; the labels are its own. */
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--bd);
+    background: var(--winbar);
+    font-size: 11px;
+    color: var(--fg);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--vio);
+    font-weight: 600;
+  }
+
+  .brand :global(svg) {
+    color: var(--vio);
+  }
+
+  .fact {
+    color: var(--dim);
+  }
+
+  .fact i {
+    margin-right: 0.4rem;
+    font-style: normal;
+    font-size: 9.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
   .strip {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 1rem;
     border-bottom: 1px solid var(--bd);
+  }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--bd);
+    font-size: 12px;
+  }
+
+  .filter {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 9px;
+    border: 1px solid var(--line2);
+    border-radius: 2px;
+    background: var(--bg);
+    color: var(--dim2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .shown {
+    flex: none;
+    font-size: 11px;
+    color: var(--dim2);
+  }
+
+  .new {
+    flex: none;
+    padding: 4px 10px;
+    border: 1px solid var(--vio);
+    border-radius: 2px;
+    color: var(--viotx);
+    font-size: 11px;
   }
 
   .strip-label {
@@ -180,8 +279,16 @@ const METHOD_TINT: Record<string, string> = {
 
   .path {
     flex: 1;
+    min-width: 0;
     font-size: 12px;
     color: var(--fg);
+  }
+
+  .description {
+    margin-left: 0.6rem;
+    font-style: italic;
+    font-size: 12px;
+    color: var(--dim2);
   }
 
   .chips {

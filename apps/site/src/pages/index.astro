@@ -164,6 +164,9 @@ const description =
           The error path stops being the one nobody ever sees until a user does.
         </Fragment>
         <PanelMock
+          watching="examples/todo-app/laqi"
+          address="127.0.0.1:8000"
+          overridden={1}
           scenarios={[
             { name: 'logged-out' },
             { name: 'offline', count: 3, active: true },
@@ -173,6 +176,7 @@ const description =
             {
               method: 'GET',
               path: '/todos',
+              description: 'The whole list',
               layer: 'scenario',
               live: 2,
               chips: [
@@ -184,6 +188,7 @@ const description =
             {
               method: 'POST',
               path: '/todos',
+              description: 'Create a todo',
               layer: 'scenario',
               live: 1,
               chips: [
@@ -194,6 +199,7 @@ const description =
             {
               method: 'GET',
               path: '/profile',
+              description: 'The signed-in user',
               layer: 'default',
               live: 0,
               chips: [
@@ -204,6 +210,7 @@ const description =
             {
               method: 'GET',
               path: '/health',
+              description: 'Liveness',
               layer: 'state',
               live: 0,
               chips: [
@@ -214,6 +221,7 @@ const description =
             {
               method: 'POST',
               path: '/session',
+              description: 'Sign in',
               layer: 'default',
               live: 0,
               chips: [
