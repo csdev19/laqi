@@ -89,11 +89,7 @@ body {
 body.textured {
   background-color: var(--bg);
   background-image:
-    radial-gradient(
-      circle at 1px 1px,
-      color-mix(in srgb, var(--fg) 8%, transparent) 1px,
-      transparent 0
-    ),
+    radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0),
     radial-gradient(
       ellipse 42% 32% at 34% 10%,
       color-mix(in srgb, var(--vio) 30%, transparent),
