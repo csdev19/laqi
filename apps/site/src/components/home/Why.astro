@@ -127,12 +127,23 @@ const steps = [
       <p class="contract-foot">plain TypeScript · the common language</p>
     </figure>
 
-    <div class="branch" aria-hidden="true"></div>
+    <div class="fork" aria-hidden="true">
+      <span class="fork-stem"></span>
+      <span class="fork-bar"></span>
+    </div>
 
-    <p class="track-labels" aria-hidden="true">
-      <span class="track-label is-now">frontend track</span>
-      <span class="track-label">backend track</span>
-    </p>
+    <div class="legs" aria-hidden="true">
+      <div class="leg">
+        <span class="wire wire-now"></span>
+        <p class="track-label is-now">frontend track</p>
+        <span class="wire wire-now wire-arrow"></span>
+      </div>
+      <div class="leg">
+        <span class="wire"></span>
+        <p class="track-label">backend track</p>
+        <span class="wire wire-arrow"></span>
+      </div>
+    </div>
 
     <div class="tracks">
       <div class="track track-now">
@@ -176,7 +187,13 @@ const steps = [
       </div>
     </div>
 
+    <div class="legs legs-up" aria-hidden="true">
+      <div class="leg"><span class="wire"></span></div>
+      <div class="leg"><span class="wire"></span></div>
+    </div>
+
     <div class="switch" aria-hidden="true">
+      <span class="switch-head"></span>
       <span class="switch-line"></span>
       <span class="switch-word">switch</span>
       <span class="switch-line"></span>
@@ -479,6 +496,187 @@ const steps = [
 
   /* ---- after: the contract card and the two tracks ---- */
 
+  /* ---- connectors ----
+     
+     Everything vertical lands on a track's centre line. The tracks are a
+     two-column grid, so with a gap of G and a width of W each column is
+     (W - G) / 2 and the first centre sits at (W - G) / 4. The fork's bar is
+     drawn from that to the second centre with the same arithmetic instead of
+     a guessed percentage — 25% was close enough to look deliberate and wrong
+     enough that no line met the box it pointed at. */
+  .why {
+    --track-gap: 1.25rem;
+  }
+
+  .fork {
+    position: relative;
+    height: 2.25rem;
+  }
+
+  .fork-stem {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 1.1rem;
+    background: var(--line2);
+  }
+
+  .fork-bar {
+    position: absolute;
+    top: 1.1rem;
+    left: calc((100% - var(--track-gap)) / 4);
+    width: calc((100% - var(--track-gap)) / 2 + var(--track-gap));
+    height: 1px;
+    background: var(--line2);
+  }
+
+  /* The legs grid repeats the tracks' own template, so a leg is centred by
+     the same rule that centres the box beneath it — not by a second number
+     that has to be kept in step by hand. */
+  .legs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--track-gap);
+  }
+
+  .leg {
+    display: grid;
+    justify-items: center;
+    gap: 0.4rem;
+  }
+
+  .wire {
+    width: 1px;
+    height: 0.9rem;
+    background: var(--line2);
+  }
+
+  .wire-now {
+    background: var(--mint);
+  }
+
+  /* The arrowhead belongs to the last wire of a leg, so the line and its head
+     cannot drift apart when the gap changes. */
+  .wire-arrow {
+    position: relative;
+  }
+
+  .wire-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line2);
+  }
+
+  .wire-now.wire-arrow::after {
+    border-top-color: var(--mint);
+  }
+
+  .track-label {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .track-label.is-now {
+    color: var(--mint);
+  }
+
+  /* The legs under the tracks run upward into the switch rule, so they are
+     the same element with no arrowhead. */
+  .legs-up .wire {
+    height: 1.5rem;
+  }
+
+  /* The connector inside a track, centred on the track rather than offset to
+     the icon: the boxes either side of it are full width, so their shared
+     centre is the only line that reads as joining them. */
+  .link {
+    position: relative;
+    height: 2.5rem;
+    margin: 0;
+  }
+
+  .link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0.45rem;
+    left: 50%;
+    width: 1px;
+    background: var(--line2);
+  }
+
+  .link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line2);
+  }
+
+  .link-text {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 0.75rem);
+    translate: 0 -50%;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .link-now::before {
+    background: var(--mint);
+  }
+
+  .link-now::after {
+    border-top-color: var(--mint);
+  }
+
+  .link-now .link-text {
+    color: var(--mint);
+  }
+
+  /* The switch rule spans the two centres like the fork's bar, and its head
+     points left: the frontend is the side that changes. */
+  .switch {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: calc((100% - var(--track-gap)) / 2 + var(--track-gap));
+    margin-left: calc((100% - var(--track-gap)) / 4);
+  }
+
+  .switch-head {
+    flex: none;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 5px solid var(--line2);
+  }
+
+  .switch-line {
+    flex: 1;
+    border-top: 1px dashed var(--line2);
+  }
+
+  .switch-word {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+  }
+
   .after-lede {
     max-width: 52rem;
     margin: 0 0 2.5rem;
@@ -565,47 +763,6 @@ const steps = [
 
   /* The fork, drawn with borders so it reflows with the grid instead of
      being a fixed viewBox that stops lining up when the columns change. */
-  .branch {
-    height: 1.75rem;
-    margin: 0 25%;
-    border-left: 1px solid var(--line2);
-    border-right: 1px solid var(--line2);
-    border-bottom: 1px solid var(--line2);
-    border-radius: 0 0 2px 2px;
-    position: relative;
-  }
-
-  .branch::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: 1px;
-    height: 1.1rem;
-    translate: -50% -100%;
-    background: var(--line2);
-  }
-
-  .track-labels {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem;
-    margin: 0.75rem 0 0;
-    text-align: center;
-  }
-
-  .track-label {
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--dim2);
-  }
-
-  .track-label.is-now {
-    color: var(--mint);
-  }
-
   .tracks {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -631,80 +788,11 @@ const steps = [
   /* The connector between a track's two boxes, with the verb it performs
      written beside it — an arrow alone says "then", which is weaker than
      "serves now". */
-  .link {
-    position: relative;
-    height: 2.5rem;
-    margin: 0;
-  }
-
-  .link::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0.45rem;
-    left: 2.25rem;
-    width: 1px;
-    background: var(--line2);
-  }
-
-  .link::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 2.25rem;
-    translate: -50% 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid var(--line2);
-  }
-
-  .link-text {
-    position: absolute;
-    top: 50%;
-    left: 3rem;
-    translate: 0 -50%;
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-    color: var(--dim2);
-  }
-
-  .link-now::before,
-  .link-now::after {
-    background: var(--mint);
-    border-top-color: var(--mint);
-  }
-
-  .link-now::after {
-    background: none;
-  }
-
-  .link-now .link-text {
-    color: var(--mint);
-  }
-
   /* The switch back: one dashed rule under both tracks, pointing at the
      frontend, because that is the side that changes. */
-  .switch {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 1.75rem;
-  }
-
-  .switch-line {
-    flex: 1;
-    border-top: 1px dashed var(--line2);
-  }
-
-  .switch-word {
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.1em;
-    color: var(--dim);
-  }
-
   .switch-note {
     margin: 0.6rem 0 0;
+    padding-left: calc((100% - var(--track-gap)) / 4);
     font-family: var(--mono);
     font-size: 0.6875rem;
     text-align: center;
@@ -713,8 +801,20 @@ const steps = [
 
   @media (max-width: 54rem) {
     .tracks,
-    .track-labels {
+    .legs {
       grid-template-columns: minmax(0, 1fr);
+    }
+    /* One column: the bar has nothing to span and the switch runs the full
+       width, so both drop their two-column arithmetic. */
+    .fork-bar {
+      display: none;
+    }
+    .switch {
+      width: 100%;
+      margin-left: 0;
+    }
+    .switch-note {
+      padding-left: 0;
     }
     .branch {
       margin: 0 auto;
