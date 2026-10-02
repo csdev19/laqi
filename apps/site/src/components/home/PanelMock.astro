@@ -1,0 +1,265 @@
+---
+// apps/site/src/components/home/PanelMock.astro
+//
+// The panel's endpoint table, reproduced.
+//
+// Not imported from packages/editor — that is React and the site ships no
+// client framework — so every value here is copied from the real
+// stylesheet rather than matched by eye. The ones that carry meaning:
+//
+//   row marker   5px square, the colour of the layer that decided the row
+//   row tint     rgba(122,0,255,.075) when a scenario decided it
+//   live chip    state → magenta, scenario → violet, default → white 5%
+//   layer label  62px, right aligned, in the layer's colour, bold unless
+//                it is the file's own default
+//
+// That mapping is the product's one idea, so getting it wrong here would
+// teach a visitor the opposite of what the panel will. packages/editor/
+// src/styles.css is the source; if it moves, this moves.
+export interface PanelRow {
+  method: string
+  path: string
+  /** Which layer decided this row: state, scenario, header, or default. */
+  layer: 'state' | 'scenario' | 'header' | 'default'
+  /** Response name + status, in order. The live one is marked by index. */
+  chips: { name: string; status: string; kind: 'ok' | 'client' | 'server' }[]
+  live: number
+}
+interface Props {
+  scenarios: { name: string; count?: number; active?: boolean }[]
+  rows: PanelRow[]
+}
+const { scenarios, rows } = Astro.props
+const METHOD_TINT: Record<string, string> = {
+  GET: 'mint',
+  POST: 'viol',
+  PUT: 'palev',
+  PATCH: 'palev',
+  DELETE: 'mag',
+}
+---
+
+<figure class="panel">
+  <div class="strip">
+    <span class="strip-label">scenarios</span>
+    {
+      scenarios.map((s) => (
+        <span class:list={['sc', s.active && 'is-active']}>
+          {s.name}
+          {s.count !== undefined && <span class="sc-count">{s.count}</span>}
+        </span>
+      ))
+    }
+  </div>
+
+  {
+    rows.map((row) => (
+      <div class:list={['row', row.layer === 'scenario' && 'is-scenario', row.layer === 'state' && 'is-state']}>
+        <span class:list={['marker', `layer-${row.layer}`]} aria-hidden="true" />
+        <span class="method" style={`color: var(--${METHOD_TINT[row.method] ?? 'dim'})`}>
+          {row.method}
+        </span>
+        <span class="path">{row.path}</span>
+        <span class="chips">
+          {row.chips.map((chip, i) => (
+            <span class:list={['chip', i === row.live && ['is-live', `layer-${row.layer}`]]}>
+              {chip.name}
+              <span class:list={['chip-status', `status-${chip.kind}`]}>{chip.status}</span>
+            </span>
+          ))}
+        </span>
+        <span class:list={['layer', `layer-${row.layer}`, row.layer !== 'default' && 'is-not-default']}>
+          {row.layer}
+        </span>
+      </div>
+    ))
+  }
+
+  <slot />
+</figure>
+
+<style>
+  .panel {
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--win);
+    font-family: var(--mono);
+    overflow: hidden;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
+  }
+
+  .strip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--bd);
+  }
+
+  .strip-label {
+    margin-right: 0.35rem;
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .sc {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border: 1px solid var(--line2);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .sc.is-active {
+    border-color: var(--vio);
+    background: var(--vio);
+    color: #fff;
+  }
+
+  .sc-count {
+    font-size: 10px;
+    color: var(--dim2);
+  }
+
+  .sc.is-active .sc-count {
+    color: rgb(255 255 255 / 0.7);
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--bd);
+  }
+
+  .row:last-of-type {
+    border-bottom: 0;
+  }
+
+  .is-scenario {
+    background: rgb(122 0 255 / 0.075);
+  }
+
+  .is-state {
+    background: rgb(255 0 160 / 0.06);
+  }
+
+  .marker {
+    width: 5px;
+    height: 5px;
+    flex: none;
+    border-radius: 1px;
+    background: transparent;
+  }
+
+  .marker.layer-state {
+    background: var(--mag);
+  }
+  .marker.layer-scenario {
+    background: var(--vio);
+  }
+  .marker.layer-header {
+    background: var(--mint);
+  }
+
+  .method {
+    width: 54px;
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  .path {
+    flex: 1;
+    font-size: 12px;
+    color: var(--fg);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    flex: none;
+    max-width: 52%;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border: 1px solid var(--line2);
+    border-radius: 2px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--dim);
+  }
+
+  .chip-status {
+    font-size: 10px;
+  }
+
+  .status-ok {
+    color: var(--mint);
+  }
+  .status-client {
+    color: var(--magl);
+  }
+  .status-server {
+    color: var(--red);
+  }
+
+  .chip.is-live.layer-state {
+    border-color: var(--mag);
+    background: rgb(255 0 160 / 0.16);
+    color: var(--fg);
+  }
+
+  .chip.is-live.layer-scenario {
+    border-color: var(--viol);
+    background: rgb(122 0 255 / 0.22);
+    color: var(--fg);
+  }
+
+  .chip.is-live.layer-default {
+    border-color: var(--dim);
+    background: rgb(255 255 255 / 0.05);
+    color: var(--fg);
+  }
+
+  .layer {
+    width: 62px;
+    flex: none;
+    text-align: right;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .layer.is-not-default {
+    font-weight: 700;
+  }
+
+  .layer.layer-state {
+    color: var(--mag);
+  }
+  .layer.layer-scenario {
+    color: var(--viol);
+  }
+
+  @media (max-width: 44rem) {
+    .chips {
+      display: none;
+    }
+  }
+</style>

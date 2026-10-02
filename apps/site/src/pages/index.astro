@@ -13,6 +13,7 @@ import Chapter from '../components/home/Chapter.astro'
 import Window from '../components/home/Window.astro'
 import CodeWindow from '../components/home/CodeWindow.astro'
 import CreateRow from '../components/home/CreateRow.astro'
+import PanelMock from '../components/home/PanelMock.astro'
 import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
@@ -162,48 +163,73 @@ const description =
         <Fragment slot="note">
           The error path stops being the one nobody ever sees until a user does.
         </Fragment>
-        <Window
-          label="127.0.0.1:8000/__laqi"
-          meta="scenario · offline"
-          footer={[
-            { label: 'you pick', text: 'error', tint: 'magl' },
-            { label: 'your app gets', text: '500, on its next ordinary request' },
+        <PanelMock
+          scenarios={[
+            { name: 'logged-out' },
+            { name: 'offline', count: 3, active: true },
+            { name: 'slow-network' },
+          ]}
+          rows={[
+            {
+              method: 'GET',
+              path: '/todos',
+              layer: 'scenario',
+              live: 2,
+              chips: [
+                { name: 'ok', status: '200', kind: 'ok' },
+                { name: 'empty', status: '200', kind: 'ok' },
+                { name: 'error', status: '500', kind: 'server' },
+              ],
+            },
+            {
+              method: 'POST',
+              path: '/todos',
+              layer: 'scenario',
+              live: 1,
+              chips: [
+                { name: 'created', status: '201', kind: 'ok' },
+                { name: 'error', status: '500', kind: 'server' },
+              ],
+            },
+            {
+              method: 'GET',
+              path: '/profile',
+              layer: 'default',
+              live: 0,
+              chips: [
+                { name: 'ok', status: '200', kind: 'ok' },
+                { name: 'unauthorized', status: '401', kind: 'client' },
+              ],
+            },
+            {
+              method: 'GET',
+              path: '/health',
+              layer: 'state',
+              live: 0,
+              chips: [
+                { name: 'ok', status: '200', kind: 'ok' },
+                { name: 'error', status: '500', kind: 'server' },
+              ],
+            },
+            {
+              method: 'POST',
+              path: '/session',
+              layer: 'default',
+              live: 0,
+              chips: [
+                { name: 'ok', status: '200', kind: 'ok' },
+                { name: 'invalid', status: '401', kind: 'client' },
+              ],
+            },
           ]}
         >
-          <div class="panel-rows">
-            <p class="scenarios">
-              <span class="sc-label">scenarios</span>
-              <span class="sc">logged-out</span>
-              <span class="sc sc-on">offline</span>
-              <span class="sc">slow-network</span>
-            </p>
-            {
-              [
-                { m: 'GET', c: 'mint', path: '/todos', chips: ['ok 200', 'empty 200', 'error 500'], live: 2, layer: 'scenario' },
-                { m: 'POST', c: 'vio', path: '/todos', chips: ['created 201', 'error 500'], live: 1, layer: 'scenario' },
-                { m: 'GET', c: 'mint', path: '/profile', chips: ['ok 200', 'unauthorized 401'], live: 0, layer: 'default' },
-                { m: 'GET', c: 'mint', path: '/health', chips: ['ok 200', 'error 500'], live: 0, layer: 'state' },
-              ].map((row) => (
-                <p class="prow">
-                  <span class="m" style={`color: var(--${row.c})`}>{row.m}</span>
-                  <span class="path">{row.path}</span>
-                  <span class="chips">
-                    {row.chips.map((chip, i) => (
-                      <span class:list={['chip', i === row.live && 'chip-on']}>{chip}</span>
-                    ))}
-                  </span>
-                  <span class="layer">{row.layer}</span>
-                </p>
-              ))
-            }
-          </div>
-          <FloatCard slot="float" label="what happens next">
-            <p><span class="step-n">1</span> you pick <code>error</code></p>
-            <p><span class="step-n">2</span> the app sends <code>POST /todos</code>, as usual</p>
-            <p><span class="step-n">3</span> laqi returns <code>500</code></p>
+          <FloatCard label="what happens next">
+            <p><span class="step-n">1</span> you pick <span class="pick">error</span></p>
+            <p><span class="step-n">2</span> app sends <code>POST /todos</code>, as usual</p>
+            <p><span class="step-n">3</span> laqi returns <span class="err">500</span></p>
             <p class="live"><span class="step-n">4</span> your error UI gets tested</p>
           </FloatCard>
-        </Window>
+        </PanelMock>
       </Chapter>
 
       <Chapter
@@ -572,6 +598,10 @@ package.json        "mock": "laqi start"
 
   :global(.float .body .err) {
     color: var(--red);
+  }
+
+  :global(.float .body .pick) {
+    color: var(--magtx);
   }
 
   :global(.float .body p) {
