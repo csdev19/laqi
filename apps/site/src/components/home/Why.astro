@@ -107,15 +107,32 @@ const steps = [
       <span class="aside">laqi serves the agreed API today. The backend implements the same contract independently.</span>
     </p>
 
-    <div class="contract">
-      <DiagramIcon kind="contract" tint="viol" />
-      <span>
+    <p class="after-lede">
+      The shapes are plain TypeScript — the one language both teams already
+      share. laqi turns them into working responses today; the backend
+      implements the same ones.
+    </p>
+
+    <figure class="contract">
+      <figcaption class="contract-bar">
+        <span class="ts">TS</span>
         <span class="contract-label">api contract</span>
-        <span class="contract-file">laqi/api.json · agreed once</span>
-      </span>
-    </div>
+        <span class="contract-file">contract/todo.ts</span>
+      </figcaption>
+      <pre class="contract-code"><code><span class="k">export</span> <span class="k">interface</span> <span class="t">Todo</span> {'{'}
+  <span class="f">id</span>: <span class="y">string</span>;
+  <span class="f">title</span>: <span class="y">string</span>;
+  <span class="f">done</span>: <span class="y">boolean</span>;
+{'}'}</code></pre>
+      <p class="contract-foot">plain TypeScript · the common language</p>
+    </figure>
 
     <div class="branch" aria-hidden="true"></div>
+
+    <p class="track-labels" aria-hidden="true">
+      <span class="track-label is-now">frontend track</span>
+      <span class="track-label">backend track</span>
+    </p>
 
     <div class="tracks">
       <div class="track track-now">
@@ -123,20 +140,19 @@ const steps = [
           <DiagramIcon kind="laqi" tint="viol" />
           <div>
             <p class="box-label label-vio">laqi</p>
-            <p class="box-title">Implements the contract, for now</p>
-            <p class="box-meta">realistic responses · temporary</p>
+            <p class="box-title">Serves the contract</p>
+            <p class="box-meta">temporary · every state</p>
           </div>
         </div>
-        <div class="drop drop-now" aria-hidden="true"></div>
-        <div class="box">
+        <p class="link link-now"><span class="link-text">serves now</span></p>
+        <div class="box box-front">
           <DiagramIcon kind="frontend" tint="palem" />
           <div>
             <p class="box-label">frontend</p>
-            <p class="box-title">Builds against it today</p>
+            <p class="box-title">Builds today</p>
             <p class="box-meta meta-mint">2–3 sprints ahead</p>
           </div>
         </div>
-        <p class="verdict verdict-now">build features now</p>
       </div>
 
       <div class="track">
@@ -144,36 +160,28 @@ const steps = [
           <DiagramIcon kind="backend" tint="dim" />
           <div>
             <p class="box-label">backend</p>
-            <p class="box-title">Builds the implementation</p>
-            <p class="box-meta">against the same contract</p>
+            <p class="box-title">Implements the contract</p>
+            <p class="box-meta">in parallel</p>
           </div>
         </div>
-        <div class="drop" aria-hidden="true"></div>
+        <p class="link"><span class="link-text">builds</span></p>
         <div class="box">
           <DiagramIcon kind="backend" tint="magl" />
           <div>
             <p class="box-label label-mag">real API</p>
-            <p class="box-title">The real API</p>
-            <p class="box-meta meta-mag">sprint 3 of 5 → ready</p>
+            <p class="box-title">Ready later</p>
+            <p class="box-meta">same routes, real data</p>
           </div>
         </div>
-        <p class="verdict">build independently</p>
       </div>
     </div>
 
-    <div class="merge" aria-hidden="true"></div>
-
-    <div class="handoff">
-      <p class="handoff-label">when the backend is ready</p>
-      <div class="handoff-row">
-        <span class="handoff-end">Frontend</span>
-        <span class="handoff-arrow">
-          <span class="over">same contract</span>
-          <span class="under">change base URL</span>
-        </span>
-        <span class="handoff-end">Real backend</span>
-      </div>
+    <div class="switch" aria-hidden="true">
+      <span class="switch-line"></span>
+      <span class="switch-word">switch</span>
+      <span class="switch-line"></span>
     </div>
+    <p class="switch-note">same contract · change base URL</p>
 
     <p class="closing">No integration rewrite. <em>Just point to the real API.</em></p>
   </div>
@@ -441,48 +449,129 @@ const steps = [
 
   /* ---- after: contract, branch, tracks ---- */
 
-  .contract {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 0.75rem 1rem;
-    margin: 0 auto;
-    border: 1px solid color-mix(in srgb, var(--vio) 70%, transparent);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--vio) 10%, transparent);
+  /* The fork from the contract down into the two tracks. Drawn with borders
+     rather than an SVG so it reflows with the grid instead of being a fixed
+     viewBox that stops lining up the moment the columns change width. */
+  .box-laqi {
+    border-color: color-mix(in srgb, var(--vio) 65%, transparent);
+    background: color-mix(in srgb, var(--vio) 8%, transparent);
   }
 
-  .panel-after > .contract {
-    display: flex;
+  @media (max-width: 54rem) {
+    .tracks {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .branch {
+      margin: 0 auto;
+      width: 1px;
+      border: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--line2) 0 3px,
+        transparent 3px 6px
+      );
+    }
+    .branch::before {
+      display: none;
+    }
+  }
+
+
+  /* ---- after: the contract card and the two tracks ---- */
+
+  .after-lede {
+    max-width: 52rem;
+    margin: 0 0 2.5rem;
+    color: var(--dim);
+    line-height: 1.75;
+  }
+
+  /* The contract as a file rather than a chip: a reader recognises a code
+     card instantly, and the point of the section is that both teams are
+     reading the same source. */
+  .contract {
     width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    border: 1px solid color-mix(in srgb, var(--vio) 65%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--vio) 7%, transparent);
+    overflow: hidden;
+  }
+
+  .contract-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--vio) 35%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .ts {
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: #3178c6;
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 600;
   }
 
   .contract-label {
-    display: block;
-    font-family: var(--mono);
-    font-size: 0.625rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--viol);
   }
 
   .contract-file {
-    display: block;
-    font-family: var(--mono);
-    font-size: 0.8125rem;
-    color: var(--fg);
+    margin-left: auto;
+    padding-left: 2rem;
+    color: var(--dim2);
   }
 
-  /* The fork from the contract down into the two tracks. Drawn with borders
-     rather than an SVG so it reflows with the grid instead of being a fixed
-     viewBox that stops lining up the moment the columns change width. */
+  .contract-code {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.75;
+    color: var(--dim);
+    overflow-x: auto;
+  }
+
+  .contract-code .k {
+    color: var(--magl);
+  }
+  .contract-code .t {
+    color: var(--warn);
+  }
+  .contract-code .f {
+    color: var(--palev);
+  }
+  .contract-code .y {
+    color: var(--palem);
+  }
+
+  .contract-foot {
+    margin: 0;
+    padding: 0.5rem 0.8rem;
+    border-top: 1px solid color-mix(in srgb, var(--vio) 25%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    text-align: center;
+    color: var(--dim2);
+  }
+
+  /* The fork, drawn with borders so it reflows with the grid instead of
+     being a fixed viewBox that stops lining up when the columns change. */
   .branch {
-    height: 2.25rem;
+    height: 1.75rem;
     margin: 0 25%;
-    border-left: 1px dashed var(--line2);
-    border-right: 1px dashed var(--line2);
-    border-bottom: 1px dashed var(--line2);
-    border-radius: 0 0 8px 8px;
+    border-left: 1px solid var(--line2);
+    border-right: 1px solid var(--line2);
+    border-bottom: 1px solid var(--line2);
+    border-radius: 0 0 2px 2px;
     position: relative;
   }
 
@@ -494,190 +583,148 @@ const steps = [
     width: 1px;
     height: 1.1rem;
     translate: -50% -100%;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--line2) 0 3px,
-      transparent 3px 6px
-    );
+    background: var(--line2);
+  }
+
+  .track-labels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin: 0.75rem 0 0;
+    text-align: center;
+  }
+
+  .track-label {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .track-label.is-now {
+    color: var(--mint);
   }
 
   .tracks {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem;
-    margin-top: -1px;
+    margin-top: 1.25rem;
   }
 
   .track {
     display: grid;
-    gap: 0;
-    padding: 1rem;
-    border: 1px solid var(--line);
-    border-radius: 12px;
   }
 
-  .track-now {
+  .box-laqi {
+    border-color: color-mix(in srgb, var(--vio) 70%, transparent);
+    border-style: dashed;
+    background: color-mix(in srgb, var(--vio) 9%, transparent);
+  }
+
+  .box-front {
     border-color: color-mix(in srgb, var(--mint) 45%, transparent);
     background: color-mix(in srgb, var(--mint) 4%, transparent);
   }
 
-  .box-laqi {
-    border-color: color-mix(in srgb, var(--vio) 65%, transparent);
-    background: color-mix(in srgb, var(--vio) 8%, transparent);
-  }
-
-  .drop-now {
-    background: repeating-linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--mint) 70%, transparent) 0 3px,
-      transparent 3px 6px
-    );
-  }
-
-  .drop {
-    justify-self: center;
-    width: 1px;
-    height: 1.5rem;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--line2) 0 3px,
-      transparent 3px 6px
-    );
-  }
-
-  .verdict {
-    justify-self: center;
-    margin: 1rem 0 0;
-    padding: 0.3rem 0.9rem;
-    border: 1px solid var(--line2);
-    border-radius: 999px;
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--dim);
-  }
-
-  .verdict-now {
-    border-color: color-mix(in srgb, var(--mint) 55%, transparent);
-    color: var(--mint);
-  }
-
-  .merge {
-    height: 1.75rem;
-    margin: 0 25%;
-    border-left: 1px dashed var(--line2);
-    border-right: 1px dashed var(--line2);
-    border-top: 1px dashed var(--line2);
-    border-radius: 8px 8px 0 0;
+  /* The connector between a track's two boxes, with the verb it performs
+     written beside it — an arrow alone says "then", which is weaker than
+     "serves now". */
+  .link {
     position: relative;
+    height: 2.5rem;
+    margin: 0;
   }
 
-  .merge::after {
+  .link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0.45rem;
+    left: 2.25rem;
+    width: 1px;
+    background: var(--line2);
+  }
+
+  .link::after {
     content: '';
     position: absolute;
     bottom: 0;
-    left: 50%;
-    width: 1px;
-    height: 1rem;
-    translate: -50% 100%;
-    background: repeating-linear-gradient(
-      to bottom,
-      var(--line2) 0 3px,
-      transparent 3px 6px
-    );
+    left: 2.25rem;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line2);
   }
 
-  @media (max-width: 54rem) {
-    .tracks {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .branch,
-    .merge {
-      margin: 0 auto;
-      width: 1px;
-      border: 0;
-      background: repeating-linear-gradient(
-        to bottom,
-        var(--line2) 0 3px,
-        transparent 3px 6px
-      );
-    }
-    .branch::before,
-    .merge::after {
-      display: none;
-    }
-  }
-
-  /* ---- handoff ---- */
-
-  .handoff {
-    margin-top: 1.25rem;
-    padding: 1.25rem;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--panel);
-  }
-
-  .handoff-label {
-    margin: 0 0 0.9rem;
+  .link-text {
+    position: absolute;
+    top: 50%;
+    left: 3rem;
+    translate: 0 -50%;
     font-family: var(--mono);
-    font-size: 0.625rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .link-now::before,
+  .link-now::after {
+    background: var(--mint);
+    border-top-color: var(--mint);
+  }
+
+  .link-now::after {
+    background: none;
+  }
+
+  .link-now .link-text {
+    color: var(--mint);
+  }
+
+  /* The switch back: one dashed rule under both tracks, pointing at the
+     frontend, because that is the side that changes. */
+  .switch {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+  }
+
+  .switch-line {
+    flex: 1;
+    border-top: 1px dashed var(--line2);
+  }
+
+  .switch-word {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    color: var(--dim);
+  }
+
+  .switch-note {
+    margin: 0.6rem 0 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
     text-align: center;
     color: var(--dim2);
   }
 
-  .handoff-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .handoff-end {
-    flex: none;
-    font-family: var(--serif);
-    font-size: 1.0625rem;
-    color: var(--fg);
-  }
-
-  .handoff-arrow {
-    position: relative;
-    flex: 1;
-    height: 1px;
-    background: var(--line2);
-  }
-
-  .handoff-arrow::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 0;
-    translate: 0 -50%;
-    border-top: 4px solid transparent;
-    border-bottom: 4px solid transparent;
-    border-left: 7px solid var(--line2);
-  }
-
-  .handoff-arrow .over,
-  .handoff-arrow .under {
-    position: absolute;
-    left: 50%;
-    translate: -50% 0;
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-    white-space: nowrap;
-  }
-
-  .handoff-arrow .over {
-    bottom: 0.4rem;
-    color: var(--mint);
-  }
-
-  .handoff-arrow .under {
-    top: 0.4rem;
-    color: var(--dim2);
+  @media (max-width: 54rem) {
+    .tracks,
+    .track-labels {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .branch {
+      margin: 0 auto;
+      width: 1px;
+      border: 0;
+      background: var(--line2);
+    }
+    .branch::before {
+      display: none;
+    }
   }
 
   .closing {
