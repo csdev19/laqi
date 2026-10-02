@@ -12,6 +12,7 @@ import Why from '../components/home/Why.astro'
 import Chapter from '../components/home/Chapter.astro'
 import Window from '../components/home/Window.astro'
 import CodeWindow from '../components/home/CodeWindow.astro'
+import CreateRow from '../components/home/CreateRow.astro'
 import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
@@ -116,7 +117,6 @@ const description =
         subtitle="laqi writes the responses."
         chips={['from a model', 'from JSON', 'from a schema in the project', 'copy types']}
         noteLabel="why it matters"
-        flip
       >
         <span slot="glyph">T→{'{}'}</span>
         <p slot="body">
@@ -129,28 +129,17 @@ const description =
           The mock and the frontend’s types can’t drift apart — they come from
           the same model.
         </Fragment>
-        <CodeWindow
-          file="Order.ts"
-          meta="your model"
-          lines={[
-            { html: '<span class="kw">export</span> <span class="kw">interface</span> <span class="typ">Order</span> <span class="p">{</span>' },
-            { html: '&nbsp;&nbsp;<span class="key">id</span><span class="p">:</span> <span class="typ">string</span>', note: 'pasted, or a file in your project' },
-            { html: '&nbsp;&nbsp;<span class="key">total</span><span class="p">:</span> <span class="typ">number</span>' },
-            { html: '&nbsp;&nbsp;<span class="key">status</span><span class="p">:</span> <span class="str">\'paid\'</span> <span class="p">|</span> <span class="str">\'pending\'</span>', note: 'a union, kept as a union' },
-            { html: '&nbsp;&nbsp;<span class="key">createdAt</span><span class="p">:</span> <span class="typ">Date</span>' },
-            { html: '<span class="p">}</span>' },
-          ]}
-          footer={[
-            { label: 'from', text: 'a model · JSON · a project schema', tint: 'palev' },
-            { label: 'repeatable', text: 'same seed, same output' },
-          ]}
-        >
-          <FloatCard slot="float" label="generated · ok 200">
-            <p><code>{'{ "id": "ord_8f2a41", "total": 148.5,'}</code></p>
-            <p><code>{'  "status": "paid", "createdAt": "2026-08-24" }'}</code></p>
-            <p class="live">and back again · types for any response</p>
+        <CreateRow>
+          <FloatCard label="and back again · copy types">
+            <p>
+              <code
+                ><span class="kw">export</span> <span class="kw">interface</span>
+                <span class="typ">AuthSignup</span></code
+              >
+            </p>
+            <p class="live">{'{ token: string; user: User }'}</p>
           </FloatCard>
-        </CodeWindow>
+        </CreateRow>
       </Chapter>
 
       <Chapter
@@ -227,7 +216,6 @@ const description =
         subtitle="No guessing which rule won."
         chips={['header', 'state', 'scenario', 'default']}
         noteLabel="same answer, three places"
-        flip
       >
         <span slot="glyph">↻</span>
         <p slot="body">

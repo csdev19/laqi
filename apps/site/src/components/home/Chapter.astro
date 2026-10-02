@@ -17,7 +17,6 @@ interface Props {
   title: string
   subtitle: string
   chips?: string[]
-  flip?: boolean
   /** Label over the one-sentence consequence, e.g. "the shift". */
   noteLabel?: string
 }
@@ -30,13 +29,12 @@ const {
   title,
   subtitle,
   chips = [],
-  flip = false,
   noteLabel,
 } = Astro.props
 const hasNote = Astro.slots.has('note')
 ---
 
-<section class:list={['chapter', flip && 'is-flipped']} id={id} style={`--tint: var(--${tint})`}>
+<section class="chapter" id={id} style={`--tint: var(--${tint})`}>
   <div class="copy">
     <span class="tile" aria-hidden="true"><slot name="glyph" /></span>
     <p class="index">
@@ -72,6 +70,9 @@ const hasNote = Astro.slots.has('note')
 </section>
 
 <style>
+  /* Text left, evidence right, in every chapter. Alternating sides made the
+     eye restart at each one — the reader has to find where the sentence
+     begins again instead of carrying on down a column. */
   .chapter {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
@@ -82,17 +83,10 @@ const hasNote = Astro.slots.has('note')
     padding: 6rem 1.5rem;
   }
 
-  .is-flipped .copy {
-    order: 2;
-  }
-
   @media (max-width: 68rem) {
     .chapter {
       grid-template-columns: minmax(0, 1fr);
       gap: 2.5rem;
-    }
-    .is-flipped .copy {
-      order: 0;
     }
   }
 

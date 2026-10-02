@@ -1,0 +1,279 @@
+---
+// apps/site/src/components/home/CreateRow.astro
+//
+// The panel's create-endpoint row, reproduced.
+//
+// Not imported from packages/editor: that is a React component, and the site
+// ships no client framework. Pulling React in to render one still frame
+// would cost the visitor a runtime to look at a picture. So this is markup,
+// and every label in it is copied from the real thing rather than invented —
+// METHODS, the path placeholder, the four body sources and the example
+// titles all come from components/CreateEndpointRow.tsx and
+// @laqi/generate/examples. If those change, this is wrong and should be
+// corrected here.
+const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+const sources = ['blank', 'from a model', 'from JSON', 'from a schema in the project']
+const examples = ['simple', 'medium', 'complex']
+
+const model = [
+  '<span class="kw">export</span> <span class="kw">interface</span> <span class="typ">Order</span> <span class="p">{</span>',
+  '&nbsp;&nbsp;<span class="key">id</span><span class="p">:</span> <span class="typ">string</span><span class="p">;</span>',
+  '&nbsp;&nbsp;<span class="key">total</span><span class="p">:</span> <span class="typ">number</span><span class="p">;</span>',
+  '&nbsp;&nbsp;<span class="key">status</span><span class="p">:</span> <span class="str">&#39;paid&#39;</span> <span class="p">|</span> <span class="str">&#39;pending&#39;</span><span class="p">;</span>',
+  '&nbsp;&nbsp;<span class="key">createdAt</span><span class="p">:</span> <span class="typ">Date</span><span class="p">;</span>',
+  '<span class="p">}</span>',
+]
+
+const generated = [
+  '<span class="p">{</span>',
+  '&nbsp;&nbsp;<span class="key">"id"</span><span class="p">:</span> <span class="str">"ord_8f2a41"</span><span class="p">,</span>',
+  '&nbsp;&nbsp;<span class="key">"total"</span><span class="p">:</span> <span class="num">148.5</span><span class="p">,</span>',
+  '&nbsp;&nbsp;<span class="key">"status"</span><span class="p">:</span> <span class="str">"paid"</span><span class="p">,</span>',
+  '&nbsp;&nbsp;<span class="key">"createdAt"</span><span class="p">:</span> <span class="str">"2026-08-24T14:32:07Z"</span>',
+  '<span class="p">}</span>',
+]
+---
+
+<figure class="create">
+  <div class="top">
+    <span class="methods">
+      {
+        methods
+          .slice(0, 3)
+          .map((m, i) => <span class:list={['method', i === 0 && 'is-on']}>{m}</span>)
+      }
+    </span>
+    <span class="path">/orders/:id</span>
+    <span class="field">ok</span>
+    <span class="field status">200</span>
+  </div>
+
+  <div class="modes">
+    {sources.map((src, i) => <span class:list={['mode', i === 1 && 'is-on']}>{src}</span>)}
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <p class="pane-label">your model</p>
+      {
+        model.map((line, i) => (
+          <p class="line">
+            <span class="n">{i + 1}</span>
+            <code set:html={line} />
+          </p>
+        ))
+      }
+    </div>
+
+    <span class="arrow" aria-hidden="true">→</span>
+
+    <div class="pane">
+      <p class="pane-label">generated · ok 200</p>
+      {
+        generated.map((line, i) => (
+          <p class="line">
+            <span class="n">{i + 1}</span>
+            <code set:html={line} />
+          </p>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="bottom">
+    <span class="ex-label">examples</span>
+    {examples.map((ex, i) => <span class:list={['ex', i === 0 && 'is-on']}>{ex}</span>)}
+    <span class="create-btn">Create</span>
+  </div>
+
+  <slot />
+</figure>
+
+<style>
+  .create {
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--win);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
+  }
+
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .methods {
+    display: flex;
+    gap: 0.15rem;
+    padding: 0.15rem;
+    border: 1px solid var(--bd2);
+    border-radius: 6px;
+  }
+
+  .method {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    color: var(--dim2);
+  }
+
+  .method.is-on {
+    background: color-mix(in srgb, var(--fg) 9%, transparent);
+    color: var(--fg);
+  }
+
+  .path {
+    flex: 1;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--bd2);
+    border-radius: 6px;
+    color: var(--fg);
+  }
+
+  .field {
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--bd2);
+    border-radius: 6px;
+    color: var(--dim);
+  }
+
+  .status {
+    color: var(--palem);
+  }
+
+  .modes {
+    display: flex;
+    gap: 0.3rem;
+    padding: 0 0.8rem 0.7rem;
+  }
+
+  .mode {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: var(--dim2);
+  }
+
+  .mode.is-on {
+    background: color-mix(in srgb, var(--fg) 9%, transparent);
+    color: var(--fg);
+  }
+
+  .panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    border-top: 1px solid var(--bd);
+    border-bottom: 1px solid var(--bd);
+  }
+
+  .pane {
+    padding: 0.8rem;
+    min-width: 0;
+  }
+
+  .pane + .pane,
+  .arrow + .pane {
+    border-left: 1px solid var(--bd);
+    height: 100%;
+  }
+
+  .pane-label {
+    margin: 0 0 0.5rem;
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .line {
+    display: grid;
+    grid-template-columns: 1.1rem minmax(0, 1fr);
+    gap: 0.5rem;
+    margin: 0;
+    line-height: 1.65;
+  }
+
+  .n {
+    text-align: right;
+    color: var(--syn-line);
+    user-select: none;
+  }
+
+  /* The arrow is the component's whole claim: one shape goes in, a body
+     comes out. It sits between the panes rather than over either. */
+  .arrow {
+    padding: 0 0.5rem;
+    color: var(--viotx);
+  }
+
+  .bottom {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.7rem 0.8rem;
+  }
+
+  .ex-label {
+    margin-right: 0.3rem;
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .ex {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--bd2);
+    border-radius: 4px;
+    color: var(--dim2);
+  }
+
+  .ex.is-on {
+    color: var(--fg);
+  }
+
+  .create-btn {
+    margin-left: auto;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--vio);
+    border-radius: 6px;
+    color: var(--viotx);
+  }
+
+  .create :global(.key) {
+    color: var(--viol);
+  }
+  .create :global(.str) {
+    color: var(--mint);
+  }
+  .create :global(.num) {
+    color: var(--magl);
+  }
+  .create :global(.kw) {
+    color: var(--mag);
+  }
+  .create :global(.typ) {
+    color: var(--palev);
+  }
+  .create :global(.p) {
+    color: var(--syn-punct);
+  }
+
+  @media (max-width: 52rem) {
+    .panes {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .arrow {
+      display: none;
+    }
+    .arrow + .pane {
+      border-left: 0;
+      border-top: 1px solid var(--bd);
+    }
+  }
+</style>
