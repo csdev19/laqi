@@ -11,6 +11,7 @@ import Hero from '../components/home/Hero.astro'
 import Why from '../components/home/Why.astro'
 import Chapter from '../components/home/Chapter.astro'
 import Window from '../components/home/Window.astro'
+import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
 import Rail from '../components/home/Rail.astro'
 import SiteFooter from '../components/SiteFooter.astro'
@@ -63,15 +64,18 @@ const description =
         tint="vio"
         title="Agree the API once."
         subtitle="Then both sides build against it."
-        chips={['named responses', 'hot reload', 'import OpenAPI']}
+        chips={['named responses', 'lives in git', 'import OpenAPI']}
+        noteLabel="the shift"
       >
         <span slot="glyph">{'{}'}</span>
         <p slot="body">
-          Routes are defined once. Each named response is a state that matters
-          — the empty list, the 401, the one that takes two seconds. The file
-          lives in git, so the contract is reviewed in a pull request like any
-          other code, and laqi serves it the moment it is saved.
+          Routes are defined once. Each named response is a state that matters.
+          The file lives in git — the frontend serves it with laqi today, the
+          backend implements the same interface.
         </p>
+        <Fragment slot="note">
+          The contract becomes the dependency — not the backend implementation.
+        </Fragment>
         <Window label="laqi/api.json" meta="saved 2s ago">
           <pre><code>{`{
   "GET /todos": {
@@ -88,105 +92,175 @@ const description =
       </Chapter>
 
       <Chapter
-        id="flip"
+        id="model"
         number="02"
         total={total}
-        kicker="flip · one click"
-        tint="mag"
-        title="Put any endpoint in any state."
-        subtitle="Without a restart, without a rebuild."
-        chips={['per endpoint', 'whole scenarios', 'per request header']}
+        kicker="model · from types to responses"
+        tint="viol"
+        title="Start from your types."
+        subtitle="laqi writes the responses."
+        chips={['from a model', 'from JSON', 'from a schema in the project', 'copy types']}
+        noteLabel="why it matters"
         flip
       >
-        <span slot="glyph">⇄</span>
+        <span slot="glyph">T→{'{}'}</span>
         <p slot="body">
-          Click <code>empty</code> and the next request returns an empty list.
-          Click <code>error</code> and it fails with a 500. Activate a scenario
-          and several endpoints move together. Nothing restarts, nothing
-          rebuilds, and your app does not know the difference.
+          Paste a TypeScript interface, point at a schema already in your
+          project, or drop in sample JSON. laqi generates realistic data that
+          fits it — and goes the other way too, giving you types for any
+          response.
         </p>
-        <Window label="127.0.0.1:8000/__laqi" meta="2 overridden">
-          <pre><code>{`GET    /todos       ok  [empty]  slow   error
-POST   /todos       created  invalid  [error]
-GET    /profile    [ok]  unauthorized
+        <Fragment slot="note">
+          The mock and the frontend's types can't drift apart — they come from
+          the same model.
+        </Fragment>
+        <Window label="/orders/:id" meta="from a model → ok 200">
+          <pre><code>{`your model                    generated · ok 200
 
-scenario   offline        logged-out     empty-state
-active     —              —              —`}</code></pre>
+export interface Order {      {
+  id: string                    "id": "ord_8f2a41",
+  total: number                 "total": 148.5,
+  status: 'paid' | 'pending'    "status": "paid",
+  createdAt: Date               "createdAt": "2026-08-24T14:32:07Z"
+}                             }`}</code></pre>
+        </Window>
+      </Chapter>
+
+      <Chapter
+        id="flip"
+        number="03"
+        total={total}
+        kicker="flip · every edge case, on demand"
+        tint="mag"
+        title="What if it fails?"
+        subtitle="Find out before the backend can tell you."
+        chips={['500 error', '401 unauthorized', '422 validation', 'empty list', 'slow · 3s', 'offline scenario']}
+        noteLabel="the point"
+      >
+        <span slot="glyph">500</span>
+        <p slot="body">
+          Test the states you usually have to wait for — or can never get on
+          purpose. Pick one, and your app's next ordinary request gets it.
+          Nothing restarts, and your app does not know the difference.
+        </p>
+        <Fragment slot="note">
+          The error path stops being the one nobody ever sees until a user does.
+        </Fragment>
+        <Window label="127.0.0.1:8000/__laqi" meta="scenario · offline">
+          <pre><code>{`GET    /todos      ok 200   empty 200  [error 500]   scenario
+POST   /todos      created 201         [error 500]   scenario
+GET    /profile   [ok 200]  unauthorized 401          default
+GET    /health    [ok 200]  error 500                 state`}</code></pre>
         </Window>
       </Chapter>
 
       <Chapter
         id="watch"
-        number="03"
+        number="04"
         total={total}
-        kicker="watch · live log"
+        kicker="watch · resolution, explained"
         tint="mint"
-        title="See what your app actually asked for."
-        subtitle="Including the requests that missed."
-        chips={['every request', 'unmatched routes', 'which layer won']}
+        title="Every request tells you why."
+        subtitle="No guessing which rule won."
+        chips={['header', 'state', 'scenario', 'default']}
+        noteLabel="same answer, three places"
+        flip
       >
-        <span slot="glyph">◉</span>
+        <span slot="glyph">↻</span>
         <p slot="body">
-          Every request appears as it lands, with the response that answered it
-          and the layer that decided — a header, a panel click, an active
-          scenario, or the file's own default. Requests that matched no route
-          at all show up too. That one is usually the bug.
+          Each line shows what came back and what chose it — a header on one
+          request, a state you picked in the panel, the active scenario, or
+          what the file says. Requests that matched no route show up too. That
+          one is usually the bug.
         </p>
-        <Window label="requests" meta="live">
-          <pre><code>{`POST   /todos        500   error (state)
-GET    /todos        200   empty (state)
-GET    /profile      200   ok (default)
-GET    /todoss       404   no matching route`}</code></pre>
+        <Fragment slot="note">
+          The panel, the terminal and the <code>x-laqi-resolved</code> header
+          always say the same thing.
+        </Fragment>
+        <Window label="requests" meta="218">
+          <pre><code>{`09:15:25  GET    /todos         200   state    → empty
+09:15:28  POST   /todos         500   scenario → error
+09:15:31  GET    /todos         200   header   → slow
+09:15:33  GET    /profile       401   state    → unauthorized
+09:15:36  PATCH  /todos/12      200   default  → ok
+09:15:38  GET    /favicon.ico   404   no matching route`}</code></pre>
         </Window>
       </Chapter>
 
       <Chapter
         id="share"
-        number="04"
+        number="05"
         total={total}
-        kicker="share · public URL"
-        tint="warn"
-        title="Hand it to someone else."
-        subtitle="Without deploying anything."
-        chips={['bearer token', 'rate limited', 'CORS you name']}
-        flip
+        kicker="share · a public URL"
+        tint="palev"
+        title="Localhost, anywhere."
+        subtitle="Test on a real device. Deploy nothing."
+        chips={['explicit', 'temporary', 'token-protected', 'off by default']}
+        noteLabel="without it"
       >
-        <span slot="glyph">↗</span>
+        <span slot="glyph">◉</span>
         <p slot="body">
-          <code>laqi --share</code> opens a public URL through a tunnel, so a
-          designer, a tester or a phone on mobile data can reach the same mocks.
-          Only the mock responses travel: the panel and its write API are not
-          mounted on that listener at all.
+          <code>laqi --share</code> opens a temporary public URL through a
+          Cloudflare tunnel, so a phone, a tester or a teammate on another
+          network reaches the same mocks — and every request still shows up in
+          your own log. Only the mock responses travel: the panel and its write
+          API are not mounted on that listener at all.
         </p>
-        <Window label="laqi --share" meta="cloudflared">
-          <pre><code>{`⚡ laqi
+        <Fragment slot="note">
+          You would be deploying a throwaway backend just so a phone could
+          reach it.
+        </Fragment>
+        <Window label="zsh — laqi" meta="public url open">
+          <pre><code>{`⚡ laqi --share
+
 serving   127.0.0.1:8000
-panel     127.0.0.1:8000/__laqi    local only
-public    https://odd-forest-42.trycloudflare.com
-          bearer  ····  240 req/min`}</code></pre>
+panel     127.0.0.1:8000/__laqi      local only
+public    https://cold-relay-7f2a.trycloudflare.com
+token     lq_7f2a41c8d93b            240 req/min
+
+09:22:04  GET   /todos      200   via public   iPhone
+09:22:06  POST  /todos      500   via public   iPhone`}</code></pre>
         </Window>
       </Chapter>
 
       <section class="files" id="files">
         <div class="files-inner">
-          <p class="eyebrow">your files</p>
-          <h2>It is a folder in your repository.<br /><em>That is the whole storage model.</em></h2>
-          <p class="lede">
-            No account, no database, no dashboard holding your API shapes. A
-            <code>laqi/</code> folder of JSON your team reviews like any other
-            code — and which an agent can edit for you over MCP, with the result
-            still readable in a diff.
-          </p>
-          <div class="tree">
-            <pre><code>{`your-app/
-  laqi/
-    api.json          routes and their named responses
-    scenarios.json    situations that move several at once
-  src/
-  package.json`}</code></pre>
+          <div>
+            <p class="eyebrow">your files</p>
+            <h2>Local by default. <em>Just files in your repo.</em></h2>
+            <ul class="checks">
+              <li>
+                <strong>Runs on 127.0.0.1 by default.</strong> No account, no hosted
+                project, no telemetry.
+              </li>
+              <li>
+                <strong>Your mocks are plain files.</strong> Commit them, review them,
+                diff them, clone them.
+              </li>
+              <li>
+                <strong>The panel edits the same files.</strong> One source of truth.
+              </li>
+              <li>
+                <strong>Sharing is explicit.</strong> Public access only exists while
+                you have a temporary tunnel open.
+              </li>
+            </ul>
           </div>
+          <Window label="todo-app" meta="main">
+            <pre><code>{`laqi/
+  api.json                           +12  -3
+  scenarios.json              3 scenarios
+src/
+package.json        "mock": "laqi start"
+
+@@ "POST /todos" @@
++ "validation": { "status": 422, "body": {…} },
+- "error":      { "status": 500 }`}</code></pre>
+          </Window>
         </div>
       </section>
+
+      <TheName />
 
       <Start />
     </main>
@@ -202,9 +276,49 @@ public    https://odd-forest-42.trycloudflare.com
   }
 
   .files-inner {
-    max-width: 48rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: center;
+    gap: 4rem;
+    max-width: 76rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
+  }
+
+  @media (max-width: 68rem) {
+    .files-inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+  }
+
+  /* A tick per line rather than a bullet: each row is a property of the
+     product that holds, not an item in a list of features. */
+  .checks {
+    margin: 2rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .checks li {
+    position: relative;
+    padding: 0 0 1.1rem 1.75rem;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  .checks li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--palem);
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+  }
+
+  .checks strong {
+    font-weight: 400;
+    color: var(--fg);
   }
 
   .eyebrow {
@@ -231,30 +345,4 @@ public    https://odd-forest-42.trycloudflare.com
     color: var(--viol);
   }
 
-  .lede {
-    max-width: 34rem;
-    margin: 0 0 2rem;
-    color: var(--dim);
-    line-height: 1.7;
-  }
-
-  .lede code,
-  .tree code {
-    font-family: var(--mono);
-  }
-
-  .tree {
-    padding: 1rem 1.25rem;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--panel);
-    font-size: 0.75rem;
-    line-height: 1.9;
-    color: var(--dim);
-    overflow-x: auto;
-  }
-
-  .tree pre {
-    margin: 0;
-  }
 </style>

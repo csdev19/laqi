@@ -1,18 +1,25 @@
 ---
 // apps/site/src/components/home/Start.astro
 //
-// The closing action. One primary thing to do, and the two honest sentences
-// about what laqi does not take from you — both verifiable: the mocks are
-// files in your repository, and --share mounts only the mock listener, never
-// the control plane (packages/server/src/public-app.ts).
+// The closing action. One primary command, one alternative that needs no
+// install, and the one honest sentence about what laqi does not take from you.
+//
+// Two things the design called for are not here, because the product does not
+// have them: there is no Homebrew formula (`brew install` appears in this
+// repository only as `brew install cloudflared`, the tunnel's prerequisite),
+// and no VS Code extension is on the roadmap. `laqi init` really is five
+// questions, each skippable — see apps/cli/src/init/prompt.ts.
+//
+// No version string: the site deploys on its own tag, so one printed here
+// goes stale on the next CLI release.
 ---
 
 <section class="start" id="start">
-  <h2>Build your first controllable API.</h2>
-  <p class="lede">
-    A JSON file, one command, one base URL — and every state your frontend has
-    to handle is a click away.
-  </p>
+  <span class="tile" aria-hidden="true">
+    <img src="/icon.svg" alt="" width="34" height="46" />
+  </span>
+
+  <h2>Stop waiting for the backend.<br /><em>Start with the contract.</em></h2>
 
   <div class="cta-row">
     <button type="button" class="btn-install" data-copy="npm i -g laqi">
@@ -20,9 +27,17 @@
       <code>npm i -g laqi</code>
       <span class="copied" aria-hidden="true">copied</span>
     </button>
-    <a href="/docs/quick-start/" class="btn-secondary">Quick start</a>
-    <a href="/docs/" class="btn-ghost">Read the docs</a>
+    <button type="button" class="btn-alt" data-copy="npx laqi">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code>npx laqi</code>
+      <span class="copied" aria-hidden="true">copied</span>
+    </button>
   </div>
+
+  <p class="then">
+    then <code>laqi init</code> · five questions, every one skippable with enter
+  </p>
+  <p class="meta">MIT · Node 20+ · <a href="/docs/quick-start/">Quick start</a></p>
 
   <p class="proof">
     Plain JSON in your repo · runs on your machine · <code>--share</code>
@@ -32,26 +47,113 @@
 
 <style>
   .start {
+    position: relative;
     max-width: 48rem;
     margin: 0 auto;
     padding: 7rem 1.5rem 8rem;
     text-align: center;
   }
 
+  /* The page opened on a violet radial and closes on one, so the two ends
+     read as the same room. */
+  .start::before {
+    content: '';
+    position: absolute;
+    inset: 0 -40%;
+    background: radial-gradient(
+      ellipse at 50% 30%,
+      color-mix(in srgb, var(--vio) 18%, transparent),
+      transparent 62%
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .tile {
+    display: grid;
+    width: 4.5rem;
+    height: 4.5rem;
+    place-items: center;
+    margin: 0 auto 2rem;
+    border-radius: 18px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    box-shadow: 0 24px 50px -20px var(--vio);
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--viol);
+  }
+
+  .btn-alt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    background: none;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+
+  .btn-alt:hover {
+    border-color: var(--viol);
+  }
+
+  .btn-alt .prompt {
+    color: var(--dim2);
+  }
+
+  .btn-alt .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-alt.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.7;
+  }
+
+  .then {
+    margin: 0 0 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--dim);
+  }
+
+  .then code,
+  .meta code {
+    color: var(--viol);
+  }
+
+  .meta {
+    margin: 0 0 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim2);
+  }
+
+  .meta a {
+    color: var(--dim);
+  }
+
   h2 {
-    margin: 0 0 1.25rem;
+    margin: 0 0 2.25rem;
     font-family: var(--serif);
     font-size: clamp(2rem, 4.5vw, 3.25rem);
     line-height: 1.12;
     letter-spacing: -0.015em;
     color: var(--fg);
-  }
-
-  .lede {
-    max-width: 32rem;
-    margin: 0 auto 2.5rem;
-    color: var(--dim);
-    line-height: 1.7;
   }
 
   .cta-row {
@@ -96,32 +198,6 @@
   .btn-install.is-copied .copied {
     max-width: 5rem;
     opacity: 0.8;
-  }
-
-  .btn-secondary {
-    padding: 0.85rem 1.4rem;
-    border: 1px solid var(--line2);
-    border-radius: 999px;
-    color: var(--fg);
-    text-decoration: none;
-    font-family: var(--serif);
-    font-size: 0.9375rem;
-  }
-
-  .btn-secondary:hover {
-    border-color: var(--viol);
-  }
-
-  .btn-ghost {
-    padding: 0.85rem 0.5rem;
-    color: var(--dim);
-    text-decoration: none;
-    font-family: var(--serif);
-    font-size: 0.9375rem;
-  }
-
-  .btn-ghost:hover {
-    color: var(--fg);
   }
 
   .proof {

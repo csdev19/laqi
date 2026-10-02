@@ -1,0 +1,200 @@
+---
+// apps/site/src/components/home/TheName.astro
+//
+// The name on the home page, where it does recognition work: an English
+// speaker hears "lucky" and otherwise never learns the product is named after
+// a courier who carried a message ahead of the thing it stood for.
+//
+// The figure is a quipu drawn as line work whose last cord ends in the laqi
+// mark. It is drawn in SVG rather than shipped as an image so it themes with
+// the tokens and costs no bytes — and so this section never becomes another
+// empty placeholder waiting for an asset that was not made.
+//
+// The internal letter-by-letter derivation spells LUQI rather than LAQI, so
+// it is left out here as it is on /the-name/.
+const cords = [
+  { x: 24, len: 86, knots: [34, 58] },
+  { x: 52, len: 62, knots: [40] },
+  { x: 80, len: 104, knots: [30, 52, 78] },
+  { x: 108, len: 70, knots: [46] },
+  { x: 136, len: 92, knots: [38, 66] },
+]
+---
+
+<section class="name" id="name">
+  <figure class="figure">
+    <svg viewBox="0 0 200 140" role="img" aria-label="A quipu: a horizontal cord with knotted cords hanging from it, the last ending in the laqi mark.">
+      <line x1="16" y1="18" x2="168" y2="18" class="spine" />
+      {
+        cords.map((cord) => (
+          <>
+            <line x1={cord.x} y1="18" x2={cord.x} y2={18 + cord.len} class="cord" />
+            {cord.knots.map((y) => <circle cx={cord.x} cy={18 + y} r="2.6" class="knot" />)}
+          </>
+        ))
+      }
+      <line x1="168" y1="18" x2="168" y2="44" class="cord" />
+      <path d="M172 44 l-10 20 h7 l-5 16 14 -22 h-7 z" class="mark" />
+    </svg>
+    <figcaption>fig. 1 — chasqui, in transit · the cord it carries ends in the laqi mark</figcaption>
+  </figure>
+
+  <div class="prose">
+    <p class="eyebrow">the name</p>
+    <h2>A runner, ahead of the road.</h2>
+    <p>
+      The <em>chasqui</em> was a relay runner of the Inca road network, carrying
+      knotted-cord quipus and spoken messages between waystations across the
+      Andes.
+    </p>
+    <p>
+      laqi plays the same part for your team. It carries the agreed message —
+      the API contract — before the final implementation exists.
+    </p>
+    <p class="pull">
+      <em>laqi is the runner carrying a message that is deliberately not the
+      real one — yet.</em>
+    </p>
+    <div class="roots">
+      <p class="roots-label">roots</p>
+      <div>
+        <p class="roots-text">
+          Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
+        </p>
+        <p class="roots-aside">say it out loud: it sounds like "lucky"</p>
+        <a href="/the-name/" class="more">The whole story →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .name {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: center;
+    gap: 4rem;
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 6rem 1.5rem;
+  }
+
+  @media (max-width: 68rem) {
+    .name {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+  }
+
+  .figure {
+    margin: 0;
+    padding: 2.5rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--panel) 45%, transparent);
+  }
+
+  .figure svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .spine,
+  .cord {
+    stroke: var(--viol);
+    stroke-width: 1.1;
+    stroke-linecap: round;
+  }
+
+  .knot {
+    fill: var(--viol);
+  }
+
+  .mark {
+    fill: var(--vio);
+  }
+
+  figcaption {
+    margin-top: 2rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  h2 {
+    margin: 0 0 1.75rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  .prose p {
+    margin: 0 0 1.25rem;
+    color: var(--dim);
+    line-height: 1.8;
+  }
+
+  .prose em {
+    font-style: italic;
+    color: var(--viol);
+  }
+
+  .pull {
+    margin: 2rem 0 !important;
+    font-family: var(--serif);
+    font-size: 1.3125rem;
+    line-height: 1.45;
+    color: var(--viol) !important;
+  }
+
+  .roots {
+    display: flex;
+    gap: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .roots-label {
+    flex: none;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .roots-text {
+    margin: 0 0 0.4rem !important;
+    color: var(--fg) !important;
+  }
+
+  .roots-aside {
+    margin: 0 0 0.75rem !important;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim2) !important;
+  }
+
+  .more {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--viol);
+    text-decoration: none;
+  }
+
+  .more:hover {
+    text-decoration: underline;
+  }
+</style>

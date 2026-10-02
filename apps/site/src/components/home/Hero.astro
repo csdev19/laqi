@@ -48,13 +48,18 @@ const log = [
     </h1>
 
     <ol class="steps">
-      <li><span class="n">01</span>Agree on the API contract.</li>
-      <li><span class="n">02</span>laqi serves it immediately.</li>
+      <li><span class="n">01</span><span>Agree on the API contract.</span></li>
+      <li><span class="n">02</span><span>laqi serves it immediately.</span></li>
       <li>
-        <span class="n">03</span>Build against realistic responses —
-        <span class="states">success, empty, slow, 401, 500</span>.
+        <span class="n">03</span>
+        <span>
+          Build against realistic responses.
+          <span class="states">
+            <span>success</span><span>empty</span><span>slow</span><span>401</span><span>500</span>
+          </span>
+        </span>
       </li>
-      <li><span class="n">04</span>Switch to the real backend by changing one base URL.</li>
+      <li><span class="n">04</span><span>Switch to the real backend by changing one base URL.</span></li>
     </ol>
 
     <div class="cta-row">
@@ -126,6 +131,26 @@ const log = [
 </script>
 
 <style>
+  /* The one piece of atmosphere the design system allows: a single violet
+     radial behind the copy, no second light and no gradient on any surface.
+     It sits on the section rather than on body so it ends with the hero
+     instead of tinting the whole page. */
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 70%;
+    height: 130%;
+    background: radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--vio) 22%, transparent),
+      transparent 68%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
   .hero {
     position: relative;
     display: grid;
@@ -227,11 +252,11 @@ const log = [
     display: grid;
     grid-template-columns: 2.25rem minmax(0, 1fr);
     align-items: baseline;
-    padding: 0.85rem 0;
+    padding: 0.7rem 0;
     border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
     font-family: var(--serif);
     font-size: 1.0625rem;
-    line-height: 1.5;
+    line-height: 1.45;
     color: var(--fg);
   }
 
@@ -245,9 +270,24 @@ const log = [
     color: var(--dim2);
   }
 
-  /* The states are the part a reader is meant to recognise, so they are set
-     apart from the sentence carrying them rather than emphasised inside it. */
+  /* The states are the part a reader is meant to recognise. Inline in the
+     sentence they wrapped the row onto a second line and read as prose; as
+     mono tokens under it they are scanned, and the row keeps one text line
+     whatever the viewport does. */
   .steps .states {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+
+  .steps .states span {
+    padding: 0.1rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--line2) 80%, transparent);
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
     color: var(--dim);
   }
 

@@ -18,8 +18,22 @@ interface Props {
   subtitle: string
   chips?: string[]
   flip?: boolean
+  /** Label over the one-sentence consequence, e.g. "the shift". */
+  noteLabel?: string
 }
-const { id, number, total, kicker, tint, title, subtitle, chips = [], flip = false } = Astro.props
+const {
+  id,
+  number,
+  total,
+  kicker,
+  tint,
+  title,
+  subtitle,
+  chips = [],
+  flip = false,
+  noteLabel,
+} = Astro.props
+const hasNote = Astro.slots.has('note')
 ---
 
 <section class:list={['chapter', flip && 'is-flipped']} id={id} style={`--tint: var(--${tint})`}>
@@ -34,6 +48,16 @@ const { id, number, total, kicker, tint, title, subtitle, chips = [], flip = fal
       <em>{subtitle}</em>
     </h2>
     <div class="body"><slot name="body" /></div>
+    {
+      hasNote && (
+        <div class="note">
+          {noteLabel && <p class="note-label">{noteLabel}</p>}
+          <p class="note-text">
+            <slot name="note" />
+          </p>
+        </div>
+      )
+    }
     {
       chips.length > 0 && (
         <p class="chips">
@@ -127,6 +151,34 @@ const { id, number, total, kicker, tint, title, subtitle, chips = [], flip = fal
     max-width: 32rem;
     color: var(--dim);
     line-height: 1.7;
+  }
+
+  /* The consequence, set apart from the explanation above it: a rule, a mono
+     label, and one italic sentence. It is the line a reader should leave the
+     chapter with, so it does not compete with the body for the same voice. */
+  .note {
+    max-width: 32rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .note-label {
+    margin: 0 0 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tint, var(--viol));
+  }
+
+  .note-text {
+    margin: 0;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: var(--fg);
   }
 
   .chips {

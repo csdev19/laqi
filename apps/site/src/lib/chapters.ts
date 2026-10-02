@@ -15,11 +15,13 @@ export const CHAPTERS = [
   { id: 'intro', label: 'Top', number: null, tint: null },
   { id: 'why', label: 'Why it works', number: null, tint: 'mint' },
   { id: 'contract', label: 'Contract', number: '01', tint: 'vio' },
-  { id: 'flip', label: 'Flip', number: '02', tint: 'mag' },
-  { id: 'watch', label: 'Watch', number: '03', tint: 'mint' },
-  { id: 'share', label: 'Share', number: '04', tint: 'warn' },
-  { id: 'files', label: 'Your files', number: null, tint: 'palev' },
-  { id: 'start', label: 'Start', number: null, tint: 'vio' },
+  { id: 'model', label: 'Model', number: '02', tint: 'viol' },
+  { id: 'flip', label: 'Flip', number: '03', tint: 'mag' },
+  { id: 'watch', label: 'Watch', number: '04', tint: 'mint' },
+  { id: 'share', label: 'Share', number: '05', tint: 'palev' },
+  { id: 'files', label: 'Your files', number: null, tint: 'palem' },
+  { id: 'name', label: 'The name', number: null, tint: 'viol' },
+  { id: 'start', label: 'Install', number: null, tint: 'vio' },
 ] as const
 
 export type Chapter = (typeof CHAPTERS)[number]
@@ -30,5 +32,5 @@ export const MOMENTS = CHAPTERS.filter(
   (c): c is Extract<Chapter, { number: string }> => c.number !== null,
 )
 
-/** The rail prints this as its lower bound: "01 … 09". */
+/** The rail prints this as its lower bound: "01 … 10". */
 export const TOTAL = String(CHAPTERS.length).padStart(2, '0')
