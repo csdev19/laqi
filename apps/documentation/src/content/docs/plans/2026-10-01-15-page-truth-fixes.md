@@ -5,7 +5,7 @@ title: Plan 15 — laqi.dev correctness fixes
 # Plan 15 — laqi.dev correctness fixes
 
 **Date:** 2026-10-01
-**Status:** All eight tasks are implemented on `wip/laqi-dev-page-audit`.
+**Status:** All eight tasks are implemented on `fix/laqi-dev-page-claims`.
 Task 5 was resolved by removing the version badge rather than by any of the
 three options below; task 1's removal was then reversed, deliberately, once
 the recordings were about to be made. Both are recorded in their tasks.
