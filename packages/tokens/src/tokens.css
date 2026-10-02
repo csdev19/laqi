@@ -65,6 +65,13 @@
   /* The marketing background texture. */
   --dot: rgb(234 231 242 / 0.05);
 
+  /* The two syntax greys the accents do not cover: punctuation sits under
+     the values it separates, and a line number sits under that again. Both
+     are quieter than --dim2 on purpose — in a code block the structure must
+     not compete with what it structures. */
+  --syn-punct: #4e4770;
+  --syn-line: #3d3757;
+
   /* TypeScript's own blue, for the TS badge and nothing else. It is a
      third-party brand colour: it belongs to no layer and carries no state. */
   --ts-badge: #3178c6;

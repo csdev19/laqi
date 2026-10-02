@@ -1,0 +1,178 @@
+---
+// apps/site/src/components/home/CodeWindow.astro
+//
+// A product window showing a file: a title bar, numbered lines, a gutter for
+// notes pointing at particular lines, and an optional footer of what each
+// side does with it.
+//
+// Lines carry pre-marked HTML rather than being highlighted at runtime. The
+// snippets here are six lines of our own JSON, chosen to show the shape of a
+// contract — running Shiki over them would ship a grammar and a theme to
+// colour something that never changes.
+export interface CodeLine {
+  html: string
+  note?: string
+}
+export interface FooterCell {
+  label: string
+  text: string
+  tint?: string
+}
+interface Props {
+  file: string
+  meta?: string
+  lines: CodeLine[]
+  footer?: FooterCell[]
+}
+const { file, meta, lines, footer = [] } = Astro.props
+---
+
+<figure class="window">
+  <figcaption class="bar">
+    <span class="file">{file}</span>
+    {meta && <span class="meta">{meta}</span>}
+  </figcaption>
+
+  <div class="code">
+    {
+      lines.map((line, i) => (
+        <div class="line">
+          <span class="n">{i + 1}</span>
+          <code set:html={line.html} />
+          {line.note && <span class="note">{line.note}</span>}
+        </div>
+      ))
+    }
+  </div>
+
+  {
+    footer.length > 0 && (
+      <div class="foot">
+        {footer.map((cell) => (
+          <div>
+            <p class="foot-label">{cell.label}</p>
+            <p class="foot-text" style={cell.tint ? `color: var(--${cell.tint})` : undefined}>
+              {cell.text}
+            </p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  <slot />
+</figure>
+
+<style>
+  .window {
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--win);
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--bd);
+    background: var(--winbar);
+    border-radius: 14px 14px 0 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .file {
+    color: var(--fg);
+  }
+
+  .meta {
+    color: var(--dim2);
+  }
+
+  .code {
+    padding: 1.1rem 0;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+
+  /* Three columns: the number, the code, and a gutter the notes live in. The
+     gutter is part of the grid rather than an overlay, so a note can never
+     land on top of the line it is pointing at. */
+  .line {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 1rem;
+    padding-right: 1rem;
+  }
+
+  .n {
+    text-align: right;
+    color: var(--syn-line);
+    user-select: none;
+  }
+
+  .note {
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    color: var(--dim2);
+  }
+
+  .foot {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    border-top: 1px solid var(--bd);
+  }
+
+  .foot > div {
+    padding: 0.75rem 1rem;
+  }
+
+  .foot > div + div {
+    border-left: 1px solid var(--bd);
+  }
+
+  .foot-label {
+    margin: 0 0 0.3rem;
+    font-family: var(--mono);
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .foot-text {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  /* The syntax palette, one class per role. Punctuation and line numbers are
+     deliberately the quietest things in the block: the structure must not
+     compete with what it structures. */
+  .code :global(.key) {
+    color: var(--viol);
+  }
+  .code :global(.str) {
+    color: var(--mint);
+  }
+  .code :global(.num) {
+    color: var(--magl);
+  }
+  .code :global(.kw) {
+    color: var(--mag);
+  }
+  .code :global(.typ) {
+    color: var(--palev);
+  }
+  .code :global(.p) {
+    color: var(--syn-punct);
+  }
+</style>

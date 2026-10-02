@@ -38,22 +38,22 @@ const GETS: Record<string, string> = {
 
 const steps = [
   {
-    kicker: 'sprint 0',
-    tint: 'viol',
-    title: 'Agree the contract',
-    body: 'One JSON file, written together.',
+    kicker: 'before implementation',
+    tint: 'viotx',
+    title: 'Agree on the contract',
+    body: 'Frontend and backend define the routes, types and states together.',
   },
   {
-    kicker: 'sprints 1–3',
-    tint: 'mint',
+    kicker: 'while building',
+    tint: 'viotx',
     title: 'Build in parallel',
-    body: 'Frontend against laqi. Backend against the same routes.',
+    body: 'laqi serves the contract now. The backend implements the same contract for real.',
   },
   {
-    kicker: 'integration',
-    tint: 'magl',
-    title: "Switch, don’t rebuild",
-    body: 'Any mismatch is a contract mismatch — found in hours, not sprints.',
+    kicker: 'when ready',
+    tint: 'viotx',
+    title: 'Switch, then verify',
+    body: 'Change the base URL and run the same flows against the real API.',
   },
 ]
 ---
@@ -974,7 +974,9 @@ const steps = [
   .step-kicker {
     margin: 0 0 0.75rem;
     font-family: var(--mono);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 
   .step-title {

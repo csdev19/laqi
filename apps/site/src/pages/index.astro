@@ -11,6 +11,8 @@ import Hero from '../components/home/Hero.astro'
 import Why from '../components/home/Why.astro'
 import Chapter from '../components/home/Chapter.astro'
 import Window from '../components/home/Window.astro'
+import CodeWindow from '../components/home/CodeWindow.astro'
+import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
 import Rail from '../components/home/Rail.astro'
@@ -76,19 +78,32 @@ const description =
         <Fragment slot="note">
           The contract becomes the dependency — not the backend implementation.
         </Fragment>
-        <Window label="laqi/api.json" meta="saved 2s ago">
-          <pre><code>{`{
-  "GET /todos": {
-    "default": "ok",
-    "responses": {
-      "ok":    { "body": [{ "id": 1 }] },
-      "empty": { "body": [] },
-      "slow":  { "delay": 2400 },
-      "error": { "status": 500 }
-    }
-  }
-}`}</code></pre>
-        </Window>
+        <CodeWindow
+          file="laqi/api.json"
+          meta="saved 2s ago"
+          lines={[
+            { html: '<span class="p">{</span>' },
+            { html: '&nbsp;&nbsp;<span class="key">"GET /todos"</span><span class="p">: {</span>', note: 'route · defined once' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"default"</span><span class="p">:</span> <span class="str">"ok"</span><span class="p">,</span>' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"responses"</span><span class="p">: {</span>', note: 'named states' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"ok"</span><span class="p">:</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">{</span> <span class="key">"body"</span><span class="p">: [{</span> <span class="key">"id"</span><span class="p">:</span> <span class="num">1</span> <span class="p">}] },</span>' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"empty"</span><span class="p">:</span> <span class="p">{</span> <span class="key">"body"</span><span class="p">: [] },</span>' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"slow"</span><span class="p">:</span>&nbsp;&nbsp;<span class="p">{</span> <span class="key">"delay"</span><span class="p">:</span> <span class="num">2400</span> <span class="p">},</span>' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="key">"error"</span><span class="p">:</span> <span class="p">{</span> <span class="key">"status"</span><span class="p">:</span> <span class="num">500</span> <span class="p">}</span>', note: '← a state that matters' },
+            { html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="p">}</span>' },
+            { html: '&nbsp;&nbsp;<span class="p">}</span>' },
+            { html: '<span class="p">}</span>' },
+          ]}
+          footer={[
+            { label: 'frontend', text: 'laqi start → served now', tint: 'palem' },
+            { label: 'backend', text: 'implements the same routes' },
+          ]}
+        >
+          <FloatCard label="reloaded">
+            <p><code>GET /todos</code> · 4 responses</p>
+            <p class="live">↻ live in 12ms</p>
+          </FloatCard>
+        </CodeWindow>
       </Chapter>
 
       <Chapter
@@ -345,4 +360,16 @@ package.json        "mock": "laqi start"
     color: var(--viotx);
   }
 
+  :global(.float .body p) {
+    margin: 0;
+  }
+
+  :global(.float .body code) {
+    font-family: var(--mono);
+    color: var(--fg);
+  }
+
+  :global(.float .body .live) {
+    color: var(--palem);
+  }
 </style>
