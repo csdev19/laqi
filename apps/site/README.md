@@ -8,11 +8,17 @@ internal ADRs, plans, and design docs and is never deployed.
 
 ## Structure
 
-- `src/pages/index.astro` — the landing page, assembled from
-  `src/components/*.astro`. Not part of Starlight's own routing.
+- `src/pages/index.astro` — the home page: nine sections walked top to
+  bottom, assembled from `src/components/home/*.astro`. Not part of
+  Starlight's own routing.
+- `src/lib/chapters.ts` — the single source for the rail, the overview
+  chips and the section ids. Add a section there, not in the page.
+- `src/pages/the-name.astro` — the standalone page explaining the name.
 - `src/content/docs/docs/**` — user docs, served at `/docs/*`.
-- `src/content/docs/es/docs/**` — the Spanish docs locale, served at
-  `/es/docs/*`.
+
+There is no Spanish locale. `astro.config.mjs` declares a single root
+locale on purpose, so Starlight renders no language selector — one that
+offered a single entry would promise an i18n the product does not have.
 
 ## Commands
 
@@ -27,8 +33,52 @@ From the monorepo root:
 ## Deploying
 
 `.github/workflows/deploy-site.yml` deploys `apps/site/dist` to Cloudflare
-Pages on every push to `main` that touches `apps/site/**` or
-`packages/tokens/**`. Requires two repository secrets:
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` (Cloudflare Pages:
-Edit permission), and a Cloudflare Pages project named `laqi-dev`
-created once by hand.
+**Workers** static assets — not Pages, because only Workers can bind a
+custom domain from config (`apps/site/wrangler.jsonc`).
+
+It runs on a `site-v*` tag, which release-please cuts when a site release
+PR is merged — never on an ordinary push to `main`. `workflow_dispatch` is
+the manual escape hatch and deploys whatever `main` currently holds.
+
+Consequence worth knowing: a release of the CLI does not redeploy the
+site. Anything the site renders from the CLI's version at build time will
+be stale until the next site release, which is why the nav no longer
+carries a version badge.
+
+## Unused, pending deletion
+
+The home page was rebuilt on 2026-10-02 and the previous landing sections
+were left in the tree rather than deleted in the same change. None of them
+is reachable from `src/pages/`:
+
+| File                                | Replaced by                               |
+| ----------------------------------- | ----------------------------------------- |
+| `components/Hero.astro`             | `components/home/Hero.astro`              |
+| `components/SiteNav.astro`          | `components/home/TopNav.astro`            |
+| `components/ForWhom.astro`          | `components/home/Moments.astro`           |
+| `components/QuickStart.astro`       | the `contract` chapter                    |
+| `components/ResolutionLayers.astro` | the `watch` chapter                       |
+| `components/FeatureGrid.astro`      | the four chapters                         |
+| `components/McpSection.astro`       | nothing yet — see below                   |
+| `components/FinalCta.astro`         | `components/home/Start.astro`             |
+| `components/InstallCommand.astro`   | the install button in the hero and CTA    |
+| `components/Demo.astro`             | nothing yet — see below                   |
+| `lib/demos.ts`                      | nothing yet — see below                   |
+| `lib/version.ts`                    | nothing; `version.test.ts` still tests it |
+
+**Delete on or after 2026-11-02** if still unreferenced. Check before
+deleting rather than trusting this list:
+
+```sh
+python3 - <<'PY'
+# prints every .astro/.ts under src/ that no page reaches
+PY
+```
+
+Two of these are not simply dead, and deleting them loses something:
+
+- `Demo.astro` + `lib/demos.ts` are the demo slots, rebuilt so a slot with
+  no file renders only under `astro dev`. The home page has no slot wired
+  to them yet; the `flip` chapter is where the 20-second recording belongs.
+- `McpSection.astro` is the only place the site explained the MCP server on
+  the landing. The new home links `/docs/ai-agents/` from nowhere.

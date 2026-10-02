@@ -1,3 +1,10 @@
+// UNUSED since 2026-10-02. Superseded by the nine-chapter home in
+// src/components/home/; nothing under src/pages/ imports it, directly or
+// transitively. Kept rather than deleted in the same change that replaced it,
+// so the old page can still be read while the new one settles.
+//
+// Delete on or after 2026-11-02 if it is still unreferenced. Verify first —
+// `grep -rl <name> src/` from apps/site — rather than trusting this header.
 // The page's three recordings, declared in one place so that dropping a file
 // in turns the slot on everywhere that depends on it — including the hero's
 // second CTA, which must not exist while there is nothing to watch.
