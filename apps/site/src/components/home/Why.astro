@@ -4,6 +4,15 @@
 // The argument section: why removing the dependency is the point, drawn as a
 // before/after rather than asserted.
 //
+// The colour language, which is about WHO rather than about status:
+//   green  — a real party and anything permanent: the frontend, the backend,
+//            the real API, and the lines joining them to the contract.
+//   violet — laqi and its lines. It is the one temporary thing in the
+//            picture, and the only thing that goes away.
+// The backend is green in the BEFORE panel too, even though it is the thing
+// blocking: it is still a real team. Colouring it by status instead would
+// make the same box mean two things on one page.
+//
 // A note on what the diagram is allowed to be. It EXPLAINS the mechanism; it
 // does not PROVE an outcome, and laqi has no customer evidence to prove one
 // with. Everything structural in it is checkable against the repository —
@@ -90,7 +99,7 @@ const steps = [
       </div>
 
       <div class="box">
-        <DiagramIcon kind="backend" tint="dim" />
+        <DiagramIcon kind="backend" tint="palem" />
         <div>
           <p class="box-label">backend</p>
           <p class="box-title">Still in development</p>
@@ -154,7 +163,7 @@ const steps = [
         </div>
 
         <div class="card card-back">
-          <DiagramIcon kind="backend" tint="dim" />
+          <DiagramIcon kind="backend" tint="palem" />
           <div>
             <p class="box-label">backend</p>
             <p class="box-title">Builds it for real</p>
@@ -352,7 +361,7 @@ const steps = [
     align-items: center;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1px solid var(--bd2);
+    border: 1px solid color-mix(in srgb, var(--mint) 32%, transparent);
     border-radius: 10px;
     background: var(--panel);
   }
@@ -496,6 +505,15 @@ const steps = [
      lines with the boxes. */
   .map {
     --map-gap: 4rem;
+    /* Two line colours, and they are the whole legend: green joins real
+       parties, violet is laqi's. */
+    --line-real: color-mix(in srgb, var(--mint) 42%, transparent);
+    --line-laqi: color-mix(in srgb, var(--vio) 62%, transparent);
+    /* The side columns are narrower than the centre. At three equal
+       columns the two side cards ran far wider than their two lines of
+       text, which left a hole between each one and the middle and pushed
+       the whole diagram wider than it needed to be. */
+    --col: 26%;
     /* The stem between the contract and laqi. The arrow needs room to be
        read as an arrow rather than a tick, and the two lines of label beside
        it need somewhere to sit. */
@@ -507,12 +525,11 @@ const steps = [
        diagram. */
     --up: 12rem;
     --down: 9rem;
-    --col: calc((100% - 2 * var(--map-gap)) / 3);
     --mid-left: calc(var(--col) + var(--map-gap));
-    --mid-right: calc(var(--col) * 2 + var(--map-gap));
+    --mid-right: calc(100% - var(--col) - var(--map-gap));
     position: relative;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: var(--col) minmax(0, 1fr) var(--col);
     column-gap: var(--map-gap);
     row-gap: 0;
     align-items: center;
@@ -636,21 +653,27 @@ const steps = [
     font-size: 0.6875rem;
     line-height: 1.6;
     white-space: nowrap;
-    color: var(--faint);
+    color: var(--viotx);
   }
 
   .wire {
     width: 1px;
     height: 100%;
-    background: var(--bd2);
+    background: var(--line-laqi);
   }
 
+  /* The switch. Dashed because it has not happened yet, green because what
+     it arrives at is the real thing. */
   .wire-dashed {
     background: repeating-linear-gradient(
       to bottom,
-      var(--bd2) 0 3px,
+      var(--line-real) 0 3px,
       transparent 3px 6px
     );
+  }
+
+  .wire-dashed.wire-arrow::after {
+    border-top-color: var(--line-real);
   }
 
   .wire-arrow {
@@ -665,17 +688,18 @@ const steps = [
     translate: -50% 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid var(--bd2);
+    border-top: 5px solid var(--line-laqi);
   }
 
+  /* Every card is a real party, so every card is green — except laqi. */
   .card {
     display: flex;
     align-items: center;
     gap: 0.85rem;
     padding: 0.9rem 1rem;
-    border: 1px solid var(--bd2);
+    border: 1px solid color-mix(in srgb, var(--mint) 38%, transparent);
     border-radius: 10px;
-    background: var(--panel);
+    background: color-mix(in srgb, var(--mint) 3%, transparent);
   }
 
   /* The cards sit in their own relative row, and every connector that has to
@@ -686,15 +710,13 @@ const steps = [
     position: relative;
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: var(--col) minmax(0, 1fr) var(--col);
     column-gap: var(--map-gap);
     align-items: center;
   }
 
   .card-front {
     grid-column: 1;
-    border-color: color-mix(in srgb, var(--mint) 45%, transparent);
-    background: color-mix(in srgb, var(--mint) 4%, transparent);
   }
 
   .card-laqi {
@@ -710,8 +732,6 @@ const steps = [
 
   .card-real {
     grid-column: 2;
-    border-color: color-mix(in srgb, var(--mint) 45%, transparent);
-    background: color-mix(in srgb, var(--mint) 4%, transparent);
   }
 
   .label-mint {
@@ -776,13 +796,15 @@ const steps = [
   }
 
   /* frontend ↑ then → into the contract's left edge */
+  /* frontend and backend reach the contract in green: two real teams
+     agreeing on it is the permanent half of the picture. */
   .elbow-fl {
     bottom: 100%;
     height: var(--up);
     left: calc(var(--col) / 2);
     right: calc(100% - var(--mid-left));
-    border-top: 1px solid var(--bd2);
-    border-left: 1px solid var(--bd2);
+    border-top: 1px solid var(--line-real);
+    border-left: 1px solid var(--line-real);
     border-top-left-radius: 6px;
   }
 
@@ -793,7 +815,7 @@ const steps = [
     right: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-left: 5px solid var(--bd2);
+    border-left: 5px solid var(--line-real);
   }
 
   .elbow-fl i {
@@ -807,8 +829,8 @@ const steps = [
     height: var(--up);
     right: calc(var(--col) / 2);
     left: var(--mid-right);
-    border-top: 1px solid var(--bd2);
-    border-right: 1px solid var(--bd2);
+    border-top: 1px solid var(--line-real);
+    border-right: 1px solid var(--line-real);
     border-top-right-radius: 6px;
   }
 
@@ -819,7 +841,7 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--bd2);
+    border-right: 5px solid var(--line-real);
   }
 
   .elbow-br i {
@@ -833,8 +855,8 @@ const steps = [
     height: var(--down);
     right: calc(var(--col) / 2);
     left: var(--mid-right);
-    border-bottom: 1px solid var(--bd2);
-    border-right: 1px solid var(--bd2);
+    border-bottom: 1px solid var(--line-real);
+    border-right: 1px solid var(--line-real);
     border-bottom-right-radius: 6px;
   }
 
@@ -845,7 +867,7 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--bd2);
+    border-right: 5px solid var(--line-real);
   }
 
   .elbow-done i {
@@ -857,6 +879,7 @@ const steps = [
   /* laqi → frontend. A child of the cards row, so "centre" is the cards'
      centre, and pushed into the column gap by a rem rather than a percentage
      that would resolve against the wrong box. */
+  /* laqi serving the frontend is laqi's own line, so it is violet. */
   .serves {
     position: absolute;
     top: 50%;
@@ -864,7 +887,7 @@ const steps = [
     width: var(--map-gap);
     height: 1px;
     translate: 0 -50%;
-    background: var(--bd2);
+    background: var(--line-laqi);
     pointer-events: none;
   }
 
@@ -875,11 +898,12 @@ const steps = [
     left: -1px;
     border-top: 4px solid transparent;
     border-bottom: 4px solid transparent;
-    border-right: 5px solid var(--bd2);
+    border-right: 5px solid var(--line-laqi);
   }
 
   .serves i {
     position: absolute;
+    color: var(--viotx);
     bottom: 0.6rem;
     left: 50%;
     translate: -50% 0;
@@ -894,6 +918,7 @@ const steps = [
      an L drawn against three columns means nothing when there is one. */
   @media (max-width: 60rem) {
     .map {
+      --col: 100%;
       grid-template-columns: minmax(0, 1fr);
       row-gap: 1rem;
     }
