@@ -1,14 +1,22 @@
+/* The display voice is two weights, not one. A headline is a statement in
+   roman 600; the line answering it is a reply in italic 300. 300 was never
+   loaded, so every reply on the site has been rendering a 400 italic — the
+   two voices were a size and a colour apart instead of a weight apart. */
+@import '@fontsource/source-serif-4/300.css';
 @import '@fontsource/source-serif-4/400.css';
 @import '@fontsource/source-serif-4/600.css';
 /* The display voice leans on true italic for every section's second line.
    Without these two the browser slants the upright face instead — synthetic
    oblique, the same defect as the faux bold described below, and the reason
    the italics read as a different, worse typeface than the roman beside them. */
+@import '@fontsource/source-serif-4/300-italic.css';
 @import '@fontsource/source-serif-4/400-italic.css';
 @import '@fontsource/source-serif-4/600-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/jetbrains-mono/600.css';
+/* The primary CTA sets its command at 700. */
+@import '@fontsource/jetbrains-mono/700.css';
 @import '@laqi/tokens/tokens.css';
 
 /* Every heading on this site (h1-h3, .card h3, and Starlight's own prose
@@ -23,6 +31,14 @@ h1,
 h2,
 h3 {
   font-weight: 600;
+  /* Headlines break on meaning rather than on whatever fits, which matters
+     most for the two-line statements this site is built from — a single
+     orphaned word under a 4rem line is very visible. */
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 /* Starlight's own theme hooks — remapped onto our tokens so the docs
