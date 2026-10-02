@@ -17,6 +17,7 @@
 // cannot drift from the sections they point at, and phrase them as what the
 // frontend track actually gets rather than as feature names.
 import { MOMENTS } from '../../lib/chapters'
+import DiagramIcon from './DiagramIcon.astro'
 
 const GETS: Record<string, string> = {
   contract: 'a contract',
@@ -73,9 +74,12 @@ const steps = [
 
     <div class="before-row">
       <div class="box">
-        <p class="box-label">frontend</p>
-        <p class="box-title">Ready to build</p>
-        <p class="box-meta">fetch("/todos") → ?</p>
+        <DiagramIcon kind="frontend" tint="palem" />
+        <div>
+          <p class="box-label">frontend</p>
+          <p class="box-title">Ready to build</p>
+          <p class="box-meta">fetch("/todos") → ?</p>
+        </div>
       </div>
 
       <div class="blocked" aria-hidden="true">
@@ -86,9 +90,12 @@ const steps = [
       </div>
 
       <div class="box">
-        <p class="box-label">backend</p>
-        <p class="box-title">Still in development</p>
-        <p class="box-meta meta-mag">sprint 3 of 5</p>
+        <DiagramIcon kind="backend" tint="dim" />
+        <div>
+          <p class="box-label">backend</p>
+          <p class="box-title">Still in development</p>
+          <p class="box-meta meta-mag">sprint 3 of 5</p>
+        </div>
       </div>
     </div>
   </div>
@@ -101,7 +108,7 @@ const steps = [
     </p>
 
     <div class="contract">
-      <span class="contract-tile" aria-hidden="true">{'{}'}</span>
+      <DiagramIcon kind="contract" tint="viol" />
       <span>
         <span class="contract-label">api contract</span>
         <span class="contract-file">laqi/api.json · agreed once</span>
@@ -112,33 +119,45 @@ const steps = [
 
     <div class="tracks">
       <div class="track track-now">
-        <div class="box">
-          <p class="box-label">frontend</p>
-          <p class="box-title">Builds today</p>
-          <p class="box-meta meta-mint">2–3 sprints ahead</p>
-        </div>
-        <div class="drop" aria-hidden="true"></div>
         <div class="box box-laqi">
-          <p class="box-label label-vio">⚡ laqi</p>
-          <p class="box-title">Serves the contract</p>
-          <p class="box-meta">realistic API responses now</p>
+          <DiagramIcon kind="laqi" tint="viol" />
+          <div>
+            <p class="box-label label-vio">laqi</p>
+            <p class="box-title">Implements the contract, for now</p>
+            <p class="box-meta">realistic responses · temporary</p>
+          </div>
         </div>
-        <p class="verdict verdict-now">build now</p>
+        <div class="drop drop-now" aria-hidden="true"></div>
+        <div class="box">
+          <DiagramIcon kind="frontend" tint="palem" />
+          <div>
+            <p class="box-label">frontend</p>
+            <p class="box-title">Builds against it today</p>
+            <p class="box-meta meta-mint">2–3 sprints ahead</p>
+          </div>
+        </div>
+        <p class="verdict verdict-now">build features now</p>
       </div>
 
       <div class="track">
         <div class="box">
-          <p class="box-label">backend</p>
-          <p class="box-title">Builds the real thing</p>
-          <p class="box-meta">implements the same contract</p>
+          <DiagramIcon kind="backend" tint="dim" />
+          <div>
+            <p class="box-label">backend</p>
+            <p class="box-title">Builds the implementation</p>
+            <p class="box-meta">against the same contract</p>
+          </div>
         </div>
         <div class="drop" aria-hidden="true"></div>
         <div class="box">
-          <p class="box-label label-mag">real API</p>
-          <p class="box-title">In progress</p>
-          <p class="box-meta">sprint 3 of 5 → ready</p>
+          <DiagramIcon kind="backend" tint="magl" />
+          <div>
+            <p class="box-label label-mag">real API</p>
+            <p class="box-title">The real API</p>
+            <p class="box-meta meta-mag">sprint 3 of 5 → ready</p>
+          </div>
         </div>
-        <p class="verdict">build in parallel</p>
+        <p class="verdict">build independently</p>
       </div>
     </div>
 
@@ -313,7 +332,13 @@ const steps = [
 
   /* ---- boxes ---- */
 
+  /* Icon beside the text rather than above it: the tile is a label for the
+     box, and a reader scanning the diagram should take the mark and the title
+     in one movement. */
   .box {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
     padding: 0.9rem 1rem;
     border: 1px solid var(--line2);
     border-radius: 10px;
@@ -419,7 +444,7 @@ const steps = [
   .contract {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.85rem;
     padding: 0.75rem 1rem;
     margin: 0 auto;
     border: 1px solid color-mix(in srgb, var(--vio) 70%, transparent);
@@ -430,18 +455,6 @@ const steps = [
   .panel-after > .contract {
     display: flex;
     width: fit-content;
-  }
-
-  .contract-tile {
-    display: grid;
-    width: 2rem;
-    height: 2rem;
-    place-items: center;
-    border-radius: 8px;
-    background: linear-gradient(160deg, var(--viol), var(--vio));
-    color: #fff;
-    font-family: var(--mono);
-    font-size: 0.8125rem;
   }
 
   .contract-label {
@@ -511,6 +524,14 @@ const steps = [
   .box-laqi {
     border-color: color-mix(in srgb, var(--vio) 65%, transparent);
     background: color-mix(in srgb, var(--vio) 8%, transparent);
+  }
+
+  .drop-now {
+    background: repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--mint) 70%, transparent) 0 3px,
+      transparent 3px 6px
+    );
   }
 
   .drop {
