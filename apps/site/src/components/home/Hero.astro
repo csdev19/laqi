@@ -266,6 +266,11 @@ import BoltMark from './BoltMark.astro'
 
   h1 em {
     display: block;
+    /* The statement balances, the reply does not. Balance evens the two
+       lines and breaks "Before the backend is ready." after "the"; filling
+       naturally breaks it after "is", which is where the design breaks it
+       and where the sense is. */
+    text-wrap: normal;
     margin-top: 0.4em;
     font-size: clamp(2.125rem, 4.4vw, 3.5rem);
     font-style: italic;
@@ -304,7 +309,7 @@ import BoltMark from './BoltMark.astro'
   .steps .n {
     font-family: var(--mono);
     font-size: 0.6875rem;
-    color: var(--faint);
+    color: var(--viotx);
   }
 
   /* The states are the part a reader is meant to recognise. Inline in the
