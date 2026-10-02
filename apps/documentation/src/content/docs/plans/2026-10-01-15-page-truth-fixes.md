@@ -5,10 +5,10 @@ title: Plan 15 — laqi.dev correctness fixes
 # Plan 15 — laqi.dev correctness fixes
 
 **Date:** 2026-10-01
-**Status:** Tasks 1, 2, 3, 4, 6, 7 and 8 are implemented on
-`wip/laqi-dev-page-audit`. **Task 5 is open** — carrying it out as written
-would undo an invariant the deploy workflow documents, so it needs a decision
-first. See the task.
+**Status:** All eight tasks are implemented on `wip/laqi-dev-page-audit`.
+Task 5 was resolved by removing the version badge rather than by any of the
+three options below; task 1's removal was then reversed, deliberately, once
+the recordings were about to be made. Both are recorded in their tasks.
 **Scope:** The eight correctness defects the
 [2026-10-01 page audit](/product/page-audit-2026-10-01/) found on the live site,
 plus two product-side inconsistencies discovered while specifying the fixes.
@@ -54,6 +54,16 @@ appear in the HTML served by the site build. The hero has exactly one CTA.
 [Page evidence](/design/page-evidence/), not the destination. The demo itself is
 the highest-value work in the whole audit; it is excluded here only because it is
 a production task, not a correctness fix.
+
+**Reversed, once the recordings were imminent — and the defect closed for good
+in the process.** Removing the slots was the right interim state only while
+nobody was shooting. They are back, but the component can no longer ship an
+empty box: `Demo.astro` renders a `<video>` when `src` is set and otherwise
+renders the shooting note **only under `astro dev`**, and the hero's CTA is
+gated on the same flag, so it cannot point at a slot that is not published.
+The slots are declared in `apps/site/src/lib/demos.ts`; setting one `src`
+publishes that slot and, for the hero, its CTA. `DemoPlaceholder.astro` is now
+`Demo.astro`, since it is no longer a placeholder.
 
 ### Task 2 — Make the MCP tool list generated, not transcribed
 
@@ -164,8 +174,16 @@ badge's correctness against the deploy pipeline's safety. Option 1 should be
 taken only with a deliberate decision to couple the two deploys, and then the
 workflow comment has to be rewritten rather than amended.
 
-**Acceptance:** the deployed badge cannot disagree with what `npm i -g laqi@2`
+**Acceptance:** the deployed badge cannot disagree with what `npm i -g laqi`
 installs, and no CLI release can publish unreleased site content.
+
+**Decided: option 3, taken all the way — the badge is gone.** Not `v2`, no
+badge at all. A badge that is only ever as fresh as the last site deploy has
+nothing to tell a visitor that the install command does not already say, and
+there is one laqi, so the `@2` pin went with it. This ends the defect rather
+than reducing how often it recurs, and it leaves `deploy-site.yml`'s decoupling
+untouched. `getLaqiVersion()` survives for the quick start's sample banner,
+where a wrong number is a smaller claim and is now derived rather than typed.
 
 ### Task 6 — Align the landing's first step with the docs' first step
 

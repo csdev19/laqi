@@ -152,13 +152,28 @@ repository.
 
 ## Interim state, until a demo exists
 
-Remove the three `DemoPlaceholder` instances and the hero's
-_"Watch the 20-second demo"_ CTA.
+**Superseded by the implementation — the interim state is now structural rather
+than a removal.**
 
-A page with one CTA and no video is complete. A page with two CTAs where the
-second opens an empty box is unfinished, and it is unfinished in front of the
-visitor at the exact moment they were willing to be convinced. The removal is
-reversible in one commit the day the first recording exists.
+The original instruction was to delete the three slots and the hero's
+_"Watch the 20-second demo"_ CTA, and restore them the day a recording existed.
+That was done, and then reversed within the same branch when the recordings
+became imminent. The reversal is the better end state, because it removes the
+failure mode instead of the markup:
 
-This is the interim state, not the destination. Slot 1 is worth more than every
-copy change in the audit combined.
+- `apps/site/src/components/Demo.astro` renders a `<video>` when its `src` is
+  set. With no file it renders the shooting note, and **only under
+  `astro dev`** — so a published page can no longer show a visitor an empty
+  box, whatever anyone forgets.
+- The three slots are declared in `apps/site/src/lib/demos.ts`. Setting one
+  `src` publishes that slot.
+- The hero's CTA is gated on the same flag as the hero's slot, so it cannot
+  point at something that is not there. That was finding T1's actual defect.
+- Recordings go in `apps/site/public/demos/`.
+
+The briefs in `demos.ts` are the ones respecified above, against
+`examples/todo-app`, each naming what would make the recording dishonest. Both
+blockers are cleared: the storefront scripts are rewritten, and the Spanish
+scenario names were renamed in Plan 15 task 7.
+
+Slot 1 is still worth more than every copy change in the audit combined.
