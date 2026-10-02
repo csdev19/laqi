@@ -5,7 +5,10 @@ title: Plan 15 — laqi.dev correctness fixes
 # Plan 15 — laqi.dev correctness fixes
 
 **Date:** 2026-10-01
-**Status:** Planned.
+**Status:** Tasks 1, 2, 3, 4, 6, 7 and 8 are implemented on
+`wip/laqi-dev-page-audit`. **Task 5 is open** — carrying it out as written
+would undo an invariant the deploy workflow documents, so it needs a decision
+first. See the task.
 **Scope:** The eight correctness defects the
 [2026-10-01 page audit](/product/page-audit-2026-10-01/) found on the live site,
 plus two product-side inconsistencies discovered while specifying the fixes.
@@ -70,6 +73,14 @@ implementation.
 **Acceptance:** a test ties the documented set to the registered set. Changing
 `server.ts` without touching the docs fails CI.
 
+**Done, by the test rather than by generation.** `packages/mcp/src/documented-tools.test.ts`
+starts the server and asserts the names and counts on all three surfaces.
+Generation was rejected because the prose beside each name on `ai-agents.md` is
+written for a person and is deliberately plainer than the agent-facing
+description in `server.ts`; generating it would mean either showing a human the
+agent's wording or maintaining a second description table. The file records
+that reasoning and what the test does not cover.
+
 **Why it is task 2:** an agent reading `/docs/ai-agents/` verifies this in one
 call, and it is the page that tells agents to trust it.
 
@@ -124,13 +135,37 @@ Two options, pick one:
    `package.json` as fallback. Keeps the pipelines decoupled; still stale between
    deploys, just less often.
 
-**Recommendation:** option 1, and update the workflow comment to say why the
-coupling is now deliberate. A badge that is right only sometimes is a smaller
-problem than a badge that is reliably wrong, and option 2 does not actually fix
-it.
+**Recommendation when this plan was written:** option 1, and update the workflow
+comment to say why the coupling is now deliberate.
 
-**Acceptance:** after a CLI release, the deployed badge matches npm `latest`
-without a manual `workflow_dispatch`.
+**That recommendation does not survive reading the comment, which is why this
+task is still open.** `deploy-site.yml:4-11` does not merely prefer the
+decoupling as a matter of taste — it records that the site releases through its
+own release-please component, so `main` routinely holds site content that has
+not been released yet. Adding `v*` to the deploy triggers would mean a CLI
+patch release publishes whatever unreleased site content happens to be sitting
+on `main`, with no site release PR and nobody deciding to ship it. That is a
+worse failure than a stale badge, and it is silent.
+
+A third option avoids both problems and was not considered when this plan was
+written:
+
+3. **Stop claiming a patch version.** The badge reads `v2`, matching the
+   install command the page already shows (`npm i -g laqi@2`). It cannot go
+   stale within a major, needs no new machinery, and no visitor chooses a mock
+   server on a patch number.
+   _Argument against:_ a precise version is weak evidence that the project is
+   maintained, and `v2` gives that up. The counter is that the badge was never
+   reliable evidence of freshness anyway — that is the defect.
+
+**Recommendation now: option 3.** It removes the class of defect instead of
+adding machinery to track it, and it is the only option that does not trade the
+badge's correctness against the deploy pipeline's safety. Option 1 should be
+taken only with a deliberate decision to couple the two deploys, and then the
+workflow comment has to be rewritten rather than amended.
+
+**Acceptance:** the deployed badge cannot disagree with what `npm i -g laqi@2`
+installs, and no CLI release can publish unreleased site content.
 
 ### Task 6 — Align the landing's first step with the docs' first step
 
@@ -169,6 +204,13 @@ before any demo recording — these names appear in the panel, on camera.
 `apps/site/src/components/FeatureGrid.astro:22` is the page's only figure and it
 supports nothing. Low cost, listed for completeness: keep it if it reads clearly
 as rhetoric, replace it if anything demonstrable can take its place.
+
+**Decided: replaced.** "the fifty times a day" presents a number as a fact about
+the reader's own behaviour, which does not read clearly enough as rhetoric to
+survive on a page whose credibility problem is unsupported claims. The heading
+now names the triggering circumstance rather than counting it — the states a
+real backend will not produce on demand — which is a mechanism claim and is what
+the six cards actually deliver.
 
 ## Verification
 
