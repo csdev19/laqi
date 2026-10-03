@@ -33,15 +33,31 @@ written on top of them would be guesswork shipped.
 None of these needs an ADR: they are page-level and reversible, and no later
 reader will ask "why this and not that" about naming a competitor.
 
+### Decided, 2026-10-03
+
+**The page is written for a development team doing frontend work, not for a
+lone developer.** Settled by the author; it was blocking question 1 and the
+page can now be argued from it.
+
+The consequence is that the eyebrow's promise — "for frontend teams" — is the
+true one, and the sections under it have to keep it. What a team needs and an
+individual does not: the contract as a shared artifact, the handoff when the
+real API lands, and a reason the folder is committed rather than private. The
+page carries all three today — the Why section's two tracks, the Contract
+chapter's "both sides build against it", and the Files section's local-or-
+commit fork — so this decision confirms the current shape rather than asking
+for a rewrite.
+
+What it rules out: writing the hero for the developer who installs a binary
+and never asks anyone. That reader is still served, by the quick start and
+the install block, and is not who the top of the page is addressed to.
+
 ### Open questions — blocking
 
-1. **Who is the best-fit visitor: the individual frontend developer, or the lead
-   who adopts laqi for a team?** (P2.) The page currently promises the second in
-   its eyebrow and serves the first everywhere else.
-2. **Is "waiting for the backend" the triggering circumstance, or is it
+1. **Is "waiting for the backend" the triggering circumstance, or is it
    "reproducing a state on demand"?** They imply different heroes and different
    first sections.
-3. **Does laqi compete with MSW, or sit beside it?** The internal pitch argues
+2. **Does laqi compete with MSW, or sit beside it?** The internal pitch argues
    it replaces it. That is an untested assertion about what buyers consider.
 
 ### Out of scope
@@ -132,9 +148,9 @@ it, and in `<title>` and `description`.
 
 ## Best-fit audience
 
-**Open — this is blocking question 1.**
+**Decided 2026-10-03: a development team doing frontend work.**
 
-The candidates are not compatible, and the page currently straddles them:
+The two candidates were not compatible, and the page had been straddling them:
 
 - **The individual frontend or mobile developer**, blocked today, who installs a
   binary and never asks anyone. Short path, no decision-maker, low value per
@@ -144,14 +160,14 @@ The candidates are not compatible, and the page currently straddles them:
   (see [Backend handoff](/design/backend-handoff/)), needs the contract framed as
   a shared artifact, and is the only reader for whom the LinkedIn framing lands.
 
-**Recommendation:** write the hero for the lead and the quick start for the
-developer. They are not in conflict at the section level — a lead reads the top,
-a developer scrolls to step 01 — and this is the one arrangement that does not
-abandon either. What is in conflict is the current page, where the eyebrow
-promises a team conversation that no later section has.
+**The decision follows the recommendation:** the hero is written for the team,
+the quick start for the developer. They are not in conflict at the section
+level — a lead reads the top, a developer scrolls to step 01 — and it is the
+one arrangement that abandons neither.
 
-**What would settle it:** the first ten real users. Nothing in this repository
-can answer it, and no amount of further reasoning will.
+It remains a decision, not a finding. Nothing in this repository could settle
+it and no amount of further reasoning would have; the first ten real users
+still can, and if they contradict it, this is the paragraph to reopen.
 
 ## Primary promise
 

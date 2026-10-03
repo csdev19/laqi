@@ -4,11 +4,14 @@
 // The closing action. One primary command, one alternative that needs no
 // install, and the one honest sentence about what laqi does not take from you.
 //
-// Two things the design called for are not here, because the product does not
-// have them: there is no Homebrew formula (`brew install` appears in this
-// repository only as `brew install cloudflared`, the tunnel's prerequisite),
-// and no VS Code extension is on the roadmap. `laqi init` really is five
-// questions, each skippable — see apps/cli/src/init/prompt.ts.
+// The design's second button was `brew install laqi`. There is no Homebrew
+// formula — in this repository `brew install` appears once, as
+// `brew install cloudflared`, the tunnel's prerequisite — so the slot goes to
+// the other package manager laqi actually documents: README.md offers
+// `npx laqi` or `bunx laqi`, and bun is the one the project itself builds
+// with. No VS Code extension is on any roadmap either, so that line is out.
+// `laqi init` really is five questions, each skippable — see
+// apps/cli/src/init/prompt.ts.
 //
 // No version string: the site deploys on its own tag, so one printed here
 // goes stale on the next CLI release.
@@ -28,15 +31,16 @@ import BoltMark from './BoltMark.astro'
       <code>npm i -g laqi</code>
       <span class="copied" aria-hidden="true">copied</span>
     </button>
-    <button type="button" class="btn-alt" data-copy="npx laqi">
+    <button type="button" class="btn-alt" data-copy="bunx laqi">
       <span class="prompt" aria-hidden="true">$</span>
-      <code>npx laqi</code>
+      <code>bunx laqi</code>
       <span class="copied" aria-hidden="true">copied</span>
     </button>
   </div>
 
   <p class="then">
-    then <code>laqi init</code> · five questions, every one skippable with enter
+    or run it without installing · then <code>laqi init</code>, five questions,
+    every one skippable with enter
   </p>
   <p class="meta">MIT · Node 20+ · <a href="/docs/quick-start/">Quick start</a></p>
 
