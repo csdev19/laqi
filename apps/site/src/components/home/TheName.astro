@@ -1,32 +1,29 @@
 ---
 // apps/site/src/components/home/TheName.astro
 //
-// The name, as one column of type.
+// The name, as one column of type: eyebrow, headline, the story in two
+// stacked paragraphs, the line to remember, and the etymology boxed under it.
 //
-// Three illustrations and a wordmark plate were tried in a left column here.
-// Every one of them asked the reader to look at something before reading the
-// sentence that already carries the whole idea — and the last one broke in
-// the browser, because it painted an SVG from scoped CSS and the two halves
-// have to agree for anything to appear.
-//
-// There is nothing in this section but the story now, at a measure that can
-// be read, which is what the section was always for.
+// There is no illustration. Four were tried in a left column here — a quipu,
+// a drawn runner, a relay diagram, a wordmark plate — and every one asked the
+// reader to look at something before reading the sentence that already
+// carries the whole idea. Two of them also broke in the browser, because they
+// painted an SVG from scoped CSS and both halves have to arrive for anything
+// to show.
 ---
 
 <section class="name" id="name">
   <p class="eyebrow">the name</p>
   <h2>A runner, ahead of the road.</h2>
 
-  <div class="body">
-    <p>
-      The <em>chasqui</em> was a relay runner of the Inca road network, carrying
-      messages between waystations across the Andes.
-    </p>
-    <p>
-      laqi plays the same role for your team. It carries the agreed API contract
-      before the real backend implementation exists.
-    </p>
-  </div>
+  <p>
+    The <em>chasqui</em> was a relay runner of the Inca road network, carrying
+    messages between waystations across the Andes.
+  </p>
+  <p>
+    laqi plays the same role for your team. It carries the agreed API contract
+    before the real backend implementation exists.
+  </p>
 
   <p class="pull"><em>laqi carries the contract before the real API arrives.</em></p>
 
@@ -37,20 +34,19 @@
         Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
       </p>
       <p class="roots-aside">say it out loud: it sounds like “lucky”</p>
-      <a href="/the-name/" class="more">The whole story →</a>
     </div>
   </div>
 </section>
 
 <style>
   .name {
-    max-width: 60rem;
+    max-width: 76rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
   }
 
   .eyebrow {
-    margin: 0 0 1rem;
+    margin: 0 0 1.25rem;
     font-family: var(--mono);
     font-size: 0.75rem;
     letter-spacing: 0.16em;
@@ -59,28 +55,23 @@
   }
 
   h2 {
-    max-width: 24ch;
-    margin: 0 0 2rem;
+    margin: 0 0 2.25rem;
     font-family: var(--serif);
     font-size: clamp(2.5rem, 5vw, 4rem);
-    line-height: 1;
+    line-height: 1.05;
     letter-spacing: -0.04em;
     color: var(--fg);
   }
 
-  /* Two columns of prose rather than one long measure: at this width a
-     single column would run past the line length the rest of the page
-     reads at. */
-  .body {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-    gap: 2.5rem;
-  }
-
-  .body p {
-    margin: 0;
+  /* The paragraphs run the section's width rather than a narrower measure:
+     the design sets this section wide and lets the two short paragraphs
+     carry it, which is what keeps it from reading as a column of prose
+     dropped into a product page. */
+  .name > p {
+    margin: 0 0 1.75rem;
     color: var(--dim);
-    line-height: 1.8;
+    font-size: 1.1875rem;
+    line-height: 1.7;
   }
 
   em {
@@ -89,28 +80,31 @@
   }
 
   .pull {
-    max-width: 42ch;
-    margin: 2.5rem 0 0;
+    margin: 2.5rem 0 0 !important;
     font-family: var(--serif);
     font-size: clamp(1.5rem, 2.6vw, 2rem);
     line-height: 1.3;
     letter-spacing: -0.015em;
-    color: var(--viotx);
+    color: var(--viotx) !important;
   }
 
-  /* The etymology sits under a rule, joined to nothing above it: the name's
-     roots are not a derivation of the mark. */
+  /* A panel rather than a rule. The etymology is an aside, and boxing it
+     says so without needing a heading — and keeps it visually separate from
+     the metaphor above, which is not derived from it. */
   .roots {
     display: flex;
-    gap: 1.5rem;
+    gap: 2.5rem;
     margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--bd);
+    padding: 1.5rem;
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--panel) 35%, transparent);
   }
 
   .roots-label {
     flex: none;
-    margin: 0;
+    width: 5rem;
+    margin: 0.25rem 0 0;
     font-family: var(--mono);
     font-size: 0.6875rem;
     letter-spacing: 0.14em;
@@ -120,24 +114,14 @@
 
   .roots-text {
     margin: 0 0 0.4rem;
+    font-size: 1.0625rem;
     color: var(--fg);
   }
 
   .roots-aside {
-    margin: 0 0 0.75rem;
+    margin: 0;
     font-family: var(--mono);
     font-size: 0.75rem;
     color: var(--faint);
-  }
-
-  .more {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    color: var(--viotx);
-    text-decoration: none;
-  }
-
-  .more:hover {
-    text-decoration: underline;
   }
 </style>
