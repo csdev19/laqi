@@ -1,31 +1,23 @@
 ---
 // apps/site/src/components/home/TheName.astro
 //
-// The name, as type and nothing else.
+// The name, as one column of type.
 //
-// Three illustrations were tried here and all three failed for the same
-// reason: each asked the reader to decode a picture before reaching the idea
-// the words already carry in one line. The last one also depended on scoped
-// CSS to paint an SVG, which is fragile — presentation that lives in a
-// stylesheet and geometry that lives in markup have to agree, and when they
-// do not the figure does not degrade, it breaks.
+// Three illustrations and a wordmark plate were tried in a left column here.
+// Every one of them asked the reader to look at something before reading the
+// sentence that already carries the whole idea — and the last one broke in
+// the browser, because it painted an SVG from scoped CSS and the two halves
+// have to agree for anything to appear.
 //
-// So the left column is the wordmark at display scale. It is the one thing
-// this section is about, it cannot render wrong, and it gives the name a
-// moment of its own before the etymology explains it.
-import BoltMark from './BoltMark.astro'
+// There is nothing in this section but the story now, at a measure that can
+// be read, which is what the section was always for.
 ---
 
 <section class="name" id="name">
-  <div class="mark">
-    <span class="tile" aria-hidden="true"><BoltMark size={40} /></span>
-    <p class="word">laqi</p>
-    <p class="say">/ˈla.ki/ · it sounds like “lucky”</p>
-  </div>
+  <p class="eyebrow">the name</p>
+  <h2>A runner, ahead of the road.</h2>
 
-  <div class="prose">
-    <p class="eyebrow">the name</p>
-    <h2>A runner, ahead of the road.</h2>
+  <div class="body">
     <p>
       The <em>chasqui</em> was a relay runner of the Inca road network, carrying
       messages between waystations across the Andes.
@@ -34,69 +26,27 @@ import BoltMark from './BoltMark.astro'
       laqi plays the same role for your team. It carries the agreed API contract
       before the real backend implementation exists.
     </p>
-    <p class="pull"><em>laqi carries the contract before the real API arrives.</em></p>
+  </div>
 
-    <div class="roots">
-      <p class="roots-label">roots</p>
-      <div>
-        <p class="roots-text">
-          Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
-        </p>
-        <a href="/the-name/" class="more">The whole story →</a>
-      </div>
+  <p class="pull"><em>laqi carries the contract before the real API arrives.</em></p>
+
+  <div class="roots">
+    <p class="roots-label">roots</p>
+    <div>
+      <p class="roots-text">
+        Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
+      </p>
+      <p class="roots-aside">say it out loud: it sounds like “lucky”</p>
+      <a href="/the-name/" class="more">The whole story →</a>
     </div>
   </div>
 </section>
 
 <style>
   .name {
-    display: grid;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-    align-items: center;
-    gap: 4rem;
-    max-width: 76rem;
+    max-width: 60rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
-  }
-
-  @media (max-width: 68rem) {
-    .name {
-      grid-template-columns: minmax(0, 1fr);
-      gap: 2.5rem;
-    }
-  }
-
-  .mark {
-    text-align: center;
-  }
-
-  .tile {
-    display: grid;
-    width: 5rem;
-    height: 5rem;
-    place-items: center;
-    margin: 0 auto 1.5rem;
-    border-radius: 18px;
-    background: linear-gradient(145deg, var(--viol), var(--vio));
-    color: #fff;
-    box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
-  }
-
-  .word {
-    margin: 0 0 0.6rem;
-    font-family: var(--serif);
-    font-size: clamp(3.5rem, 7vw, 5.5rem);
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: -0.045em;
-    color: var(--fg);
-  }
-
-  .say {
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    color: var(--faint);
   }
 
   .eyebrow {
@@ -109,31 +59,43 @@ import BoltMark from './BoltMark.astro'
   }
 
   h2 {
-    margin: 0 0 1.75rem;
+    max-width: 24ch;
+    margin: 0 0 2rem;
     font-family: var(--serif);
-    font-size: clamp(2.375rem, 4.6vw, 3.625rem);
+    font-size: clamp(2.5rem, 5vw, 4rem);
     line-height: 1;
     letter-spacing: -0.04em;
     color: var(--fg);
   }
 
-  .prose p {
-    margin: 0 0 1.25rem;
+  /* Two columns of prose rather than one long measure: at this width a
+     single column would run past the line length the rest of the page
+     reads at. */
+  .body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 2.5rem;
+  }
+
+  .body p {
+    margin: 0;
     color: var(--dim);
     line-height: 1.8;
   }
 
-  .prose em {
+  em {
     font-style: italic;
     color: var(--viotx);
   }
 
   .pull {
-    margin: 2rem 0 !important;
+    max-width: 42ch;
+    margin: 2.5rem 0 0;
     font-family: var(--serif);
-    font-size: 1.3125rem;
-    line-height: 1.45;
-    color: var(--viotx) !important;
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    color: var(--viotx);
   }
 
   /* The etymology sits under a rule, joined to nothing above it: the name's
@@ -141,12 +103,14 @@ import BoltMark from './BoltMark.astro'
   .roots {
     display: flex;
     gap: 1.5rem;
+    margin-top: 3rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--bd);
   }
 
   .roots-label {
     flex: none;
+    margin: 0;
     font-family: var(--mono);
     font-size: 0.6875rem;
     letter-spacing: 0.14em;
@@ -155,8 +119,15 @@ import BoltMark from './BoltMark.astro'
   }
 
   .roots-text {
-    margin: 0 0 0.75rem !important;
-    color: var(--fg) !important;
+    margin: 0 0 0.4rem;
+    color: var(--fg);
+  }
+
+  .roots-aside {
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
   }
 
   .more {
