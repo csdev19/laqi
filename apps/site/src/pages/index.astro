@@ -402,18 +402,21 @@ const description =
   /* The copy takes the whole row and the figure sits under it. The figure is
      wide — a repo, a fork, three cards and a footnote — and in half a column
      it was being squeezed into a measure it does not have. */
+  /* Narrower than the chapters. The figure is wide but not that wide, and
+     at the full measure the repo window and the cards were stretching to
+     fill a row they did not need. */
   .files-inner {
-    max-width: 84rem;
+    max-width: 68rem;
     margin: 0 auto;
-    padding: 6rem 1.5rem;
+    padding: 5rem 1.5rem;
   }
 
   .files-head {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
     align-items: start;
-    gap: 4rem;
-    margin-bottom: 4rem;
+    gap: 3rem;
+    margin-bottom: 3rem;
   }
 
   @media (max-width: 68rem) {
