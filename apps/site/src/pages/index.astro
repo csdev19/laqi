@@ -351,29 +351,34 @@ const description =
 
       <section class="files" id="files">
         <div class="files-inner">
-          <div>
-            <p class="eyebrow">just files</p>
-            <h2>Your mock API is just files. <em>Yours to keep.</em></h2>
-            <p class="lede">
-              They live alongside your code. Keep them local for yourself, or
-              commit them when the team should share them — clone the repo and
-              everyone gets the same contract, data and scenarios. laqi reads and
-              writes the files you already own; it never becomes the source of
-              truth.
-            </p>
-            <ul class="checks">
-              <li><strong>Plain files in your project.</strong> Keep them local or commit them.</li>
-              <li><strong>Git-native when you want it.</strong> Review, diff, branch, clone.</li>
-              <li>
-                <strong>No hosted project.</strong> No account, no cloud workspace, no remote
-                database.
-              </li>
-              <li>
-                <strong>Runtime state is disposable.</strong> Your contract and data are what
-                persist.
-              </li>
-            </ul>
-          </div>
+          <header class="files-head">
+            <div>
+              <p class="eyebrow">just files</p>
+              <h2>Your mock API is just files. <em>Yours to keep.</em></h2>
+            </div>
+
+            <div>
+              <p class="lede">
+                They live alongside your code. Keep them local for yourself, or
+                commit them when the team should share them — clone the repo and
+                everyone gets the same contract, data and scenarios. laqi reads
+                and writes the files you already own; it never becomes the source
+                of truth.
+              </p>
+              <ul class="checks">
+                <li><strong>Plain files in your project.</strong> Keep them local or commit them.</li>
+                <li><strong>Git-native when you want it.</strong> Review, diff, branch, clone.</li>
+                <li>
+                  <strong>No hosted project.</strong> No account, no cloud workspace, no remote
+                  database.
+                </li>
+                <li>
+                  <strong>Runtime state is disposable.</strong> Your contract and data are what
+                  persist.
+                </li>
+              </ul>
+            </div>
+          </header>
 
           <FilesFigure />
         </div>
@@ -394,27 +399,34 @@ const description =
     background: color-mix(in srgb, var(--panel) 40%, transparent);
   }
 
+  /* The copy takes the whole row and the figure sits under it. The figure is
+     wide — a repo, a fork, three cards and a footnote — and in half a column
+     it was being squeezed into a measure it does not have. */
   .files-inner {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-    align-items: start;
-    gap: 4rem;
-    max-width: 88rem;
+    max-width: 84rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
   }
 
+  .files-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: start;
+    gap: 4rem;
+    margin-bottom: 4rem;
+  }
+
   @media (max-width: 68rem) {
-    .files-inner {
+    .files-head {
       grid-template-columns: minmax(0, 1fr);
-      gap: 2.5rem;
+      gap: 2rem;
     }
   }
 
   /* A tick per line rather than a bullet: each row is a property of the
      product that holds, not an item in a list of features. */
   .checks {
-    margin: 2rem 0 0;
+    margin: 1.75rem 0 0;
     padding: 0;
     list-style: none;
   }
