@@ -146,7 +146,7 @@ import BoltMark from './BoltMark.astro'
     gap: clamp(2rem, 4vw, 4rem);
     max-width: 82rem;
     margin: 0 auto;
-    padding: 5rem 1.5rem 7rem;
+    padding: 3.5rem 1.5rem 5rem;
     /* clip-path, not overflow: hidden. overflow clipped the hero's own
        background too, which is what cut the glow off at the section edge
        back when the glow lived here; clip-path bounds the ghosts without
@@ -195,8 +195,10 @@ import BoltMark from './BoltMark.astro'
     font-size: clamp(9rem, 15vw, 15rem);
   }
 
+  /* Above the panel, not across it: at laptop width the stage is short
+     enough that a watermark on its top edge lands on the title bar. */
   .ghost-b {
-    top: -0.55em;
+    bottom: calc(100% + 1.5rem);
     right: 0;
     font-family: var(--mono);
     font-size: clamp(2.5rem, 4vw, 4rem);
@@ -221,8 +223,8 @@ import BoltMark from './BoltMark.astro'
      cast the rest of the hero only hints at. */
   .brand-tile {
     display: grid;
-    width: 4rem;
-    height: 4rem;
+    width: 3.25rem;
+    height: 3.25rem;
     flex: none;
     place-items: center;
     border-radius: 14px;
@@ -256,9 +258,9 @@ import BoltMark from './BoltMark.astro'
      italic. Until now the reply inherited the statement's size, so the pair
      read as one long headline that happened to change colour halfway. */
   h1 {
-    margin: 0 0 1.75rem;
+    margin: 0 0 1.5rem;
     font-family: var(--serif);
-    font-size: clamp(3.5rem, 7.6vw, 6.5rem);
+    font-size: clamp(2.75rem, 5.6vw, 4.75rem);
     line-height: 0.94;
     letter-spacing: -0.045em;
     color: var(--fg);
@@ -272,7 +274,7 @@ import BoltMark from './BoltMark.astro'
        and where the sense is. */
     text-wrap: normal;
     margin-top: 0.4em;
-    font-size: clamp(2.125rem, 4.4vw, 3.5rem);
+    font-size: clamp(1.75rem, 3.2vw, 2.625rem);
     font-style: italic;
     font-weight: 300;
     line-height: 1.02;
@@ -525,7 +527,7 @@ import BoltMark from './BoltMark.astro'
   .log {
     position: absolute;
     left: -2.5rem;
-    bottom: -2.25rem;
+    bottom: -4.5rem;
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--bd2);
     border-radius: 10px;
