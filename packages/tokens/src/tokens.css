@@ -72,6 +72,12 @@
   --syn-punct: #4e4770;
   --syn-line: #3d3757;
 
+  /* The terminal's bolt. packages/tui/src/palette.ts calls its palette "the
+     panel's values", and every entry matches one of ours except this: the
+     bolt is #8b5cf6 there and --vio here. Reproduced rather than corrected —
+     the site should show the terminal as it actually prints. */
+  --term-bolt: #8b5cf6;
+
   /* TypeScript's own blue, for the TS badge and nothing else. It is a
      third-party brand colour: it belongs to no layer and carries no state. */
   --ts-badge: #3178c6;

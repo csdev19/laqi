@@ -15,6 +15,7 @@ import CodeWindow from '../components/home/CodeWindow.astro'
 import CreateRow from '../components/home/CreateRow.astro'
 import PanelMock from '../components/home/PanelMock.astro'
 import LogMock from '../components/home/LogMock.astro'
+import TerminalMock from '../components/home/TerminalMock.astro'
 import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
@@ -319,31 +320,33 @@ const description =
           You would be deploying a throwaway backend just so a phone could
           reach it.
         </Fragment>
-        <Window
-          label="zsh — laqi"
-          meta="public url open"
-          footer={[
-            { label: 'travels', text: 'mock responses only', tint: 'palem' },
-            { label: 'stays local', text: 'the panel and its write API' },
+        <TerminalMock
+          title="zsh — laqi"
+          version="2.0.1"
+          boot="22ms"
+          rows={[
+            { label: 'serving', value: 'http://127.0.0.1:8000', kind: 'url' },
+            { label: 'panel', value: 'http://127.0.0.1:8000/__laqi', kind: 'url', note: 'local only' },
+            {
+              label: 'watching',
+              value: 'examples/todo-app/laqi/',
+              note: '7 endpoints · 21 responses · 4 scenarios',
+            },
+            { value: '', spacer: true },
+            { label: 'public', value: 'https://cold-relay-7f2a.trycloudflare.com', kind: 'url' },
+            { label: 'token', value: 'lq_7f2a41c8d93b', note: '240 req/min' },
+          ]}
+          log={[
+            { time: '09:22:04', method: 'GET', path: '/todos', status: '200', kind: 'ok', via: 'via public' },
+            { time: '09:22:06', method: 'POST', path: '/todos', status: '500', kind: 'server', via: 'via public' },
           ]}
         >
-          <div class="term">
-            <p><span class="dim">$</span> laqi --share</p>
-            <p class="gap"></p>
-            <p><span class="dim">serving&nbsp;&nbsp;</span> 127.0.0.1:8000</p>
-            <p><span class="dim">panel&nbsp;&nbsp;&nbsp;&nbsp;</span> 127.0.0.1:8000/__laqi <span class="dim">local only</span></p>
-            <p>
-              <span class="dim">public&nbsp;&nbsp;&nbsp;</span>
-              <span class="url">https://cold-relay-7f2a.trycloudflare.com</span>
-            </p>
-            <p><span class="dim">token&nbsp;&nbsp;&nbsp;&nbsp;</span> lq_7f2a41c8d93b <span class="dim">240 req/min</span></p>
-          </div>
-          <FloatCard slot="float" label="from the phone">
-            <p>09:22:04 <code>GET /todos</code> <span class="ok">200</span> via public</p>
-            <p>09:22:06 <code>POST /todos</code> <span class="err">500</span> via public</p>
-            <p class="live">every request still lands in your own log</p>
+          <FloatCard slot="float" drop="6.5rem" label="from the phone">
+            <p>the same mocks, over https</p>
+            <p>every request lands in <span class="sc">your own log</span></p>
+            <p class="live">nothing deployed</p>
           </FloatCard>
-        </Window>
+        </TerminalMock>
       </Chapter>
 
       <section class="files" id="files">
