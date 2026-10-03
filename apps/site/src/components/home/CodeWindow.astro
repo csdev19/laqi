@@ -66,6 +66,8 @@ const { file, meta, lines, footer = [] } = Astro.props
 <style>
   .window {
     position: relative;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
     border: 1px solid var(--bd2);
     border-radius: 14px;
@@ -94,6 +96,7 @@ const { file, meta, lines, footer = [] } = Astro.props
   }
 
   .code {
+    min-width: 0;
     padding: 1.1rem 0;
     font-family: var(--mono);
     font-size: 0.8125rem;

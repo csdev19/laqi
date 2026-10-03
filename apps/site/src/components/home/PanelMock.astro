@@ -111,10 +111,14 @@ const METHOD_TINT: Record<string, string> = {
      element cannot do. So .frame clips and .panel only positions. */
   .panel {
     position: relative;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
   }
 
   .frame {
+    min-width: 0;
+    overflow-x: auto;
     border: 1px solid var(--bd2);
     border-radius: 14px;
     background: var(--win);
@@ -127,6 +131,7 @@ const METHOD_TINT: Record<string, string> = {
      window be the width it needs; the labels are its own. */
   .facts {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 1.1rem;
     padding: 0.6rem 1rem;
@@ -163,6 +168,7 @@ const METHOD_TINT: Record<string, string> = {
 
   .strip {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
     padding: 0.6rem 1rem;
@@ -171,6 +177,7 @@ const METHOD_TINT: Record<string, string> = {
 
   .filter-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.75rem;
     padding: 0.6rem 1rem;

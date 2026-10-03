@@ -84,6 +84,15 @@ const hasNote = Astro.slots.has('note')
   /* Text left, evidence right, in every chapter. Alternating sides made the
      eye restart at each one — the reader has to find where the sentence
      begins again instead of carrying on down a column. */
+  /* Both columns must be allowed to shrink. A grid child defaults to
+     min-width: auto, which refuses to go below its content — and the right
+     column holds a mono window, so on a phone it pushed the page sideways
+     instead of scrolling itself. */
+  .copy,
+  .still {
+    min-width: 0;
+  }
+
   .chapter {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);

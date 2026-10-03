@@ -92,6 +92,8 @@ const generated = [
 <style>
   .create {
     position: relative;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
     border: 1px solid var(--bd2);
     border-radius: 14px;
@@ -103,6 +105,7 @@ const generated = [
 
   .top {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.6rem;
     padding: 0.7rem 0.8rem;
@@ -129,6 +132,7 @@ const generated = [
 
   .path {
     flex: 1;
+    min-width: 8rem;
     padding: 0.3rem 0.65rem;
     border: 1px solid var(--bd2);
     border-radius: 6px;
@@ -146,10 +150,17 @@ const generated = [
     color: var(--palem);
   }
 
+  /* The four sources scroll rather than wrap: wrapped, the selected one
+     moves to a second line and the row stops reading as a picker. */
   .modes {
     display: flex;
     gap: 0.3rem;
     padding: 0 0.8rem 0.7rem;
+    overflow-x: auto;
+  }
+
+  .mode {
+    flex: none;
   }
 
   .mode {
@@ -174,6 +185,7 @@ const generated = [
   .pane {
     padding: 0.8rem;
     min-width: 0;
+    overflow-x: auto;
   }
 
   .pane + .pane,
@@ -213,6 +225,7 @@ const generated = [
 
   .bottom {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.35rem;
     padding: 0.7rem 0.8rem;

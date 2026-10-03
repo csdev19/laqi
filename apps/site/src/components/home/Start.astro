@@ -47,8 +47,13 @@ import BoltMark from './BoltMark.astro'
 </section>
 
 <style>
+  /* The glow below reaches past the section on both sides, so the section
+     has to clip it. Without this it widens the document — and because every
+     section is block-level, they all stretch to the widest one and the whole
+     page scrolls sideways on a phone. */
   .start {
     position: relative;
+    overflow: hidden;
     max-width: 48rem;
     margin: 0 auto;
     padding: 5rem 1.5rem 6rem;

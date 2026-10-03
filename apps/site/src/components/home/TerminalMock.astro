@@ -89,10 +89,13 @@ const METHOD_TINT: Record<string, string> = { GET: 'mint', POST: 'viol' }
 <style>
   .term {
     position: relative;
+    max-width: 100%;
+    min-width: 0;
     margin: 0;
   }
 
   .frame {
+    min-width: 0;
     border: 1px solid var(--bd2);
     border-radius: 14px;
     background: var(--win);
@@ -127,6 +130,7 @@ const METHOD_TINT: Record<string, string> = { GET: 'mint', POST: 'viol' }
     padding: 1rem 1.1rem;
     font-size: 12px;
     line-height: 1.85;
+    overflow-x: auto;
   }
 
   /* rule(): title, a fill that takes whatever is left, then the figure. */

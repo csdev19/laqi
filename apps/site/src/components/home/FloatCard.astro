@@ -25,6 +25,7 @@ const { label, drop } = Astro.props
      panel. Far enough down that only its top edge overlaps. */
   .float {
     position: absolute;
+    max-width: calc(100% + 2.5rem);
     bottom: calc(-1 * var(--float-drop, 5.5rem));
     left: -2.5rem;
     z-index: 2;
