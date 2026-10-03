@@ -38,6 +38,7 @@ const project = [
       </p>
       <p class="tags">contract-first · local-first · build in parallel</p>
       <p class="name">the false messenger</p>
+      <p class="by">An open-source product by <strong>Niway</strong>. MIT licensed.</p>
     </div>
 
     <nav>
@@ -103,11 +104,26 @@ const project = [
   }
 
   .name {
-    margin: 0;
+    margin: 0 0 1.5rem;
     font-family: var(--serif);
     font-style: italic;
     font-size: 0.9375rem;
     color: var(--faint);
+  }
+
+  /* The attribution, wording taken from apps/cli/README.md so the package
+     and the site say the same thing. */
+  .by {
+    margin: 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--bd);
+    font-size: 0.875rem;
+    color: var(--faint);
+  }
+
+  .by strong {
+    font-weight: 400;
+    color: var(--dim);
   }
 
   nav {
