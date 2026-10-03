@@ -90,7 +90,12 @@ is reachable from `src/pages/`:
 | `lib/demos.ts`                      | nothing yet — see below                   |
 | `lib/version.ts`                    | nothing; `version.test.ts` still tests it |
 
-**Delete on or after 2026-11-02** if still unreferenced. Check before
+`components/Hero.astro` and `components/FeatureGrid.astro` are already gone.
+They were the only two that referenced the demo slots, and when the three
+recordings became one they stopped compiling — keeping them would have meant
+re-adding dead data so that dead code could still type-check. Git has them.
+
+**Delete the rest on or after 2026-11-02** if still unreferenced. Check before
 deleting rather than trusting this list:
 
 ```sh
@@ -101,8 +106,7 @@ PY
 
 Two of these are not simply dead, and deleting them loses something:
 
-- `Demo.astro` + `lib/demos.ts` are the demo slots, rebuilt so a slot with
-  no file renders only under `astro dev`. The home page has no slot wired
-  to them yet; the `flip` chapter is where the 20-second recording belongs.
+- `Demo.astro` has moved to `components/home/` and is wired into the hero.
+  Dropping a file into `public/demos/` turns the slot on, and its CTA with it.
 - `McpSection.astro` is the only place the site explained the MCP server on
   the landing. The new home links `/docs/ai-agents/` from nowhere.

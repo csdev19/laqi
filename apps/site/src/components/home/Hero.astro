@@ -33,6 +33,11 @@ const log = [
   { method: 'GET', path: '/profile', status: '200', statusColor: 'var(--mint)', note: 'ok (default)' },
 ]
 import BoltMark from './BoltMark.astro'
+import Demo from './Demo.astro'
+import { demos, isVisible } from '../../lib/demos'
+
+const heroDemo = demos.hero
+const showDemo = isVisible(heroDemo)
 ---
 
 <section class="hero" id="intro">
@@ -74,6 +79,7 @@ import BoltMark from './BoltMark.astro'
         <code>npm i -g laqi</code>
         <span class="copied" aria-hidden="true">copied</span>
       </button>
+      {showDemo && <a href="#demo" class="btn-secondary">Watch it change</a>}
       <a href="#why" class="btn-secondary">See how it works</a>
     </div>
 
@@ -122,6 +128,14 @@ import BoltMark from './BoltMark.astro'
       }
     </div>
   </div>
+
+  {
+    showDemo && (
+      <div class="demo-slot" id="demo">
+        <Demo {...heroDemo} />
+      </div>
+    )
+  }
 </section>
 
 <script>
@@ -404,6 +418,19 @@ import BoltMark from './BoltMark.astro'
 
   .meta a {
     color: var(--dim);
+  }
+
+  /* The recording sits under both columns: it is the same thing the panel
+     beside it is a still of, and putting it in either column would make it
+     look like an alternative to one half of the hero rather than the proof
+     of the whole. */
+  /* A row of its own under both columns. Placed after the stage in source
+     order, not before it: a full-width item earlier in the flow takes the
+     first row and pushes the panel out from beside the copy. */
+  .demo-slot {
+    grid-column: 1 / -1;
+    margin-top: 3.5rem;
+    scroll-margin-top: 5rem;
   }
 
   /* ---- the panel still ---- */

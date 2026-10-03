@@ -1,13 +1,19 @@
-// UNUSED since 2026-10-02. Superseded by the nine-chapter home in
-// src/components/home/; nothing under src/pages/ imports it, directly or
-// transitively. Kept rather than deleted in the same change that replaced it,
-// so the old page can still be read while the new one settles.
+// The page's one recording, declared here so that dropping a file in turns
+// the slot on everywhere that depends on it — including the hero's second
+// CTA, which must not exist while there is nothing to watch.
 //
-// Delete on or after 2026-11-02 if it is still unreferenced. Verify first —
-// `grep -rl <name> src/` from apps/site — rather than trusting this header.
-// The page's three recordings, declared in one place so that dropping a file
-// in turns the slot on everywhere that depends on it — including the hero's
-// second CTA, which must not exist while there is nothing to watch.
+// There were three. The other two are gone because the page grew surfaces
+// that already carry them: the flip chapter draws the panel with two
+// scenario rows lit and the layer that chose each one, and the model chapter
+// puts the model and the body it generates either side of an arrow, so the
+// transformation is legible in a single frame. Neither has a hidden moment a
+// recording would reveal.
+//
+// This one does. The claim it serves — a state changes and nothing restarts —
+// is about what does NOT happen between two moments, and a still has no
+// between. It is also the only artifact on the page that would prove
+// something ran: every product surface here is drawn from the real
+// stylesheets, which makes them accurate, not evidence.
 //
 // Put the files in apps/site/public/demos/ and set `src` to the public path.
 // Until then the slot renders only under `astro dev` (see `isVisible`), so a
@@ -38,20 +44,6 @@ export const demos = {
     label: 'One click on “empty” and the list empties — no reload, no restart.',
     brief:
       '~20s, 16:9. The todo app beside the panel. Click `empty` on GET /todos — the list empties with no reload. Click `error` — the error state appears. Nothing is typed, no file is saved, no server restarts. Dishonest if it cuts between takes to hide a reload, speeds up the response, or uses an app that is not examples/todo-app.',
-  },
-  scenarios: {
-    src: null,
-    poster: null,
-    label: 'The “offline” scenario moves all four todo endpoints in one click.',
-    brief:
-      '~30s. Activate the `offline` scenario and show several endpoints moving together, visible in more than one place in the UI at once. The panel shows which endpoints it covers. Dishonest if it implies scenarios stack — only one is active at a time, and the panel says so.',
-  },
-  generate: {
-    src: null,
-    poster: null,
-    label: 'A pasted TypeScript model becomes seeded data the app can render.',
-    brief:
-      '~30s. Paste a TypeScript interface into the panel; generate seeded data from it — emails in email fields, dates in createdAt; write the body to a response; show the app rendering it. Dishonest if it implies the model is stored as a schema that stays in sync with the body. It is not — see ADR-0013.',
   },
 } satisfies Record<string, Demo>
 
