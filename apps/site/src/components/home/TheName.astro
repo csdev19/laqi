@@ -23,47 +23,23 @@ const cords = [
 
 <section class="name" id="name">
   <figure class="figure">
-    <div class="panes">
-      <div class="pane">
-        <svg viewBox="0 0 160 190" role="img" aria-label="A running courier in thin line work, a knotted cord in one hand.">
-          <circle cx="100" cy="34" r="11" class="stroke" />
-          <path d="M95 46 L78 96" class="stroke" />
-          <path d="M78 96 L62 136 L44 170" class="stroke" />
-          <path d="M78 96 L102 128 L124 152" class="stroke" />
-          <path d="M92 60 L120 52 L132 66" class="stroke" />
-          <path d="M90 66 L58 80" class="stroke" />
-          <line x1="58" y1="80" x2="42" y2="74" class="stroke" />
-          <line x1="42" y1="74" x2="42" y2="112" class="stroke thin" />
-          <line x1="34" y1="76" x2="34" y2="100" class="stroke thin" />
-          <line x1="50" y1="76" x2="50" y2="106" class="stroke thin" />
-          <circle cx="42" cy="90" r="2.2" class="knot" />
-          <circle cx="34" cy="88" r="2.2" class="knot" />
-          <circle cx="50" cy="94" r="2.2" class="knot" />
-        </svg>
-      </div>
-
-      <div class="pane pane-quipu">
-        <p class="pane-label">quipu → mark</p>
-        <svg viewBox="0 0 200 150" role="img" aria-label="A quipu: a horizontal cord with knotted cords hanging from it, the last ending in the laqi mark.">
-          <line x1="16" y1="24" x2="168" y2="24" class="spine" />
-          {
-            cords.map((cord) => (
-              <>
-                <line x1={cord.x} y1="24" x2={cord.x} y2={24 + cord.len} class="cord" />
-                {cord.knots.map((y) => <circle cx={cord.x} cy={24 + y} r="2.6" class="knot" />)}
-              </>
-            ))
-          }
-          <line x1="168" y1="24" x2="168" y2="52" class="cord" />
-          <path d="M172 52 l-10 20 h7 l-5 16 14 -22 h-7 z" class="mark" />
-        </svg>
-      </div>
+    <div class="plate">
+      <p class="plate-label">quipu → mark</p>
+      <svg viewBox="0 0 200 150" role="img" aria-label="A quipu: a horizontal cord with knotted cords hanging from it, the last ending in the laqi mark.">
+        <line x1="16" y1="24" x2="168" y2="24" class="spine" />
+        {
+          cords.map((cord) => (
+            <>
+              <line x1={cord.x} y1="24" x2={cord.x} y2={24 + cord.len} class="cord" />
+              {cord.knots.map((y) => <circle cx={cord.x} cy={24 + y} r="2.6" class="knot" />)}
+            </>
+          ))
+        }
+        <line x1="168" y1="24" x2="168" y2="52" class="cord" />
+        <path d="M172 52 l-10 20 h7 l-5 16 14 -22 h-7 z" class="mark" />
+      </svg>
     </div>
-    <figcaption>
-      <span>fig. 1 — chasqui, in transit</span>
-      <span class="sep">/</span>
-      <span>the cord it carries ends in the laqi mark</span>
-    </figcaption>
+    <figcaption>fig. 1 — the cord a chasqui carries, ending in the laqi mark</figcaption>
   </figure>
 
   <div class="prose">
@@ -117,37 +93,20 @@ const cords = [
     margin: 0;
   }
 
-  /* Two panes, as the design draws it: the runner on the left, the quipu he
-     carries on the right. One border around both so they read as one plate
-     rather than two illustrations. */
-  .panes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    border: 1px solid var(--bd2);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--panel) 40%, transparent);
-    overflow: hidden;
-  }
-
-  @media (max-width: 40rem) {
-    .panes {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-
-  .pane {
+  /* One plate, the quipu alone. A drawn runner beside it was doing no work
+     the prose was not already doing, and a figure with no face at that size
+     reads as a diagram of a person rather than as a courier. */
+  .plate {
     position: relative;
     display: grid;
     place-items: center;
-    padding: 2.5rem 1.5rem;
-    min-height: 15rem;
+    padding: 4rem 2.5rem;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--panel) 40%, transparent);
   }
 
-  .pane-quipu {
-    border-left: 1px solid var(--bd);
-  }
-
-  .pane-label {
+  .plate-label {
     position: absolute;
     top: 0.9rem;
     right: 1rem;
@@ -159,24 +118,19 @@ const cords = [
     color: var(--faint);
   }
 
-  .pane svg {
+  .plate svg {
     display: block;
     width: 100%;
-    max-width: 13rem;
+    max-width: 20rem;
     height: auto;
   }
 
-  .stroke,
   .spine,
   .cord {
     stroke: var(--viotx);
     stroke-width: 1.4;
     stroke-linecap: round;
     fill: none;
-  }
-
-  .thin {
-    stroke-width: 1;
   }
 
   .knot {
@@ -189,17 +143,10 @@ const cords = [
   }
 
   figcaption {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
     margin-top: 1rem;
     font-family: var(--mono);
     font-size: 0.6875rem;
     color: var(--faint);
-  }
-
-  figcaption .sep {
-    color: var(--line2);
   }
 
   .eyebrow {
