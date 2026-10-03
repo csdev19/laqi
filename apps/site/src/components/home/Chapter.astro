@@ -103,17 +103,20 @@ const hasNote = Astro.slots.has('note')
 
   .tile {
     display: grid;
-    width: 3.5rem;
-    height: 3.5rem;
+    width: 3.875rem;
+    height: 3.875rem;
     place-items: center;
     margin-bottom: 1.75rem;
     border-radius: 14px;
-    background: linear-gradient(145deg, color-mix(in srgb, var(--tint) 70%, #fff 20%), var(--tint));
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tint) 65%, #fff 25%), var(--tint));
     color: #fff;
     font-family: var(--mono);
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    box-shadow: 0 18px 40px -20px var(--tint);
+    /* The design's own figure: 0 16px 34px -14px at 90% of the chapter
+       colour. The glow is what tells five identical tiles apart down the
+       page, so it is not decoration and should not be faint. */
+    box-shadow: 0 16px 34px -14px color-mix(in srgb, var(--tint) 90%, transparent);
   }
 
   .index {

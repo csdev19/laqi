@@ -47,7 +47,8 @@ const METHOD_TINT: Record<string, string> = {
 ---
 
 <figure class="panel">
-  <div class="facts">
+  <div class="frame">
+    <div class="facts">
     <span class="brand"><BoltMark size={13} /> laqi</span>
     <span class="fact"><i>watching</i> {watching}</span>
     <span class="fact"><i>endpoints</i> {rows.length}</span>
@@ -92,20 +93,28 @@ const METHOD_TINT: Record<string, string> = {
             </span>
           ))}
         </span>
-        <span class:list={['layer', `layer-${row.layer}`, row.layer !== 'default' && 'is-not-default']}>
-          {row.layer}
-        </span>
-      </div>
-    ))
-  }
+          <span class:list={['layer', `layer-${row.layer}`, row.layer !== 'default' && 'is-not-default']}>
+            {row.layer}
+          </span>
+        </div>
+      ))
+    }
+  </div>
 
   <slot />
 </figure>
 
 <style>
+  /* The clip and the frame are two elements on purpose. A row's tint has to
+     be cut by the rounded corner, which needs overflow: hidden — and the
+     card hanging off the bottom-left corner has to escape it, which the same
+     element cannot do. So .frame clips and .panel only positions. */
   .panel {
     position: relative;
     margin: 0;
+  }
+
+  .frame {
     border: 1px solid var(--bd2);
     border-radius: 14px;
     background: var(--win);
