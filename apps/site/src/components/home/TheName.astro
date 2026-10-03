@@ -1,59 +1,27 @@
 ---
 // apps/site/src/components/home/TheName.astro
 //
-// One idea: laqi is the chasqui, a runner carrying a message before the
-// final destination is ready.
+// The name, as type and nothing else.
 //
-// The figure is a relay, not a person. A drawn runner was tried and removed
-// — at this size a faceless figure in single-weight strokes reads as a
-// diagram of a person, and it asked the reader to decode a second thing. So
-// motion is shown the way this site shows everything else: a thin path,
-// repeated position marks, a token in the page's own language travelling
-// along it, and the destination waiting at the end.
+// Three illustrations were tried here and all three failed for the same
+// reason: each asked the reader to decode a picture before reaching the idea
+// the words already carry in one line. The last one also depended on scoped
+// CSS to paint an SVG, which is fragile — presentation that lives in a
+// stylesheet and geometry that lives in markup have to agree, and when they
+// do not the figure does not degrade, it breaks.
 //
-// The figure does not explain the logo and derives nothing from any Inca
-// object. The etymology sits below it, deliberately unconnected.
-const stops = [
-  { x: 24, passed: true },
-  { x: 92, passed: true },
-  { x: 160, passed: true },
-]
+// So the left column is the wordmark at display scale. It is the one thing
+// this section is about, it cannot render wrong, and it gives the name a
+// moment of its own before the etymology explains it.
+import BoltMark from './BoltMark.astro'
 ---
 
 <section class="name" id="name">
-  <figure class="figure">
-    <div class="plate">
-      <p class="plate-label">in transit</p>
-
-      <svg viewBox="0 0 440 150" role="img" aria-label="A relay path: the contract travelling ahead of the real API, which waits at the end of the road.">
-        <!-- the road -->
-        <line x1="24" y1="96" x2="416" y2="96" class="road" />
-
-        <!-- waystations already passed -->
-        {stops.map((s) => <circle cx={s.x} cy="96" r="3" class="stop" />)}
-
-        <!-- the trail behind the carrier -->
-        <line x1="160" y1="96" x2="236" y2="96" class="trail" />
-
-        <!-- the carrier, and what it carries -->
-        <circle cx="244" cy="96" r="6" class="carrier" />
-        <line x1="244" y1="88" x2="244" y2="58" class="tether" />
-        <g class="token">
-          <rect x="196" y="24" width="98" height="32" rx="6" />
-          <text x="245" y="44" text-anchor="middle">contract</text>
-        </g>
-
-        <!-- the destination -->
-        <line x1="416" y1="78" x2="416" y2="114" class="post" />
-        <circle cx="416" cy="96" r="5" class="dest" />
-      </svg>
-
-      <p class="plate-foot">
-        <span class="here">the contract, now</span>
-        <span class="there">the real API, later</span>
-      </p>
-    </div>
-  </figure>
+  <div class="mark">
+    <span class="tile" aria-hidden="true"><BoltMark size={40} /></span>
+    <p class="word">laqi</p>
+    <p class="say">/ˈla.ki/ · it sounds like “lucky”</p>
+  </div>
 
   <div class="prose">
     <p class="eyebrow">the name</p>
@@ -74,7 +42,6 @@ const stops = [
         <p class="roots-text">
           Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
         </p>
-        <p class="roots-aside">say it out loud: it sounds like “lucky”</p>
         <a href="/the-name/" class="more">The whole story →</a>
       </div>
     </div>
@@ -84,7 +51,7 @@ const stops = [
 <style>
   .name {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     align-items: center;
     gap: 4rem;
     max-width: 76rem;
@@ -99,99 +66,36 @@ const stops = [
     }
   }
 
-  .figure {
+  .mark {
+    text-align: center;
+  }
+
+  .tile {
+    display: grid;
+    width: 5rem;
+    height: 5rem;
+    place-items: center;
+    margin: 0 auto 1.5rem;
+    border-radius: 18px;
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
+    box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
+  }
+
+  .word {
+    margin: 0 0 0.6rem;
+    font-family: var(--serif);
+    font-size: clamp(3.5rem, 7vw, 5.5rem);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.045em;
+    color: var(--fg);
+  }
+
+  .say {
     margin: 0;
-  }
-
-  .plate {
-    position: relative;
-    padding: 2.5rem 2rem 1.5rem;
-    border: 1px solid var(--bd2);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--panel) 40%, transparent);
-  }
-
-  .plate-label {
-    position: absolute;
-    top: 0.9rem;
-    right: 1rem;
-    margin: 0;
     font-family: var(--mono);
-    font-size: 0.625rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--faint);
-  }
-
-  .plate svg {
-    display: block;
-    width: 100%;
-    height: auto;
-  }
-
-  /* The road is quiet; the part already travelled is quieter still. */
-  .road {
-    stroke: var(--bd2);
-    stroke-width: 1;
-  }
-
-  .stop {
-    fill: var(--line2);
-  }
-
-  .trail {
-    stroke: color-mix(in srgb, var(--viotx) 45%, transparent);
-    stroke-width: 1;
-    stroke-dasharray: 3 4;
-  }
-
-  .carrier {
-    fill: var(--viotx);
-  }
-
-  .tether {
-    stroke: color-mix(in srgb, var(--viotx) 55%, transparent);
-    stroke-width: 1;
-  }
-
-  /* The token is the site's own chip: thin border, mono label, violet. */
-  .token rect {
-    fill: color-mix(in srgb, var(--vio) 12%, transparent);
-    stroke: color-mix(in srgb, var(--vio) 70%, transparent);
-    stroke-width: 1;
-  }
-
-  .token text {
-    fill: var(--viotx);
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.06em;
-  }
-
-  .post {
-    stroke: var(--line2);
-    stroke-width: 1;
-  }
-
-  .dest {
-    fill: none;
-    stroke: var(--faint);
-    stroke-width: 1.4;
-  }
-
-  .plate-foot {
-    display: flex;
-    justify-content: space-between;
-    margin: 0.75rem 0 0;
-    font-family: var(--mono);
-    font-size: 0.6875rem;
-  }
-
-  .here {
-    color: var(--viotx);
-  }
-
-  .there {
+    font-size: 0.75rem;
     color: var(--faint);
   }
 
@@ -232,8 +136,8 @@ const stops = [
     color: var(--viotx) !important;
   }
 
-  /* The etymology is below the figure and not joined to it: the name's roots
-     are not a derivation of the mark. */
+  /* The etymology sits under a rule, joined to nothing above it: the name's
+     roots are not a derivation of the mark. */
   .roots {
     display: flex;
     gap: 1.5rem;
@@ -251,15 +155,8 @@ const stops = [
   }
 
   .roots-text {
-    margin: 0 0 0.4rem !important;
-    color: var(--fg) !important;
-  }
-
-  .roots-aside {
     margin: 0 0 0.75rem !important;
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    color: var(--faint) !important;
+    color: var(--fg) !important;
   }
 
   .more {
