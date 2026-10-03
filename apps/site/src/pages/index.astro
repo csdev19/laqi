@@ -149,9 +149,17 @@ const description =
         total={total}
         kicker="flip · every edge case, on demand"
         tint="mag"
+        replyTint="magtx"
         title="What if it fails?"
         subtitle="Find out before the backend can tell you."
-        chips={['500 error', '401 unauthorized', '422 validation', 'empty list', 'slow · 3s', 'offline scenario']}
+        chips={[
+          { label: '500 error', tint: 'red' },
+          { label: '401 unauthorized', tint: 'magl' },
+          { label: '422 validation', tint: 'magl' },
+          { label: 'empty list', tint: 'mint' },
+          'slow · 3s',
+          'offline scenario',
+        ]}
         noteLabel="the point"
       >
         <span slot="glyph">500</span>
@@ -246,6 +254,7 @@ const description =
         total={total}
         kicker="watch · resolution, explained"
         tint="mint"
+        replyTint="palem"
         title="Every request tells you why."
         subtitle="No guessing which rule won."
         chips={['header', 'state', 'scenario', 'default']}

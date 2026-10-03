@@ -16,7 +16,11 @@ interface Props {
   tint: string
   title: string
   subtitle: string
-  chips?: string[]
+  /** Chips may carry their own tint; a bare string takes the neutral one. */
+  chips?: (string | { label: string; tint: string })[]
+  /** The reply's colour. The design gives each chapter its own accent for
+   *  this line, so it is not always the brand violet. */
+  replyTint?: string
   /** Label over the one-sentence consequence, e.g. "the shift". */
   noteLabel?: string
 }
@@ -29,12 +33,13 @@ const {
   title,
   subtitle,
   chips = [],
+  replyTint = 'viotx',
   noteLabel,
 } = Astro.props
 const hasNote = Astro.slots.has('note')
 ---
 
-<section class="chapter" id={id} style={`--tint: var(--${tint})`}>
+<section class="chapter" id={id} style={`--tint: var(--${tint}); --reply: var(--${replyTint})`}>
   <div class="copy">
     <span class="tile" aria-hidden="true"><slot name="glyph" /></span>
     <p class="index">
@@ -59,9 +64,15 @@ const hasNote = Astro.slots.has('note')
     {
       chips.length > 0 && (
         <p class="chips">
-          {chips.map((chip) => (
-            <span>{chip}</span>
-          ))}
+          {chips.map((chip) =>
+            typeof chip === 'string' ? (
+              <span>{chip}</span>
+            ) : (
+              <span style={`--chip: var(--${chip.tint})`} class="is-tinted">
+                {chip.label}
+              </span>
+            ),
+          )}
         </p>
       )
     }
@@ -143,7 +154,7 @@ const hasNote = Astro.slots.has('note')
     font-weight: 300;
     line-height: 1.1;
     letter-spacing: -0.015em;
-    color: var(--viotx);
+    color: var(--reply, var(--viotx));
   }
 
   .body {
@@ -194,5 +205,12 @@ const hasNote = Astro.slots.has('note')
     font-family: var(--mono);
     font-size: 0.75rem;
     color: var(--dim);
+  }
+
+  /* A chip naming a state takes that state's own colour, the same one the
+     panel gives it. A chip naming a capability stays neutral. */
+  .chips .is-tinted {
+    border-color: color-mix(in srgb, var(--chip) 55%, transparent);
+    color: var(--chip);
   }
 </style>
