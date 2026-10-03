@@ -45,6 +45,30 @@ site. Anything the site renders from the CLI's version at build time will
 be stale until the next site release, which is why the nav no longer
 carries a version badge.
 
+## Looking at it
+
+The site has no visual test, so changes to it are checked by rendering the
+page and reading the result, not by grepping the HTML. Chrome renders a
+full-page shot headlessly:
+
+```sh
+bun run --filter=@laqi/site build
+bun run --filter=@laqi/site preview --port 4370 &
+
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless --disable-gpu --force-device-scale-factor=1 \
+  --window-size=1600,6000 --virtual-time-budget=4000 \
+  --screenshot=/tmp/laqi.png http://localhost:4370/
+
+# a section, by vertical offset
+sips -c 820 1600 --cropOffset 4850 0 /tmp/laqi.png --out /tmp/flip.png
+```
+
+Grepping the built CSS is not a substitute. Several components share class
+names — `.panel`, `.head`, `.tile` — and Astro scopes each one, so a search
+for a rule returns whichever component matched first. Search by the scope
+id (`.panel:where(.astro-bjypieal)`) or rename the class.
+
 ## Unused, pending deletion
 
 The home page was rebuilt on 2026-10-02 and the previous landing sections
