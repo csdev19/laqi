@@ -6,11 +6,14 @@
 // existing, so it sits over the window instead of beside it.
 interface Props {
   label: string
+  /** How far below the window it hangs. A short window needs more than a
+   *  tall one, or the card lands on the rows it is explaining. */
+  drop?: string
 }
-const { label } = Astro.props
+const { label, drop } = Astro.props
 ---
 
-<aside class="float">
+<aside class="float" style={drop ? `--float-drop: ${drop}` : undefined}>
   <p class="label">{label}</p>
   <div class="body"><slot /></div>
 </aside>

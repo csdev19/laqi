@@ -14,6 +14,7 @@ import Window from '../components/home/Window.astro'
 import CodeWindow from '../components/home/CodeWindow.astro'
 import CreateRow from '../components/home/CreateRow.astro'
 import PanelMock from '../components/home/PanelMock.astro'
+import LogMock from '../components/home/LogMock.astro'
 import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
@@ -257,7 +258,12 @@ const description =
         replyTint="palem"
         title="Every request tells you why."
         subtitle="No guessing which rule won."
-        chips={['header', 'state', 'scenario', 'default']}
+        chips={[
+          { label: 'header', tint: 'mint' },
+          { label: 'state', tint: 'mag' },
+          { label: 'scenario', tint: 'viol' },
+          'default',
+        ]}
         noteLabel="same answer, three places"
       >
         <span slot="glyph">↻</span>
@@ -271,39 +277,23 @@ const description =
           The panel, the terminal and the <code>x-laqi-resolved</code> header
           always say the same thing.
         </Fragment>
-        <Window
-          label="requests"
-          meta="218"
-          footer={[
-            { label: 'always agrees', text: 'panel · terminal · x-laqi-resolved', tint: 'palem' },
+        <LogMock
+          count="218 requests"
+          entries={[
+            { time: '09:15:25', method: 'GET', path: '/todos', status: '200', statusKind: 'ok', resolved: 'state → empty', layer: 'state', ms: '3ms' },
+            { time: '09:15:28', method: 'POST', path: '/todos', status: '500', statusKind: 'server', resolved: 'scenario → error', layer: 'scenario', ms: '2ms' },
+            { time: '09:15:31', method: 'GET', path: '/todos', status: '200', statusKind: 'ok', resolved: 'header → slow', layer: 'header', ms: '2.4s' },
+            { time: '09:15:33', method: 'GET', path: '/profile', status: '401', statusKind: 'client', resolved: 'state → unauthorized', layer: 'state', ms: '1ms' },
+            { time: '09:15:36', method: 'PATCH', path: '/todos/12', status: '200', statusKind: 'ok', resolved: 'default → ok', layer: 'default', ms: '1ms' },
+            { time: '09:15:38', method: 'GET', path: '/favicon.ico', status: '404', statusKind: 'server', resolved: 'no matching route', layer: 'none', ms: '0ms' },
           ]}
         >
-          <div class="panel-rows">
-            {
-              [
-                { t: '09:15:25', m: 'GET', c: 'mint', path: '/todos', s: '200', sc: 'mint', why: 'state → empty' },
-                { t: '09:15:28', m: 'POST', c: 'vio', path: '/todos', s: '500', sc: 'red', why: 'scenario → error' },
-                { t: '09:15:31', m: 'GET', c: 'mint', path: '/todos', s: '200', sc: 'mint', why: 'header → slow' },
-                { t: '09:15:33', m: 'GET', c: 'mint', path: '/profile', s: '401', sc: 'magl', why: 'state → unauthorized' },
-                { t: '09:15:36', m: 'PATCH', c: 'palev', path: '/todos/12', s: '200', sc: 'mint', why: 'default → ok' },
-                { t: '09:15:38', m: 'GET', c: 'mint', path: '/favicon.ico', s: '404', sc: 'red', why: 'no matching route', miss: true },
-              ].map((row) => (
-                <p class:list={['lrow', row.miss && 'lrow-miss']}>
-                  <span class="t">{row.t}</span>
-                  <span class="m" style={`color: var(--${row.c})`}>{row.m}</span>
-                  <span class="path">{row.path}</span>
-                  <span class="s" style={`color: var(--${row.sc})`}>{row.s}</span>
-                  <span class="why">{row.why}</span>
-                </p>
-              ))
-            }
-          </div>
-          <FloatCard slot="float" label="same answer, three places">
-            <p>panel&nbsp;&nbsp;&nbsp;&nbsp;<code>scenario → error</code></p>
-            <p>terminal <code>scenario → error</code></p>
-            <p class="live">header&nbsp;&nbsp;&nbsp;<code>x-laqi-resolved: error</code></p>
+          <FloatCard slot="float" drop="7.5rem" label="same answer, three places">
+            <p>panel&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="sc">scenario → error</span></p>
+            <p>terminal&nbsp;<span class="sc">scenario → error</span></p>
+            <p>header&nbsp;&nbsp;&nbsp;<code>x-laqi-resolved: error</code></p>
           </FloatCard>
-        </Window>
+        </LogMock>
       </Chapter>
 
       <Chapter
@@ -619,6 +609,10 @@ package.json        "mock": "laqi start"
 
   :global(.float .body .pick) {
     color: var(--magtx);
+  }
+
+  :global(.float .body .sc) {
+    color: var(--viol);
   }
 
   :global(.float .body p) {
