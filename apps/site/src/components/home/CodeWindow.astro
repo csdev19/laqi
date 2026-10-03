@@ -118,10 +118,23 @@ const { file, meta, lines, footer = [] } = Astro.props
     user-select: none;
   }
 
+  /* The gutter is a comment on the line, not part of it. It must never be
+     what decides how wide the window is — nowrap in an auto column makes the
+     longest note the window's minimum width, and the window then pushes past
+     its own column. */
   .note {
     font-size: 0.6875rem;
     white-space: nowrap;
     color: var(--dim2);
+  }
+
+  @media (max-width: 86rem) {
+    .line {
+      grid-template-columns: 2.5rem minmax(0, 1fr);
+    }
+    .note {
+      display: none;
+    }
   }
 
   .foot {
