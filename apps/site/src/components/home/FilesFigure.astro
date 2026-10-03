@@ -1,0 +1,441 @@
+---
+// apps/site/src/components/home/FilesFigure.astro
+//
+// Where a laqi project's files live and what happens to them: the repo, the
+// two things you can do with the folder, the team on the other side of a
+// clone, and the state that is never committed at all.
+//
+// Connectors are borders on elements, and the icons carry their paint as
+// attributes through currentColor. Nothing here depends on a stylesheet and
+// a geometry agreeing — a figure that paints from scoped CSS does not
+// degrade when half of it is missing, it disappears.
+import DiagramIcon from './DiagramIcon.astro'
+
+const files = [
+  { name: 'api.json', meta: '7 routes · 19 responses', open: true },
+  { name: 'scenarios.json', meta: '4 scenarios' },
+]
+
+const disposable = ['selected response', 'temporary flips', 'local overrides', 'panel state']
+---
+
+<div class="figure">
+  <!-- the repo -->
+  <figure class="repo">
+    <figcaption class="bar">
+      <span class="bar-label">your repo</span>
+      <span class="bar-name">todo-app</span>
+      <span class="bar-branch">main</span>
+    </figcaption>
+
+    <div class="tree">
+      <p class="dir">
+        <span class="caret">▾</span>
+        <span class="dir-name">laqi/</span>
+        <span class="dir-note">· your mock API</span>
+      </p>
+      {
+        files.map((f) => (
+          <p class:list={['file', f.open && 'is-open']}>
+            <span class="glyph">▢</span>
+            <span class="file-name">{f.name}</span>
+            <span class="file-meta">{f.meta}</span>
+          </p>
+        ))
+      }
+      <p class="dir dir-closed">
+        <span class="caret">▸</span>
+        <span class="dir-name">src/</span>
+      </p>
+    </div>
+
+    <div class="diff">
+      <p class="diff-head">laqi/api.json · "POST /todos"</p>
+      <p class="add"><span>+</span> "validation": {'{'} "status": 422, "body": {'{…}'} {'}'},</p>
+      <p class="del"><span>−</span> "error": {'{'} "status": 500 {'}'}</p>
+    </div>
+  </figure>
+
+  <!-- what you own, forking into the two things you can do with it -->
+  <div class="stem" aria-hidden="true"><span class="stem-text">plain files you own</span></div>
+  <div class="fork" aria-hidden="true"></div>
+  <div class="legs" aria-hidden="true"><span class="wire"></span><span class="wire"></span></div>
+
+  <div class="cards">
+    <div class="card">
+      <DiagramIcon kind="person" tint="palem" />
+      <div>
+        <p class="card-label">local</p>
+        <p class="card-title">Keep it local</p>
+        <p class="card-meta">use privately · nothing to set up</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <DiagramIcon kind="branch" tint="palem" />
+      <div>
+        <p class="card-label">git</p>
+        <p class="card-title">Commit when it becomes team knowledge</p>
+        <p class="card-meta">review · diff · branch</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="clone" aria-hidden="true"><span class="clone-text">git clone</span></div>
+
+  <div class="team-row">
+    <div class="card card-team">
+      <DiagramIcon kind="people" tint="palem" />
+      <div>
+        <p class="card-label">team</p>
+        <p class="card-title">Everyone gets the same mock API</p>
+        <p class="card-meta">same contract · data · scenarios</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- and the part that never travels -->
+  <div class="disposable">
+    <p class="disposable-label">disposable</p>
+    <p class="disposable-list">
+      {disposable.map((d) => <span>{d}</span>)}
+    </p>
+    <p class="disposable-note">never committed</p>
+  </div>
+</div>
+
+<style>
+  .figure {
+    --gap: 2.5rem;
+    display: grid;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  /* ---- the repo ---- */
+
+  .repo {
+    margin: 0;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--win);
+    overflow: hidden;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--bd);
+    background: var(--winbar);
+  }
+
+  .bar-label {
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .bar-name {
+    color: var(--fg);
+  }
+
+  .bar-branch {
+    margin-left: auto;
+    color: var(--faint);
+  }
+
+  .tree {
+    padding: 0.6rem 0;
+  }
+
+  .dir,
+  .file {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0.35rem 1rem;
+  }
+
+  .caret {
+    width: 0.75rem;
+    color: var(--faint);
+  }
+
+  .dir-name {
+    color: var(--fg);
+  }
+
+  .dir-note,
+  .dir-closed .dir-name {
+    color: var(--faint);
+  }
+
+  .file {
+    padding-left: 2.1rem;
+  }
+
+  .glyph {
+    color: var(--faint);
+  }
+
+  .file-name {
+    color: var(--dim);
+  }
+
+  .file-meta {
+    margin-left: auto;
+    color: var(--faint);
+  }
+
+  /* The file the chapter is about, lit the way the panel lights a live row. */
+  .is-open {
+    background: color-mix(in srgb, var(--vio) 14%, transparent);
+  }
+
+  .is-open .file-name {
+    color: var(--fg);
+  }
+
+  .diff {
+    padding: 0.8rem 1rem 0.9rem;
+    border-top: 1px solid var(--bd);
+  }
+
+  .diff p {
+    margin: 0;
+    line-height: 1.8;
+  }
+
+  .diff-head {
+    color: var(--faint);
+  }
+
+  .add {
+    color: var(--mint);
+  }
+
+  .del {
+    color: var(--red);
+  }
+
+  .add span,
+  .del span {
+    display: inline-block;
+    width: 1rem;
+  }
+
+  /* ---- connectors ----
+     Two columns below the repo, so every vertical lands on a card's centre
+     by the same arithmetic the cards are laid out with. */
+  .stem {
+    position: relative;
+    height: 2.75rem;
+    justify-self: center;
+    width: 1px;
+    background: var(--line-own);
+  }
+
+  .stem-text {
+    position: absolute;
+    top: 50%;
+    left: 0.75rem;
+    translate: 0 -50%;
+    white-space: nowrap;
+    color: var(--viotx);
+  }
+
+  .fork {
+    height: 1.5rem;
+    margin: 0 25%;
+    border-left: 1px solid var(--line-own);
+    border-right: 1px solid var(--line-own);
+    border-top: 1px solid var(--line-own);
+  }
+
+  .legs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+    justify-items: center;
+  }
+
+  .wire {
+    position: relative;
+    width: 1px;
+    height: 1.25rem;
+    background: var(--line-own);
+  }
+
+  .wire::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line-own);
+  }
+
+  .figure {
+    --line-own: color-mix(in srgb, var(--vio) 70%, transparent);
+    --line-team: color-mix(in srgb, var(--mint) 45%, transparent);
+  }
+
+  /* ---- cards ---- */
+
+  .cards,
+  .team-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap);
+  }
+
+  .team-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .team-row .card-team {
+    grid-column: 2;
+  }
+
+  .card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid var(--bd2);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+
+  .card-team {
+    border-color: var(--line-team);
+    background: color-mix(in srgb, var(--mint) 4%, transparent);
+  }
+
+  .card-label {
+    margin: 0 0 0.35rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--palem);
+  }
+
+  .card-title {
+    margin: 0 0 0.3rem;
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.25;
+    color: var(--fg);
+  }
+
+  .card-meta {
+    margin: 0;
+    color: var(--faint);
+  }
+
+  /* The clone runs from the git card down to the team card, so it sits in
+     the right column and nowhere else. */
+  .clone {
+    position: relative;
+    grid-column: 1 / -1;
+    justify-self: end;
+    width: 50%;
+    height: 2.5rem;
+  }
+
+  .clone::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 5px;
+    left: 50%;
+    width: 1px;
+    background: var(--line-team);
+  }
+
+  .clone::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line-team);
+  }
+
+  .clone-text {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 0.75rem);
+    translate: 0 -50%;
+    white-space: nowrap;
+    color: var(--palem);
+  }
+
+  /* ---- disposable ---- */
+
+  .disposable {
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    border: 1px dashed var(--bd2);
+    border-radius: 12px;
+  }
+
+  .disposable-label {
+    margin: 0 0 0.6rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .disposable-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin: 0;
+  }
+
+  .disposable-list span {
+    color: var(--dim2);
+    text-decoration: line-through;
+  }
+
+  .disposable-note {
+    margin: 0.75rem 0 0;
+    font-family: var(--serif);
+    font-style: italic;
+    text-align: right;
+    color: var(--faint);
+  }
+
+  @media (max-width: 52rem) {
+    .cards,
+    .team-row,
+    .legs {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .team-row .card-team {
+      grid-column: 1;
+    }
+    .fork,
+    .legs,
+    .clone {
+      display: none;
+    }
+    .cards {
+      gap: 1rem;
+    }
+    .team-row {
+      margin-top: 1rem;
+    }
+  }
+</style>

@@ -10,12 +10,12 @@ import TopNav from '../components/home/TopNav.astro'
 import Hero from '../components/home/Hero.astro'
 import Why from '../components/home/Why.astro'
 import Chapter from '../components/home/Chapter.astro'
-import Window from '../components/home/Window.astro'
 import CodeWindow from '../components/home/CodeWindow.astro'
 import CreateRow from '../components/home/CreateRow.astro'
 import PanelMock from '../components/home/PanelMock.astro'
 import LogMock from '../components/home/LogMock.astro'
 import TerminalMock from '../components/home/TerminalMock.astro'
+import FilesFigure from '../components/home/FilesFigure.astro'
 import FloatCard from '../components/home/FloatCard.astro'
 import TheName from '../components/home/TheName.astro'
 import Start from '../components/home/Start.astro'
@@ -352,37 +352,30 @@ const description =
       <section class="files" id="files">
         <div class="files-inner">
           <div>
-            <p class="eyebrow">your files</p>
-            <h2>Local by default. <em>Just files in your repo.</em></h2>
+            <p class="eyebrow">just files</p>
+            <h2>Your mock API is just files. <em>Yours to keep.</em></h2>
+            <p class="lede">
+              They live alongside your code. Keep them local for yourself, or
+              commit them when the team should share them — clone the repo and
+              everyone gets the same contract, data and scenarios. laqi reads and
+              writes the files you already own; it never becomes the source of
+              truth.
+            </p>
             <ul class="checks">
+              <li><strong>Plain files in your project.</strong> Keep them local or commit them.</li>
+              <li><strong>Git-native when you want it.</strong> Review, diff, branch, clone.</li>
               <li>
-                <strong>Runs on 127.0.0.1 by default.</strong> No account, no hosted
-                project, no telemetry.
+                <strong>No hosted project.</strong> No account, no cloud workspace, no remote
+                database.
               </li>
               <li>
-                <strong>Your mocks are plain files.</strong> Commit them, review them,
-                diff them, clone them.
-              </li>
-              <li>
-                <strong>The panel edits the same files.</strong> One source of truth.
-              </li>
-              <li>
-                <strong>Sharing is explicit.</strong> Public access only exists while
-                you have a temporary tunnel open.
+                <strong>Runtime state is disposable.</strong> Your contract and data are what
+                persist.
               </li>
             </ul>
           </div>
-          <Window label="todo-app" meta="main">
-            <pre><code>{`laqi/
-  api.json                           +12  -3
-  scenarios.json              3 scenarios
-src/
-package.json        "mock": "laqi start"
 
-@@ "POST /todos" @@
-+ "validation": { "status": 422, "body": {…} },
-- "error":      { "status": 500 }`}</code></pre>
-          </Window>
+          <FilesFigure />
         </div>
       </section>
 
@@ -403,10 +396,10 @@ package.json        "mock": "laqi start"
 
   .files-inner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    align-items: start;
     gap: 4rem;
-    max-width: 76rem;
+    max-width: 88rem;
     margin: 0 auto;
     padding: 6rem 1.5rem;
   }
@@ -431,6 +424,11 @@ package.json        "mock": "laqi start"
     padding: 0 0 1.1rem 1.75rem;
     color: var(--dim);
     line-height: 1.7;
+  }
+
+  .checks strong {
+    font-weight: 400;
+    color: var(--fg);
   }
 
   .checks li::before {
