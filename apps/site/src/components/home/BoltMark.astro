@@ -1,0 +1,33 @@
+---
+// apps/site/src/components/home/BoltMark.astro
+//
+// The bolt on its own, in currentColor.
+//
+// Neither brand asset is right for a mark sitting on a tile. icon.svg is the
+// bare bolt for a dark surface: it is violet, with a plum shadow offset
+// behind it, so on a violet tile the bolt loses its contrast and the shadow
+// is what the eye reads — and because the offset is a fixed share of the
+// viewBox, it collapses into the bolt at nav size and separates at display
+// size, which is why the same file looked like two different logos.
+// favicon.svg carries the right white bolt but comes welded to a flat violet
+// square, and the design's tile is a 145° gradient.
+//
+// So the shape is inlined once, from icon.svg's own path, and takes the
+// colour of whatever it sits in. See assets/brand/README.md.
+interface Props {
+  size?: number
+  class?: string
+}
+const { size = 20, class: className } = Astro.props
+---
+
+<svg
+  class={className}
+  width={Math.round(size * 0.68)}
+  height={size}
+  viewBox="0 0 210 309"
+  fill="currentColor"
+  aria-hidden="true"
+>
+  <path d="M149 0L0 171H63L49.5 309L210 127H135L149 0Z" />
+</svg>

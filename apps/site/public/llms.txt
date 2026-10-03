@@ -1,14 +1,16 @@
 # laqi
 
-> laqi is a local mock server with a control panel. Point your app at it
-> and put your API into any state — empty, slow, unauthorized, on fire —
-> without touching a line of code. Mocks are plain JSON files in your
-> repo; laqi serves them, watches them, and lets a person or an agent
-> flip which response is live with no restart.
+> laqi is a local mock server with a control panel. Point your app at it —
+> one base URL, nothing else — and from then on put your API into any
+> state (empty, slow, unauthorized, on fire) without touching a line of
+> code. Mocks are plain JSON files in your repo; laqi serves them, watches
+> them, and lets a person or an agent flip which response is live with no
+> restart.
 
-Install: `npm i -g laqi@2`. Run `laqi` (or `laqi start`) from a project
-with mock files — `laqi init` scaffolds one. The panel is at `/__laqi`
-on the port it serves (default 8000). Fastest path:
+Install: `npm i -g laqi`, or `npm i -D laqi` plus a `"mock": "laqi"` script
+to pin it per project. Run `laqi` (or `laqi start`) from a project with mock
+files — `laqi init` scaffolds one. The panel is at `/__laqi` on the port it
+serves (default 8000). Fastest path:
 [Quick start](https://laqi.dev/docs/quick-start/).
 
 ## Core concepts
@@ -35,11 +37,12 @@ on the port it serves (default 8000). Fastest path:
 ## For AI agents
 
 - [Using laqi with AI agents](https://laqi.dev/docs/ai-agents/): `laqi mcp`
-  runs a Model Context Protocol server over stdio with eleven typed
+  runs a Model Context Protocol server over stdio with fifteen typed
   tools — `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
-  `reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
-  `import_openapi`, `get_types`, `generate_data`. Prefer a tool call over
-  hand-writing a mock file.
+  `reset_state`, `create_endpoint`, `scaffold_responses`,
+  `update_endpoint`, `delete_endpoint`, `import_openapi`, `get_types`,
+  `generate_data`, `regenerate_response`, `apply_generated_body`,
+  `refresh_schema`. Prefer a tool call over hand-writing a mock file.
 
 ## More
 

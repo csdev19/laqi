@@ -1,8 +1,22 @@
+/* The display voice is two weights, not one. A headline is a statement in
+   roman 600; the line answering it is a reply in italic 300. 300 was never
+   loaded, so every reply on the site has been rendering a 400 italic — the
+   two voices were a size and a colour apart instead of a weight apart. */
+@import '@fontsource/source-serif-4/300.css';
 @import '@fontsource/source-serif-4/400.css';
 @import '@fontsource/source-serif-4/600.css';
+/* The display voice leans on true italic for every section's second line.
+   Without these two the browser slants the upright face instead — synthetic
+   oblique, the same defect as the faux bold described below, and the reason
+   the italics read as a different, worse typeface than the roman beside them. */
+@import '@fontsource/source-serif-4/300-italic.css';
+@import '@fontsource/source-serif-4/400-italic.css';
+@import '@fontsource/source-serif-4/600-italic.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
 @import '@fontsource/jetbrains-mono/600.css';
+/* The primary CTA sets its command at 700. */
+@import '@fontsource/jetbrains-mono/700.css';
 @import '@laqi/tokens/tokens.css';
 
 /* Every heading on this site (h1-h3, .card h3, and Starlight's own prose
@@ -17,6 +31,14 @@ h1,
 h2,
 h3 {
   font-weight: 600;
+  /* Headlines break on meaning rather than on whatever fits, which matters
+     most for the two-line statements this site is built from — a single
+     orphaned word under a 4rem line is very visible. */
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 /* Starlight's own theme hooks — remapped onto our tokens so the docs
@@ -29,8 +51,72 @@ h3 {
   --sl-color-text: var(--fg);
   --sl-color-text-accent: var(--viol);
   --sl-color-accent: var(--vio);
-  --sl-color-hairline: var(--line);
-  --sl-color-hairline-light: var(--line2);
+  --sl-color-hairline: var(--bd);
+  --sl-color-hairline-light: var(--bd2);
+  --sl-font: var(--mono);
+  --sl-font-mono: var(--mono);
+}
+
+/* Prose headings inside docs content use the display serif — Starlight's
+   own default keeps everything on --sl-font (mono), which is right for
+   labels and code but not for a page's own H1/H2/H3. */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: var(--serif);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* The marketing pages carry a dot grid and one violet glow. Both are opted
+   into with a class rather than set on every body, because the docs are a
+   Starlight layout with its own surfaces and a texture under them reads as
+   dirt rather than as atmosphere.
+
+   Both are background layers on the body rather than elements. An element
+   paints above the body's background, so a glow drawn that way would cover
+   the dots instead of sitting under them — and layers also mean the two
+   scroll together with the document for free, with nothing to stack and
+   nothing for a section to know about.
+
+   First layer listed paints on top: dots over glow, glow over the ground.
+   The grid is a repeating radial rather than an image — no request, no asset
+   to keep, and it takes the foreground token so it stays correct if the
+   neutral ramp ever moves. */
+body.textured {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 0),
+    radial-gradient(
+      ellipse 42% 32% at 34% 10%,
+      color-mix(in srgb, var(--vio) 30%, transparent),
+      transparent 72%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size:
+    26px 26px,
+    100% 90rem;
+  background-position:
+    0 0,
+    50% 0;
+  background-attachment: scroll, scroll;
+}
+
+/* Starlight's own theme hooks — remapped onto our tokens so the docs
+   section (/docs/*) reads as the same product as the landing page and
+   the CLI's control panel, not a different, generic doc site. */
+:root {
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--panel);
+  --sl-color-bg-sidebar: var(--bg);
+  --sl-color-text: var(--fg);
+  --sl-color-text-accent: var(--viol);
+  --sl-color-accent: var(--vio);
+  --sl-color-hairline: var(--bd);
+  --sl-color-hairline-light: var(--bd2);
   --sl-font: var(--mono);
   --sl-font-mono: var(--mono);
 }
@@ -70,7 +156,7 @@ body {
 }
 .sl-markdown-content th,
 .sl-markdown-content td {
-  border: 1px solid var(--line);
+  border: 1px solid var(--bd);
   padding: 0.6rem 1rem;
   text-align: left;
   font-family: var(--mono);
@@ -88,5 +174,5 @@ body {
    consistently between the docs and the product. */
 .sl-markdown-content pre {
   background: var(--panel) !important;
-  border: 1px solid var(--line);
+  border: 1px solid var(--bd);
 }

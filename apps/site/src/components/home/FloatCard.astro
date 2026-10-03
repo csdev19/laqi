@@ -1,0 +1,65 @@
+---
+// apps/site/src/components/home/FloatCard.astro
+//
+// The glass card that breaks out of a product window's bottom-left corner.
+// It is the one place the page shows a thing happening rather than a thing
+// existing, so it sits over the window instead of beside it.
+interface Props {
+  label: string
+  /** How far below the window it hangs. A short window needs more than a
+   *  tall one, or the card lands on the rows it is explaining. */
+  drop?: string
+}
+const { label, drop } = Astro.props
+---
+
+<aside class="float" style={drop ? `--float-drop: ${drop}` : undefined}>
+  <p class="label">{label}</p>
+  <div class="body"><slot /></div>
+</aside>
+
+<style>
+  /* It hangs off the bottom-left CORNER. At -28px it sat a full card height
+     inside the window, which covered three endpoint rows once the panel grew
+     its fact bar and filter row — the rows being the only reason to show a
+     panel. Far enough down that only its top edge overlaps. */
+  .float {
+    position: absolute;
+    max-width: calc(100% + 2.5rem);
+    bottom: calc(-1 * var(--float-drop, 5.5rem));
+    left: -2.5rem;
+    z-index: 2;
+    padding: 0.75rem 0.95rem;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--glass2);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 40px 80px -24px rgb(0 0 0 / 0.85);
+  }
+
+  .label {
+    margin: 0 0 0.45rem;
+    font-family: var(--mono);
+    font-size: 0.5938rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .body {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--dim);
+  }
+
+  /* Below this the window is already the full column and a card hanging off
+     its corner would sit outside the page's gutter. */
+  @media (max-width: 48rem) {
+    .float {
+      position: static;
+      margin-top: 1rem;
+      backdrop-filter: none;
+    }
+  }
+</style>

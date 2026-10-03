@@ -1,0 +1,228 @@
+---
+// apps/site/src/components/home/Chapter.astro
+//
+// One numbered moment: copy on the left, a still of the product on the right.
+// The still is passed in as the default slot so each chapter can show the
+// surface it is actually about — a file, the panel, the terminal — instead of
+// this component guessing.
+//
+// `flip` puts the still on the left. Alternating sides is what keeps four
+// structurally identical sections from reading as a list.
+interface Props {
+  id: string
+  number: string
+  total: string
+  kicker: string
+  tint: string
+  title: string
+  subtitle: string
+  /** Chips may carry their own tint; a bare string takes the neutral one. */
+  chips?: (string | { label: string; tint: string })[]
+  /** The reply's colour. The design gives each chapter its own accent for
+   *  this line, so it is not always the brand violet. */
+  replyTint?: string
+  /** Label over the one-sentence consequence, e.g. "the shift". */
+  noteLabel?: string
+}
+const {
+  id,
+  number,
+  total,
+  kicker,
+  tint,
+  title,
+  subtitle,
+  chips = [],
+  replyTint = 'viotx',
+  noteLabel,
+} = Astro.props
+const hasNote = Astro.slots.has('note')
+---
+
+<section class="chapter" id={id} style={`--tint: var(--${tint}); --reply: var(--${replyTint})`}>
+  <div class="copy">
+    <span class="tile" aria-hidden="true"><slot name="glyph" /></span>
+    <p class="index">
+      <span class="n">{number}</span> / {total}
+      <span class="kicker">{kicker}</span>
+    </p>
+    <h2>
+      {title}<br />
+      <em>{subtitle}</em>
+    </h2>
+    <div class="body"><slot name="body" /></div>
+    {
+      hasNote && (
+        <div class="note">
+          {noteLabel && <p class="note-label">{noteLabel}</p>}
+          <p class="note-text">
+            <slot name="note" />
+          </p>
+        </div>
+      )
+    }
+    {
+      chips.length > 0 && (
+        <p class="chips">
+          {chips.map((chip) =>
+            typeof chip === 'string' ? (
+              <span>{chip}</span>
+            ) : (
+              <span style={`--chip: var(--${chip.tint})`} class="is-tinted">
+                {chip.label}
+              </span>
+            ),
+          )}
+        </p>
+      )
+    }
+  </div>
+  <div class="still"><slot /></div>
+</section>
+
+<style>
+  /* Text left, evidence right, in every chapter. Alternating sides made the
+     eye restart at each one — the reader has to find where the sentence
+     begins again instead of carrying on down a column. */
+  /* Both columns must be allowed to shrink. A grid child defaults to
+     min-width: auto, which refuses to go below its content — and the right
+     column holds a mono window, so on a phone it pushed the page sideways
+     instead of scrolling itself. */
+  .copy,
+  .still {
+    min-width: 0;
+  }
+
+  .chapter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+    align-items: center;
+    gap: 3rem;
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 4.5rem 1.5rem;
+  }
+
+  @media (max-width: 68rem) {
+    .chapter {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+  }
+
+  .tile {
+    display: grid;
+    width: 3.25rem;
+    height: 3.25rem;
+    place-items: center;
+    margin-bottom: 1.75rem;
+    border-radius: 14px;
+    background: linear-gradient(145deg, color-mix(in srgb, var(--tint) 65%, #fff 25%), var(--tint));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 1.25rem;
+    font-weight: 600;
+    /* The design's own figure: 0 16px 34px -14px at 90% of the chapter
+       colour. The glow is what tells five identical tiles apart down the
+       page, so it is not decoration and should not be faint. */
+    box-shadow: 0 16px 34px -14px color-mix(in srgb, var(--tint) 90%, transparent);
+  }
+
+  .index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+
+  .index .n {
+    color: var(--fg);
+  }
+
+  .index .kicker {
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    color: var(--dim);
+  }
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 3.8vw, 3rem);
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+  }
+
+  h2 em {
+    display: block;
+    margin-top: 0.35em;
+    font-size: clamp(1.375rem, 2.2vw, 1.875rem);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--reply, var(--viotx));
+  }
+
+  .body {
+    max-width: 32rem;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  /* The consequence, set apart from the explanation above it: a rule, a mono
+     label, and one italic sentence. It is the line a reader should leave the
+     chapter with, so it does not compete with the body for the same voice. */
+  .note {
+    max-width: 32rem;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bd);
+  }
+
+  .note-label {
+    margin: 0 0 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--tint, var(--viol));
+  }
+
+  .note-text {
+    margin: 0;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 1.125rem;
+    line-height: 1.5;
+    color: var(--fg);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.75rem 0 0;
+  }
+
+  .chips span {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  /* A chip naming a state takes that state's own colour, the same one the
+     panel gives it. A chip naming a capability stays neutral. */
+  .chips .is-tinted {
+    border-color: color-mix(in srgb, var(--chip) 55%, transparent);
+    color: var(--chip);
+  }
+</style>

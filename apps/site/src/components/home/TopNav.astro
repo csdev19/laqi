@@ -1,0 +1,164 @@
+---
+// apps/site/src/components/home/TopNav.astro
+//
+// The floating top bar: brand on the left, a centred pill of section links,
+// and the install action on the right.
+//
+// The section links are in-page anchors, not routes. They are rendered from
+// the same chapter list the rail reads, so the bar cannot offer a section the
+// page does not have.
+//
+// No theme toggle. The design brief rules the site dark-only — light mode
+// exists for the control panel, where a person may be working in a bright
+// room all day. Adding one here means designing and testing a second site
+// theme, which is a decision, not a control.
+const links = [
+  { href: '#why', label: 'Why' },
+  { href: '#contract', label: 'Product' },
+  { href: '#files', label: 'Your files' },
+  { href: '/docs/', label: 'Docs' },
+  { href: '/the-name/', label: 'The name' },
+]
+import BoltMark from './BoltMark.astro'
+---
+
+<header class="top-nav" id="top-nav">
+  <a href="/" class="brand">
+    <span class="mark" aria-hidden="true">
+      <BoltMark size={18} />
+    </span>
+    <span class="word">laqi</span>
+  </a>
+
+  <nav class="links" aria-label="Sections">
+    {links.map((link) => <a href={link.href}>{link.label}</a>)}
+  </nav>
+
+  <a href="/docs/installation/" class="install">Install</a>
+</header>
+
+<script>
+  // The bar has no surface until something is behind it. At the top of the
+  // page the glow and the dot grid run straight through where it sits, which
+  // is the whole point of the first screen; once the page moves, the links
+  // need something to sit on to stay readable.
+  const nav = document.getElementById('top-nav')
+  if (nav) {
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      nav.classList.toggle('is-scrolled', window.scrollY > 24)
+    }
+    const onScroll = () => {
+      if (frame) return
+      frame = requestAnimationFrame(measure)
+    }
+    measure()
+    window.addEventListener('scroll', onScroll, { passive: true })
+  }
+</script>
+
+<style>
+  .top-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      backdrop-filter 0.2s ease;
+  }
+
+  .top-nav.is-scrolled {
+    background: var(--glass);
+    backdrop-filter: blur(12px);
+    border-bottom-color: color-mix(in srgb, var(--bd) 55%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .top-nav {
+      transition: none;
+    }
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: var(--fg);
+    font-family: var(--serif);
+    font-size: 1.25rem;
+  }
+
+  /* The bolt sits on a violet tile rather than loose on the background: at
+     18px the bare mark reads as a glyph in the wordmark instead of a logo. */
+  .mark {
+    display: grid;
+    width: 1.75rem;
+    height: 1.75rem;
+    place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
+  }
+
+  .links {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border: 1px solid var(--bd);
+    border-radius: 999px;
+    background: var(--glass);
+  }
+
+  .links a {
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    color: var(--dim);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    transition:
+      color 0.2s ease,
+      background 0.2s ease;
+  }
+
+  .links a:hover {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+
+  .install {
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    box-shadow: 0 8px 22px -12px var(--vio);
+  }
+
+  /* The pill of links is the first thing to go: on a narrow screen the brand
+     and the install action are what matter, and the rail is already hidden,
+     so the page is read by scrolling. */
+  @media (max-width: 56rem) {
+    .links {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .links a {
+      transition: none;
+    }
+  }
+</style>

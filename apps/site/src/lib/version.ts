@@ -1,3 +1,10 @@
+// UNUSED since 2026-10-02. Superseded by the nine-chapter home in
+// src/components/home/; nothing under src/pages/ imports it, directly or
+// transitively. Kept rather than deleted in the same change that replaced it,
+// so the old page can still be read while the new one settles.
+//
+// Delete on or after 2026-11-02 if it is still unreferenced. Verify first —
+// `grep -rl <name> src/` from apps/site — rather than trusting this header.
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 

@@ -30,4 +30,4 @@ response flipped in the panel in under a minute.
 **AI agents**
 
 - [Using laqi with AI agents](/docs/ai-agents/) — the MCP server and
-  its eleven tools.
+  its fifteen tools.

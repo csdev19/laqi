@@ -1,51 +1,154 @@
 ---
 // apps/site/src/components/SiteFooter.astro
+//
+// Three columns: who laqi is, the docs, and the project.
+//
+// The design asked for a CLI reference, a changelog and a roadmap. None of
+// the three exists as a public page — the roadmap is in apps/documentation,
+// which is never deployed, and release-please writes CHANGELOG.md at the
+// repository root with no page rendering it. They are linked where they do
+// exist rather than left as dead links, and the two that have no home at all
+// are out until they have one.
+import BoltMark from './home/BoltMark.astro'
+
+const docs = [
+  { href: '/docs/quick-start/', label: 'Quick start' },
+  { href: '/docs/concepts/resolution-layers/', label: 'Resolution layers' },
+  { href: '/docs/mock-files/', label: 'Mock files' },
+  { href: '/docs/ai-agents/', label: 'AI agents' },
+]
+
+const project = [
+  { href: 'https://github.com/csdev19/laqi', label: 'GitHub' },
+  { href: 'https://github.com/csdev19/laqi/blob/main/CHANGELOG.md', label: 'Changelog' },
+  { href: 'https://github.com/csdev19/laqi/tree/main/examples', label: 'Examples' },
+  { href: '/llms.txt', label: 'llms.txt' },
+]
 ---
+
 <footer class="site-footer">
-  <a href="/" class="brand">
-    <img src="/logo.png" alt="laqi" height="28" />
-  </a>
-  <nav>
-    <a href="/docs/">Docs</a>
-    <a href="https://github.com/csdev19/laqi">GitHub</a>
-    <a href="/llms.txt" class="llms">For AI agents — llms.txt</a>
-  </nav>
+  <div class="inner">
+    <div class="who">
+      <a href="/" class="brand">
+        <BoltMark size={16} />
+        <span>laqi</span>
+      </a>
+      <p class="blurb">
+        Contract-first API development, without waiting for the backend.
+      </p>
+      <p class="tags">contract-first · local-first · build in parallel</p>
+      <p class="name">the false messenger</p>
+      <p class="by">An open-source product by <strong>Niway</strong>. MIT licensed.</p>
+    </div>
+
+    <nav>
+      <p class="col-label">docs</p>
+      {docs.map((link) => <a href={link.href}>{link.label}</a>)}
+    </nav>
+
+    <nav>
+      <p class="col-label">project</p>
+      {project.map((link) => <a href={link.href}>{link.label}</a>)}
+    </nav>
+  </div>
 </footer>
 
 <style>
   .site-footer {
-    max-width: 72rem;
+    border-top: 1px solid var(--bd);
+    background: color-mix(in srgb, var(--panel) 45%, transparent);
+  }
+
+  .inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 3rem;
+    max-width: 76rem;
     margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
-    border-top: 1px solid var(--line);
+    padding: 4rem 1.5rem 5rem;
   }
+
+  @media (max-width: 52rem) {
+    .inner {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.5rem;
+    }
+  }
+
   .brand {
-    display: inline-block;
-    margin-bottom: 1.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 1.25rem;
   }
-  .brand img {
-    height: 28px;
-    width: auto;
-    display: block;
+
+  .brand :global(svg) {
+    color: var(--viotx);
   }
+
+  .blurb {
+    max-width: 22rem;
+    margin: 1.25rem 0 1.25rem;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+
+  .tags {
+    margin: 0 0 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--faint);
+  }
+
+  .name {
+    margin: 0 0 1.5rem;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 0.9375rem;
+    color: var(--faint);
+  }
+
+  /* The attribution, wording taken from apps/cli/README.md so the package
+     and the site say the same thing. */
+  .by {
+    margin: 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--bd);
+    font-size: 0.875rem;
+    color: var(--faint);
+  }
+
+  .by strong {
+    font-weight: 400;
+    color: var(--dim);
+  }
+
   nav {
     display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-    font-family: var(--mono);
-    font-size: 0.85rem;
+    flex-direction: column;
+    gap: 0.75rem;
   }
+
+  .col-label {
+    margin: 0 0 0.25rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
   nav a {
     color: var(--dim);
     text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
   }
+
   nav a:hover {
     color: var(--fg);
-  }
-  .llms {
-    color: var(--mint);
-  }
-  .llms:hover {
-    color: var(--palem);
   }
 </style>

@@ -182,7 +182,10 @@ async function askFrom(io: PromptIO, level: Level): Promise<InitFrom> {
 
 async function askSpec(io: PromptIO, level: Level): Promise<string> {
   const description = 'A JSON OpenAPI document to import routes from.'
-  const placeholder = '.yaml or .json'
+  // JSON only, matching the description above it and the importer: a .yaml
+  // path is rejected at import time, so offering one here invites the exact
+  // input the next step refuses.
+  const placeholder = '.json'
   const title = 'OpenAPI spec path'
 
   const prompt = new TextPrompt({

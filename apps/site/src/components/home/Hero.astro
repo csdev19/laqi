@@ -1,0 +1,611 @@
+---
+// apps/site/src/components/home/Hero.astro
+//
+// The eyebrow carries the category — "contract-first API mocks" — because the
+// headline carries the differentiator and the two are not interchangeable: a
+// visitor searching for this product types "mock", and the hero this replaced
+// never used the word at all.
+//
+// "no code change" is not among the hero's chips on purpose: pointing an app
+// at laqi means setting one base URL, which the third chip says plainly. The
+// page used to claim both, two sections apart.
+//
+// No version string either. The site deploys on its own tag, so a version
+// printed at build time goes stale on the next CLI release — which is exactly
+// how the nav badge came to read v2.0.0 against npm's 2.0.1. MIT and the
+// engine floor stay true for as long as the page is up.
+//
+// The endpoint table is a still of the real panel, built from markup rather
+// than a screenshot so it stays sharp, themes with the tokens, and costs no
+// image bytes. Every route, response name and status in it is taken from
+// examples/todo-app, so a visitor who installs laqi meets the same thing.
+const rows = [
+  { method: 'GET', color: 'var(--mint)', path: '/todos', responses: ['ok', 'empty', 'slow', 'error'], live: 'empty' },
+  { method: 'POST', color: 'var(--vio)', path: '/todos', responses: ['created', 'invalid', 'error'], live: 'error' },
+  { method: 'PATCH', color: 'var(--palev)', path: '/todos/:id', responses: ['ok', 'notfound'], live: 'ok' },
+  { method: 'DELETE', color: 'var(--mag)', path: '/todos/:id', responses: ['ok', 'notfound'], live: 'ok' },
+  { method: 'GET', color: 'var(--mint)', path: '/profile', responses: ['ok', 'unauthorized'], live: 'ok' },
+]
+
+const log = [
+  { method: 'POST', path: '/todos', status: '500', statusColor: 'var(--red)', note: 'error (state)' },
+  { method: 'GET', path: '/todos', status: '200', statusColor: 'var(--mint)', note: 'empty (state)' },
+  { method: 'GET', path: '/profile', status: '200', statusColor: 'var(--mint)', note: 'ok (default)' },
+]
+import BoltMark from './BoltMark.astro'
+import Demo from './Demo.astro'
+import { demos, isVisible } from '../../lib/demos'
+
+const heroDemo = demos.hero
+const showDemo = isVisible(heroDemo)
+---
+
+<section class="hero" id="intro">
+  <div class="copy">
+    <span class="ghost ghost-a" aria-hidden="true">500</span>
+    <div class="intro">
+      <span class="brand-tile" aria-hidden="true">
+        <BoltMark size={34} />
+      </span>
+      <div>
+        <p class="eyebrow">laqi · contract-first API mocks</p>
+        <p class="chip-line">local by default · no account · JSON in your repo</p>
+      </div>
+    </div>
+
+    <h1>
+      Build the frontend.<br />
+      <em>Before the backend is ready.</em>
+    </h1>
+
+    <ol class="steps">
+      <li><span class="n">01</span><span>Agree on the API contract.</span></li>
+      <li><span class="n">02</span><span>laqi serves it immediately.</span></li>
+      <li>
+        <span class="n">03</span>
+        <span>
+          Build against realistic responses.
+          <span class="states">
+            <span>success</span><span>empty</span><span>slow</span><span>401</span><span>500</span>
+          </span>
+        </span>
+      </li>
+      <li><span class="n">04</span><span>Switch to the real backend by changing one base URL.</span></li>
+    </ol>
+
+    <div class="cta-row">
+      <button type="button" class="btn-install" data-copy="npm i -g laqi">
+        <span class="prompt" aria-hidden="true">$</span>
+        <code>npm i -g laqi</code>
+        <span class="copied" aria-hidden="true">copied</span>
+      </button>
+      {showDemo && <a href="#demo" class="btn-secondary">Watch it change</a>}
+      <a href="#why" class="btn-secondary">See how it works</a>
+    </div>
+
+    <p class="meta">MIT · Node 20+ · <a href="https://github.com/csdev19/laqi">source on GitHub</a></p>
+  </div>
+
+  <div class="stage" aria-hidden="true">
+    <span class="ghost ghost-b">X-Laqi-Resolved</span>
+    <div class="window">
+      <div class="chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="address">127.0.0.1:8000/__laqi</span>
+      </div>
+      <div class="window-head">
+        <BoltMark size={15} class="head-bolt" />
+        <span class="wordmark">laqi</span>
+        <span class="host">serving laqi/api.json</span>
+        <span class="overridden">2 states set</span>
+      </div>
+      {
+        rows.map((row) => (
+          <div class="row">
+            <span class="method" style={`color: ${row.color}`}>{row.method}</span>
+            <span class="path">{row.path}</span>
+            <span class="responses">
+              {row.responses.map((name) => (
+                <span class:list={['resp', name === row.live && 'resp-live']}>{name}</span>
+              ))}
+            </span>
+          </div>
+        ))
+      }
+    </div>
+
+    <div class="log">
+      <p class="log-head"><span class="pulse"></span> requests · live</p>
+      {
+        log.map((entry) => (
+          <p class="log-row">
+            <span class="log-method">{entry.method}</span>
+            <span class="log-path">{entry.path}</span>
+            <span class="log-status" style={`color: ${entry.statusColor}`}>{entry.status}</span>
+            <span class="log-note">{entry.note}</span>
+          </p>
+        ))
+      }
+    </div>
+  </div>
+
+  {
+    showDemo && (
+      <div class="demo-slot" id="demo">
+        <Demo {...heroDemo} />
+      </div>
+    )
+  }
+</section>
+
+<script>
+  // Same clipboard behaviour the install block has always had, moved onto the
+  // hero's primary action: the command is the call to action, so it should be
+  // the thing you click, not a thing you select by hand.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.btn-install')) {
+    button.addEventListener('click', () => {
+      void navigator.clipboard.writeText(button.dataset.copy ?? '')
+      button.classList.add('is-copied')
+      setTimeout(() => button.classList.remove('is-copied'), 1500)
+    })
+  }
+</script>
+
+<style>
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: center;
+    gap: clamp(2rem, 4vw, 4rem);
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 5rem;
+    /* clip-path, not overflow: hidden. overflow clipped the hero's own
+       background too, which is what cut the glow off at the section edge
+       back when the glow lived here; clip-path bounds the ghosts without
+       creating a new containing block for anything else. */
+    clip-path: inset(0);
+  }
+
+  @media (max-width: 68rem) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      padding-top: 3rem;
+    }
+    .stage {
+      display: none;
+    }
+  }
+
+  /* Oversized type bled off the edges, at the opacity of a watermark. It is
+     the product's own vocabulary — a status code and the header laqi puts on
+     every response — used as texture instead of a decorative gradient. */
+  /* Oversized type at watermark opacity: the product's own vocabulary — a
+     status code and the header laqi puts on every response — used as texture
+     instead of a decorative gradient.
+     
+     Anchored inside the column each one belongs to, not to the section's
+     edges. Against the section they drifted across the copy as the viewport
+     widened, because the section is centred with growing gutters while the
+     columns are not. Sized in em of a clamped parent so they scale with the
+     column rather than staying a fixed pixel size at every width. */
+  .ghost {
+    position: absolute;
+    z-index: -1;
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--fg);
+    opacity: 0.03;
+    pointer-events: none;
+    user-select: none;
+    line-height: 0.8;
+    white-space: nowrap;
+  }
+
+  .ghost-a {
+    bottom: -0.1em;
+    left: -0.06em;
+    font-size: clamp(9rem, 15vw, 15rem);
+  }
+
+  /* Above the panel, not across it: at laptop width the stage is short
+     enough that a watermark on its top edge lands on the title bar. */
+  .ghost-b {
+    bottom: calc(100% + 1.5rem);
+    right: 0;
+    font-family: var(--mono);
+    font-size: clamp(2.5rem, 4vw, 4rem);
+    opacity: 0.045;
+  }
+
+  .copy {
+    position: relative;
+    min-width: 0;
+    z-index: 1;
+    isolation: isolate;
+  }
+
+  .intro {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  /* 64px, the brand tile's larger of the two sizes. It is the one place on
+     the page the mark appears at display scale, so it carries the violet
+     cast the rest of the hero only hints at. */
+  .brand-tile {
+    display: grid;
+    width: 3.25rem;
+    height: 3.25rem;
+    flex: none;
+    place-items: center;
+    border-radius: 14px;
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
+    box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
+  }
+
+  .eyebrow {
+    margin: 0 0 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--viotx);
+  }
+
+  .chip-line {
+    display: inline-block;
+    margin: 0;
+    padding: 0.25rem 0.7rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+  }
+
+  /* Two voices, and they are not the same size. The statement is set large
+     and tight; the reply answering it is roughly half that, light, and
+     italic. Until now the reply inherited the statement's size, so the pair
+     read as one long headline that happened to change colour halfway. */
+  h1 {
+    margin: 0 0 1.5rem;
+    font-family: var(--serif);
+    font-size: clamp(2.75rem, 5.6vw, 4.75rem);
+    line-height: 0.94;
+    letter-spacing: -0.045em;
+    color: var(--fg);
+  }
+
+  h1 em {
+    display: block;
+    /* The statement balances, the reply does not. Balance evens the two
+       lines and breaks "Before the backend is ready." after "the"; filling
+       naturally breaks it after "is", which is where the design breaks it
+       and where the sense is. */
+    text-wrap: normal;
+    margin-top: 0.4em;
+    font-size: clamp(1.75rem, 3.2vw, 2.625rem);
+    font-style: italic;
+    font-weight: 300;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    color: var(--viotx);
+  }
+
+  /* The four steps replace a paragraph and a row of badges. A paragraph asks
+     to be read; a numbered list with a rule under each row can be scanned in
+     the order the product actually happens, which is the claim being made. */
+  .steps {
+    max-width: 36rem;
+    margin: 0 0 2.25rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    align-items: baseline;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--bd) 85%, transparent);
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.45;
+    color: var(--fg);
+  }
+
+  .steps li:first-child {
+    border-top: 1px solid color-mix(in srgb, var(--bd) 85%, transparent);
+  }
+
+  .steps .n {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--viotx);
+  }
+
+  /* The states are the part a reader is meant to recognise. Inline in the
+     sentence they wrapped the row onto a second line and read as prose; as
+     mono tokens under it they are scanned, and the row keeps one text line
+     whatever the viewport does. */
+  .steps .states {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.5rem;
+  }
+
+  .steps .states span {
+    padding: 0.1rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--bd2) 80%, transparent);
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim);
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+    box-shadow: 0 14px 30px -16px var(--vio);
+  }
+
+  .btn-install .prompt {
+    opacity: 0.65;
+  }
+
+  /* The confirmation replaces nothing and moves nothing: it fades in after
+     the command, so the button does not resize under the pointer. */
+  .btn-install .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-install.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.8;
+  }
+
+  .btn-secondary {
+    padding: 0.85rem 1.4rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--viol);
+  }
+
+  .meta {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+
+  .meta a {
+    color: var(--dim);
+  }
+
+  /* The recording sits under both columns: it is the same thing the panel
+     beside it is a still of, and putting it in either column would make it
+     look like an alternative to one half of the hero rather than the proof
+     of the whole. */
+  /* A row of its own under both columns. Placed after the stage in source
+     order, not before it: a full-width item earlier in the flow takes the
+     first row and pushes the panel out from beside the copy. */
+  .demo-slot {
+    grid-column: 1 / -1;
+    margin-top: 3.5rem;
+    scroll-margin-top: 5rem;
+  }
+
+  /* ---- the panel still ---- */
+
+  /* Capped so an ultra-wide viewport stops stretching the panel into a
+     letterbox; it stays the size it is on a laptop and the extra width
+     becomes margin. */
+  .stage {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    width: 100%;
+    max-width: 38rem;
+    margin-left: auto;
+  }
+
+  .window {
+    border: 1px solid var(--bd2);
+    border-radius: 10px;
+    background: var(--panel);
+    overflow: hidden;
+    box-shadow: 0 40px 80px -40px #000;
+  }
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid var(--bd);
+    background: var(--panel2);
+  }
+
+  .chrome .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--bd2);
+  }
+
+  .chrome .address {
+    margin-left: 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .window-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--bd);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--dim2);
+  }
+
+  .window-head .head-bolt {
+    color: var(--vio);
+  }
+
+  .window-head .wordmark {
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    color: var(--fg);
+  }
+
+  .window-head .host {
+    color: var(--mint);
+  }
+
+  .window-head .overridden {
+    margin-left: auto;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--mag) 45%, transparent);
+    border-radius: 999px;
+    color: var(--magl);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 4.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--bd) 70%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .row .path {
+    color: var(--fg);
+  }
+
+  .responses {
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  .resp {
+    padding: 0.12rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--fg) 5%, transparent);
+    color: var(--faint);
+  }
+
+  /* Magenta is the panel's own colour for "I changed this" — the state
+     layer. A reader who installs laqi sees the same colour mean the same
+     thing, which is the point of not inventing one for the marketing page. */
+  .resp-live {
+    border-color: color-mix(in srgb, var(--mag) 55%, transparent);
+    background: color-mix(in srgb, var(--mag) 12%, transparent);
+    color: var(--magl);
+  }
+
+  /* Hangs off the panel's bottom-left corner rather than sitting over its
+     middle: at this height the panel has five or six rows, and anything
+     placed over them covers the response chips that are the whole point of
+     showing the panel at all. */
+  .log {
+    position: absolute;
+    left: -2.5rem;
+    bottom: -4.5rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--bd2);
+    border-radius: 10px;
+    background: var(--glass2);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 30px 60px -30px #000;
+  }
+
+  .log-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim2);
+  }
+
+  .pulse {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 999px;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+  }
+
+  .log-row {
+    display: grid;
+    grid-template-columns: 2.75rem 5rem 2.25rem auto;
+    gap: 0.5rem;
+    margin: 0 0 0.2rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .log-method {
+    color: var(--dim);
+  }
+  .log-path {
+    color: var(--fg);
+  }
+  .log-note {
+    color: var(--dim2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-install .copied {
+      transition: none;
+    }
+  }
+</style>

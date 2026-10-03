@@ -1,0 +1,231 @@
+---
+// apps/site/src/components/home/Start.astro
+//
+// The closing action. One primary command, one alternative that needs no
+// install, and the one honest sentence about what laqi does not take from you.
+//
+// The design's second button was `brew install laqi`. There is no Homebrew
+// formula — in this repository `brew install` appears once, as
+// `brew install cloudflared`, the tunnel's prerequisite — so the slot goes to
+// the other package manager laqi actually documents: README.md offers
+// `npx laqi` or `bunx laqi`, and bun is the one the project itself builds
+// with. No VS Code extension is on any roadmap either, so that line is out.
+// `laqi init` really is five questions, each skippable — see
+// apps/cli/src/init/prompt.ts.
+//
+// No version string: the site deploys on its own tag, so one printed here
+// goes stale on the next CLI release.
+import BoltMark from './BoltMark.astro'
+---
+
+<section class="start" id="start">
+  <span class="tile" aria-hidden="true">
+    <BoltMark size={56} />
+  </span>
+
+  <h2>Stop waiting for the backend.<br /><em>Start with the contract.</em></h2>
+
+  <div class="cta-row">
+    <button type="button" class="btn-install" data-copy="npm i -g laqi">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code>npm i -g laqi</code>
+      <span class="copied" aria-hidden="true">copied</span>
+    </button>
+    <button type="button" class="btn-alt" data-copy="bunx laqi">
+      <span class="prompt" aria-hidden="true">$</span>
+      <code>bunx laqi</code>
+      <span class="copied" aria-hidden="true">copied</span>
+    </button>
+  </div>
+
+  <p class="then">
+    or run it without installing · then <code>laqi init</code>, five questions,
+    every one skippable with enter
+  </p>
+  <p class="meta">MIT · Node 20+ · <a href="/docs/quick-start/">Quick start</a></p>
+
+  <p class="proof">
+    Plain JSON in your repo · runs on your machine · <code>--share</code>
+    exposes only mock responses, never the control plane.
+  </p>
+</section>
+
+<style>
+  /* The glow below reaches past the section on both sides, so the section
+     has to clip it. Without this it widens the document — and because every
+     section is block-level, they all stretch to the widest one and the whole
+     page scrolls sideways on a phone. */
+  .start {
+    position: relative;
+    overflow: hidden;
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 5rem 1.5rem 6rem;
+    text-align: center;
+  }
+
+  /* The page opened on a violet radial and closes on one, so the two ends
+     read as the same room. */
+  .start::before {
+    content: '';
+    position: absolute;
+    inset: 0 -40%;
+    background: radial-gradient(
+      ellipse at 50% 30%,
+      color-mix(in srgb, var(--vio) 18%, transparent),
+      transparent 62%
+    );
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .tile {
+    display: grid;
+    width: 5.5rem;
+    height: 5.5rem;
+    place-items: center;
+    margin: 0 auto 2rem;
+    border-radius: 24px;
+    background: linear-gradient(145deg, var(--viol), var(--vio));
+    color: #fff;
+    box-shadow: 0 16px 34px -14px rgb(122 0 255 / 0.9);
+  }
+
+  h2 em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--viotx);
+  }
+
+  .btn-alt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    background: none;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+
+  .btn-alt:hover {
+    border-color: var(--viol);
+  }
+
+  .btn-alt .prompt {
+    color: var(--faint);
+  }
+
+  .btn-alt .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-alt.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.7;
+  }
+
+  .then {
+    margin: 0 0 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--dim);
+  }
+
+  .then code,
+  .meta code {
+    color: var(--viotx);
+  }
+
+  .meta {
+    margin: 0 0 2rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+
+  .meta a {
+    color: var(--dim);
+  }
+
+  h2 {
+    margin: 0 0 2.25rem;
+    font-family: var(--serif);
+    font-size: clamp(2.125rem, 4vw, 3.25rem);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    color: var(--fg);
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .btn-install {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.85rem 1.4rem;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(160deg, var(--viol), var(--vio));
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 0.9375rem;
+    cursor: pointer;
+    box-shadow: 0 14px 30px -16px var(--vio);
+  }
+
+  .btn-install .prompt {
+    opacity: 0.65;
+  }
+
+  .btn-install .copied {
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    transition:
+      max-width 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  .btn-install.is-copied .copied {
+    max-width: 5rem;
+    opacity: 0.8;
+  }
+
+  .proof {
+    margin: 0;
+    color: var(--faint);
+    font-size: 0.875rem;
+    line-height: 1.7;
+  }
+
+  .proof code {
+    font-family: var(--mono);
+    color: var(--dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-install .copied {
+      transition: none;
+    }
+  }
+</style>
