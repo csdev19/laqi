@@ -299,7 +299,7 @@ restarts:
 | `GET /todos` → `one-page`       | drops to three items and the pager disappears |
 | `GET /todos` → `slow`           | shows the loading state, held for 2.5s        |
 | `GET /profile` → `unauthorized` | signs you out, the way a real 401 would       |
-| scenario `backend-caido`        | breaks every endpoint at once                 |
+| scenario `offline`              | breaks every endpoint at once                 |
 
 Those are exactly the states that are painful to reach against a real backend,
 and here they are one click away.

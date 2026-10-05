@@ -1,0 +1,1102 @@
+---
+// apps/site/src/components/home/Why.astro
+//
+// The argument section: why removing the dependency is the point, drawn as a
+// before/after rather than asserted.
+//
+// The colour language, which is about WHO rather than about status:
+//   green  — a real party and anything permanent: the frontend, the backend,
+//            the real API, and the lines joining them to the contract.
+//   violet — laqi and its lines. It is the one temporary thing in the
+//            picture, and the only thing that goes away.
+// The backend is green in the BEFORE panel too, even though it is the thing
+// blocking: it is still a real team. Colouring it by status instead would
+// make the same box mean two things on one page.
+//
+// A note on what the diagram is allowed to be. It EXPLAINS the mechanism; it
+// does not PROVE an outcome, and laqi has no customer evidence to prove one
+// with. Everything structural in it is checkable against the repository —
+// one JSON contract, laqi serving it, the switch being a base URL
+// (examples/todo-app reaches laqi through a dev-server proxy, so the switch
+// is one environment variable). The sprint numbers are laqi's own origin,
+// which is why the prose beside the heading says “was born on” rather than
+// promising a reader the same. The prose says "born on", not "gets you".
+//
+// The closing chips reuse the chapters' own ids, numbers and tints so they
+// cannot drift from the sections they point at, and phrase them as what the
+// frontend track actually gets rather than as feature names.
+import { MOMENTS } from '../../lib/chapters'
+import DiagramIcon from './DiagramIcon.astro'
+
+const GETS: Record<string, string> = {
+  contract: 'a contract',
+  model: 'types & data',
+  flip: 'every state',
+  watch: 'the reason why',
+  share: 'a real device',
+}
+
+const steps = [
+  {
+    kicker: 'before implementation',
+    tint: 'viotx',
+    title: 'Agree on the contract',
+    body: 'Frontend and backend define the routes, types and states together.',
+  },
+  {
+    kicker: 'while building',
+    tint: 'viotx',
+    title: 'Build in parallel',
+    body: 'laqi serves the contract now. The backend implements the same contract for real.',
+  },
+  {
+    kicker: 'when ready',
+    tint: 'viotx',
+    title: 'Switch, then verify',
+    body: 'Change the base URL and run the same flows against the real API.',
+  },
+]
+---
+
+<section class="why" id="why">
+  <header class="head">
+    <div>
+      <p class="eyebrow">why it works</p>
+      <h2>The team was ready. The API wasn’t.</h2>
+      <p class="sub"><em>Agree on the contract. Build everything else in parallel.</em></p>
+    </div>
+    <div>
+      <p class="intro">
+        Define the API contract once. laqi serves it immediately while the
+        backend builds the real implementation.
+      </p>
+      <p class="origin">born on a frontend team running 2–3 sprints ahead of its backend</p>
+    </div>
+  </header>
+
+  <div class="panel panel-before">
+    <p class="panel-head">
+      <span class="tag tag-before">before</span>
+      <strong>Implementation becomes the dependency.</strong>
+      <span class="aside">The frontend can’t integrate until the backend exists.</span>
+    </p>
+
+    <div class="before-row">
+      <div class="box">
+        <DiagramIcon kind="frontend" tint="palem" />
+        <div>
+          <p class="box-label">frontend</p>
+          <p class="box-title">Ready to build</p>
+          <p class="box-meta">fetch("/todos") → ?</p>
+        </div>
+      </div>
+
+      <div class="blocked" aria-hidden="true">
+        <span class="line"></span>
+        <span class="cross">×</span>
+        <span class="line"></span>
+        <span class="blocked-label">waiting for APIs</span>
+      </div>
+
+      <div class="box">
+        <DiagramIcon kind="backend" tint="palem" />
+        <div>
+          <p class="box-label">backend</p>
+          <p class="box-title">Still in development</p>
+          <p class="box-meta meta-mag">sprint 3 of 5</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel panel-after">
+    <p class="panel-head">
+      <span class="tag tag-after">after</span>
+      <strong>One contract. Two teams moving at once.</strong>
+      <span class="aside">laqi serves the agreed API today. The backend implements the same contract independently.</span>
+    </p>
+
+    <p class="after-lede">
+      The contract is plain TypeScript — the one language both teams share.
+      laqi turns it into a working API today; the backend implements it.
+    </p>
+
+    <div class="map">
+      <p class="map-cap">frontend + backend agree on it together</p>
+
+      <figure class="contract">
+        <figcaption class="contract-bar">
+          <span class="ts">TS</span>
+          <span class="contract-label">api contract</span>
+          <span class="contract-file">todo.ts</span>
+        </figcaption>
+        <pre class="contract-code"><code><span class="k">export</span> <span class="k">interface</span> <span class="t">Todo</span> {'{'}
+  <span class="f">id</span>: <span class="y">string</span>;
+  <span class="f">title</span>: <span class="y">string</span>;
+  <span class="f">done</span>: <span class="y">boolean</span>;
+{'}'}</code></pre>
+        <p class="contract-foot">plain TypeScript · common language</p>
+      </figure>
+
+      <div class="reads">
+        <span class="wire wire-arrow"></span>
+        <p class="reads-text">laqi reads the contract<br />and simulates every endpoint</p>
+      </div>
+
+      <div class="row">
+        <div class="card card-front">
+          <DiagramIcon kind="frontend" tint="palem" />
+          <div>
+            <p class="box-label">frontend</p>
+            <p class="box-title">Builds today</p>
+            <p class="box-meta meta-mint">2–3 sprints ahead</p>
+          </div>
+        </div>
+
+        <div class="card card-laqi">
+          <DiagramIcon kind="laqi" tint="viol" />
+          <div>
+            <p class="box-label label-vio">laqi</p>
+            <p class="box-title">Serves the contract</p>
+            <p class="box-meta">temporary · every state</p>
+          </div>
+        </div>
+
+        <div class="card card-back">
+          <DiagramIcon kind="backend" tint="palem" />
+          <div>
+            <p class="box-label">backend</p>
+            <p class="box-title">Builds it for real</p>
+            <p class="box-meta">in parallel</p>
+          </div>
+        </div>
+
+        <span class="elbow elbow-fl" aria-hidden="true"><i>defines</i></span>
+        <span class="elbow elbow-br" aria-hidden="true"><i>defines</i></span>
+        <span class="serves" aria-hidden="true"><i>serves now</i></span>
+      </div>
+
+      <div class="switch">
+        <span class="wire wire-dashed wire-arrow"></span>
+        <p class="switch-left">switch when<br />it’s ready</p>
+        <p class="switch-right">change base URL<br />+ run the same tests</p>
+      </div>
+
+      <div class="row row-real">
+        <div class="card card-real">
+          <DiagramIcon kind="backend" tint="palem" />
+          <div>
+            <p class="box-label label-mint">real API</p>
+            <p class="box-title">Contract implemented</p>
+            <p class="box-meta meta-mint">same routes · real data</p>
+          </div>
+        </div>
+        <span class="elbow elbow-done" aria-hidden="true"><i>finishes the<br />implementation</i></span>
+      </div>
+    </div>
+
+    <p class="closing">No integration rewrite. <em>Just point to the real API.</em></p>
+  </div>
+
+  <ol class="steps">
+    {
+      steps.map((step) => (
+        <li>
+          <p class="step-kicker" style={`color: var(--${step.tint})`}>{step.kicker}</p>
+          <p class="step-title">{step.title}</p>
+          <p class="step-body">{step.body}</p>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="coda">
+    <blockquote class="pull">
+      The real gain was never the mock server.<br />
+      <em>It was removing a dependency from delivery.</em>
+    </blockquote>
+    <p class="gets">
+      <span class="gets-label">what the frontend track gets</span>
+      {
+        MOMENTS.map((moment) => (
+          <a href={`#${moment.id}`} class="get">
+            <span class="get-n" style={`background: var(--${moment.tint})`}>{moment.number}</span>
+            {GETS[moment.id]}
+          </a>
+        ))
+      }
+    </p>
+  </div>
+</section>
+
+<style>
+  .why {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 4.5rem 1.5rem;
+  }
+
+  /* ---- header ---- */
+
+  .head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: end;
+    gap: 3rem;
+    margin-bottom: 3.5rem;
+  }
+
+  @media (max-width: 64rem) {
+    .head {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+  }
+
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  h2 {
+    margin: 0 0 0.5rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 3.8vw, 3rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+  }
+
+  .sub {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: clamp(1.375rem, 2.2vw, 1.875rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--viotx);
+  }
+
+  .sub em,
+  .closing em,
+  .pull em {
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .intro {
+    margin: 0;
+    color: var(--dim);
+    line-height: 1.8;
+  }
+
+  /* ---- shared panel ---- */
+
+  .panel {
+    padding: 1.5rem;
+    border: 1px solid var(--bd);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--panel) 55%, transparent);
+  }
+
+  .panel-before {
+    margin-bottom: 1.25rem;
+  }
+
+  /* The after panel is the one the reader is meant to want; a violet edge is
+     how the panel marks a thing that is active, so it carries that here. */
+  .panel-after {
+    border-color: color-mix(in srgb, var(--vio) 55%, transparent);
+    background: color-mix(in srgb, var(--vio) 4%, transparent);
+  }
+
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .panel-head strong {
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .panel-head .aside {
+    color: var(--faint);
+  }
+
+  .tag {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .tag-before {
+    border: 1px solid color-mix(in srgb, var(--red) 55%, transparent);
+    color: var(--red);
+  }
+
+  .tag-after {
+    border: 1px solid color-mix(in srgb, var(--mint) 55%, transparent);
+    color: var(--mint);
+  }
+
+  /* ---- boxes ---- */
+
+  /* Icon beside the text rather than above it: the tile is a label for the
+     box, and a reader scanning the diagram should take the mark and the title
+     in one movement. */
+  .box {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--mint) 32%, transparent);
+    border-radius: 10px;
+    background: var(--panel);
+  }
+
+  .box-label {
+    margin: 0 0 0.35rem;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .label-vio {
+    color: var(--viotx);
+  }
+  .label-mag {
+    color: var(--magl);
+  }
+
+  .box-title {
+    margin: 0 0 0.25rem;
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    color: var(--fg);
+  }
+
+  .box-meta {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+
+  .meta-mag {
+    color: var(--magl);
+  }
+  .meta-mint {
+    color: var(--mint);
+  }
+
+  /* ---- before row ---- */
+
+  .before-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    max-width: 64rem;
+    margin: 0 auto;
+  }
+
+  .blocked {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .blocked .line {
+    flex: 1;
+    border-top: 1px dashed var(--bd2);
+  }
+
+  .cross {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--red) 60%, transparent);
+    border-radius: 999px;
+    color: var(--red);
+    font-size: 0.8125rem;
+  }
+
+  .blocked-label {
+    position: absolute;
+    top: calc(50% + 1.1rem);
+    left: 50%;
+    translate: -50% 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--faint);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 54rem) {
+    .before-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .blocked {
+      justify-content: center;
+      padding: 1.75rem 0;
+    }
+    .blocked .line {
+      display: none;
+    }
+  }
+
+  /* ---- after: contract, branch, tracks ---- */
+
+  /* The fork from the contract down into the two tracks. Drawn with borders
+     rather than an SVG so it reflows with the grid instead of being a fixed
+     viewBox that stops lining up the moment the columns change width. */
+  .box-laqi {
+    border-color: color-mix(in srgb, var(--vio) 65%, transparent);
+    background: color-mix(in srgb, var(--vio) 8%, transparent);
+  }
+
+  @media (max-width: 54rem) {
+    .tracks {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .branch {
+      margin: 0 auto;
+      width: 1px;
+      border: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--bd2) 0 3px,
+        transparent 3px 6px
+      );
+    }
+    .branch::before {
+      display: none;
+    }
+  }
+
+
+  /* ---- after: one contract, four parties ----
+
+     A diamond rather than two columns: both teams point UP at the contract,
+     which is the claim the section makes and which parallel tracks cannot
+     draw. laqi hangs below it and feeds the frontend sideways; the backend
+     comes down the right into the real API.
+
+     Three columns on a relative stage. With gap G and width W a column is
+     C = (W - 2G)/3, the left centre is C/2 and the right centre is W - C/2.
+     The centre column's card fills its column, so its edges are C + G and
+     C + G + C — which is what the elbows below are drawn against. Every
+     number here comes from those three, so changing --map-gap moves the
+     lines with the boxes. */
+  /* The map is capped well inside the panel. Every card is a grid item and
+     stretches to its column, so the empty space inside a card was never a
+     padding — it was the column being wider than the two lines it holds.
+     Narrowing the map tightens all six cards at once and leaves every
+     connector correct, because the offsets are percentages of this box. */
+  .map {
+    min-width: 0;
+    max-width: 64rem;
+    margin: 0 auto;
+    --map-gap: 5rem;
+    /* Two line colours, and they are the whole legend: green joins real
+       parties, violet is laqi's. */
+    --line-real: color-mix(in srgb, var(--mint) 42%, transparent);
+    --line-laqi: color-mix(in srgb, var(--vio) 62%, transparent);
+    /* The side columns are narrower than the centre. At three equal
+       columns the two side cards ran far wider than their two lines of
+       text, which left a hole between each one and the middle and pushed
+       the whole diagram wider than it needed to be. */
+    --col: 24%;
+    /* The stem between the contract and laqi. The arrow needs room to be
+       read as an arrow rather than a tick, and the two lines of label beside
+       it need somewhere to sit. */
+    --reads-h: 6.5rem;
+    --switch-h: 5.5rem;
+    /* How far an elbow climbs above the cards, and how far one falls below
+       them: the stem plus roughly half the contract card, and the switch plus
+       roughly half a card. These two are the only hand-set lengths in the
+       diagram. */
+    --up: 12rem;
+    --down: 9rem;
+    --mid-left: calc(var(--col) + var(--map-gap));
+    --mid-right: calc(100% - var(--col) - var(--map-gap));
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--col) minmax(0, 1fr) var(--col);
+    column-gap: var(--map-gap);
+    row-gap: 0;
+    align-items: center;
+  }
+
+  .after-lede {
+    max-width: 52rem;
+    margin: 0 0 2.5rem;
+    color: var(--dim);
+    line-height: 1.75;
+  }
+
+  .contract {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    border: 1px solid color-mix(in srgb, var(--vio) 65%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--vio) 7%, transparent);
+    overflow: hidden;
+  }
+
+  .contract-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--vio) 35%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+  }
+
+  .ts {
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    background: var(--ts-badge);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 600;
+  }
+
+  .contract-label {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--viotx);
+  }
+
+  .contract-file {
+    margin-left: auto;
+    padding-left: 2rem;
+    color: var(--dim2);
+  }
+
+  .contract-code {
+    margin: 0;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.75;
+    color: var(--dim);
+    overflow-x: auto;
+  }
+
+  .contract-code .k {
+    color: var(--magl);
+  }
+
+  .contract-code .t {
+    color: var(--warn);
+  }
+
+  .contract-code .f {
+    color: var(--palev);
+  }
+
+  .contract-code .y {
+    color: var(--palem);
+  }
+
+  .contract-foot {
+    margin: 0;
+    padding: 0.5rem 0.8rem;
+    border-top: 1px solid color-mix(in srgb, var(--vio) 25%, transparent);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    text-align: center;
+    color: var(--dim2);
+  }
+
+  .map-cap {
+    grid-column: 2;
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    text-align: center;
+    color: var(--faint);
+  }
+
+  .map .contract {
+    grid-column: 2;
+    width: 100%;
+    margin: 0;
+  }
+
+  /* laqi reads the contract: the stem between the card and laqi. */
+  .reads {
+    position: relative;
+    grid-column: 2;
+    display: grid;
+    justify-items: center;
+    height: var(--reads-h);
+  }
+
+  .reads-text {
+    position: absolute;
+    top: 50%;
+    left: calc(50% + 1rem);
+    translate: 0 -50%;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+    white-space: nowrap;
+    color: var(--viotx);
+  }
+
+  .wire {
+    width: 1px;
+    height: 100%;
+    background: var(--line-laqi);
+  }
+
+  /* The switch. Dashed because it has not happened yet, green because what
+     it arrives at is the real thing. */
+  .wire-dashed {
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--line-real) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  .wire-dashed.wire-arrow::after {
+    border-top-color: var(--line-real);
+  }
+
+  .wire-arrow {
+    position: relative;
+  }
+
+  .wire-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    translate: -50% 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--line-laqi);
+  }
+
+  /* Every card is a real party, so every card is green — except laqi. */
+  .card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--mint) 38%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--mint) 3%, transparent);
+  }
+
+  /* The cards sit in their own relative row, and every connector that has to
+     meet them is a child of it. Against the map as a whole, "50%" was the
+     middle of the whole diagram and not the middle of the cards, which is
+     why the sideways arrow floated above them. */
+  .row {
+    position: relative;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: var(--col) minmax(0, 1fr) var(--col);
+    column-gap: var(--map-gap);
+    align-items: center;
+  }
+
+  .card-front {
+    grid-column: 1;
+  }
+
+  .card-laqi {
+    grid-column: 2;
+    border-color: color-mix(in srgb, var(--vio) 70%, transparent);
+    border-style: dashed;
+    background: color-mix(in srgb, var(--vio) 9%, transparent);
+  }
+
+  .card-back {
+    grid-column: 3;
+  }
+
+  .card-real {
+    grid-column: 2;
+  }
+
+  .label-mint {
+    color: var(--palem);
+  }
+
+  .switch {
+    position: relative;
+    grid-column: 2;
+    display: grid;
+    justify-items: center;
+    height: var(--switch-h);
+  }
+
+  .switch-left,
+  .switch-right {
+    position: absolute;
+    top: 50%;
+    translate: 0 -50%;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    line-height: 1.6;
+    white-space: nowrap;
+  }
+
+  .switch-left {
+    right: calc(50% + 1rem);
+    text-align: right;
+    color: var(--fg);
+  }
+
+  .switch-right {
+    left: calc(50% + 1rem);
+    color: var(--faint);
+  }
+
+  /* ---- the elbows ----
+
+     Each is one element with two borders and a rounded corner, so a right
+     angle cannot come apart, and its arrowhead is a pseudo element at the end
+     the line travels towards.
+
+     They are children of a row, so their horizontal offsets resolve against
+     the map's own width and keep using --col. Their height is the one thing
+     the browser cannot derive, because it depends on how tall the contract
+     card renders — the two lengths below are the numbers to adjust if a line
+     does not meet the card it points at. Nothing else here is hand-tuned. */
+  .elbow {
+    position: absolute;
+    pointer-events: none;
+  }
+
+  .elbow i {
+    position: absolute;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-style: normal;
+    line-height: 1.6;
+    white-space: nowrap;
+    color: var(--faint);
+  }
+
+  /* frontend ↑ then → into the contract's left edge */
+  /* frontend and backend reach the contract in green: two real teams
+     agreeing on it is the permanent half of the picture. */
+  .elbow-fl {
+    bottom: 100%;
+    height: var(--up);
+    left: calc(var(--col) / 2);
+    right: calc(100% - var(--mid-left));
+    border-top: 1px solid var(--line-real);
+    border-left: 1px solid var(--line-real);
+    border-top-left-radius: 6px;
+  }
+
+  .elbow-fl::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -1px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid var(--line-real);
+  }
+
+  .elbow-fl i {
+    top: -1.5rem;
+    left: 0.75rem;
+  }
+
+  /* backend ↑ then ← into the contract's right edge */
+  .elbow-br {
+    bottom: 100%;
+    height: var(--up);
+    right: calc(var(--col) / 2);
+    left: var(--mid-right);
+    border-top: 1px solid var(--line-real);
+    border-right: 1px solid var(--line-real);
+    border-top-right-radius: 6px;
+  }
+
+  .elbow-br::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -1px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 5px solid var(--line-real);
+  }
+
+  .elbow-br i {
+    top: -1.5rem;
+    right: 0.75rem;
+  }
+
+  /* backend ↓ then ← into the real API's right edge */
+  .elbow-done {
+    bottom: 50%;
+    height: var(--down);
+    right: calc(var(--col) / 2);
+    left: var(--mid-right);
+    border-bottom: 1px solid var(--line-real);
+    border-right: 1px solid var(--line-real);
+    border-bottom-right-radius: 6px;
+  }
+
+  .elbow-done::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -1px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 5px solid var(--line-real);
+  }
+
+  .elbow-done i {
+    bottom: -2.8rem;
+    right: 0.75rem;
+    text-align: right;
+  }
+
+  /* laqi → frontend. A child of the cards row, so "centre" is the cards'
+     centre, and pushed into the column gap by a rem rather than a percentage
+     that would resolve against the wrong box. */
+  /* laqi serving the frontend is laqi's own line, so it is violet. */
+  .serves {
+    position: absolute;
+    top: 50%;
+    left: var(--col);
+    width: var(--map-gap);
+    height: 1px;
+    translate: 0 -50%;
+    background: var(--line-laqi);
+    pointer-events: none;
+  }
+
+  .serves::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -1px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-right: 5px solid var(--line-laqi);
+  }
+
+  .serves i {
+    position: absolute;
+    color: var(--viotx);
+    bottom: 0.6rem;
+    left: 50%;
+    translate: -50% 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    font-style: normal;
+    white-space: nowrap;
+    color: var(--faint);
+  }
+
+  /* One column: the diamond becomes a list, and every elbow goes with it —
+     an L drawn against three columns means nothing when there is one. */
+  @media (max-width: 60rem) {
+    .map {
+      --col: 100%;
+      grid-template-columns: minmax(0, 1fr);
+      row-gap: 1rem;
+    }
+    .map-cap,
+    .map .contract,
+    .reads,
+    .switch,
+    .row,
+    .row-real,
+    .card {
+      grid-column: 1;
+      grid-row: auto;
+    }
+    .elbow,
+    .serves {
+      display: none;
+    }
+    .reads-text,
+    .switch-left,
+    .switch-right {
+      position: static;
+      translate: none;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+  }
+
+  /* ---- steps ---- */
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 2rem;
+    margin: 4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--bd2);
+  }
+
+  .step-kicker {
+    margin: 0 0 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .step-title {
+    margin: 0 0 0.5rem;
+    font-family: var(--serif);
+    font-size: 1.1875rem;
+    color: var(--fg);
+  }
+
+  .step-body {
+    margin: 0;
+    color: var(--dim);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+
+  /* ---- pull quote ---- */
+
+  .coda {
+    margin-top: 5rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--bd);
+  }
+
+  /* The two editorial takeaways — the one closing the diagram and the one
+     closing the section — are the same voice at the same scale: a statement
+     in roman 600 answered by a reply in italic 300. .closing lost its rule
+     when the after panel was rewritten and had been rendering as a bare
+     paragraph at body size ever since. */
+  .closing,
+  .pull {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 2.8vw, 2.25rem);
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    color: var(--fg);
+  }
+
+  .closing {
+    max-width: 58rem;
+    margin: 2.5rem auto 0;
+    text-align: center;
+  }
+
+  .pull {
+    /* Wide enough for each sentence to hold one line. At 48rem both broke
+       mid-phrase with a third of the section empty beside them. */
+    max-width: 62rem;
+    margin: 0 0 2rem;
+    padding: 0;
+  }
+
+  .closing em,
+  .pull em {
+    font-weight: 300;
+    color: var(--viotx);
+  }
+
+  .gets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  .gets-label {
+    margin-right: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .get {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+    border: 1px solid var(--bd2);
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--serif);
+    font-size: 0.9375rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .get:hover {
+    border-color: var(--viol);
+  }
+
+  .get-n {
+    display: grid;
+    width: 1.4rem;
+    height: 1.4rem;
+    place-items: center;
+    border-radius: 7px;
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    font-weight: 600;
+  }
+
+  .origin {
+    margin: 0.9rem 0 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    color: var(--faint);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .get {
+      transition: none;
+    }
+  }
+</style>

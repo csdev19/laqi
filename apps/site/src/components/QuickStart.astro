@@ -1,4 +1,11 @@
 ---
+// UNUSED since 2026-10-02. Superseded by the nine-chapter home in
+// src/components/home/; nothing under src/pages/ imports it, directly or
+// transitively. Kept rather than deleted in the same change that replaced it,
+// so the old page can still be read while the new one settles.
+//
+// Delete on or after 2026-11-02 if it is still unreferenced. Verify first —
+// `grep -rl <name> src/` from apps/site — rather than trusting this header.
 // apps/site/src/components/QuickStart.astro
 import { Code } from 'astro:components'
 import InstallCommand from './InstallCommand.astro'
@@ -8,6 +15,7 @@ import InstallCommand from './InstallCommand.astro'
 // with "Theme X is not included in this bundle"). Importing the theme
 // object directly sidesteps that name-lookup path entirely.
 import vitesseDark from 'shiki/themes/vitesse-dark.mjs'
+import { getLaqiVersion } from '../lib/version'
 
 // `as const` on each `lang` value, not the array as a whole: Astro's <Code>
 // wants a literal from its own CodeLanguage union, and without this each
@@ -16,11 +24,15 @@ import vitesseDark from 'shiki/themes/vitesse-dark.mjs'
 // The JSON sample must stay valid against packages/schema — `status` is
 // required on every response — and every line must fit an 18rem column
 // without horizontal scroll, so responses are formatted one field per line.
+//
+// The three steps read as one continuous session, so step 02's output has to
+// follow from step 01's `laqi init`: four endpoints, because that is what the
+// scaffold writes (apps/cli/src/init/scaffold.ts).
 const steps = [
   {
     n: '01',
-    title: 'Write the contract',
-    body: 'A JSON file in ./laqi/. One key per route, a named response for each state you care about. Add "delay": 2400 to any of them and you have built the slow state too.',
+    title: 'Scaffold the contract',
+    body: 'laqi init writes a ./laqi/ folder with a todos API and three ready-made scenarios. Already have a contract? Write the file yourself — one key per route, a named response for each state you care about. Add "delay": 2400 to any of them and you have built the slow state too.',
     lang: 'json' as const,
     code: `{
   "GET /todos": {
@@ -48,10 +60,10 @@ const steps = [
     lang: 'shellsession' as const,
     code: `$ laqi start
 
-⚡ laqi 2.0.0
+⚡ laqi ${getLaqiVersion()}
 serving   127.0.0.1:8000
 panel     127.0.0.1:8000/__laqi
-watching  ./laqi/  7 endpoints`,
+watching  ./laqi/  4 endpoints`,
   },
   {
     n: '03',
@@ -140,7 +152,7 @@ fetch("/todos", {
     margin: 0 !important;
     padding: 1rem !important;
     background: var(--panel) !important;
-    border: 1px solid var(--line);
+    border: 1px solid var(--bd);
     border-radius: 6px;
     overflow-x: auto;
     font-family: var(--mono);

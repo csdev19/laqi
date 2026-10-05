@@ -100,7 +100,7 @@ describe('promptForFlags — start from (question 2)', () => {
       '\r',
       ARROW_UP,
       '\r',
-      'spec.yaml',
+      'spec.json',
       '\r',
       '\r',
       '\r',

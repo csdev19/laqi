@@ -9,7 +9,7 @@ response change. Under a minute, four steps.
 ## 1. Scaffold a mock API
 
 ```sh
-npm i -g laqi@2
+npm i -g laqi
 laqi init
 ```
 

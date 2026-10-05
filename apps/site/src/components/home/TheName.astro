@@ -1,0 +1,127 @@
+---
+// apps/site/src/components/home/TheName.astro
+//
+// The name, as one column of type: eyebrow, headline, the story in two
+// stacked paragraphs, the line to remember, and the etymology boxed under it.
+//
+// There is no illustration. Four were tried in a left column here — a quipu,
+// a drawn runner, a relay diagram, a wordmark plate — and every one asked the
+// reader to look at something before reading the sentence that already
+// carries the whole idea. Two of them also broke in the browser, because they
+// painted an SVG from scoped CSS and both halves have to arrive for anything
+// to show.
+---
+
+<section class="name" id="name">
+  <p class="eyebrow">the name</p>
+  <h2>A runner, ahead of the road.</h2>
+
+  <p>
+    The <em>chasqui</em> was a relay runner of the Inca road network, carrying
+    messages between waystations across the Andes.
+  </p>
+  <p>
+    laqi plays the same role for your team. It carries the agreed API contract
+    before the real backend implementation exists.
+  </p>
+
+  <p class="pull"><em>laqi carries the contract before the real API arrives.</em></p>
+
+  <div class="roots">
+    <p class="roots-label">roots</p>
+    <div>
+      <p class="roots-text">
+        Quechua — <em>llulla</em>, false · <em>chasqui</em>, messenger
+      </p>
+      <p class="roots-aside">say it out loud: it sounds like “lucky”</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .name {
+    max-width: 76rem;
+    margin: 0 auto;
+    padding: 4.5rem 1.5rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 1.25rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  h2 {
+    margin: 0 0 2.25rem;
+    font-family: var(--serif);
+    font-size: clamp(2rem, 3.8vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+  }
+
+  /* The paragraphs run the section's width rather than a narrower measure:
+     the design sets this section wide and lets the two short paragraphs
+     carry it, which is what keeps it from reading as a column of prose
+     dropped into a product page. */
+  .name > p {
+    margin: 0 0 1.75rem;
+    color: var(--dim);
+    font-size: 1.1875rem;
+    line-height: 1.7;
+  }
+
+  em {
+    font-style: italic;
+    color: var(--viotx);
+  }
+
+  .pull {
+    margin: 2.5rem 0 0 !important;
+    font-family: var(--serif);
+    font-size: clamp(1.25rem, 2.2vw, 1.75rem);
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    color: var(--viotx) !important;
+  }
+
+  /* A panel rather than a rule. The etymology is an aside, and boxing it
+     says so without needing a heading — and keeps it visually separate from
+     the metaphor above, which is not derived from it. */
+  .roots {
+    display: flex;
+    gap: 2.5rem;
+    margin-top: 3rem;
+    padding: 1.5rem;
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--panel) 35%, transparent);
+  }
+
+  .roots-label {
+    flex: none;
+    width: 5rem;
+    margin: 0.25rem 0 0;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .roots-text {
+    margin: 0 0 0.4rem;
+    font-size: 1.0625rem;
+    color: var(--fg);
+  }
+
+  .roots-aside {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--faint);
+  }
+</style>

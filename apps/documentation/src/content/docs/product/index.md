@@ -19,6 +19,11 @@ Documents split by audience, because they don't share a shape:
   with the reasoning behind each one.
 - **[Roadmap](/product/roadmap/)** — what has shipped (verified against
   PRs), what is in flight, and what comes next.
+- **[laqi.dev page audit, 2026-10-01](/product/page-audit-2026-10-01/)** — every
+  claim on the public landing page matched against the code that would have to
+  support it. Twenty-one findings, each with its evidence slot filled. The
+  research record behind [Plan 15](/plans/2026-10-01-15-page-truth-fixes/) and
+  three design specs.
 
 None of these replace the [ADRs](/decisions/) (the historical record of _why_
 a decision was made) or the root [README](https://github.com/csdev19/laqi)

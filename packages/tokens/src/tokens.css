@@ -11,19 +11,76 @@
   --panel2: #171522;
   --line: #241f35;
   --line2: #332a4a;
+  /* The site's hairlines. Alpha over whatever is behind rather than an
+     opaque grey, so a rule crossing the glow or the dot grid stays one
+     weight instead of punching a flat band through them. The panel keeps
+     --line/--line2: it has no glow to cross, and flat is what it wants. */
+  --bd: rgb(234 231 242 / 0.08);
+  --bd2: rgb(234 231 242 / 0.14);
   --fg: #eae7f2;
-  --dim: #8e88a8;
+  /* Body text. Lightened from #8e88a8 by the v3 site design, which moved the
+     old value down to the two quieter roles below. */
+  --dim: #a49fba;
+  /* Labels and metadata on a page. */
+  --faint: #6e6889;
+  /* A connector going nowhere yet, and anything deliberately later. The
+     value --dim used to hold. */
+  --neutral: #8e88a8;
+  /* The default resolution layer, and quiet labels inside a product window.
+     Quieter than --faint on purpose: inside a window, a label must not
+     compete with the data beside it. */
   --dim2: #5c5678;
 
   --vio: #7a00ff;
   --viol: #a366ff;
   --mag: #ff00a0;
   --magl: #ff7ac8;
+  /* Violet and magenta legible as TEXT on dark — the italic replies, links,
+     accented labels. --viol and --magl stay what they are: a POST method, a
+     JSON key, a 4xx. A colour that marks a method is not a colour you set a
+     sentence in. */
+  --viotx: #b07bff;
+  --magtx: #ff5cbd;
   --mint: #00ffc2;
   --red: #ff0058;
   --warn: #ffb020;
   --palev: #c9a6ff;
   --palem: #7fefd8;
+
+  /* Surfaces the site needs and the panel does not have names for. The panel
+     builds its own raised surfaces from --panel/--panel2; these are the
+     marketing site's deeper ones, plus the two the product-window mockups
+     use so a drawn window reads darker than the page it sits on. */
+  --card: #151320;
+  --card2: #1c1929;
+  --win: #0d0b13;
+  --winbar: #100e17;
+
+  /* Translucent surfaces. Literal rgba rather than a color-mix of --panel,
+     because what sits behind them is the page's glow and dot grid and the
+     blend has to be predictable, not derived from a token that may move. */
+  --glass: rgb(18 16 25 / 0.74);
+  --glass2: rgb(21 19 32 / 0.95);
+
+  /* The marketing background texture. */
+  --dot: rgb(234 231 242 / 0.05);
+
+  /* The two syntax greys the accents do not cover: punctuation sits under
+     the values it separates, and a line number sits under that again. Both
+     are quieter than --dim2 on purpose — in a code block the structure must
+     not compete with what it structures. */
+  --syn-punct: #4e4770;
+  --syn-line: #3d3757;
+
+  /* The terminal's bolt. packages/tui/src/palette.ts calls its palette "the
+     panel's values", and every entry matches one of ours except this: the
+     bolt is #8b5cf6 there and --vio here. Reproduced rather than corrected —
+     the site should show the terminal as it actually prints. */
+  --term-bolt: #8b5cf6;
+
+  /* TypeScript's own blue, for the TS badge and nothing else. It is a
+     third-party brand colour: it belongs to no layer and carries no state. */
+  --ts-badge: #3178c6;
 
   --serif: 'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

@@ -1,0 +1,238 @@
+---
+// apps/site/src/components/home/TerminalMock.astro
+//
+// laqi's start screen, as the CLI prints it.
+//
+// The shape comes from packages/tui: `rule()` puts a title on the left, a
+// dim fill between, and a figure on the right; `row()` sets a label in a
+// 12-column gutter and a bright value after it. The palette is palette.ts's
+// — URLs in accent (mint), values in --fg, labels and the fill in the same
+// grey, the bolt in --term-bolt.
+//
+// The lines below the start screen are the share session. The TUI has no
+// screen for it yet, so those follow row()'s shape rather than being copied
+// from one — the only part of this window that is an extension rather than a
+// reproduction.
+interface Row {
+  label?: string
+  value: string
+  /** A blank line, as the screen prints between its blocks. */
+  spacer?: boolean
+  /** Appended after the value, in the dim grey. */
+  note?: string
+  kind?: 'url' | 'plain'
+}
+interface Props {
+  title: string
+  version: string
+  boot: string
+  rows: Row[]
+  log?: { time: string; method: string; path: string; status: string; kind: 'ok' | 'server'; via: string }[]
+}
+const { title, version, boot, rows, log = [] } = Astro.props
+const METHOD_TINT: Record<string, string> = { GET: 'mint', POST: 'viol' }
+---
+
+<figure class="term">
+  <div class="frame">
+    <div class="chrome">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="who">{title}</span>
+    </div>
+
+    <div class="body">
+      <p class="rule">
+        <span class="bolt">⚡</span>
+        <span class="name">laqi</span>
+        <span class="version">{version}</span>
+        <span class="fill" aria-hidden="true"></span>
+        <span class="boot">ready in {boot}</span>
+      </p>
+
+      {
+        rows.map((r) =>
+          r.spacer ? (
+            <p class="spacer" aria-hidden="true" />
+          ) : (
+          <p class="row">
+            <span class="label">{r.label ?? ''}</span>
+            <span class:list={['value', r.kind === 'url' && 'is-url']}>{r.value}</span>
+            {r.note && <span class="note">{r.note}</span>}
+          </p>
+          ),
+        )
+      }
+
+      {
+        log.length > 0 && (
+          <div class="log">
+            {log.map((l) => (
+              <p class="log-row">
+                <span class="time">{l.time}</span>
+                <span class="method" style={`color: var(--${METHOD_TINT[l.method] ?? 'dim'})`}>
+                  {l.method}
+                </span>
+                <span class="path">{l.path}</span>
+                <span class:list={['status', `status-${l.kind}`]}>{l.status}</span>
+                <span class="via">{l.via}</span>
+              </p>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </div>
+
+  <slot name="float" />
+</figure>
+
+<style>
+  .term {
+    position: relative;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+
+  .frame {
+    min-width: 0;
+    border: 1px solid var(--bd2);
+    border-radius: 14px;
+    background: var(--win);
+    font-family: var(--mono);
+    overflow: hidden;
+    box-shadow: 0 60px 120px -40px rgb(0 0 0 / 0.8);
+  }
+
+  .chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--bd);
+    background: var(--winbar);
+  }
+
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--line2);
+  }
+
+  .who {
+    margin-left: 0.6rem;
+    font-size: 11px;
+    color: var(--faint);
+  }
+
+  .body {
+    padding: 1rem 1.1rem;
+    font-size: 12px;
+    line-height: 1.85;
+    overflow-x: auto;
+  }
+
+  /* rule(): title, a fill that takes whatever is left, then the figure. */
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.9rem;
+  }
+
+  .bolt {
+    color: var(--term-bolt);
+  }
+
+  .name {
+    color: var(--fg);
+  }
+
+  .version,
+  .boot {
+    color: var(--faint);
+  }
+
+  .fill {
+    flex: 1;
+    border-top: 1px solid color-mix(in srgb, var(--faint) 45%, transparent);
+  }
+
+  /* row(): a 12-column label gutter, then the value. */
+  .row {
+    display: flex;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  .spacer {
+    height: 0.9rem;
+    margin: 0;
+  }
+
+  .label {
+    width: 12ch;
+    flex: none;
+    color: var(--faint);
+  }
+
+  .value {
+    color: var(--fg);
+  }
+
+  .is-url {
+    color: var(--mint);
+  }
+
+  .note {
+    color: var(--faint);
+  }
+
+  .log {
+    margin-top: 0.9rem;
+  }
+
+  .log-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  .time {
+    flex: none;
+    color: var(--faint);
+  }
+
+  .method {
+    width: 4ch;
+    flex: none;
+    font-weight: 600;
+  }
+
+  .path {
+    flex: 1;
+    min-width: 0;
+    color: var(--fg);
+  }
+
+  .status {
+    flex: none;
+  }
+
+  .status-ok {
+    color: var(--mint);
+  }
+
+  .status-server {
+    color: var(--red);
+  }
+
+  .via {
+    flex: none;
+    width: 11ch;
+    text-align: right;
+    color: var(--faint);
+  }
+</style>

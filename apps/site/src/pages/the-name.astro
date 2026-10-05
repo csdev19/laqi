@@ -1,0 +1,140 @@
+---
+// apps/site/src/pages/the-name.astro
+//
+// The name has never been explained on a public page, which wasted the one
+// recognition asset laqi gets for free: an English speaker hears "lucky" and
+// has no idea why, and nobody learns the product is named after a courier.
+//
+// The letter-by-letter derivation recorded in the-name.md spells a different
+// word than the one on npm, so it is deliberately not repeated here. The
+// etymology below is the part that is not in dispute.
+import '../styles/global.css'
+import TopNav from '../components/home/TopNav.astro'
+import SiteFooter from '../components/SiteFooter.astro'
+
+const title = 'The name — laqi'
+const description =
+  'laqi joins two Quechua words, llulla (false) and chasqui (messenger): a false messenger, a server that answers with simulated information.'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://laqi.dev/the-name/" />
+    <meta name="theme-color" content="#0b0a0f" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content="The name" />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://laqi.dev/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body class="textured">
+    <TopNav />
+    <main class="page">
+      <p class="eyebrow">the name</p>
+      <h1>A false messenger.</h1>
+
+      <p class="lede">
+        <strong>laqi</strong> joins two Quechua words: <em>llulla</em>, false,
+        and <em>chasqui</em>, messenger. A false messenger — a server that
+        answers with information that is simulated on purpose.
+      </p>
+
+      <p>
+        The chasquis were the relay runners of the Inca road system. They
+        carried knotted-cord quipus and spoken messages on foot between
+        waystations across the Andes, handing each message to the next runner
+        rather than carrying it the whole way themselves. A message moved
+        faster than any single person could move.
+      </p>
+
+      <p>
+        That is close to what this tool does for a frontend team. The real
+        message — the response from the real backend — is not ready yet. laqi
+        carries a stand-in of the agreed shape, so the work does not stop
+        waiting for the runner who has not arrived.
+      </p>
+
+      <p>
+        Quechua is spoken by millions of people across Peru, Bolivia and
+        Ecuador today. It is not a dead language borrowed for a logo.
+      </p>
+
+      <p class="aside">
+        In English it also happens to sound like <em>lucky</em>, which was not
+        the plan and is not the meaning.
+      </p>
+
+      <a href="/" class="back">← Back to the home page</a>
+    </main>
+    <SiteFooter />
+  </body>
+</html>
+
+<style>
+  .page {
+    max-width: 38rem;
+    margin: 0 auto;
+    padding: 5rem 1.5rem 6rem;
+  }
+
+  .eyebrow {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  h1 {
+    margin: 0 0 2rem;
+    font-family: var(--serif);
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+  }
+
+  .page p {
+    margin: 0 0 1.5rem;
+    color: var(--dim);
+    font-size: 1.0625rem;
+    line-height: 1.8;
+  }
+
+  .lede {
+    color: var(--fg) !important;
+    font-size: 1.1875rem !important;
+  }
+
+  .lede strong {
+    font-weight: 600;
+  }
+
+  .page em {
+    font-style: italic;
+    color: var(--viotx);
+  }
+
+  .aside {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--bd);
+    font-size: 0.9375rem !important;
+    color: var(--faint) !important;
+  }
+
+  .back {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--dim);
+    text-decoration: none;
+  }
+
+  .back:hover {
+    color: var(--viotx);
+  }
+</style>

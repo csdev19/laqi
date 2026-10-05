@@ -57,7 +57,7 @@ responses while the app is running. Nothing restarts.
 | `GET /profile` → `unauthorized` | signs you out, the way a real 401 would        |
 | `POST /auth/login` → `invalid`  | shows "Wrong email or password"                |
 | `POST /auth/login` → `slow`     | shows the pending button                       |
-| scenario `backend-caido`        | breaks every todo endpoint at once             |
+| scenario `offline`              | breaks every todo endpoint at once             |
 
 Those failure states are the ones that are painful to reach against a real
 backend, and they are one click away here.
@@ -95,7 +95,7 @@ it for the real thing.
 
 ```
 laqi/api.json        the mocks — this is the API contract
-laqi/scenarios.json  named sets of overrides (backend-caido, red-lenta, …)
+laqi/scenarios.json  named sets of overrides (offline, slow-network, …)
 src/lib/api.ts       the fetch client; attaches the bearer and the page header
 src/lib/auth.ts      the cookie mechanism, and why it is not security
 src/routes/          login, signup, todos, profile

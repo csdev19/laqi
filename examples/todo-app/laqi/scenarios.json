@@ -1,17 +1,17 @@
 {
-  "backend-caido": {
+  "offline": {
     "GET /todos": "error",
     "POST /todos": "error",
     "PUT /todos/:id": "error",
     "DELETE /todos/:id": "error"
   },
-  "usuario-nuevo": {
+  "new-user": {
     "GET /todos": "empty"
   },
-  "sesion-expirada": {
+  "session-expired": {
     "GET /profile": "unauthorized"
   },
-  "red-lenta": {
+  "slow-network": {
     "GET /todos": "slow",
     "POST /auth/login": "slow"
   }

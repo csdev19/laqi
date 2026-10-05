@@ -1,15 +1,25 @@
 ---
+// UNUSED since 2026-10-02. Superseded by the nine-chapter home in
+// src/components/home/; nothing under src/pages/ imports it, directly or
+// transitively. Kept rather than deleted in the same change that replaced it,
+// so the old page can still be read while the new one settles.
+//
+// Delete on or after 2026-11-02 if it is still unreferenced. Verify first —
+// `grep -rl <name> src/` from apps/site — rather than trusting this header.
 // apps/site/src/components/SiteNav.astro
-import { getLaqiVersion } from '../lib/version'
-
-const version = getLaqiVersion()
+//
+// No version badge. It read the CLI's version at build time, but the site only
+// deploys on its own site-v* tag, so every CLI release left it stale — it said
+// v2.0.0 while npm served 2.0.1. Fixing it by deploying the site on CLI tags
+// would let a patch release publish unreleased site content; see Plan 15 task 5.
+// There is one laqi and the install command names no version, so the badge had
+// nothing to tell a visitor that the page does not already say.
 ---
 <header class="site-nav">
   <a href="/" class="brand">
     <img src="/icon.svg" alt="" width="15" height="20" />
     <span>laqi</span>
   </a>
-  <span class="version-badge">v{version}</span>
   <nav>
     <a href="/docs/">Docs</a>
     <a href="/docs/quick-start/">Quick start</a>
@@ -26,7 +36,7 @@ const version = getLaqiVersion()
     align-items: center;
     gap: 1.5rem;
     padding: 1rem 2rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--bd);
     font-family: var(--mono);
     color: var(--fg);
   }
@@ -37,13 +47,6 @@ const version = getLaqiVersion()
     color: var(--fg);
     text-decoration: none;
     font-weight: 600;
-  }
-  .version-badge {
-    padding: 0.15rem 0.5rem;
-    border: 1px solid var(--line2);
-    border-radius: 4px;
-    color: var(--dim);
-    font-size: 0.85rem;
   }
   nav {
     display: flex;
@@ -60,7 +63,7 @@ const version = getLaqiVersion()
   .search {
     margin-left: auto;
     padding: 0.4rem 0.75rem;
-    border: 1px solid var(--line);
+    border: 1px solid var(--bd);
     border-radius: 6px;
     color: var(--dim);
     text-decoration: none;
