@@ -7,6 +7,7 @@ import {
   Scripts,
   useRouter,
 } from '@tanstack/react-router'
+import { LastRequest } from '../components/LastRequest'
 import { clearSession, useSession } from '../lib/auth'
 import appCss from '../styles.css?url'
 
@@ -75,6 +76,7 @@ function Shell() {
 
       <main className="main">
         <Outlet />
+        <LastRequest />
       </main>
 
       <footer className="footnote">

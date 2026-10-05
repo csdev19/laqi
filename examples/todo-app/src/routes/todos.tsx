@@ -42,33 +42,66 @@ function TodoList() {
       // `created.title`: the mock always returns the same canned text,
       // and a real backend would return what you sent. Only the shape is
       // taken from the server.
+      // The id is the next one in the list, not the canned one (every
+      // created todo would share it) and not a timestamp, which then shows
+      // up on screen as `DELETE /todos/1791241628947`.
       patch((previous) => ({
-        items: [{ ...created, id: Date.now(), title: value }, ...previous.items],
+        items: [
+          {
+            ...created,
+            id: Math.max(0, ...previous.items.map((item) => item.id)) + 1,
+            title: value,
+          },
+          ...previous.items,
+        ],
       }))
       setTitle('')
       setPage(1)
     },
   })
 
+  /**
+   * A failed change puts back exactly what it changed, nothing more. Asking
+   * the mock for the list again instead would throw away every todo this
+   * session created, since laqi always answers `GET /todos` with the same
+   * canned list.
+   */
+  const snapshot = () => queryClient.getQueryData<TodoList>(key)
+  const restore = (previous: TodoList | undefined) => {
+    if (previous) queryClient.setQueryData(key, previous)
+  }
+
   const toggle = useMutation({
     mutationFn: (todo: Todo) => api.updateTodo({ ...todo, done: !todo.done }),
     onMutate: (todo) => {
-      patch((previous) => ({
-        items: previous.items.map((item) =>
+      const previous = snapshot()
+      patch((list) => ({
+        items: list.items.map((item) =>
           item.id === todo.id ? { ...item, done: !item.done } : item,
         ),
       }))
+      return previous
     },
-    onError: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onError: (_error, _todo, previous) => restore(previous),
   })
 
   const remove = useMutation({
     mutationFn: (todo: Todo) => api.deleteTodo(todo.id),
     onMutate: (todo) => {
-      patch((previous) => ({ items: previous.items.filter((item) => item.id !== todo.id) }))
+      const previous = snapshot()
+      patch((list) => ({ items: list.items.filter((item) => item.id !== todo.id) }))
+      return previous
     },
-    onError: () => void queryClient.invalidateQueries({ queryKey: key }),
+    onError: (_error, _todo, previous) => restore(previous),
   })
+
+  // One error line for the three changes: whichever failed last.
+  const failed = [create, toggle, remove].filter((mutation) => mutation.error)
+  const changeError = failed.reduce<(typeof failed)[number] | undefined>(
+    (latest, mutation) =>
+      !latest || mutation.submittedAt > latest.submittedAt ? mutation : latest,
+    undefined,
+  )?.error
 
   const all = todos.data?.items ?? []
   const lastPage = Math.max(1, Math.ceil(all.length / PAGE_SIZE))
@@ -106,7 +139,7 @@ function TodoList() {
         </button>
       </form>
 
-      {create.error ? <p className="error">{message(create.error)}</p> : null}
+      {changeError ? <p className="error">{message(changeError)}</p> : null}
 
       {todos.isPending ? <p className="muted">Loading…</p> : null}
 
@@ -169,12 +202,6 @@ function TodoList() {
           </button>
         </div>
       ) : null}
-
-      <p className="footnote-inline">
-        The mock returns the whole list and this app slices it. A real backend would paginate
-        server-side — laqi ignores the query string, and asking for a page with{' '}
-        <code>X-Laqi-Response</code> would outrank the panel and break the flips below.
-      </p>
     </div>
   )
 }
