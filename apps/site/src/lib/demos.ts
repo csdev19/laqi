@@ -41,9 +41,9 @@ export const demos = {
     src: null,
     poster: null,
     chrome: '127.0.0.1:8000/__laqi',
-    label: 'One click on “empty” and the list empties — no reload, no restart.',
+    label: 'Flip a response in the panel — the app’s next request gets it. No reload, no restart.',
     brief:
-      '~20s, 16:9. The todo app beside the panel. Click `empty` on GET /todos — the list empties with no reload. Click `error` — the error state appears. Nothing is typed, no file is saved, no server restarts. Dishonest if it cuts between takes to hide a reload, speeds up the response, or uses an app that is not examples/todo-app.',
+      '~30s, 16:9, split in half: the laqi panel on the left, examples/todo-app on the right. 1) POST /auth/login → invalid, Sign in: "Wrong email or password", 401. 2) login → ok and GET /todos → error, Sign in: the error block. 3) GET /todos → ok, Retry: the list. 4) Add "Buy milk": 201. 5) PUT /todos/:id → error, tick a todo: it snaps back, 500. 6) scenario offline, delete "Buy milk": it stays, 500. The app\'s request line and the panel\'s log show the same request each time. Dishonest if it cuts between takes to hide a reload, speeds up a response, or uses an app that is not examples/todo-app.',
   },
 } satisfies Record<string, Demo>
 

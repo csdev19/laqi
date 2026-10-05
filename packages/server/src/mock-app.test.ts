@@ -107,11 +107,13 @@ describe('createMockApp', () => {
   })
 
   it('returns 500 with a clear message instead of hanging on a bad selector (v1 defect C)', async () => {
-    const state: LaqiState = { scenario: null, overrides: { 'GET /users': 'ghost' } }
-    const res = await makeApp(state).request('/users')
+    // Through the header: a stored override naming a missing response now
+    // falls through to the default (see resolve.test.ts), so the header is
+    // the selector that can still name something that does not exist.
+    const res = await makeApp().request('/users', { headers: { 'X-Laqi-Response': 'ghost' } })
     expect(res.status).toBe(500)
     expect(JSON.stringify(await res.json())).toContain('ghost')
-    expect(res.headers.get('X-Laqi-Resolved')).toBe('ghost (state)')
+    expect(res.headers.get('X-Laqi-Resolved')).toBe('ghost (header)')
   })
 
   it('reaches a declared OPTIONS mock instead of hono cors() swallowing it with a bare 204 (I5)', async () => {
@@ -169,10 +171,9 @@ describe('createMockApp', () => {
 
     it('fires on a resolution failure too (500), not just on success', async () => {
       const onRequest = vi.fn()
-      const state = { scenario: null, overrides: { 'GET /users': 'ghost' } }
-      const app = makeApp(state, undefined, { onRequest })
+      const app = makeApp(undefined, undefined, { onRequest })
 
-      await app.request('/users')
+      await app.request('/users', { headers: { 'X-Laqi-Response': 'ghost' } })
 
       expect(onRequest).toHaveBeenCalledTimes(1)
       expect(onRequest.mock.calls[0]![0]).toMatchObject({ type: 'request', status: 500 })

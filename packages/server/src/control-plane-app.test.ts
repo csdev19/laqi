@@ -65,6 +65,7 @@ describe('GET /api/state', () => {
     const app = createControlPlaneApp(
       makeRuntime({
         getState: () => ({ scenario: 'checkout-broken', overrides: { 'GET /users': 'boom' } }),
+        getScenarios: () => ({ 'checkout-broken': { 'GET /users': 'boom' } }),
       }),
     )
     const res = await app.request('/api/state')
@@ -72,6 +73,36 @@ describe('GET /api/state', () => {
     expect(await res.json()).toEqual({
       scenario: 'checkout-broken',
       overrides: { 'GET /users': 'boom' },
+    })
+  })
+
+  // state.json lives outside git (ADR-0004), so it outlives the files it
+  // points into: create GET /test3, serve `error`, switch branch, and the
+  // override is still stored while the endpoint is gone. Reporting it would
+  // show OVERRIDDEN 1 for nothing, and the panel would send it back on its
+  // next flip, where PUT rejected it.
+  it('leaves out what no longer resolves: a gone endpoint, a gone response, a gone scenario', async () => {
+    const app = createControlPlaneApp(
+      makeRuntime({
+        getState: () => ({
+          scenario: 'removed-scenario',
+          overrides: { 'GET /users': 'boom', 'GET /test3': 'error', 'GET /users ': 'ok' },
+        }),
+      }),
+    )
+    const app2 = createControlPlaneApp(
+      makeRuntime({
+        getState: () => ({ scenario: null, overrides: { 'GET /users': 'renamed-away' } }),
+      }),
+    )
+
+    expect(await (await app.request('/api/state')).json()).toEqual({
+      scenario: null,
+      overrides: { 'GET /users': 'boom' },
+    })
+    expect(await (await app2.request('/api/state')).json()).toEqual({
+      scenario: null,
+      overrides: {},
     })
   })
 })
@@ -111,6 +142,72 @@ describe('PUT /api/state', () => {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ scenario: 'no-such-scenario', overrides: {} }),
+    })
+
+    expect(res.status).toBe(400)
+    expect(setState).not.toHaveBeenCalled()
+  })
+
+  // The other half of the branch-switch bug: a client holding the state it
+  // read earlier (an open panel tab, a script) sends the dead override back
+  // with its real change. Rejecting the whole write left every flip in the
+  // panel failing with "no endpoint with id" until state.json was cleared by
+  // hand. What was already stored and no longer resolves is dropped; only
+  // what the caller is newly asking for is validated.
+  it('drops an override that was already stored and no longer resolves, and keeps the change', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(
+      makeRuntime({
+        setState,
+        getState: () => ({ scenario: null, overrides: { 'GET /test3': 'error' } }),
+      }),
+    )
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        scenario: null,
+        overrides: { 'GET /test3': 'error', 'GET /users': 'boom' },
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(setState).toHaveBeenCalledWith({ scenario: null, overrides: { 'GET /users': 'boom' } })
+  })
+
+  it('drops a stored scenario that is no longer declared, and keeps the change', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(
+      makeRuntime({
+        setState,
+        getState: () => ({ scenario: 'removed-scenario', overrides: {} }),
+      }),
+    )
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: 'removed-scenario', overrides: { 'GET /users': 'boom' } }),
+    })
+
+    expect(res.status).toBe(200)
+    expect(setState).toHaveBeenCalledWith({ scenario: null, overrides: { 'GET /users': 'boom' } })
+  })
+
+  it('still rejects a dead override the caller is newly asking for', async () => {
+    const setState = vi.fn()
+    const app = createControlPlaneApp(
+      makeRuntime({
+        setState,
+        getState: () => ({ scenario: null, overrides: { 'GET /test3': 'error' } }),
+      }),
+    )
+
+    const res = await app.request('/api/state', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scenario: null, overrides: { 'GET /test3': 'ok' } }),
     })
 
     expect(res.status).toBe(400)

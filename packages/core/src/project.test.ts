@@ -244,6 +244,22 @@ describe('getState', () => {
     const state = unwrap(project.getState())
     expect(state).toMatchObject({ scenario: null, overrides: {}, active: [] })
   })
+
+  // state.json is outside git: a branch switch can take away the endpoint,
+  // the response or the scenario it names. An agent must not be told an
+  // override is set that can never be served.
+  it('leaves out entries that no longer resolve', () => {
+    project.setResponse('GET /users', 'boom')
+    project.setResponse('POST /orders', 'error')
+    project.setScenario('offline')
+    writeMocks({
+      'GET /users': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+    })
+    writeMocks({}, 'laqi/scenarios.json')
+
+    const state = unwrap(project.getState())
+    expect(state).toMatchObject({ scenario: null, overrides: {}, active: [] })
+  })
 })
 
 describe('resetState', () => {

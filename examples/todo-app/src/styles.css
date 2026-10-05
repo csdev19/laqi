@@ -85,8 +85,51 @@ a {
 .main {
   flex: 1;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
   padding: 36px 24px;
+}
+
+/* The app's half of the request log: the panel shows the same line. */
+.last-request {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel);
+}
+.lr-method {
+  font-weight: 600;
+}
+.lr-GET {
+  color: var(--mint);
+}
+.lr-POST {
+  color: var(--viol);
+}
+.lr-PUT {
+  color: #7fefd8;
+}
+.lr-DELETE {
+  color: #ff00a0;
+}
+.lr-path {
+  color: var(--fg);
+}
+.lr-arrow {
+  color: var(--dim2);
+}
+.lr-status.is-ok {
+  color: var(--mint);
+}
+.lr-status.is-error {
+  color: var(--red);
 }
 
 .card {
@@ -256,18 +299,28 @@ input:focus {
   font-size: 13px;
 }
 
-.footnote,
-.footnote-inline {
+.footnote {
   color: var(--dim2);
   font-size: 13px;
-}
-.footnote {
   padding: 18px 24px;
   border-top: 1px solid var(--line);
   text-align: center;
 }
-.footnote-inline {
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+/* A phone: the brand keeps its mark and name, the nav keeps one line. */
+@media (max-width: 520px) {
+  .brand-sub {
+    display: none;
+  }
+  .topbar {
+    padding: 0 16px;
+  }
+  .nav {
+    gap: 14px;
+  }
+  .main {
+    padding: 20px 16px;
+  }
+  .card {
+    padding: 22px 18px;
+  }
 }

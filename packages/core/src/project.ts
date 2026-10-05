@@ -153,11 +153,21 @@ export class Project {
     /** Only the endpoints that are NOT on their default: the rest is noise. */
     active: EndpointView[]
   }> {
-    const { endpoints, scenarios } = this.load()
+    const { endpoints, byId, scenarios } = this.load()
     const state = this.store.read()
+    // Only what still resolves. state.json is outside git (ADR-0004), so a
+    // branch switch can take away the endpoint, response or scenario an
+    // entry names; reporting it would claim a state that is never served.
+    // The control plane's GET /api/state applies the same rule.
     return ok({
-      scenario: state.scenario,
-      overrides: state.overrides,
+      scenario:
+        state.scenario !== null && Object.hasOwn(scenarios, state.scenario) ? state.scenario : null,
+      overrides: Object.fromEntries(
+        Object.entries(state.overrides).filter(([id, response]) => {
+          const endpoint = byId.get(id)
+          return endpoint !== undefined && Object.hasOwn(endpoint.responses, response)
+        }),
+      ),
       scenarios: Object.keys(scenarios),
       active: endpoints
         .map((e) => this.view(e, state, scenarios))

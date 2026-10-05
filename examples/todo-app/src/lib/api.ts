@@ -18,6 +18,29 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The last request the app made and what came back, so the page can show
+ * it beside the panel's own log: the same line in both places is what ties
+ * a click in the app to the response laqi chose.
+ */
+export type LastRequest = { method: string; path: string; status: number }
+
+let lastRequest: LastRequest | null = null
+const listeners = new Set<() => void>()
+
+export const lastRequestStore = {
+  get: () => lastRequest,
+  subscribe: (listener: () => void) => {
+    listeners.add(listener)
+    return () => void listeners.delete(listener)
+  },
+}
+
+function record(entry: LastRequest) {
+  lastRequest = entry
+  for (const listener of listeners) listener()
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
@@ -41,6 +64,8 @@ async function request<T>(
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   })
+
+  record({ method: options.method ?? 'GET', path, status: response.status })
 
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`.trim()
