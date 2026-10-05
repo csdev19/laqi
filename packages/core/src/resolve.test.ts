@@ -92,15 +92,20 @@ describe('resolveResponse failure', () => {
     expect(r.layer).toBe('header')
   })
 
-  it('fails loudly when an override names a response that does not exist', () => {
+  // A stored override outlives the response it names: state.json is
+  // outside git, and a branch switch or a rename takes the response away.
+  // It used to fail loudly here, but nobody asked for it on this request,
+  // the panel and get_state no longer report it, and failing turned a
+  // working endpoint into a laqi error the user could not see the cause of.
+  // A header naming a missing response still fails: that one was asked for.
+  it('ignores a stored override whose response no longer exists, and falls through', () => {
     const r = resolveResponse({
       endpoint,
       state: { scenario: null, overrides: { 'GET /users': 'ghost' } },
       scenarios,
     })
-    expect(r.ok).toBe(false)
-    if (r.ok) return
-    expect(r.layer).toBe('state')
+    expect(r.ok).toBe(true)
+    expect(r.layer).toBe('default')
   })
 
   it('rejects a prototype-chain name like "toString" instead of serving garbage', () => {

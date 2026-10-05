@@ -43,9 +43,13 @@ export function resolveResponse(input: {
       if (fromHeaderScenario) return { name: fromHeaderScenario, layer: 'header' }
     }
 
-    // 3. Per-endpoint override, written by the panel or the MCP.
+    // 3. Per-endpoint override, written by the panel or the MCP. Only if
+    // the response still exists: state.json outlives the files it points
+    // into, and a stale entry must fall through, not break the endpoint.
     const override = state.overrides[endpoint.id]
-    if (override) return { name: override, layer: 'state' }
+    if (override && Object.hasOwn(endpoint.responses, override)) {
+      return { name: override, layer: 'state' }
+    }
 
     // 4. Active scenario — more general than an override, hence it comes after.
     if (state.scenario) {

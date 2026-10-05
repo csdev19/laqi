@@ -306,7 +306,31 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
 
   app.get('/api/endpoints', (c) => c.json(runtime.getEndpoints()))
 
-  app.get('/api/state', (c) => c.json(runtime.getState()))
+  /**
+   * The stored state minus whatever no longer resolves: an override for an
+   * endpoint or response that is gone, a scenario that is no longer
+   * declared. state.json lives outside git (ADR-0004), so a branch switch
+   * or a deleted endpoint leaves such entries behind. They can never be
+   * served, so they are not reported, and a client never sends them back.
+   * The file itself is left alone until the next write: an endpoint missing
+   * because its file is half-saved comes back with its override intact.
+   */
+  const liveState = (state: LaqiState): LaqiState => {
+    const byId = new Map(runtime.getEndpoints().map((endpoint) => [endpoint.id, endpoint]))
+    const overrides = Object.fromEntries(
+      Object.entries(state.overrides).filter(([id, response]) => {
+        const endpoint = byId.get(id)
+        return endpoint !== undefined && Object.hasOwn(endpoint.responses, response)
+      }),
+    )
+    const scenario =
+      state.scenario !== null && Object.hasOwn(runtime.getScenarios(), state.scenario)
+        ? state.scenario
+        : null
+    return { scenario, overrides }
+  }
+
+  app.get('/api/state', (c) => c.json(liveState(runtime.getState())))
 
   app.put('/api/state', async (c) => {
     let raw: unknown
@@ -327,6 +351,26 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       )
     }
 
+    // A client may send back an entry it read before it stopped resolving
+    // (an open panel tab, a script holding the old state). Rejecting the
+    // whole write for it blocked every flip until state.json was cleared by
+    // hand. What was already stored and no longer resolves is dropped here;
+    // only what the caller is newly asking for is validated below.
+    const stored = runtime.getState()
+    const live = liveState(stored)
+    const overrides = Object.fromEntries(
+      Object.entries(parsed.data.overrides).filter(
+        ([id, response]) => stored.overrides[id] !== response || live.overrides[id] === response,
+      ),
+    )
+    const scenario =
+      parsed.data.scenario !== null &&
+      parsed.data.scenario === stored.scenario &&
+      live.scenario === null
+        ? null
+        : parsed.data.scenario
+    const next: LaqiState = { scenario, overrides }
+
     // StateSchema only checks shape — `scenario` is `string | null` and
     // `overrides` is `Record<string, string>`, so any name passes the parse.
     // Without this, a typo'd scenario (or an override naming an endpoint
@@ -335,9 +379,9 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     // its default. `Project.setScenario`/`setResponse` already reject these
     // the same way; this mirrors that here so both writers of state.json
     // agree on what's valid.
-    if (parsed.data.scenario !== null) {
+    if (next.scenario !== null) {
       const scenarios = runtime.getScenarios()
-      if (!Object.hasOwn(scenarios, parsed.data.scenario)) {
+      if (!Object.hasOwn(scenarios, next.scenario)) {
         const available = Object.keys(scenarios)
         return c.json(
           {
@@ -345,7 +389,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
             message:
               available.length === 0
                 ? 'no scenarios are declared — add a scenarios.json next to your mocks'
-                : `unknown scenario ${JSON.stringify(parsed.data.scenario)}. Available: ${available.join(', ')}`,
+                : `unknown scenario ${JSON.stringify(next.scenario)}. Available: ${available.join(', ')}`,
           },
           400,
         )
@@ -353,7 +397,7 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
     }
 
     const endpointsById = new Map(runtime.getEndpoints().map((endpoint) => [endpoint.id, endpoint]))
-    for (const [id, response] of Object.entries(parsed.data.overrides)) {
+    for (const [id, response] of Object.entries(next.overrides)) {
       const endpoint = endpointsById.get(id)
       if (endpoint === undefined) {
         const ids = [...endpointsById.keys()]
@@ -379,8 +423,8 @@ export function createControlPlaneApp(runtime: ControlPlaneRuntime): Hono {
       }
     }
 
-    runtime.setState(parsed.data)
-    return c.json(parsed.data)
+    runtime.setState(next)
+    return c.json(next)
   })
 
   app.get('/api/scenarios', (c) => c.json(runtime.getScenarios()))
