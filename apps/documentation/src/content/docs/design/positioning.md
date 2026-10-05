@@ -5,8 +5,8 @@ description: Triggering circumstance, real alternatives, differentiated capabili
 
 # Positioning — the inputs laqi.dev's copy is missing
 
-**Status:** Draft spec. Three decisions are **open and blocking**; they are the
-reason the landing page cannot be rewritten yet.
+**Status:** Draft spec. The audience was decided on 2026-10-03; two questions
+remain **open and blocking** for any rewrite of the hero.
 **Date:** 2026-10-01
 **Produced by:** [the 2026-10-01 page audit](/product/page-audit-2026-10-01/),
 findings P1, P2 and P5.
