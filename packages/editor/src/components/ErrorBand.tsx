@@ -17,7 +17,7 @@ export function ErrorBand(props: { errors: LoadError[]; onReload: () => void }) 
         {first.excerpt ? <pre className="band-excerpt">{first.excerpt}</pre> : null}
         <div className="band-note">
           {first.kind === 'lossy-number'
-            ? 'The endpoint is still served, with the number JavaScript kept. Edits to this file are refused until the number is a string.'
+            ? 'The endpoint is still served, with the number JavaScript kept. Edits to this file are refused until that number is fixed.'
             : 'The rest of the mocks are still being served.'}
         </div>
         {rest.length > 0 ? (

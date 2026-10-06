@@ -508,7 +508,7 @@ function report(
       cause: error.message,
       evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
       outcome: lossy
-        ? 'served, but not as written · edits to this file are refused until it is a string'
+        ? 'served, but not as written · edits to this file are refused until that number is fixed'
         : `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
     })
   }

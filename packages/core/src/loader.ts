@@ -10,7 +10,7 @@ import {
   type Scenarios,
 } from '@laqi/schema'
 import { buildExcerpt, parseJsonWithPosition } from './json-position'
-import { findLossyNumbers } from './lossy-numbers'
+import { findLossyNumbers, lossyNumberRemedy } from './lossy-numbers'
 
 export type LoadError = {
   /**
@@ -122,7 +122,7 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
         col: lossy.col,
         message:
           `${lossy.written} cannot be held exactly by JavaScript, so clients receive ${lossy.becomes}. ` +
-          `Write it as a string (${JSON.stringify(lossy.written)}) to keep every digit.`,
+          lossyNumberRemedy(lossy),
         excerpt: buildExcerpt(raw, lossy.line, lossy.col),
       })
     }

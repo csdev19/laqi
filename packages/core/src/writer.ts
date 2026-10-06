@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { findLossyNumbers } from './lossy-numbers'
+import { findLossyNumbers, lossyNumberRemedy } from './lossy-numbers'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { withFileLock, writeFileAtomic } from './atomic-file'
 import { bodyHash } from './canonical-json'
@@ -155,7 +155,7 @@ function readFileForWrite(
       ok: false,
       error:
         `refusing to rewrite ${file}: line ${lossy.line} has ${lossy.written}, which JavaScript reads as ${lossy.becomes}, ` +
-        `so saving would change it in your file. Write it as a string (${JSON.stringify(lossy.written)}), or edit this file by hand.`,
+        `so saving would change it in your file. Edit the file by hand first. ${lossyNumberRemedy(lossy)}`,
     }
   }
   return read

@@ -52,6 +52,19 @@ export function findLossyNumbers(source: string): LossyNumber[] {
   return found
 }
 
+/**
+ * How to make the file say what clients receive. A string keeps every digit,
+ * which an id needs; a decimal usually wants the value JavaScript kept, since
+ * turning it into a string changes its type for every client.
+ */
+export function lossyNumberRemedy(lossy: Pick<LossyNumber, 'written' | 'becomes'>): string {
+  const asString = JSON.stringify(lossy.written)
+  if (lossy.becomes === 'null' || /^-?\d+$/.test(lossy.written)) {
+    return `Write it as a string (${asString}) to keep every digit.`
+  }
+  return `Write ${lossy.becomes}, which is what clients already receive, or a string (${asString}) to keep every digit.`
+}
+
 /** The index of the quote that closes the string opening at `start`. */
 function endOfString(source: string, start: number): number {
   for (let i = start + 1; i < source.length; i++) {

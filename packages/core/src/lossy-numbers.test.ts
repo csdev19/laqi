@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findLossyNumbers } from './lossy-numbers'
+import { findLossyNumbers, lossyNumberRemedy } from './lossy-numbers'
 
 /**
  * JSON numbers have no size limit; JavaScript's have 53 bits of precision.
@@ -50,5 +50,26 @@ describe('findLossyNumbers', () => {
   it('places each number on its own line and column', () => {
     const source = '{\n  "a": 1,\n  "b": {\n    "id": 9007199254740993\n  }\n}'
     expect(findLossyNumbers(source)[0]).toMatchObject({ line: 4, col: 11 })
+  })
+})
+
+describe('lossyNumberRemedy', () => {
+  it('tells an integer to become a string, so an id keeps every digit', () => {
+    const [lossy] = findLossyNumbers('{"id":1234567890123456789}')
+    expect(lossyNumberRemedy(lossy!)).toBe(
+      'Write it as a string ("1234567890123456789") to keep every digit.',
+    )
+  })
+
+  it('offers a decimal the value clients already receive before a string', () => {
+    const [lossy] = findLossyNumbers('{"lat":40.712775800000001}')
+    expect(lossyNumberRemedy(lossy!)).toBe(
+      'Write 40.7127758, which is what clients already receive, or a string ("40.712775800000001") to keep every digit.',
+    )
+  })
+
+  it('never offers null for a magnitude a double cannot hold', () => {
+    const [lossy] = findLossyNumbers('[1e400]')
+    expect(lossyNumberRemedy(lossy!)).toBe('Write it as a string ("1e400") to keep every digit.')
   })
 })
