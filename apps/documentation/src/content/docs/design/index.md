@@ -38,6 +38,7 @@ that are not about `packages/editor`:
 | [testing-mcp](/design/testing-mcp/)                   | How the MCP surface is tested over real stdio                                                                                                           |
 | [websocket-mocking](/design/websocket-mocking/)       | **Open design.** The two questions that block a WebSocket plan                                                                                          |
 | [json-schema-adapters](/design/json-schema-adapters/) | **Draft spec.** JSON Schema as the stored generation rules, the input and export adapters, and the loss, refresh and code-execution policies of Plan 14 |
+| [examples](/design/examples/)                         | **Draft spec.** The example set: plain fetch, Next/Astro SSR, and a CRUD table built by an agent through laqi                                           |
 | [positioning](/design/positioning/)                   | **Draft spec.** Triggering circumstance, the real alternatives, category and audience — the inputs laqi.dev's copy was written without                  |
 | [backend-handoff](/design/backend-handoff/)           | **Draft spec.** What happens when the real API arrives, and the argument against giving laqi a proxy                                                    |
 | [page-evidence](/design/page-evidence/)               | **Draft spec.** What laqi.dev's three empty visual slots must demonstrate, and the two blockers that kept them empty                                    |
