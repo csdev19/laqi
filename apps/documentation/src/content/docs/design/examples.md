@@ -1,141 +1,241 @@
 ---
-title: Examples — design spec
+title: Examples, sandboxes and an agent-first CLI — design spec
 ---
 
-# Examples — design spec
+# Examples, sandboxes and an agent-first CLI — design spec
 
-**Status:** Draft. Open questions are listed at the end.
+**Status:** Draft. Decisions taken with Cristian on 2026-10-05. Open questions are at the end.
 **Date:** 2026-10-05
+
+This is the umbrella spec. It covers three pieces that only make sense together; two of them have
+their own page:
+
+| Piece | What it is                                                                                          | Spec                                        |
+| ----- | --------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| 1     | `bun run try`: a disposable sandbox, outside the repo, with a packed laqi installed in it           | [try-sandboxes](/design/try-sandboxes/)     |
+| 2     | CLI verbs that mirror the MCP tools 1:1, so an agent without MCP can do everything from a shell     | [agent-first-cli](/design/agent-first-cli/) |
+| 3     | Five examples, each exercising a different CLI surface, with a coverage matrix that is a smoke test | this page                                   |
 
 ## The problem
 
-laqi has one example, [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app).
-It is a TanStack Start app with auth, a paginated list and CRUD. That is a lot to take in at once, and
-it covers only one way of calling laqi: a browser, through a Vite proxy.
+laqi has one example, [`examples/todo-app`](https://github.com/csdev19/laqi/tree/main/examples/todo-app):
+TanStack Start, auth, a paginated list and CRUD, all through a Vite proxy. It covers one way of
+calling laqi, and nothing in the repo lets us watch an agent build a screen with laqi from zero.
 
-People reach laqi from three different places, and each one fails in its own way:
+People reach laqi from three places, and each fails in its own way:
 
-1. **A plain `fetch` from the browser.** The questions are the base URL, CORS and the states:
-   loading, error, empty.
-2. **A server-side fetch** (Next.js server components, Astro SSR). Here the _server process_ is
-   laqi's client. There is no proxy, `LAQI_URL` has to reach the Node process, and caching can hide a
-   flipped response.
-3. **An agent building a screen.** "I want a table of customers with create, edit and delete" should
-   end with the agent creating the endpoints, the data and the types through laqi on its own, with
-   no human writing JSON.
+1. **A plain `fetch` from the browser.** Base URL, CORS, and the loading/empty/error states.
+2. **A server-side fetch** (Next.js, Astro SSR). The server process is laqi's client: no proxy,
+   `LAQI_URL` must reach Node, and caching can hide a flipped response.
+3. **An agent building a screen.** "A customers table with create, edit and delete" should end with
+   the agent creating the endpoints, data and types through laqi, with no human writing JSON.
 
-The third one is the use case laqi is betting on: see [agent-facing-docs](/design/agent-facing-docs/).
-The examples are where that bet becomes visible and testable.
+The third is the bet ([agent-facing-docs](/design/agent-facing-docs/)). Today it only works over
+MCP: `create_endpoint`, `generate_data` and `get_types` have no CLI equivalent. And there is no
+cheap, repeatable way to hand an agent a fresh project and look at what it produced. Pieces 1 and 2
+fix that; piece 3 is where it becomes visible.
 
-## Goals
+## How the pieces fit
 
-- One small example per integration shape. Each one teaches one idea, and its README fits on one
-  screen.
-- Every example shows the **flip loop**: run the app, open `/__laqi`, flip a response, and watch the
-  app's state change with no restart.
-- Every example has an **"Ask your agent"** section with copy-paste prompts that reproduce or extend
-  its mocks through laqi's MCP tools or CLI.
-- At least one example (the CRUD table) is **built by an agent from an empty `laqi/` folder**, and
-  the transcript of the prompts is committed so it is reproducible.
+```
+examples/<name>/            reference app (committed, workspace member)
+examples/<name>/starter/    overlay: the few files that differ in the starter
+examples/<name>/try.json    how to derive the starter, ports, what try:report checks
 
-## Non-goals
+bun run try crud-table --from starter --name claude   → sandbox in $TMPDIR/laqi-tries/claude
+bun run try crud-table --from starter --name codex    → a second one, its own ports
+  → the agent works there, over MCP or over the CLI verbs (piece 2)
+bun run try:report claude                              → what it built vs the reference
+```
 
-- Stateful mocks. Generated data stays static ([data-generators](/design/data-generators/), "Generated
-  data is static, always"). CRUD examples keep using optimistic client updates, as `todo-app` does
-  today, and say so plainly.
-- Query-string matching. Responses are keyed by method and path. Tables sort, filter and paginate on
-  the client, over a seeded list.
-- E2E browser tests per example. `check-types` and `build` are enough for now (see the open questions).
+- The **reference** proves the example works and is what CI smoke-tests
+  (`try --from reference`, build, a `curl` against laqi).
+- The **starter** is what an agent or a person starts from. It is derived, not maintained.
+- The **CLI verbs** make the CLI-only path real, so "MCP vs CLI-only" is a comparison we can run.
 
-## The set
+## Piece 3 — the examples
+
+Every example is a workspace member named `@laqi/example-<name>`, has `mock` / `mock:dev` scripts
+like `todo-app`, reads its ports from the environment (never hard-coded, so `try` can allocate
+them), and has a README with three sections: **Run it**, **The thing worth trying** (the flip
+table) and **Ask your agent** (copy-paste prompts).
 
 ```
 examples/
-  README.md        index: which example answers which question
-  todo-app/        (exists) TanStack Start, auth + CRUD through a Vite proxy
-  fetch-basic/     new: Vite vanilla TS, one page, plain fetch
-  next-ssr/        new: Next.js App Router, server components fetch laqi
-  astro-ssr/       new: Astro (output: 'server'), frontmatter fetch
-  crud-table/      new: React admin table with full CRUD, built by an agent
+  README.md      one line per example: "use this when…"
+  fetch-basic/   Vite + vanilla TS, plain fetch
+  next-ssr/      Next.js App Router, server components fetch laqi
+  astro-ssr/     Astro SSR, mocks imported from OpenAPI
+  crud-table/    React admin table, built by an agent from an empty laqi/
+  todo-app/      (exists) TanStack Start, auth + CRUD through a Vite proxy
 ```
 
-Each example is a workspace member (`examples/*` is already listed), has `mock` and `mock:dev`
-scripts like `todo-app`, its own `laqi/` folder created with `laqi init`, and a README with these
-sections: **Run it**, **The thing worth trying** (the flip table) and **Ask your agent**.
+### `fetch-basic` — the smallest thing, and `laqi init`
 
-### `fetch-basic` — the smallest possible thing
-
-- Vite + vanilla TypeScript with no framework: `index.html` plus one `main.ts`.
-- `GET /users` renders a list. Responses: `ok`, `empty`, `error` (500), `slow` (delay).
-- It shows both connection modes, side by side in the README:
-  - **direct**: `fetch('http://127.0.0.1:8000/users')` with `cors` enabled in `laqi.config.json`;
-  - **proxied**: the Vite proxy, same-origin, as in `todo-app`.
-- Acceptance: the flip table covers all four responses, and the page shows each state.
+- **CLI surface:** `laqi init --from example --script --open`, folder vs single file, `cors`, the
+  `X-Laqi-Response` header.
+- `index.html` plus one `main.ts`. It consumes **exactly what `laqi init --from example` writes**
+  (`GET /todos` with `ok`, `empty` and `error`, plus the `offline` and `empty-state` scenarios), so
+  the README's first command produces a working app with no hand-written JSON. The reference adds a
+  `slow` response (`delay: 2000`) as its first edit.
+- Two connection modes, side by side:
+  - **direct:** `fetch(LAQI_URL + '/todos')`. `cors` defaults to `"*"`, so this works out of the
+    box; the README shows tightening it to an allowlist in `laqi.config.json`, and why `--share`
+    refuses `"*"` ([ADR-0007](/decisions/0007-public-url/)).
+  - **proxied:** the Vite proxy, same-origin, as `todo-app` does.
+- **Folder vs file:** the reference ships `laqi/`; the README shows the same mocks as one
+  `laqi.json` (`laqi start --file laqi.json`) and when each fits better.
+- A dev-only toggle sends `X-Laqi-Response: empty` on one request, to show the per-request layer
+  beating the panel.
+- **Acceptance:** `ok`, `empty`, `error` and `slow` each render their state, in both modes.
 
 ### `next-ssr` — the server is the client
 
-- Next.js App Router. `app/users/page.tsx` is a server component that fetches
-  `${process.env.LAQI_URL}/users` with `cache: 'no-store'`. The README explains why: with caching on,
-  a flip in the panel looks broken.
-- A 500 from laqi renders `error.tsx`. A 404 on `GET /users/:id` calls `notFound()`. A `slow`
-  response shows `loading.tsx` (streaming).
-- One mutation (create user) goes through a server action that POSTs to laqi, so the example has a
-  server-side write as well.
-- Acceptance: flipping `GET /users` to `error`, `empty` or `slow` and reloading shows the
-  corresponding Next.js boundary. `LAQI_URL` defaults to `http://127.0.0.1:8000`.
+- **CLI surface:** `--port`, `laqi init --port`, scenarios, `--share` and its bearer token.
+- `app/todos/page.tsx` is a server component fetching `${process.env.LAQI_URL}/todos` with
+  `cache: 'no-store'`. The README says why: with caching on, a flip looks broken.
+- laqi runs on **8010** in the committed `mock` script (`laqi init --port 8010 --script`), so the
+  example can run beside the root `bun dev`, which already holds 8000 (laqi) and 3000 (todo-app, and
+  Next's default).
+- A 500 renders `error.tsx`. A 404 on `GET /todos/:id` calls `notFound()`. `slow` shows
+  `loading.tsx` (streaming). One server action POSTs to laqi, so there is a server-side write.
+- **Scenarios** `offline` and `slow` flip every endpoint at once, from the panel or with
+  `laqi scenario`.
+- **`--share`:** a Vercel preview build hits a local laqi through the tunnel. The preview sets
+  `LAQI_URL` to the tunnel URL and `LAQI_TOKEN` to the bearer token laqi prints; the fetch helper
+  sends `Authorization: Bearer …`. The README states the risk of `--share --public` (anyone with the
+  URL reads your mocks) and that the quick-tunnel URL changes on every run.
+- **Acceptance:** flipping `GET /todos` to `error`, `empty` or `slow` and reloading shows the
+  matching Next.js boundary; activating `offline` breaks both the list and the action.
 
-### `astro-ssr` — the same idea, the smaller framework
+### `astro-ssr` — the OpenAPI example
 
-- Astro with `output: 'server'` and the Node adapter. `src/pages/index.astro` fetches in the
+- **CLI surface:** `laqi init --from openapi --spec openapi.json`, and `laqi import` (piece 2).
+- Astro with `output: 'server'` and the Node adapter; `src/pages/index.astro` fetches in the
   frontmatter.
-- The same `GET /users` contract as `next-ssr`, with error and empty states rendered in the page.
-- Acceptance: the same flip table as `next-ssr`, minus the streaming row.
+- The committed `openapi.json` (JSON only today) is the source of truth, and `laqi/` is generated
+  from it. The README shows editing the spec and re-importing with
+  `laqi import openapi.json --overwrite`, and what `--allow-loss` means when the importer refuses.
+- **Acceptance:** the same flip table as `next-ssr`, minus streaming; regenerating `laqi/` from the
+  spec is a no-op diff.
 
 ### `crud-table` — built by an agent
 
-- A clean React app (Vite + TanStack Query + TanStack Table) showing **customers**: a table with
-  columns, client-side sort, search and pagination, and **create / edit / delete** through a dialog,
-  with confirm-on-delete and optimistic updates.
-- **How it is built is the point.** It starts from `laqi init --yes` with an empty scaffold. Then an
-  agent, given only the prompts in `AGENT-WALKTHROUGH.md`, uses laqi's MCP tools to:
-  1. `create_endpoint` for `GET/POST /customers` and `GET/PATCH/DELETE /customers/:id`, with `ok`,
-     `empty`, `error`, `slow`, `validation-error` (422) and `not-found` (404) responses where they
-     apply;
-  2. `generate_data` from a pasted `Customer` model, producing 50 seeded rows that stay static;
-  3. `get_types` to write `src/api/types.ts`, so the frontend's types come from laqi.
-- `AGENT-WALKTHROUGH.md` commits the exact prompts, the order, and what to check after each step.
-  The CLI-only path (no MCP) is documented as the fallback, with the laqi commands that replace each
-  tool call.
-- Acceptance: following the walkthrough in a fresh clone, with any MCP-capable coding agent,
-  reproduces equivalent mocks. The app runs against them, and every row of the flip table works.
-  This doubles as the first run of the "repeatable agent evaluation of MCP tool descriptions" item.
+- **CLI surface:** `laqi init --from empty`, `laqi mcp`, and every write verb of piece 2.
+- Vite + React + TanStack Query + TanStack Table + Tailwind. **Customers:** client-side sort, search
+  and pagination (laqi does not match on query strings), and create / edit / delete through a dialog
+  with confirm-on-delete and **optimistic updates**. Mocks are static by ruling
+  ([data-generators](/design/data-generators/)), and the README says so plainly.
+- **Starter:** the app shell (layout, table component, dialog) with no `laqi/` and no `src/api/`. The
+  agent's job is the API layer and the mocks.
+- `AGENT-WALKTHROUGH.md` commits the prompts, their order, and what to check after each. Two paths,
+  same end state:
 
-### Cross-cutting
+  | Step                                     | MCP-only                                 | CLI-only                                                                 |
+  | ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+  | Empty mocks                              | —                                        | `laqi init --from empty --yes`                                           |
+  | `GET/POST /customers`, `…/:id` ×3        | `create_endpoint`                        | `laqi add "GET /customers" …`                                            |
+  | `empty`, `not-found`, `validation-error` | `scaffold_responses`                     | `laqi scaffold "GET /customers"`                                         |
+  | 50 seeded rows from `Customer`           | `generate_data` → `apply_generated_body` | `laqi generate --model … --count 50 --seed 1 --into "GET /customers#ok"` |
+  | `src/api/types.ts`                       | `get_types`                              | `laqi types "GET /customers" --out src/api/types.ts`                     |
+  | Check each state                         | `set_response`                           | `laqi set "GET /customers" error`                                        |
+
+- **Acceptance:** either path, in a fresh `try --from starter` with any coding agent, produces mocks
+  that `try:report` scores as equivalent to the reference; the app builds and every row of the flip
+  table works. This is the first run of the "repeatable agent evaluation of MCP tool descriptions"
+  item.
+
+### `todo-app` — stays, maybe gains a migrate demo
+
+- Keeps auth (`401` → sign out); it stays the only auth example.
+- Possible addition: a small v1 fixture in `legacy/mock-data/` and a README section running
+  `laqi migrate --dry-run`. See open question 5.
+
+## Coverage matrix
+
+`CI` = exercised by the example's smoke job (`try --from reference --cli local`, build, start laqi,
+`curl`). `doc` = shown in the README and checked by hand. Every CLI flag and MCP tool has a row; a new
+one without a row is a gap.
+
+| Surface                                  | fetch-basic | next-ssr | astro-ssr | crud-table | todo-app |
+| ---------------------------------------- | :---------: | :------: | :-------: | :--------: | :------: |
+| `laqi` / `laqi start`                    |     CI      |    CI    |    CI     |     CI     |    CI    |
+| `--port`                                 |             |    CI    |           |            |          |
+| `--host`                                 |             |          |           |            |   doc    |
+| `--dir` (folder)                         |     CI      |          |           |            |          |
+| `--file` (single `laqi.json`)            |     CI      |          |           |            |          |
+| `--share` + bearer token                 |             |   doc    |           |            |          |
+| `--public`, `--share-port`               |             |   doc    |           |            |          |
+| `init --from example`                    |     CI      |          |           |            |          |
+| `init --from empty`                      |             |          |           |     CI     |          |
+| `init --from openapi --spec`             |             |          |    CI     |            |          |
+| `init --script`, `--open`                |     doc     |          |           |            |          |
+| `init --port`                            |             |   doc    |           |            |          |
+| `init --force`, `--yes`                  |             |          |           |    doc     |          |
+| `migrate --dry-run`                      |             |          |           |            | doc (Q5) |
+| `cors` in `laqi.config.json`             |     doc     |          |           |            |          |
+| `X-Laqi-Response` header                 |     CI      |          |           |            |          |
+| scenarios (`scenarios.json`)             |     doc     |    CI    |           |            |   doc    |
+| panel flip (`/__laqi`)                   |     doc     |   doc    |    doc    |    doc     |   doc    |
+| `laqi mcp`                               |             |          |           |    doc     |          |
+| `list_endpoints` · `laqi endpoints`      |             |          |           |     CI     |          |
+| `get_state` · `laqi state`               |             |    CI    |           |            |          |
+| `set_response` · `laqi set`              |     CI      |    CI    |           |     CI     |          |
+| `set_scenario` · `laqi scenario`         |             |    CI    |           |            |          |
+| `reset_state` · `laqi reset`             |             |    CI    |           |            |          |
+| `create_endpoint` · `laqi add`           |             |          |           |     CI     |          |
+| `update_endpoint` · `laqi update`        |     doc     |          |           |    doc     |          |
+| `delete_endpoint` · `laqi remove`        |             |          |           |    doc     |          |
+| `scaffold_responses` · `laqi scaffold`   |             |          |           |     CI     |          |
+| `import_openapi` · `laqi import`         |             |          |    CI     |            |          |
+| `get_types` · `laqi types`               |             |          |           |     CI     |          |
+| `generate_data` + `apply_generated_body` |             |          |           |     CI     |          |
+| `regenerate_response`, `refresh_schema`  |             |          |           |    doc     |          |
+
+The CLI-verb rows become `CI` once piece 2 lands; until then the crud-table smoke job runs the
+reference's committed mocks.
+
+## Cross-cutting
 
 - `examples/README.md` gives each example one line: "use this when…".
-- laqi.dev gets an **Examples** docs page linking to all of them, and the root README's "Want to see
-  it used?" points to the index instead of to `todo-app` alone.
-- `bun dev` at the root keeps running `todo-app`. Each example runs with
+- `bun dev` at the root keeps running `todo-app`; each example runs with
   `bun run dev --filter=@laqi/example-<name>`.
-- Examples stay out of releases: `examples` is already in release-please `exclude-paths`.
-- `verify` covers `check-types` and `build` for every example. If Next's build makes `verify`
-  noticeably slower, Next gets its own job in CI instead (see the open questions).
+- Examples stay out of releases (`examples` is already in release-please `exclude-paths`).
+- CI: one matrix job, one leg per example, running the smoke mode of
+  [try-sandboxes](/design/try-sandboxes/). `verify` keeps `check-types` for every example; whether
+  `build` stays in `verify` is decided by measuring Next (open question 3).
+- laqi.dev gets an **Examples** docs page, and the root README's "Want to see it used?" points at
+  `examples/README.md` instead of `todo-app` alone.
 
-## Suggested order (one PR each, stackable)
+## Delivery order
 
-1. `fetch-basic` + `examples/README.md`
-2. `next-ssr`
-3. `astro-ssr`
-4. `crud-table` + `AGENT-WALKTHROUGH.md`. **plan-first**: the walkthrough is new ground.
-5. The docs page on laqi.dev and the root README pointer.
+Small, stackable PRs, one Linear ticket each:
+
+| PR  | Scope                                                                                              | Depends on | Notes                                               |
+| --- | -------------------------------------------------------------------------------------------------- | ---------- | --------------------------------------------------- |
+| a   | `try`, `try:list`, `try:clean`, plus `try.json` for `todo-app`                                     | —          | proves the sandbox on the example we already have   |
+| b   | `fetch-basic`, `examples/README.md`, the CI smoke matrix                                           | a          |                                                     |
+| c1  | Extract the shared operations; read-only verbs (`endpoints`, `state`, `types`, `generate` preview) | —          | **plan-first**: the extraction reshapes `@laqi/mcp` |
+| c2  | Write verbs and the parity test                                                                    | c1         | `feat(cli)`, so it reaches npm                      |
+| d   | `crud-table`, its starter, `AGENT-WALKTHROUGH.md`, `try:report`                                    | a, c2      | the first agent-evaluation run                      |
+| e   | `next-ssr`                                                                                         | a          |                                                     |
+| f   | `astro-ssr` (OpenAPI)                                                                              | a, c2      | uses `laqi import`                                  |
+| g   | Examples page on laqi.dev, root README pointer                                                     | b–f        |                                                     |
+
+(a) and (c1) can start in parallel.
 
 ## Open questions
 
-1. **Next and Astro, or only Next?** Next is what most agent-built frontends use. Astro is cheap to
-   add once the contract is shared. Proposed: both, Next first.
-2. **UI for `crud-table`**: plain CSS like `todo-app`, or Tailwind? Proposed: Tailwind, to match
-   what agents generate by default.
-3. **Next's cost in CI**: keep it in `verify`, or give it a separate job? Proposed: decide on the
-   first PR by measuring it.
-4. **Should the CRUD friction (creates don't persist on reload) become an Idea ticket** for opt-in
-   stateful collections? Proposed: yes, as an Idea, without reopening the static-data ruling here.
+1. **Next and Astro, or only Next?** Proposed: both, Next first. Astro is cheap once the contract is
+   shared, and it carries the OpenAPI story.
+2. **Tailwind in `crud-table`?** Proposed: yes. It is what agents generate by default, and the
+   starter should not fight the agent.
+3. **Next's cost in CI:** `build` in `verify`, or only in the smoke matrix? Proposed: measure on PR
+   (e).
+4. **Stateful collections:** should the CRUD friction (creates don't survive a reload) become an Idea
+   ticket for opt-in stateful collections? Proposed: yes, as an Idea, without reopening the
+   static-data ruling.
+5. **A `laqi migrate` demo in `todo-app`?** For: the matrix has no other home for it. Against: v1 is
+   legacy, `migrate.test.ts` already covers it, and a fixture adds noise to the example people read
+   first. Proposed: leave it in tests and mark the row "tests only", unless Cristian wants it
+   visible.
