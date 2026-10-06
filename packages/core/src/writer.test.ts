@@ -534,3 +534,77 @@ describe('the mocks directory, not the working directory', () => {
     expect(existsSync(join(real, 'api.json'))).toBe(true)
   })
 })
+
+// A JSON number past 2^53 does not survive JSON.parse. Rewriting the file
+// from the parsed value would write the changed number back over the one the
+// user typed — in an endpoint they never touched. Refusing is the only write
+// that loses nothing.
+describe('a file holding numbers JavaScript cannot carry', () => {
+  const source =
+    '{\n' +
+    '  "GET /orders": { "default": "ok", "responses": { "ok": { "status": 200, "body": { "id": 1234567890123456789 } } } },\n' +
+    '  "GET /ping": { "default": "ok", "responses": { "ok": { "status": 200, "body": { "pong": true } } } }\n' +
+    '}\n'
+
+  function writeRaw(relative: string, text: string) {
+    const full = join(root, relative)
+    mkdirSync(join(full, '..'), { recursive: true })
+    writeFileSync(full, text, 'utf8')
+  }
+
+  const readRaw = (relative: string) => readFileSync(join(root, relative), 'utf8')
+
+  it('refuses to edit another endpoint in it, and says which number and where', () => {
+    writeRaw('laqi/api.json', source)
+
+    const result = updateEndpointInFile({
+      root,
+      bounds,
+      file: 'laqi/api.json',
+      id: 'GET /ping',
+      definition: okDefinition,
+    })
+
+    expect(result.ok).toBe(false)
+    const error = (result as { error: string }).error
+    expect(error).toContain('1234567890123456789')
+    expect(error).toContain('1234567890123456800')
+    expect(error).toContain('line 2')
+    expect(error).toContain('"1234567890123456789"')
+    expect(readRaw('laqi/api.json')).toBe(source)
+  })
+
+  it('refuses to add or delete an endpoint in it too', () => {
+    writeRaw('laqi/api.json', source)
+
+    const created = createEndpointInFile({
+      root,
+      bounds,
+      file: 'laqi/api.json',
+      id: 'GET /new',
+      definition: okDefinition,
+    })
+    const deleted = deleteEndpointFromFile({ root, bounds, file: 'laqi/api.json', id: 'GET /ping' })
+
+    expect(created.ok).toBe(false)
+    expect(deleted.ok).toBe(false)
+    expect(readRaw('laqi/api.json')).toBe(source)
+  })
+
+  it('still edits a file whose numbers only change spelling, like 1.50', () => {
+    writeRaw(
+      'laqi/api.json',
+      '{ "GET /price": { "default": "ok", "responses": { "ok": { "status": 200, "body": { "price": 1.50 } } } } }',
+    )
+
+    const result = updateEndpointInFile({
+      root,
+      bounds,
+      file: 'laqi/api.json',
+      id: 'GET /price',
+      definition: okDefinition,
+    })
+
+    expect(result.ok).toBe(true)
+  })
+})

@@ -168,3 +168,39 @@ describe('laqi start — alias for the default serve mode', () => {
     expect(stderr).not.toContain('"start"')
   })
 })
+
+// The file loaded and every endpoint in it is served; one number in it just
+// cannot reach a client as written. Calling that "failed to load" sends the
+// reader looking for a syntax error that is not there.
+describe('laqi start — a number JavaScript cannot carry', () => {
+  it('names the number and what clients receive, and does not call the file failed', async () => {
+    root = mkdtempSync(join(tmpdir(), 'laqi-cli-'))
+    writeFileSync(
+      join(root, 'laqi.json'),
+      '{ "GET /orders": { "default": "ok", "responses": { "ok": { "status": 200, "body": { "id": 1234567890123456789 } } } } }',
+      'utf8',
+    )
+
+    const output = await new Promise<string>((resolve, reject) => {
+      const proc = spawn('bun', [CLI_ENTRY, '--port', '0'], { cwd: root })
+      child = proc
+      let seen = ''
+      const timeout = setTimeout(() => reject(new Error(`timed out: ${seen}`)), 15_000)
+      const read = (chunk: Buffer) => {
+        seen += chunk.toString()
+        if (seen.includes('serving') && seen.includes('1234567890123456800')) {
+          clearTimeout(timeout)
+          // Let the rest of the report flush before reading it.
+          setTimeout(() => resolve(seen), 100)
+        }
+      }
+      proc.stdout.on('data', read)
+      proc.stderr.on('data', read)
+    })
+
+    expect(output).toContain('1234567890123456789')
+    expect(output).toContain('"1234567890123456789"')
+    expect(output).not.toContain('failed to load')
+    expect(output).toContain('served, but not as written')
+  })
+})

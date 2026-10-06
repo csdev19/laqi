@@ -27,6 +27,8 @@ export type Endpoint = {
 }
 
 export type LoadError = {
+  /** `lossy-number`: the file loaded and is served; one number in it is not served as written. */
+  kind?: 'lossy-number'
   file: string
   line?: number
   col?: number

@@ -15,10 +15,14 @@ export function ErrorBand(props: { errors: LoadError[]; onReload: () => void }) 
         <div className="band-title mono">{position(first)}</div>
         <div className="band-message">{first.message}</div>
         {first.excerpt ? <pre className="band-excerpt">{first.excerpt}</pre> : null}
-        <div className="band-note">The rest of the mocks are still being served.</div>
+        <div className="band-note">
+          {first.kind === 'lossy-number'
+            ? 'The endpoint is still served, with the number JavaScript kept. Edits to this file are refused until the number is a string.'
+            : 'The rest of the mocks are still being served.'}
+        </div>
         {rest.length > 0 ? (
           <div className="band-more">
-            and {rest.length} more {rest.length === 1 ? 'file' : 'files'} failed to load
+            and {rest.length} more {rest.length === 1 ? 'problem' : 'problems'} in the mock files
           </div>
         ) : null}
       </div>

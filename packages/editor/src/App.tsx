@@ -390,7 +390,7 @@ export function App() {
       <Header
         status={status}
         endpointCount={endpoints.length}
-        failedFiles={errors.length}
+        failedFiles={errors.filter((error) => error.kind !== 'lossy-number').length}
         overridden={overriddenCount({ endpoints, state, scenarios })}
         onOpenPalette={() => setPaletteOpen(true)}
       />

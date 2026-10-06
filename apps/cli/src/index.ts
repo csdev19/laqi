@@ -499,12 +499,17 @@ function report(
   // Some files parsed and some did not: degraded, not fatal — laqi keeps
   // serving the endpoints that did load.
   for (const error of runtime.errors) {
+    const lossy = error.kind === 'lossy-number'
     reportFailure({
       severity: 'degraded',
-      headline: `${error.file} failed to load`,
+      headline: lossy
+        ? `${error.file} has a number clients will not receive as written`
+        : `${error.file} failed to load`,
       cause: error.message,
       evidence: { file: error.file, line: error.line, col: error.col, excerpt: error.excerpt },
-      outcome: `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
+      outcome: lossy
+        ? 'served, but not as written · edits to this file are refused until it is a string'
+        : `still serving the ${loaded} endpoint${loaded === 1 ? '' : 's'} that loaded · save the file to retry`,
     })
   }
 
