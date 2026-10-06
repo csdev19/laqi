@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { findLossyNumbers, lossyNumberRemedy } from './lossy-numbers'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { withFileLock, writeFileAtomic } from './atomic-file'
 import { bodyHash } from './canonical-json'
@@ -136,6 +137,30 @@ function readFileObject(
   }
 }
 
+/**
+ * The read every write goes through. A number JavaScript cannot hold exactly
+ * would be rewritten with the value JSON.parse kept, in an endpoint nobody
+ * asked to change, so a file holding one is refused rather than rewritten.
+ */
+function readFileForWrite(
+  fullPath: string,
+  file: string,
+): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+  const read = readFileObject(fullPath)
+  if (!read.ok) return read
+
+  const [lossy] = findLossyNumbers(readFileSync(fullPath, 'utf8'))
+  if (lossy) {
+    return {
+      ok: false,
+      error:
+        `refusing to rewrite ${file}: line ${lossy.line} has ${lossy.written}, which JavaScript reads as ${lossy.becomes}, ` +
+        `so saving would change it in your file. Edit the file by hand first. ${lossyNumberRemedy(lossy)}`,
+    }
+  }
+  return read
+}
+
 function writeFileObject(fullPath: string, contents: Record<string, unknown>): void {
   writeFileAtomic(fullPath, `${formatJson(contents)}\n`)
 }
@@ -189,7 +214,7 @@ export function updateEndpointInFile(params: {
   // Read, check, and write under the lock: between the read and the write
   // another process could be doing the same thing to the same file.
   return locked(fullPath, () => {
-    const read = readFileObject(fullPath)
+    const read = readFileForWrite(fullPath, file)
     if (!read.ok) return read
 
     const key = findKey(read.value, id)
@@ -222,7 +247,9 @@ export function createEndpointInFile(params: {
 
   return locked(fullPath, () => {
     // The file may not exist yet (first endpoint created from the panel).
-    const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
+    const read = existsSync(fullPath)
+      ? readFileForWrite(fullPath, file)
+      : { ok: true as const, value: {} }
     if (!read.ok) return read
 
     // Normalized: writing "GET /users" next to an existing "get  /users"
@@ -269,7 +296,9 @@ export function createEndpointsInFile(params: {
   }
 
   return locked(fullPath, () => {
-    const read = existsSync(fullPath) ? readFileObject(fullPath) : { ok: true as const, value: {} }
+    const read = existsSync(fullPath)
+      ? readFileForWrite(fullPath, file)
+      : { ok: true as const, value: {} }
     if (!read.ok) return read
 
     for (const entry of validated) {
@@ -297,7 +326,7 @@ export function deleteEndpointFromFile(params: {
   const fullPath = inside.path
 
   return locked(fullPath, () => {
-    const read = readFileObject(fullPath)
+    const read = readFileForWrite(fullPath, file)
     if (!read.ok) return read
 
     const key = findKey(read.value, id)
@@ -441,7 +470,7 @@ export function updateResponseInFile(params: {
   const fullPath = inside.path
 
   return locked(fullPath, () => {
-    const read = readFileObject(fullPath)
+    const read = readFileForWrite(fullPath, file)
     if (!read.ok) return read
 
     const found = findResponse(read.value, id, response, file)

@@ -59,6 +59,50 @@ describe('numbers', () => {
     expect(compiled({ type: 'number' }).plan).toEqual({ kind: 'primitive', type: 'number' })
   })
 
+  // OpenAPI writes the storage width on nearly every number. Refusing it
+  // meant a real spec imported with most of its bodies missing.
+  it('accepts the OpenAPI numeric formats, which only say how wide the value is', () => {
+    expect(compiled({ type: 'integer', format: 'int64' }).plan).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+    })
+    expect(compiled({ type: 'integer', format: 'int32' }).plan).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+    })
+    expect(compiled({ type: 'number', format: 'double' }).plan).toEqual({
+      kind: 'primitive',
+      type: 'number',
+    })
+    expect(compiled({ type: 'number', format: 'float' }).plan).toEqual({
+      kind: 'primitive',
+      type: 'number',
+    })
+  })
+
+  it('reads an integer format on a number as a promise that the number is whole', () => {
+    expect(compiled({ type: 'number', format: 'int64' }).plan).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+    })
+  })
+
+  it('keeps int32 bounds inside the range an int32 can hold', () => {
+    expect(
+      compiled({ type: 'integer', format: 'int32', minimum: -1e12, maximum: 1e12 }).plan,
+    ).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+      number: { minimum: -2147483648, maximum: 2147483647 },
+    })
+  })
+
+  it('refuses a numeric format it does not know, by name', () => {
+    const diagnostic = refused({ type: 'integer', format: 'uint128' })
+    expect(diagnostic.code).toBe('unsupported.keyword')
+    expect(diagnostic.message).toContain('"uint128"')
+  })
+
   it('refuses bounds that cross, which nothing satisfies', () => {
     expect(refused({ type: 'integer', minimum: 10, maximum: 1 }).code).toBe('unsatisfiable')
     expect(refused({ type: 'integer', exclusiveMinimum: 5, exclusiveMaximum: 6 }).code).toBe(

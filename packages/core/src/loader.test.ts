@@ -167,3 +167,30 @@ describe('loadMocks', () => {
     expect(load().endpoints.map((e) => e.id)).toEqual(['POST /users', 'GET /users'])
   })
 })
+
+describe('numbers JavaScript cannot carry', () => {
+  it('still loads the endpoint, and reports the number with what a client will receive', () => {
+    writeMock(
+      'laqi/api.json',
+      '{\n  "GET /orders": {\n    "default": "ok",\n    "responses": { "ok": { "status": 200, "body": { "id": 1234567890123456789 } } }\n  }\n}\n',
+    )
+
+    const result = load()
+
+    expect(result.endpoints.map((e) => e.id)).toEqual(['GET /orders'])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toMatchObject({ file: join('laqi', 'api.json'), line: 4 })
+    expect(result.errors[0]!.message).toContain('1234567890123456789')
+    expect(result.errors[0]!.message).toContain('1234567890123456800')
+    expect(result.errors[0]!.message).toContain('"1234567890123456789"')
+    expect(result.errors[0]!.excerpt).toContain('^')
+  })
+
+  it('reports nothing for numbers that only change spelling', () => {
+    writeMock(
+      'laqi/api.json',
+      '{ "GET /p": { "default": "ok", "responses": { "ok": { "status": 200, "body": { "a": 1.50, "b": -0, "c": 1E+21 } } } } }',
+    )
+    expect(load().errors).toEqual([])
+  })
+})

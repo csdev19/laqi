@@ -283,24 +283,56 @@ function constant(node: Record<string, unknown>, pointer: string, keywords: stri
   return { kind: 'literals', values: [value as PlanLiteral] }
 }
 
+/**
+ * OpenAPI's numeric formats. Each names how wide the value is stored, never a
+ * shape of its own, so laqi honours them as bounds and wholeness rather than
+ * refusing a spec that writes them on nearly every number.
+ */
+const NUMERIC_FORMATS: Record<string, { whole: boolean; minimum?: number; maximum?: number }> = {
+  int32: { whole: true, minimum: -2147483648, maximum: 2147483647 },
+  int64: { whole: true },
+  float: { whole: false },
+  double: { whole: false },
+}
+
 function number(
   node: Record<string, unknown>,
-  type: 'number' | 'integer',
+  declared: 'number' | 'integer',
   pointer: string,
   keywords: string[],
 ): Plan {
   reject(
     keywords,
-    ['type', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
+    ['type', 'format', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'],
     node,
     pointer,
   )
 
+  const format = node.format
+  if (
+    format !== undefined &&
+    (typeof format !== 'string' || !Object.hasOwn(NUMERIC_FORMATS, format))
+  ) {
+    refuse(
+      'unsupported.keyword',
+      `laqi generates the numeric formats ${Object.keys(NUMERIC_FORMATS).join(', ')}; it has no generator for ${JSON.stringify(format)}`,
+      pointer,
+    )
+  }
+  const width = format === undefined ? undefined : NUMERIC_FORMATS[format as string]!
+  const type = width?.whole ? 'integer' : declared
+
   const step = type === 'integer' ? 1 : Number.EPSILON
   const exclusiveMinimum = numeric(node, 'exclusiveMinimum', pointer)
   const exclusiveMaximum = numeric(node, 'exclusiveMaximum', pointer)
-  const minimum = numeric(node, 'minimum', pointer) ?? bump(exclusiveMinimum, step)
-  const maximum = numeric(node, 'maximum', pointer) ?? bump(exclusiveMaximum, -step)
+  const minimum = clampLow(
+    numeric(node, 'minimum', pointer) ?? bump(exclusiveMinimum, step),
+    width?.minimum,
+  )
+  const maximum = clampHigh(
+    numeric(node, 'maximum', pointer) ?? bump(exclusiveMaximum, -step),
+    width?.maximum,
+  )
   const multipleOf = numeric(node, 'multipleOf', pointer)
 
   if (minimum !== undefined && maximum !== undefined && minimum > maximum) {
@@ -327,6 +359,15 @@ function number(
 /** An exclusive bound becomes the nearest inclusive one the type can represent. */
 const bump = (bound: number | undefined, step: number): number | undefined =>
   bound === undefined ? undefined : bound + step
+
+/**
+ * A stated bound is narrowed to what the format can hold. An absent bound
+ * stays absent: the unbounded generators already stay far inside an int32.
+ */
+const clampLow = (bound: number | undefined, floor: number | undefined): number | undefined =>
+  bound === undefined || floor === undefined ? bound : Math.max(bound, floor)
+const clampHigh = (bound: number | undefined, ceiling: number | undefined): number | undefined =>
+  bound === undefined || ceiling === undefined ? bound : Math.min(bound, ceiling)
 
 function typeUnion(
   node: Record<string, unknown>,

@@ -33,6 +33,25 @@ exist. Each file is a JSON object whose keys are `"METHOD /path"`:
 - `:param` segments in a path are dynamic — `/users/:id` matches
   `/users/42`.
 
+## Numbers, dates and other values
+
+A body is served as the JSON value the file holds. Strings, `null`, booleans,
+empty objects and arrays, key order, emoji and escapes all reach the client
+unchanged.
+
+- **Dates are strings in JSON**, and laqi serves them exactly as written:
+  `"2026-10-06T09:30:00-05:00"` keeps its offset. laqi never converts them.
+- **Numbers keep their value, but not their spelling.** `1.50` is served as
+  `1.5` and `1E+21` as `1e+21`. Every JSON client reads those as the same
+  number.
+- **Integers larger than 2^53 (9007199254740991) cannot be carried exactly.**
+  JavaScript reads `1234567890123456789` as `1234567890123456800`, and that
+  is what a client would get. laqi reports each such number when the file
+  loads. It also refuses to rewrite that file from the panel or an agent,
+  because saving would change the number in your file. Write the value as a
+  string (`"1234567890123456789"`) to keep every digit. Many real APIs send
+  64-bit ids as strings for this reason.
+
 ## Scenarios
 
 A `scenarios.json` file at the top of the `laqi/` folder maps a scenario

@@ -9,9 +9,16 @@ import {
   type MockResponse,
   type Scenarios,
 } from '@laqi/schema'
-import { parseJsonWithPosition } from './json-position'
+import { buildExcerpt, parseJsonWithPosition } from './json-position'
+import { findLossyNumbers, lossyNumberRemedy } from './lossy-numbers'
 
 export type LoadError = {
+  /**
+   * Absent for a file (or endpoint) that did not load. `lossy-number` is a
+   * file that loaded and is served, holding a number JavaScript cannot carry
+   * exactly, so what clients receive differs from what is written.
+   */
+  kind?: 'lossy-number'
   file: string
   line?: number
   col?: number
@@ -103,6 +110,21 @@ function loadFromFiles(root: string, paths: string[], source: 'dir' | 'file'): L
         excerpt: parsed.excerpt,
       })
       continue
+    }
+
+    // The endpoint still loads, so the rest of the file keeps working; the
+    // number is reported because what a client receives is not what is written.
+    for (const lossy of findLossyNumbers(raw)) {
+      errors.push({
+        kind: 'lossy-number',
+        file: displayPath,
+        line: lossy.line,
+        col: lossy.col,
+        message:
+          `${lossy.written} cannot be held exactly by JavaScript, so clients receive ${lossy.becomes}. ` +
+          lossyNumberRemedy(lossy),
+        excerpt: buildExcerpt(raw, lossy.line, lossy.col),
+      })
     }
 
     if (basename(path) === SCENARIOS_FILENAME) {
