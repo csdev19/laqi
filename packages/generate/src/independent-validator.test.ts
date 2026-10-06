@@ -68,6 +68,17 @@ describe('every additive keyword laqi claims to honour', () => {
     'format uri': { type: 'string', format: 'uri' },
     'format uuid': { type: 'string', format: 'uuid' },
     'format date-time': { type: 'string', format: 'date-time' },
+    'format int32': { type: 'integer', format: 'int32' },
+    'format int64': { type: 'integer', format: 'int64' },
+    'format float': { type: 'number', format: 'float' },
+    'format double': { type: 'number', format: 'double' },
+    'int32 with bounds wider than an int32': {
+      type: 'integer',
+      format: 'int32',
+      minimum: 2147483000,
+      maximum: 1e12,
+    },
+    'an int64 written on a number': { type: 'number', format: 'int64', minimum: 0.5, maximum: 9.5 },
     'array length': { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 4 },
     'unique items': {
       type: 'array',
