@@ -35,22 +35,22 @@ Every status below was checked against `gh pr list --state all` and
 
 ## Tasks
 
-- [ ] `product/roadmap.md`: new review date, the shipped table extended
+- [x] `product/roadmap.md`: new review date, the shipped table extended
       (Plan 11, Plan 14, stored schema, v3 home, hero demo, data-type
       fidelity, 2.1.0), In flight lists the three open PRs, and the
       "Next" sections that have since shipped or got a PR say so.
-- [ ] `plans/index.md`: status column fixed for 11–14, Plan 14 and Plan 16
+- [x] `plans/index.md`: status column fixed for 11–14, Plan 14 and Plan 16
       added to the table, the header paragraph no longer calls 14 and 15
       proposals.
-- [ ] Plan 14's own status line, and Plan 15's.
-- [ ] `design/json-schema-adapters.md`: status header says all six phases are
+- [x] Plan 14's own status line, and Plan 15's.
+- [x] `design/json-schema-adapters.md`: status header says all six phases are
       implemented, with the PRs.
-- [ ] `adversarial/storing-models-in-mocks.md`: marked resolved, with a short
+- [x] `adversarial/storing-models-in-mocks.md`: marked resolved, with a short
       "Outcome" section pointing at what Plan 14 decided.
-- [ ] Duplicate keys within one JSON file: documented on laqi.dev's
+- [x] Duplicate keys within one JSON file: documented on laqi.dev's
       [mock files](https://laqi.dev/docs/mock-files/) page (the place a user
       reads the file format), and the Plan 1 audit item marked done.
-- [ ] The durable fix for the hand-maintained status column: proposed below.
+- [x] The durable fix for the hand-maintained status column: proposed below.
       Not built in this plan.
 
 ## Durable fix — proposal: derive plan status from PR state

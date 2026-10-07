@@ -5,10 +5,11 @@ description: What has shipped, what is in flight, and what comes next — the si
 
 # Roadmap
 
-**Last reviewed: 2026-09-02.** Statuses here are verified against merged
-PRs, not against plan documents.
+**Last reviewed: 2026-10-07.** Statuses here are verified against merged
+PRs (`gh pr list --state all`), not against plan documents. Current release:
+`laqi` **2.1.0** (2026-10-06), laqi.dev site **0.3.0**.
 
-## Shipped — in v2.0.0's scope, merged to `main`
+## Shipped — merged to `main`
 
 | What                                                                                                                | Where it landed     |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------- |
@@ -26,12 +27,34 @@ PRs, not against plan documents.
 | laqi.dev: landing page, three docs pages, shared tokens, deploy on merge                                            | Plan 10, PR #33     |
 | Effect-first inside `@laqi/generate`: services, layers, a module-local runtime                                      | ADR-0012, PR #51    |
 
+### Shipped since 2.0.1 — in 2.1.0 and site 0.2.0 / 0.3.0
+
+| What                                                                                                                                                      | Where it landed          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Response scaffolding: a status combobox that names every code, a one-click scaffold of the usual sibling responses, and the `scaffold_responses` MCP tool | Plan 11, PR #54          |
+| A small TypeScript editor for pasted models, with example models                                                                                          | PR #58                   |
+| Writes confined to the mocks directory                                                                                                                    | PR #59                   |
+| Stored schema: a response remembers the JSON Schema its body came from, regenerates from it, and refuses a blind overwrite                                | Plan 14, PRs #62/#64/#65 |
+| Schema inputs: pasted TypeScript, JSON Schema, OpenAPI through the real compiler, the project's own code through Standard JSON Schema                     | Plan 14, PR #65          |
+| laqi.dev correctness fixes, and the home page rebuilt as the v3 design                                                                                    | Plan 15, PR #68          |
+| Hero demo: the example made ready to record, a stale override no longer blocks every flip, and the recording published on laqi.dev                        | PRs #71/#74, site 0.3.0  |
+| Data-type fidelity: numbers, dates and odd JSON values reach the client as written; integers > 2^53 are reported and files holding them refuse rewrites   | PR #73                   |
+
 ## In flight
 
-Nothing. `2.0.1` is published, laqi.dev is live, and the Effect-first change
-set merged on 2026-09-02.
+Three PRs are open, none merged:
 
-## Next — committed direction, not yet planned
+- **#55 — package-manager toggle on laqi.dev** ([Plan 12](/plans/2026-09-02-12-package-manager-toggle/)).
+- **#56 — terminal request stream and the `o`/`s`/`c`/`q` keys** ([Plan 13](/plans/2026-09-02-13-terminal-request-stream/)).
+- **#66 — the editor's saved vs live response state.** Missed 2.1.0; targeted
+  at 2.1.1.
+
+Known follow-ups from the 2.1.0 release review (Linear NIW2-8): `laqi mcp`
+reports a hardcoded server version, OpenAPI `int64`/`int32` bounds can generate
+out-of-range integers, integers > 2^53 are reported but not served losslessly,
+and the install is ~92 MB.
+
+## Next — committed direction
 
 ### Package-manager toggle on laqi.dev
 
@@ -46,7 +69,8 @@ applied to every install snippet across the site. The site is static
 Astro, so this is a small client-side island. Before shipping: actually
 verify the global-install and runner paths on each manager (yarn classic
 vs berry differ on `global`) — that verification is Task 1 of
-**[Plan 12](/plans/2026-09-02-12-package-manager-toggle/)**.
+**[Plan 12](/plans/2026-09-02-12-package-manager-toggle/)**. Implemented in
+PR #55, open and unmerged as of 2026-10-07.
 
 ### Terminal output, stages 2 and 3
 
@@ -62,10 +86,8 @@ Planned in **[Plan 13](/plans/2026-09-02-13-terminal-request-stream/)**, which
 covers the stream, the keys and `via public`. The QR is held back there: it
 needs either a new published dependency or a Reed-Solomon encoder bundled into
 `@laqi/tui`, and `apps/cli/src/package.test.ts` asserts the dependency list
-exactly — so that is an ADR, not a task.
-
-This section is new. The work existed in the design doc and in the plan index,
-and never appeared here, which is how it went unnoticed.
+exactly — so that is an ADR, not a task. The stream, the keys and
+`via public` are implemented in PR #56, open and unmerged as of 2026-10-07.
 
 ### WebSocket mocking
 
@@ -112,6 +134,15 @@ visibly wrong. The full table lives in the audit.
 ## Housekeeping
 
 - ~~The [plans index](/plans/) status column is stale.~~ Corrected on
-  2026-09-02: plans 6–8 now read Merged, and plans 9–13 are listed. The column
-  is still hand-maintained, so it will drift again — deriving it from PR state
-  is the durable fix and has not been done.
+  2026-09-02, and again on 2026-10-07 by
+  [Plan 16](/plans/2026-10-07-16-docs-housekeeping/): 11, 14 and 15 read
+  Merged, 12 and 13 read In review. The column is still hand-maintained, so it
+  will drift again. Plan 16 proposes the durable fix (plan frontmatter lists
+  its PRs, a script derives the status); it is not built yet.
+- ~~The JSON Schema spec header said phases 2–6 had not started.~~ Corrected
+  on 2026-10-07; all six phases are merged.
+- ~~[Storing models in mocks](/adversarial/storing-models-in-mocks/) was still
+  open.~~ Marked resolved on 2026-10-07, with an Outcome section.
+- ~~Duplicate keys within one JSON file are deduplicated silently and nobody
+  says so (Plan 1 audit, Minor).~~ Documented on laqi.dev's Mock files page on
+  2026-10-07.
