@@ -95,6 +95,16 @@ describe('laqi mcp over stdio', () => {
     ])
   })
 
+  it('reports the version of the laqi package the user installed, not a literal', async () => {
+    const cliPackage = JSON.parse(
+      readFileSync(
+        join(import.meta.dirname, '..', '..', '..', 'apps', 'cli', 'package.json'),
+        'utf8',
+      ),
+    ) as { version: string }
+    expect(client.getServerVersion()).toMatchObject({ name: 'laqi', version: cliPackage.version })
+  })
+
   it('teaches the layer model in its instructions, so the agent does not guess', async () => {
     const instructions = client.getInstructions() ?? ''
     expect(instructions).toContain('An override beats the active scenario')

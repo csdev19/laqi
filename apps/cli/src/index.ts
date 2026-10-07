@@ -162,7 +162,7 @@ async function main(): Promise<void> {
     // the transport. The startup banner goes to stderr.
     const { startMcpStdio } = await import('@laqi/mcp')
     console.error(`laqi mcp — serving ${root}`)
-    await startMcpStdio({ root, config })
+    await startMcpStdio({ root, config, version: laqiVersion() })
     return
   }
 
