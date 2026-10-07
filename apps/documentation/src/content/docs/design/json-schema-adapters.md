@@ -4,7 +4,7 @@ title: JSON Schema and adapters — design spec
 
 # JSON Schema and adapters — design spec
 
-**Status:** phase 1 implemented; phases 2-6 not started. Derived from [Plan 14](/plans/2026-09-07-14-json-schema-adapters/) and its twelve-point review
+**Status:** all six phases implemented and merged — phases 1–2 in [#64](https://github.com/csdev19/laqi/pull/64), phases 3–6 in [#65](https://github.com/csdev19/laqi/pull/65) (2026-09-10), shipped in `laqi` 2.1.0. Derived from [Plan 14](/plans/2026-09-07-14-json-schema-adapters/) and its twelve-point review
 **Date:** 2026-09-07, revised 2026-09-09 by what phase 1 measured
 **Supersedes:** the section "One source of truth: the data. Models are never persisted" in [data-generators](/design/data-generators/), and the `generatedFrom` experiment of [ADR-0013](/decisions/0013-mocks-remember-their-model/) (PR #61) and the compact-recipe experiment that followed it
 
