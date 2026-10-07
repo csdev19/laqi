@@ -177,3 +177,43 @@ blockers are cleared: the storefront scripts are rewritten, and the Spanish
 scenario names were renamed in Plan 15 task 7.
 
 Slot 1 is still worth more than every copy change in the audit combined.
+
+## Recording a demo
+
+Learned from the first recording (the hero, 2026-10-06). That take was
+published as it was; these notes are for the next one.
+
+**Text sharpness is decided at capture, not at export.** The hero was recorded
+on a 27" 1920×1080 monitor without Retina, and the file came out at
+2560×1440. Each glyph was drawn with few pixels, scaled up by a non-integer
+factor by the recorder, compressed with chroma at half resolution (which
+smears thin coloured text on a dark background), then scaled down again to the
+~1200px the page shows. Re-encoding cannot restore detail the capture never
+had.
+
+- **Record on a Retina display** (the MacBook's built-in screen): every glyph
+  gets four times the pixels. This is the largest single improvement.
+- **On a 1x monitor, make the content larger instead of recording more of
+  it**: browser zoom at 125–150% in both windows, and capture a region of
+  about 1280×720 rather than the full screen, so the page shows it near 1:1.
+- **Match the recorder's output resolution to the screen.** No upscaling (the
+  hero's 1080p screen became a 1440p file), and high quality: CRF 16–18 or
+  OBS's "Indistinguishable Quality". 9.5 Mbps was too little for text.
+- **Before recording**: hide the menu bar or crop it out; mark "Never on this
+  site" on the browser's save-password prompt (it covered the hero take for
+  1.3s and had to be cut); sign out first so the story starts at the login.
+
+**Encoding for the page.** H.264 High, 1920×1080, 30fps, CRF 23, `yuv420p`,
+`-movflags +faststart`, no audio, padded to exactly 16:9 (the slot uses
+`object-fit: cover` and would otherwise crop the sides), plus a JPG poster
+from a frame that reads well as a still. The hero went from 28 MB to 3.0 MB:
+
+```bash
+ffmpeg -i raw.mp4 -vf "crop=<w>:<h>:<x>:<y>,scale=1920:-2:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=0x0b0a0f,fps=30,format=yuv420p" \
+  -an -c:v libx264 -preset slow -crf 23 -profile:v high -movflags +faststart demo.mp4
+ffmpeg -ss <t> -i demo.mp4 -frames:v 1 -q:v 3 demo.jpg
+```
+
+A cut is allowed only where it hides no state change: check that the frames on
+both sides show the same loaded screen, and say where the cut is in the
+`demos.ts` comment for that slot.
