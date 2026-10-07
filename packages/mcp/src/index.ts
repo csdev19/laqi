@@ -12,7 +12,11 @@ export { createMcpServer } from './server'
  * stdout is the protocol channel: any stray `console.log` corrupts it.
  * Anything that needs to say something goes to stderr.
  */
-export async function startMcpStdio(options: { root: string; config: LaqiConfig }): Promise<void> {
+export async function startMcpStdio(options: {
+  root: string
+  config: LaqiConfig
+  version: string
+}): Promise<void> {
   const server = createMcpServer(options)
   await server.connect(new StdioServerTransport())
 }

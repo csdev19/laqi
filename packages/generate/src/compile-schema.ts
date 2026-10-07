@@ -1,12 +1,13 @@
 import { diagnostic, type Diagnostic } from '@laqi/schema'
-import type {
-  ItemsRule,
-  NumberRule,
-  Plan,
-  PlanField,
-  PlanLiteral,
-  TextFormat,
-  TextRule,
+import {
+  DEFAULT_NUMBER_SPAN,
+  type ItemsRule,
+  type NumberRule,
+  type Plan,
+  type PlanField,
+  type PlanLiteral,
+  type TextFormat,
+  type TextRule,
 } from './plan'
 import { MAX_SHAPE_DEPTH, type PrimitiveType } from './shape'
 
@@ -287,10 +288,15 @@ function constant(node: Record<string, unknown>, pointer: string, keywords: stri
  * OpenAPI's numeric formats. Each names how wide the value is stored, never a
  * shape of its own, so laqi honours them as bounds and wholeness rather than
  * refusing a spec that writes them on nearly every number.
+ *
+ * `int64` is held to the safe-integer range, not to ±2^63: a JSON number past
+ * 2^53 is read by every JavaScript client as a different number, so laqi never
+ * generates one. An OpenAPI `maximum: 9223372036854775807` is clamped to
+ * `Number.MAX_SAFE_INTEGER`.
  */
 const NUMERIC_FORMATS: Record<string, { whole: boolean; minimum?: number; maximum?: number }> = {
   int32: { whole: true, minimum: -2147483648, maximum: 2147483647 },
-  int64: { whole: true },
+  int64: { whole: true, minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER },
   float: { whole: false },
   double: { whole: false },
 }
@@ -325,14 +331,42 @@ function number(
   const step = type === 'integer' ? 1 : Number.EPSILON
   const exclusiveMinimum = numeric(node, 'exclusiveMinimum', pointer)
   const exclusiveMaximum = numeric(node, 'exclusiveMaximum', pointer)
-  const minimum = clampLow(
-    numeric(node, 'minimum', pointer) ?? bump(exclusiveMinimum, step),
-    width?.minimum,
-  )
-  const maximum = clampHigh(
-    numeric(node, 'maximum', pointer) ?? bump(exclusiveMaximum, -step),
-    width?.maximum,
-  )
+  const statedMinimum = numeric(node, 'minimum', pointer) ?? bump(exclusiveMinimum, step)
+  const statedMaximum = numeric(node, 'maximum', pointer) ?? bump(exclusiveMaximum, -step)
+
+  // A bound wholly outside the format's width leaves no value at all. Clamping
+  // cannot catch it when the other side is absent: an int32 with only
+  // `minimum: 2^40` would keep that minimum and generate past 2^31.
+  if (width !== undefined) {
+    const outside =
+      statedMinimum !== undefined && width.maximum !== undefined && statedMinimum > width.maximum
+        ? statedMinimum
+        : statedMaximum !== undefined &&
+            width.minimum !== undefined &&
+            statedMaximum < width.minimum
+          ? statedMaximum
+          : undefined
+    if (outside !== undefined) {
+      refuse(
+        'unsatisfiable',
+        `the bound ${outside} lies outside what format ${JSON.stringify(format)} holds (${width.minimum}..${width.maximum}), so no value satisfies it`,
+        pointer,
+      )
+    }
+  }
+
+  const minimum = clampLow(statedMinimum, width?.minimum)
+  let maximum = clampHigh(statedMaximum, width?.maximum)
+  // A lone minimum draws from the window above it; near the top of the
+  // format that window would cross the format's edge.
+  if (
+    minimum !== undefined &&
+    maximum === undefined &&
+    width?.maximum !== undefined &&
+    minimum + DEFAULT_NUMBER_SPAN > width.maximum
+  ) {
+    maximum = width.maximum
+  }
   const multipleOf = numeric(node, 'multipleOf', pointer)
 
   if (minimum !== undefined && maximum !== undefined && minimum > maximum) {

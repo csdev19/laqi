@@ -79,6 +79,17 @@ describe('every additive keyword laqi claims to honour', () => {
       maximum: 1e12,
     },
     'an int64 written on a number': { type: 'number', format: 'int64', minimum: 0.5, maximum: 9.5 },
+    'int64 with the int64 limits as bounds': {
+      type: 'integer',
+      format: 'int64',
+      minimum: -(2 ** 63), // what JSON.parse makes of int64's -9223372036854775808
+      maximum: 2 ** 63, // what JSON.parse makes of int64's 9223372036854775807
+    },
+    'int32 with a lone minimum near its top': {
+      type: 'integer',
+      format: 'int32',
+      minimum: 2147483000,
+    },
     'array length': { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 4 },
     'unique items': {
       type: 'array',
@@ -129,4 +140,23 @@ describe('every additive keyword laqi claims to honour', () => {
       }
     })
   }
+})
+
+// ajv's int64 format accepts anything up to 2^63, so it cannot catch this:
+// the check is that every value survives a JavaScript client unchanged.
+describe('an OpenAPI int64 id', () => {
+  it('never generates a value a JavaScript client would read as a different number', async () => {
+    const document = {
+      $schema: DIALECT_2020_12,
+      type: 'object',
+      properties: { id: { type: 'integer', format: 'int64', maximum: 2 ** 63 } },
+      required: ['id'],
+    }
+    const compiled = compileSchema(document)
+    if (!compiled.ok) throw new Error(JSON.stringify(compiled.diagnostics))
+    for (let seed = 0; seed < 50; seed++) {
+      const body = (await generateFromPlan(compiled.plan, { seed })) as { id: number }
+      expect(Number.isSafeInteger(body.id), `${body.id} @ ${seed}`).toBe(true)
+    }
+  })
 })

@@ -97,6 +97,54 @@ describe('numbers', () => {
     })
   })
 
+  // A JSON number past 2^53 reaches every JavaScript client as a different
+  // number. OpenAPI specs routinely write int64's own limits as the bounds.
+  it('keeps int64 bounds inside the safe-integer range', () => {
+    expect(
+      compiled({
+        type: 'integer',
+        format: 'int64',
+        minimum: -(2 ** 63), // what JSON.parse makes of int64's -9223372036854775808
+        maximum: 2 ** 63, // what JSON.parse makes of int64's 9223372036854775807
+      }).plan,
+    ).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+      number: { minimum: Number.MIN_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER },
+    })
+  })
+
+  it('refuses a bound that lies wholly outside the format, instead of generating past it', () => {
+    const tooLow = refused({ type: 'integer', format: 'int32', minimum: 2 ** 40 })
+    expect(tooLow.code).toBe('unsatisfiable')
+    expect(tooLow.message).toContain('"int32"')
+    expect(tooLow.message).toContain(String(2 ** 40))
+
+    expect(refused({ type: 'integer', format: 'int32', maximum: -(2 ** 40) }).code).toBe(
+      'unsatisfiable',
+    )
+    expect(refused({ type: 'integer', format: 'int32', exclusiveMinimum: 2147483647 }).code).toBe(
+      'unsatisfiable',
+    )
+    expect(refused({ type: 'integer', format: 'int64', minimum: 2 ** 60 }).code).toBe(
+      'unsatisfiable',
+    )
+  })
+
+  it('keeps a lone minimum near the top of a format from drawing past it', () => {
+    expect(compiled({ type: 'integer', format: 'int32', minimum: 2147483000 }).plan).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+      number: { minimum: 2147483000, maximum: 2147483647 },
+    })
+    // Far from the edge nothing is added: the generator's own window decides.
+    expect(compiled({ type: 'integer', format: 'int32', minimum: 0 }).plan).toEqual({
+      kind: 'primitive',
+      type: 'integer',
+      number: { minimum: 0 },
+    })
+  })
+
   it('refuses a numeric format it does not know, by name', () => {
     const diagnostic = refused({ type: 'integer', format: 'uint128' })
     expect(diagnostic.code).toBe('unsupported.keyword')

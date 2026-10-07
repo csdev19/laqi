@@ -52,7 +52,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export function createMcpServer(options: { root: string; config: LaqiConfig }): McpServer {
+export function createMcpServer(options: {
+  root: string
+  config: LaqiConfig
+  /**
+   * The published `laqi` version, reported to the client as
+   * `serverInfo.version`. The caller passes it because this package's own
+   * version is private and never released, so it is not the number a user
+   * installed.
+   */
+  version: string
+}): McpServer {
   const project = new Project(options.root, options.config)
   /**
    * MCP never redeems a panel token — it holds this only for the written-down
@@ -62,7 +72,7 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
   const approvals = new ModuleApprovals(options.root, options.config)
 
   const server = new McpServer(
-    { name: 'laqi', version: '2.0.0' },
+    { name: 'laqi', version: options.version },
     {
       instructions: [
         'laqi is a mock HTTP server. These tools edit the mock definitions in the',

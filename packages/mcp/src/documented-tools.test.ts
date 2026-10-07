@@ -106,7 +106,7 @@ let root: string
 
 beforeAll(async () => {
   root = mkdtempSync(join(tmpdir(), 'laqi-documented-tools-'))
-  const server = createMcpServer({ root, config: ConfigSchema.parse({}) })
+  const server = createMcpServer({ root, config: ConfigSchema.parse({}), version: '0.0.0-test' })
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   client = new Client({ name: 'test', version: '1.0.0' })
