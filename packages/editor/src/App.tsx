@@ -12,6 +12,7 @@ import { RequestLog } from './components/RequestLog'
 import { ScenarioStrip } from './components/ScenarioStrip'
 import { ShareBand } from './components/ShareBand'
 import { WarningBand } from './components/WarningBand'
+import { useEndpointLocation } from './hooks/useEndpointLocation'
 import { useEvents } from './hooks/useEvents'
 import { appendLog, toLogEntry } from './log'
 import { isDirty, overriddenCount, overridesAfterChipClick } from './resolve'
@@ -32,7 +33,8 @@ export function App() {
   const seq = useRef(0)
 
   const [filter, setFilter] = useState('')
-  const [detailId, setDetailId] = useState<string | null>(null)
+  // Lives in the URL, not in memory: see useEndpointLocation.
+  const [detailId, setDetailId] = useEndpointLocation()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [creating, setCreating] = useState(false)
 

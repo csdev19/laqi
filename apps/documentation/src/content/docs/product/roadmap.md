@@ -99,8 +99,10 @@ flow.
   `--share`: stable URLs, no binary dependency. Phase 2 of
   [ADR-0007](/decisions/0007-public-url/), postponed until usage justifies
   it.
-- **Panel deep-linking** — URL routing to an endpoint, via standalone
-  TanStack Router if ever needed ([ADR-0011](/decisions/0011-panel-plain-react-spa/)).
+- ~~**Panel deep-linking**~~ — shipped as one query param
+  (`/__laqi?endpoint=…`) over the History API; no router, per
+  [ADR-0011](/decisions/0011-panel-plain-react-spa/). Routing proper stays
+  deferred until the panel grows a second screen.
 
 ## Backlog — known defects, Medium/Low
 
