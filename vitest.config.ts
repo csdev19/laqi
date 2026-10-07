@@ -12,12 +12,12 @@ export default defineConfig({
     // already hard-codes 30s inline for exactly that reason, and
     // `effect.test.ts` times out at 5s on a cold module cache.
     //
-    // This reduces the suite's flakiness rather than removing it. Under load
-    // the run still fails a varying handful of tests, always on time and
-    // never on an assertion, including worker RPC timeouts that no test
-    // budget covers. That was reproduced on main before any of this branch's
-    // work, and the MCP stdio suite pins its own 30s hook timeout inline, so
-    // the value below does not reach it. Diagnosing that is its own task.
+    // Under load (several suites running at once, as parallel worktrees
+    // do), the compiler-bound requests scale with the load rather than with
+    // the test, so the suites that chain several of them set their own
+    // budget and warm the compiler in a hook: see `apps/cli/src/serve.fixture.ts`
+    // for the measurements. The MCP stdio suite pins its own 30s hook
+    // timeout inline, so the value below does not reach it.
     testTimeout: 20_000,
     hookTimeout: 60_000,
   },
