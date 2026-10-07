@@ -33,6 +33,13 @@ export type PlanField = { name: string; plan: Plan; optional: boolean }
 /** Numeric bounds a document asserted. Absent means the field-name rules decide. */
 export type NumberRule = { minimum?: number; maximum?: number; multipleOf?: number }
 
+/**
+ * How far above a lone `minimum` the generator draws when no `maximum` is
+ * stated. The compiler reads it too, to keep that window inside a format's
+ * width.
+ */
+export const DEFAULT_NUMBER_SPAN = 1000
+
 /** The string formats laqi generates. `date-time` is not here: it is the `date` primitive. */
 export type TextFormat = 'date' | 'email' | 'uri' | 'uuid'
 
@@ -248,7 +255,7 @@ export const generateFromPlanEffect = (
 
     function boundedNumber(rule: NumberRule, type: 'number' | 'integer'): number {
       const min = rule.minimum ?? 0
-      const max = rule.maximum ?? min + 1000
+      const max = rule.maximum ?? min + DEFAULT_NUMBER_SPAN
 
       if (rule.multipleOf !== undefined) {
         const step = rule.multipleOf
