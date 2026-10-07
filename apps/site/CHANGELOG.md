@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/csdev19/laqi/compare/site-v0.2.0...site-v0.3.0) (2026-10-07)
+
+
+### Features
+
+* **site:** publish the hero demo recording ([63bdd38](https://github.com/csdev19/laqi/commit/63bdd38e93577a1423519af2aab381d984f8072b))
+
 ## [0.2.0](https://github.com/csdev19/laqi/compare/site-v0.1.1...site-v0.2.0) (2026-10-06)
 
 
