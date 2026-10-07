@@ -64,9 +64,14 @@ content is content — `apps/documentation` and `apps/site`.
 (server functions, loaders) the panel cannot use. It is used where it fits —
 `examples/todo-app`, which is precisely the kind of app it serves.
 
-**If the panel ever needs URL routing** (deep-linking an endpoint, say),
-TanStack Router exists standalone — client-side, no Start, no server. The
-routing is available without reopening this decision.
+**If the panel ever needs URL routing**, TanStack Router exists standalone —
+client-side, no Start, no server. The routing is available without reopening
+this decision.
+
+Deep-linking an endpoint (`/__laqi?endpoint=POST%20/auth/login`) did not
+need it: one query param read and written through the History API
+(`packages/editor/src/location.ts`). The router becomes the right tool when
+the panel grows a second screen or nested state, not before.
 
 ## Consequences
 

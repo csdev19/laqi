@@ -57,6 +57,9 @@ function endpoint(partial: Partial<Endpoint> & Pick<Endpoint, 'id' | 'method' | 
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // The detail pane's endpoint lives in the URL, and jsdom keeps one window
+  // for the whole file: a detail a test opened would still be open in the next.
+  window.history.replaceState(null, '', '/__laqi')
   endpoints = [
     endpoint({ id: 'GET /users', method: 'GET', path: '/users', description: 'the people' }),
     endpoint({ id: 'POST /orders', method: 'POST', path: '/orders' }),
@@ -531,6 +534,76 @@ describe('endpoint detail', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Delete endpoint' }))
 
     await waitFor(() => expect(deleteEndpoint).toHaveBeenCalledWith('GET /users'))
+  })
+})
+
+/** jsdom traverses history asynchronously; the popstate lands a tick later. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+describe('deep link', () => {
+  it('puts the open endpoint in the URL, with its path readable', async () => {
+    await renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '/users' }))
+    await screen.findByLabelText('response body')
+
+    expect(window.location.pathname + window.location.search).toBe('/__laqi?endpoint=GET%20/users')
+  })
+
+  it('lands on the endpoint the URL names, as a reload or a shared link would', async () => {
+    window.history.replaceState(null, '', '/__laqi?endpoint=POST%20/orders')
+    render(<App />)
+
+    expect(await screen.findByLabelText('response body')).toBeTruthy()
+    expect(screen.getByText('/orders')).toBeTruthy()
+    expect(screen.queryByLabelText('filter')).toBeNull()
+  })
+
+  it('falls back to the list when the URL names an endpoint the project does not have', async () => {
+    window.history.replaceState(null, '', '/__laqi?endpoint=GET%20/nowhere')
+    await renderApp()
+
+    expect(screen.getByLabelText('filter')).toBeTruthy()
+    expect(screen.queryByLabelText('response body')).toBeNull()
+  })
+
+  it("returns to the list on the browser's Back", async () => {
+    await renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '/users' }))
+    await screen.findByLabelText('response body')
+
+    window.history.back()
+    await settle()
+
+    await waitFor(() => expect(screen.queryByLabelText('response body')).toBeNull())
+    expect(window.location.search).toBe('')
+
+    window.history.forward()
+    await settle()
+    expect(await screen.findByLabelText('response body')).toBeTruthy()
+  })
+
+  it('drops the endpoint from the URL when the panel goes back by itself', async () => {
+    await renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '/users' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Endpoints \(esc\)/ }))
+
+    await waitFor(() => expect(screen.queryByLabelText('response body')).toBeNull())
+    expect(window.location.pathname + window.location.search).toBe('/__laqi')
+  })
+
+  it('adds no history entry when jumping to the endpoint already open', async () => {
+    await renderApp()
+    fireEvent.click(screen.getByRole('button', { name: '/users' }))
+    await screen.findByLabelText('response body')
+    const length = window.history.length
+
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    fireEvent.change(await screen.findByLabelText('command'), { target: { value: 'users' } })
+    fireEvent.keyDown(screen.getByLabelText('command'), { key: 'Enter', ctrlKey: true })
+
+    await waitFor(() => expect(screen.queryByLabelText('command')).toBeNull())
+    expect(putState).not.toHaveBeenCalled()
+    expect(window.history.length).toBe(length)
   })
 })
 
