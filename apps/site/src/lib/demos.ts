@@ -38,9 +38,12 @@ export type Demo = {
 
 export const demos = {
   hero: {
-    src: null,
-    poster: null,
-    chrome: '127.0.0.1:8000/__laqi',
+    // Recorded 2026-10-06, one take. Cut once, 11.7s–13.0s: Arc's "save
+    // password" dialog covered the screen after sign-in; the todo list had
+    // already loaded before the cut, so it hides no reload. No `chrome`:
+    // the recording carries both windows' real address bars.
+    src: '/demos/hero-flip.mp4',
+    poster: '/demos/hero-flip.jpg',
     label: 'Flip a response in the panel — the app’s next request gets it. No reload, no restart.',
     brief:
       '~30s, 16:9, split in half: the laqi panel on the left, examples/todo-app on the right. 1) POST /auth/login → invalid, Sign in: "Wrong email or password", 401. 2) login → ok and GET /todos → error, Sign in: the error block. 3) GET /todos → ok, Retry: the list. 4) Add "Buy milk": 201. 5) PUT /todos/:id → error, tick a todo: it snaps back, 500. 6) scenario offline, delete "Buy milk": it stays, 500. The app\'s request line and the panel\'s log show the same request each time. Dishonest if it cuts between takes to hide a reload, speeds up a response, or uses an app that is not examples/todo-app.',
