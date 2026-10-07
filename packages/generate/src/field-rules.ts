@@ -47,8 +47,13 @@ function normalize(fieldName: string): string {
 /**
  * String field rules, in precedence order. Date-ness runs first so fields
  * like `emailVerifiedAt` produce a date rather than an email; username and
- * filename run before the generic person-name rule so `userName`/`fileName`
+ * filename run before the person-name rules so `userName`/`fileName`
  * (which contain the word "name") aren't mistaken for a person's name.
+ *
+ * Person names are split per variant: `firstName` gets a given name,
+ * `lastName` a family name, and only `name`/`fullName`/`displayName` get a
+ * full name — a pasted `User` model is the most common input there is, and
+ * `{ firstName: "Claudine Kuhn" }` reads as wrong at a glance.
  */
 export const STRING_RULES: FieldRule[] = [
   {
@@ -72,9 +77,18 @@ export const STRING_RULES: FieldRule[] = [
     use: (faker) => `${faker.lorem.slug()}.txt`,
   },
   {
-    name: 'person',
-    when: (n) =>
-      ['name', 'firstname', 'lastname', 'fullname', 'displayname'].includes(normalize(n)),
+    name: 'first-name',
+    when: (n) => ['firstname', 'givenname', 'forename'].includes(normalize(n)),
+    use: (faker) => faker.person.firstName(),
+  },
+  {
+    name: 'last-name',
+    when: (n) => ['lastname', 'surname', 'familyname'].includes(normalize(n)),
+    use: (faker) => faker.person.lastName(),
+  },
+  {
+    name: 'full-name',
+    when: (n) => ['name', 'fullname', 'displayname'].includes(normalize(n)),
     use: (faker) => faker.person.fullName(),
   },
   {

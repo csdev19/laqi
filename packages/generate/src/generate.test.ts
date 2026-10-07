@@ -144,6 +144,27 @@ describe('generate', () => {
     expect(typeof value.orderId).toBe('number')
   })
 
+  it('gives firstName, lastName and fullName each the matching kind of name', async () => {
+    // Plan 6 audit, finding #6: a pasted `User` used to come out as
+    // `{ firstName: "Claudine Kuhn", lastName: "Edwin Bode" }`.
+    const shape: Shape = {
+      kind: 'object',
+      fields: [
+        { name: 'firstName', shape: primitive('string'), optional: false },
+        { name: 'lastName', shape: primitive('string'), optional: false },
+        { name: 'fullName', shape: primitive('string'), optional: false },
+        { name: 'name', shape: primitive('string'), optional: false },
+      ],
+    }
+    for (const seed of [1, 7, 42, 1234]) {
+      const value = (await generate(shape, { seed })) as Record<string, string>
+      expect(value.firstName).not.toMatch(/\s/)
+      expect(value.lastName).not.toMatch(/\s/)
+      expect(value.fullName).toMatch(/\S\s+\S/)
+      expect(value.name).toMatch(/\S\s+\S/)
+    }
+  })
+
   it('arrayLength is clamped to 1..1000', async () => {
     const shape = { kind: 'array' as const, items: primitive('integer') }
     expect((await generate(shape, { seed: 1, arrayLength: 0 })) as unknown[]).toHaveLength(1)
@@ -305,10 +326,22 @@ const CLASSIFICATION: {
     rejects: ['name', 'title'],
   },
   {
-    rule: 'person',
+    rule: 'first-name',
     type: 'string',
-    accepts: ['name', 'firstName', 'displayName', 'full_name'],
-    rejects: ['filename', 'username', 'nameless', 'renamed'],
+    accepts: ['firstName', 'first_name', 'givenName'],
+    rejects: ['name', 'lastName', 'filename', 'username'],
+  },
+  {
+    rule: 'last-name',
+    type: 'string',
+    accepts: ['lastName', 'last_name', 'surname', 'familyName'],
+    rejects: ['name', 'firstName', 'filename', 'username'],
+  },
+  {
+    rule: 'full-name',
+    type: 'string',
+    accepts: ['name', 'displayName', 'full_name'],
+    rejects: ['firstName', 'lastName', 'filename', 'username', 'nameless', 'renamed'],
   },
   {
     rule: 'phone',
