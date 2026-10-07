@@ -51,6 +51,30 @@ describe('exporting a stored schema', () => {
   it('says which language it does not know, rather than printing the wrong one', async () => {
     await expect(exportTypes(OBJECT, 'cobol')).rejects.toThrow(/unknown language/)
   }, 30_000)
+
+  // Plan 6 audit, finding 8, re-verified against the schema path: a stored
+  // schema whose root is an array of anything has nothing quicktype can
+  // declare, so every translated target fails with a message rather than
+  // handing back an empty string. TypeScript is laqi's own printer and has
+  // no such gap.
+  describe('a schema whose root is an array of anything', () => {
+    const ANYTHING_LIST = snapshotOf({ type: 'array', items: {} }, 'Todos')
+
+    it('fails with a message in a translated target instead of exporting nothing', async () => {
+      await expect(exportTypes(ANYTHING_LIST, 'typescript-zod')).rejects.toThrow(
+        /printed no declaration for Todos/,
+      )
+      await expect(exportTypes(ANYTHING_LIST, 'python')).rejects.toThrow(
+        /printed no declaration for Todos/,
+      )
+    }, 30_000)
+
+    it('still exports as TypeScript, which laqi prints itself', async () => {
+      const exported = await exportTypes(ANYTHING_LIST)
+      expect(exported.code).toContain('Todos')
+      expect(exported.code).toContain('unknown[]')
+    })
+  })
 })
 
 describe('what the exporter cannot express', () => {

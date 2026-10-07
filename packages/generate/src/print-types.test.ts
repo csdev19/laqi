@@ -63,6 +63,35 @@ describe('printTypes', () => {
     expect(code).toMatch(/string/)
   })
 
+  // Plan 6 audit, finding 8: a `[]` body is `array<unknown>`, which
+  // quicktype prints as nothing — no declaration, no error — so Copy types
+  // put an empty string on the clipboard with a 200.
+  describe('a root quicktype cannot name', () => {
+    const emptyBody: Shape = { kind: 'array', items: { kind: 'unknown' } }
+
+    it('fails with a message instead of printing an empty string', async () => {
+      await expect(printTypes(emptyBody, { typeName: 'Todos' })).rejects.toThrow(
+        /printed no declaration for Todos.*empty array/s,
+      )
+    }, 30_000)
+
+    it('fails the same way where quicktype prints only an import line', async () => {
+      await expect(
+        printTypes(emptyBody, { typeName: 'Todos', lang: 'typescript-zod' }),
+      ).rejects.toThrow(/printed no declaration for Todos/)
+    }, 30_000)
+
+    it('still prints an empty array nested inside an object', async () => {
+      const shape: Shape = {
+        kind: 'object',
+        fields: [{ name: 'items', shape: emptyBody, optional: false }],
+      }
+      const { code } = await printTypes(shape, { typeName: 'Todos' })
+      expect(code).toContain('Todos')
+      expect(code).toContain('items')
+    }, 30_000)
+  })
+
   it('smoke-emits every advertised language', async () => {
     // Deep assertions only for TS and Zod; the rest must at least emit
     // non-empty code without throwing.
