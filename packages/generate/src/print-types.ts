@@ -92,8 +92,38 @@ export const printDocumentEffect = (
       catch: (e) => new PrintError({ message: String(e) }),
     })
 
+    // quicktype declares object types and nothing else. Hand it a root that
+    // is not one — an empty array, an array of bare values, a lone value —
+    // and most targets print nothing at all, Zod prints a bare import line,
+    // and none of them errors. A `[]` body is exactly that root, so without
+    // this check the panel's Copy types put an empty string on the clipboard
+    // with a 200.
+    if (!declares(code, options.typeName)) {
+      return yield* Effect.fail(
+        new PrintError({
+          message:
+            `${lang} printed no declaration for ${options.typeName}: this target only names ` +
+            'object types, and the root of this schema is not one (an empty array, an array ' +
+            'of bare values, or a lone value — typically a body that is `[]`). Give the body ' +
+            'an object to describe, or build a schema from a model, and export again.',
+        }),
+      )
+    }
+
     return { code, language: lang }
   })
+
+/**
+ * Whether printed code names the type at all. Folded to lowercase
+ * alphanumerics on both sides, because a target may render `TodoItem` as
+ * `todo_item` or `TodoItemElement` and still have declared it; what no
+ * target does is declare a type without its name appearing somewhere.
+ */
+function declares(code: string, typeName: string): boolean {
+  const fold = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const name = fold(typeName)
+  return name.length === 0 || fold(code).includes(name)
+}
 
 /** A Shape prints as the document it maps to. */
 export const printTypesEffect = (

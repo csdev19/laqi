@@ -83,16 +83,23 @@ describe('generate', () => {
   // so it degraded to plain "ends with id" — paid/valid/void/rapid were all
   // id-classified. This test failed before the rule-table refactor and
   // passes after it.
+  //
+  // The Plan 6 audit found an earlier version of this test vacuous: it
+  // asserted `>= 0`, which a sequential id satisfies too. An id-classified
+  // field is a per-field counter, so across three array items it reads
+  // exactly 1, 2, 3 — and that is what is asserted NOT to happen, next to
+  // the real `id` for which it must.
   it('does not match paid/valid/void/rapid with endsWith("id") — word boundaries only', async () => {
+    const lookalikes = ['paid', 'valid', 'void', 'rapid', 'identifier']
+    for (const name of lookalikes) {
+      expect(ruleFor(name, 'integer'), `expected "${name}" to be a plain number`).toBe('number')
+    }
+
     // Test with INTEGER type so the id branch is actually reached
-    const shape: Shape = {
+    const item: Shape = {
       kind: 'object',
       fields: [
-        { name: 'paid', shape: primitive('integer'), optional: false },
-        { name: 'valid', shape: primitive('integer'), optional: false },
-        { name: 'void', shape: primitive('integer'), optional: false },
-        { name: 'rapid', shape: primitive('integer'), optional: false },
-        { name: 'identifier', shape: primitive('integer'), optional: false },
+        ...lookalikes.map((name) => ({ name, shape: primitive('integer'), optional: false })),
         { name: 'userId', shape: primitive('integer'), optional: false },
         { name: 'user_id', shape: primitive('integer'), optional: false },
         { name: 'orderId', shape: primitive('integer'), optional: false },
@@ -100,23 +107,31 @@ describe('generate', () => {
         { name: '_id', shape: primitive('integer'), optional: false },
       ],
     }
-    const value = (await generate(shape, { seed: 42 })) as Record<string, unknown>
-    // paid, valid, void, rapid, identifier should NOT be sequential IDs
-    expect(value.paid).toBeGreaterThanOrEqual(0)
-    expect(value.valid).toBeGreaterThanOrEqual(0)
-    expect(value.void).toBeGreaterThanOrEqual(0)
-    expect(value.rapid).toBeGreaterThanOrEqual(0)
-    expect(value.identifier).toBeGreaterThanOrEqual(0)
-    // id and _id should be sequential (1, 2, ...)
-    expect(value.id).toBe(1)
-    expect(value._id).toBe(2)
+    const list = (await generate(
+      { kind: 'array', items: item },
+      { seed: 42, arrayLength: 3 },
+    )) as Record<string, unknown>[]
+    const column = (name: string) => list.map((value) => value[name])
+
+    // id and _id share one counter (same normalized name), so the sequence
+    // interleaves: 1, 3, 5 for id and 2, 4, 6 for _id.
+    expect(column('id')).toEqual([1, 3, 5])
+    expect(column('_id')).toEqual([2, 4, 6])
+    // The lookalikes are plain numbers: not a counter, never 1, 2, 3.
+    for (const name of lookalikes) {
+      expect(column(name), `"${name}" was generated as a sequential id`).not.toEqual([1, 2, 3])
+      for (const value of column(name)) {
+        expect(value).toBeGreaterThanOrEqual(0)
+        expect(value).toBeLessThanOrEqual(1000)
+      }
+    }
     // Foreign keys should be in range [1, 1000]
-    expect(value.userId).toBeGreaterThanOrEqual(1)
-    expect(value.userId).toBeLessThanOrEqual(1000)
-    expect(value.user_id).toBeGreaterThanOrEqual(1)
-    expect(value.user_id).toBeLessThanOrEqual(1000)
-    expect(value.orderId).toBeGreaterThanOrEqual(1)
-    expect(value.orderId).toBeLessThanOrEqual(1000)
+    for (const name of ['userId', 'user_id', 'orderId']) {
+      for (const value of column(name)) {
+        expect(value).toBeGreaterThanOrEqual(1)
+        expect(value).toBeLessThanOrEqual(1000)
+      }
+    }
   })
 
   it('combined fixture with paid, valid, emailVerifiedAt, filename, username, id, userId, orderId', async () => {

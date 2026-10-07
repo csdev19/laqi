@@ -223,7 +223,7 @@ export interface Todo {
 
 Click **Create**. The endpoint is written to `laqi/api.json` immediately,
 with a response body already filled with seeded data generated from that
-shape — `title` reads like a real sentence, `createdAt` is a date, `id` is
+shape — `title` is a few lorem-ipsum words, `createdAt` is a date, `id` is
 sequential — and the panel drops you straight into the endpoint's detail
 view.
 

@@ -649,6 +649,23 @@ describe('generation through a live server', () => {
     expect(code).toContain('name')
   }, 30_000)
 
+  // Plan 6 audit, finding 8: this used to be a 200 with `code: ""`, and the
+  // panel's Copy types put that empty string on the clipboard.
+  it('400s types for a `[]` body with a message, rather than printing an empty string', async () => {
+    writeMocks({
+      'GET /todos': { default: 'ok', responses: { ok: { status: 200, body: [] } } },
+    })
+    handle = await startServer({ root, config })
+
+    const res = await get(
+      `/__laqi/api/endpoints/${encodeURIComponent('GET /todos')}/types?response=ok`,
+    )
+    expect(res.status).toBe(400)
+    const { message } = (await res.json()) as { message: string }
+    expect(message).toMatch(/printed no declaration for Todos/)
+    expect(message).toMatch(/empty array/)
+  }, 30_000)
+
   it('404s types for an endpoint or response that does not exist', async () => {
     writeMocks({ 'GET /x': { default: 'ok', responses: { ok: { status: 200 } } } })
     handle = await startServer({ root, config })
