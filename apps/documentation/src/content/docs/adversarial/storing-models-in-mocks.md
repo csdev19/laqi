@@ -4,7 +4,7 @@ title: Storing models in mocks — how close laqi gets to being a source of trut
 
 # Storing models in mocks — how close laqi gets to being a source of truth
 
-**Status:** open — argues against [ADR-0013](/decisions/0013-mocks-remember-their-model/), which is written but unmerged (PR #61)
+**Status:** resolved — see "Outcome" below. Argued against [ADR-0013](/decisions/0013-mocks-remember-their-model/) (PR #61), which merged and was then superseded by the [JSON Schema adapters spec](/design/json-schema-adapters/)
 **Date:** 2026-09-06
 **Trigger:** "it would end up being a source of truth for laqi, when it should only deliver mock APIs"
 
@@ -206,6 +206,27 @@ build is C — point at a type in the repository, or import a spec — with the 
 kept for the thirty-second case.
 
 Everything else here follows from that answer.
+
+## Outcome
+
+Resolved by [Plan 14](/plans/2026-09-07-14-json-schema-adapters/), whose
+answer to the open question is **no**: the paste box is a convenience, and
+project references and schema imports are the durable path (its product
+decisions 1, 8 and 9).
+
+- ADR-0013's `generatedFrom` merged in PR #61 and was then superseded. A
+  response no longer stores the pasted TypeScript source.
+- What a response keeps is a JSON Schema (draft 2020-12) snapshot of the rules,
+  not the source: option B's "store the recipe, never the definition", with
+  JSON Schema as the compact, reviewable encoding this analysis said B lacked.
+- The snapshot records imported rules and certifies nothing about the body or
+  the real backend; laqi never validates a body against it.
+- Option C landed beside it: schemas can come from JSON Schema, OpenAPI, or the
+  project's own code through Standard JSON Schema.
+
+The contracts are in the [JSON Schema adapters spec](/design/json-schema-adapters/),
+merged in PRs #62, #64 and #65 and shipped in `laqi` 2.1.0. The ledger below is
+kept as it was written.
 
 ## Ledger
 

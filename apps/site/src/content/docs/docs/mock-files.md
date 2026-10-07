@@ -33,6 +33,18 @@ exist. Each file is a JSON object whose keys are `"METHOD /path"`:
 - `:param` segments in a path are dynamic — `/users/:id` matches
   `/users/42`.
 
+## Duplicate keys
+
+**Within one file, a repeated key is dropped without a warning.** If a file
+declares `"GET /users"` twice, laqi serves the **last** one and never sees the
+first: the JSON parser keeps one value per key before laqi reads the file. The
+same applies to any repeated key inside an endpoint, such as two responses
+with the same name.
+
+**Across files, the same endpoint is an error.** With a `laqi/` folder, if
+two files both declare `"GET /users"`, laqi reports the collision with both
+file names and serves neither until one is removed or renamed.
+
 ## Numbers, dates and other values
 
 A body is served as the JSON value the file holds. Strings, `null`, booleans,

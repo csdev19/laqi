@@ -103,8 +103,11 @@ hot-swapping the app without releasing the socket, `close()`) against
   distinguishes by `runtime.source`.
 - Noted the limitation that two duplicate keys **within the same file** get
   deduplicated by `JSON.parse` before the loader ever sees them (the last one
-  wins) — inherent to JSON; ADR-0008's detection is across files. Still needs
-  documenting in Plan 5.
+  wins) — inherent to JSON; ADR-0008's detection is across files. Documented
+  on 2026-10-07 ([Plan 16](/plans/2026-10-07-16-docs-housekeeping/)) in the
+  public "Mock files" page (`apps/site/src/content/docs/docs/mock-files.md`,
+  section "Duplicate keys"), after re-checking on `main` that it still loads
+  silently with no error and serves the last one.
 
 ## Verified and correct (no changes)
 

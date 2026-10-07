@@ -5,7 +5,7 @@ title: Plan 14 — JSON Schema and adapters
 # Plan 14 — JSON Schema and adapters
 
 **Date:** 2026-09-07
-**Status:** Planned — specification decisions revised after the twelve-point review on 2026-09-07.
+**Status:** Merged — all six phases of the [design spec](/design/json-schema-adapters/) are on `main`: the spec in [#62](https://github.com/csdev19/laqi/pull/62), phases 1–2 in [#64](https://github.com/csdev19/laqi/pull/64) (phase 1 was first reviewed as [#63](https://github.com/csdev19/laqi/pull/63)), phases 3–6 in [#65](https://github.com/csdev19/laqi/pull/65), shipped in `laqi` 2.1.0. Specification decisions were revised after the twelve-point review on 2026-09-07.
 **Scope:** Replace proprietary generation metadata with JSON Schema and introduce
 explicit input/output adapters across the panel, local API, and MCP.
 
