@@ -109,7 +109,7 @@ describe('endpoint list', () => {
 
   it('reads layer "default" on an untouched row', async () => {
     await renderApp()
-    expect(within(rowFor('/users')).getByText('default')).toBeTruthy()
+    expect(within(rowFor('/users')).getByText('Live · default')).toBeTruthy()
   })
 })
 
@@ -123,7 +123,7 @@ describe('flipping a response', () => {
       scenario: null,
       overrides: { 'GET /users': 'boom' },
     })
-    await waitFor(() => expect(within(rowFor('/users')).getByText('state')).toBeTruthy())
+    await waitFor(() => expect(within(rowFor('/users')).getByText('Live · state')).toBeTruthy())
   })
 
   it('removes the override when the file default is clicked back', async () => {
@@ -154,7 +154,7 @@ describe('scenarios', () => {
     await waitFor(() =>
       expect(putState).toHaveBeenCalledWith({ scenario: 'checkout-broken', overrides: {} }),
     )
-    await waitFor(() => expect(within(rowFor('/orders')).getByText('scenario')).toBeTruthy())
+    await waitFor(() => expect(within(rowFor('/orders')).getByText('Live · scenario')).toBeTruthy())
   })
 
   it('deactivates it when clicked again', async () => {
@@ -186,7 +186,7 @@ describe('scenarios', () => {
   it('lets a per-endpoint override beat the active scenario', async () => {
     state = { scenario: 'checkout-broken', overrides: { 'POST /orders': 'ok' } }
     await renderApp()
-    expect(within(rowFor('/orders')).getByText('state')).toBeTruthy()
+    expect(within(rowFor('/orders')).getByText('Live · state')).toBeTruthy()
   })
 })
 
