@@ -4,6 +4,9 @@ title: Implementation plans
 
 # Implementation plans
 
+Working handoff: [Cross-cutting audit — findings and spec handoff (2026-10-12)](/plans/2026-10-12-cross-cutting-audit/)
+records the second-pass audit and the interrupted spec run (Linear NIW2-348). **In progress.**
+
 Latest proposal: [Plan 15 — laqi.dev correctness fixes](/plans/2026-10-01-15-page-truth-fixes/).
 Fixes what the [2026-10-01 page audit](/product/page-audit-2026-10-01/) found false on
 the live site, before any rewrite of its argument. **Planned.**
