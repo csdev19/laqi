@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import {
+  GenerationEvidenceSchema,
   ResponseSchema,
   SourceRequestSchema,
   type EndpointDefinition,
@@ -572,12 +573,17 @@ export function createMcpServer(options: { root: string; config: LaqiConfig }): 
     {
       title: 'Write a generated body to a response',
       description:
-        'Write a body produced by regenerate_response or generate_data, together with the evidence that reproduces it. Pass the revision that came back with the preview. This can be refused: if the response changed since then, or if the body being replaced is not one laqi generated (hand-written, or edited afterwards), the reply names the reason and the current revision. Show the person what would be overwritten, then retry with that revision and confirm: true.',
+        'Write a body produced by regenerate_response or generate_data, together with the evidence that reproduces it. Both are required and must match. Pass the revision that came back with the preview. This can be refused: if the response changed since then, or if the body being replaced is not one laqi generated (hand-written, or edited afterwards), the reply names the reason and the current revision. Show the person what would be overwritten, then retry with that revision and confirm: true.',
       inputSchema: {
         endpointId: z.string().describe('Endpoint id, e.g. "GET /users/:id"'),
         response: z.string().optional().describe('Response name; defaults to the endpoint default'),
-        body: z.unknown().describe('The generated body, exactly as the preview returned it'),
-        generation: z.unknown().describe('The evidence the preview returned beside the body'),
+        body: z
+          .unknown()
+          .refine((body) => body !== undefined, 'body is required')
+          .describe('The generated body, exactly as the preview returned it'),
+        generation: GenerationEvidenceSchema.describe(
+          'The evidence the preview returned beside the body',
+        ),
         revision: z.string().describe('The revision the preview was generated against'),
         confirm: z
           .boolean()
