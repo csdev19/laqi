@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1](https://github.com/csdev19/laqi/compare/v2.1.0...v2.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **core:** refuse a generated body whose evidence is missing or not its own ([#94](https://github.com/csdev19/laqi/issues/94)) ([fb51f78](https://github.com/csdev19/laqi/commit/fb51f78eccf733baa79f614dcaeda16f5c4e8d63))
+* **generate:** answer as soon as the module loader has a verdict ([#92](https://github.com/csdev19/laqi/issues/92)) ([f77f900](https://github.com/csdev19/laqi/commit/f77f9006a978dc2fece495ca3ffe4d1c41972368))
+
 ## [2.1.0](https://github.com/csdev19/laqi/compare/v2.0.1...v2.1.0) (2026-10-06)
 
 
