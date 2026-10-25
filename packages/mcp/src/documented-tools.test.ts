@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
+import { supportedLanguages } from '@laqi/generate'
 import { ConfigSchema } from '@laqi/schema'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createMcpServer } from './server'
@@ -30,9 +31,22 @@ import { createMcpServer } from './server'
  * What this guarantees: registering or removing a tool in `server.ts` fails
  * CI until every surface below is updated. What it does not: that the prose
  * describes the tool correctly. Nothing automatic can check that.
+ *
+ * The same reasoning covers two more things the docs transcribe by hand and
+ * that drifted the same way: the root README's list of control plane routes
+ * (it listed nine; `control-plane-app.ts` mounts twenty-three) and the number
+ * of languages the type generator targets (the site said twenty-five, the
+ * generator reports twenty-seven). They live in this file because it is
+ * already the one place that compares the docs with the code.
  */
 
+const REPO = new URL('../../../', import.meta.url)
 const SITE = new URL('../../../apps/site/', import.meta.url)
+
+const README = 'README.md'
+const CONTROL_PLANE_SOURCE = 'packages/server/src/control-plane-app.ts'
+const DATA_GENERATORS_PAGE = 'apps/site/src/content/docs/docs/data-generators.md'
+const PANEL_PAGE = 'apps/site/src/content/docs/docs/panel.md'
 
 const AI_AGENTS_PAGE = 'apps/site/src/content/docs/docs/ai-agents.md'
 const DOCS_INDEX = 'apps/site/src/content/docs/docs/index.md'
@@ -79,6 +93,20 @@ function read(relative: string): string {
   return readFileSync(fileURLToPath(new URL(relative.replace('apps/site/', ''), SITE)), 'utf8')
 }
 
+function readRepo(relative: string): string {
+  return readFileSync(fileURLToPath(new URL(relative, REPO)), 'utf8')
+}
+
+/** The body of one `## ` section of a Markdown file, up to the next one. */
+function section(markdown: string, heading: string): string {
+  const start = markdown.indexOf(`\n## ${heading}\n`)
+  if (start === -1) throw new Error(`no "## ${heading}" section`)
+  const body = markdown.slice(start + 1)
+  const next = body.indexOf('\n## ', 1)
+  return next === -1 ? body : body.slice(0, next)
+}
+
+/** Spells a count the way the prose does: "seven", "twenty-seven". */
 function numberWord(count: number): string {
   const word = NUMBER_WORDS[count]
   if (!word) throw new Error(`no English word for ${count}; extend NUMBER_WORDS`)
@@ -102,6 +130,7 @@ function backtickedNames(text: string): string[] {
 
 let client: Client
 let registered: string[]
+let languageCount: number
 let root: string
 
 beforeAll(async () => {
@@ -114,6 +143,8 @@ beforeAll(async () => {
 
   const listed = await client.listTools()
   registered = listed.tools.map((tool) => tool.name).sort()
+
+  languageCount = (await supportedLanguages()).length
 })
 
 afterAll(async () => {
@@ -153,5 +184,67 @@ describe('the documented MCP tool list matches the registered one', () => {
     )
 
     expect(backtickedNames(llms.slice(start, end)).sort()).toEqual(registered)
+  })
+})
+
+describe('the README lists the MCP tools the server registers', () => {
+  it(`${README} names exactly the registered tools`, () => {
+    const paragraph = /\nTools: ([^]*?)\n\n/.exec(
+      section(readRepo(README), 'Using it from a coding agent (MCP)'),
+    )
+    expect(paragraph, 'the README no longer has a "Tools:" paragraph').not.toBeNull()
+    expect(backtickedNames(paragraph?.[1] ?? '').sort()).toEqual(registered)
+  })
+})
+
+describe('the README lists the control plane routes the server mounts', () => {
+  /** `GET /__laqi/api/state` for every `app.get('/api/state', …)` in the source. */
+  function mountedRoutes(): string[] {
+    const source = readRepo(CONTROL_PLANE_SOURCE)
+    return [...source.matchAll(/\bapp\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)]
+      .map((match) => `${(match[1] ?? '').toUpperCase()} /__laqi${match[2]}`)
+      .sort()
+  }
+
+  /** Every `METHOD /__laqi/…` line of the README's "Control plane API" block. */
+  function documentedRoutes(): string[] {
+    return section(readRepo(README), 'Control plane API')
+      .split('\n')
+      .map((line) => /^(GET|POST|PUT|PATCH|DELETE)\s+(\/__laqi\/\S+)/.exec(line))
+      .filter((match): match is RegExpExecArray => match !== null)
+      .map((match) => `${match[1]} ${match[2]}`)
+      .sort()
+  }
+
+  it(`${README} lists exactly the routes ${CONTROL_PLANE_SOURCE} mounts`, () => {
+    // Guards the extraction itself: a refactor that mounts routes some other
+    // way would otherwise turn this into two empty lists comparing equal.
+    expect(mountedRoutes().length).toBeGreaterThan(0)
+    expect(documentedRoutes()).toEqual(mountedRoutes())
+  })
+})
+
+describe('the documented language count matches the type generator', () => {
+  it(`${DATA_GENERATORS_PAGE} states the count and lists that many languages`, () => {
+    const page = readRepo(DATA_GENERATORS_PAGE)
+    expect(page).toContain(`covers ${languageCount} languages:`)
+
+    const list = /covers \d+ languages:\n\n([^]*?)\n\n/.exec(page)?.[1] ?? ''
+    expect(list.replace(/\s+/g, ' ').split(', ')).toHaveLength(languageCount)
+  })
+
+  it.each([PANEL_PAGE, DOCS_INDEX, LLMS_TXT])('%s spells the count in words', (surface) => {
+    const text = readRepo(surface).replace(/\s+/g, ' ')
+    expect(text).toContain(`in ${numberWord(languageCount)} languages`)
+  })
+
+  it(`${README} counts the languages it does not name`, () => {
+    // "TypeScript, Zod, Swift, Kotlin, Dart, Python, Go and twenty more":
+    // seven named plus the spelled-out remainder must add up to the total.
+    const text = readRepo(README).replace(/\s+/g, ' ')
+    const match = /language dropdown — (.+?) and (\S+) more/.exec(text)
+    expect(match, 'the README no longer says "<names> and N more"').not.toBeNull()
+    const named = (match?.[1] ?? '').split(', ').length
+    expect(match?.[2]).toBe(numberWord(languageCount - named))
   })
 })

@@ -24,7 +24,7 @@ response flipped in the panel in under a minute.
 
 - [Mock files](/docs/mock-files/) — the JSON format laqi reads.
 - [Realistic data and types](/docs/data-generators/) — generate seeded
-  fake data from a model, or derive types in twenty-five languages from
+  fake data from a model, or derive types in twenty-seven languages from
   a live response.
 
 **AI agents**

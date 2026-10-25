@@ -26,13 +26,18 @@ responses in the panel while the app is open.
 
 ```
 packages/schema   — Zod schemas: config, endpoint, response, scenarios, state
+packages/config   — the TypeScript compiler settings every package extends
 packages/core     — loading mocks from disk, route table, resolution, state store
 packages/server   — the Hono app that actually serves mock responses
 packages/editor   — the web control panel (React + Vite), served at /__laqi
 packages/mcp      — the MCP server, for coding agents
-apps/cli          — the `laqi` CLI: serve, watch, migrate, mcp
+packages/generate — types from data and data from types (quicktype, seeded generation)
+packages/tui      — the terminal screens the CLI prints (start banner, goodbye report)
+packages/tokens   — the color and font tokens shared by the panel and the site
+apps/cli          — the `laqi` CLI: start (the default), init, mcp, migrate
+apps/site         — the public site, laqi.dev (Astro)
+apps/documentation — the internal docs (Astro + Starlight); never deployed
 examples/todo-app — a TanStack Start frontend built against laqi
-apps/documentation — the docs site (Astro + Starlight)
 ```
 
 ## Running it
@@ -42,6 +47,10 @@ From inside a project that has mock files (see below):
 ```
 npx laqi
 ```
+
+Starting a project from nothing? `npx laqi init` scaffolds `./laqi/` with an
+example mock API and scenarios first (`npx laqi init --help` lists the
+options, including `--from openapi`).
 
 To run the working tree instead of the published version — which is what you
 want while developing laqi itself — build it from this repo and use the
@@ -84,8 +93,21 @@ Useful flags:
 ```
 
 Configuration can also live in a `laqi.config.json` file at your project
-root, with the same keys (`port`, `host`, `dir`, `file`, plus `cors`,
-`density`, `showDescriptions`).
+root, with the same keys (`port`, `host`, `dir`, `file`), plus these, which
+have no flag:
+
+- `cors` — `"*"` (the default) or a list of allowed origins. Outside share
+  mode the default really is `*`; `--share` never uses it (see below).
+- `density` (`regular` or `compact`) and `showDescriptions` — panel
+  preferences.
+- `schemaSources.root` — the folder, relative to the project root, that
+  laqi may read a schema source from when it generates from your own code.
+  It bounds reads only; it never lets laqi write there. Default `.`.
+- `mcp.modules` — the allowlist of project modules the MCP server may
+  execute, each entry a `{ "file", "exportName", "side" }` object. It is
+  empty by default, so an agent cannot run any of your code until you list
+  it here by hand; an agent has no tool that edits it. The panel asks a
+  person instead of reading this list.
 
 ### Migrating from v1
 
@@ -149,8 +171,8 @@ four layers, in this order — the first one that applies wins:
 1. **header** — an explicit `X-Laqi-Response: <name>` (or
    `X-Laqi-Scenario: <name>`) request header. Doesn't persist anything.
 2. **state** — a per-endpoint override, written to `.laqi/state.json` via
-   the control plane API below (a web panel or MCP server, in a later
-   plan, will write there too).
+   the control plane API below (the web panel and the MCP server both write
+   there).
 3. **scenario** — the currently active scenario from `scenarios.json`, if
    one is set in state.
 4. **default** — the endpoint's own `default` response. Always available,
@@ -199,6 +221,26 @@ PUT    /__laqi/api/state              flip them
 GET    /__laqi/api/scenarios          read scenarios.json (read-only — edit the file to author one)
 GET    /__laqi/api/status             what's being watched, endpoint count, load errors
 GET    /__laqi/events                 live SSE stream: request | endpoints-changed | error
+```
+
+Type and data generation adds the routes below. `:name` is a response name
+within the endpoint `:id`.
+
+```
+GET    /__laqi/api/generate/languages                              the languages types can be exported in
+GET    /__laqi/api/endpoints/:id/types                             types for a response (?response=<name>&lang=<language>)
+POST   /__laqi/api/schema/import                                   read a schema source into a schema snapshot
+POST   /__laqi/api/schema/preview                                  generate a body and its evidence from a snapshot, saving nothing
+POST   /__laqi/api/schema/export                                   print types from a snapshot
+GET    /__laqi/api/schema/capabilities                             which inputs can be imported and which export targets exist
+POST   /__laqi/api/schema/module/prepare                           name a project module to run; returns a token
+POST   /__laqi/api/schema/module/confirm                           redeem that token to read the approved module
+POST   /__laqi/api/endpoints/:id/responses/:name/regenerate        regenerate a response body from its stored schema
+PUT    /__laqi/api/endpoints/:id/responses/:name/body              write a generated body together with its evidence
+GET    /__laqi/api/endpoints/:id/responses/:name/revision          the response's current revision
+GET    /__laqi/api/endpoints/:id/responses/:name/model             a TypeScript model drafted from the response
+PUT    /__laqi/api/endpoints/:id/responses/:name/schema            replace the response's stored schema with a snapshot
+POST   /__laqi/api/endpoints/:id/responses/:name/schema/refresh    re-read the schema's source and replace the stored schema (body untouched)
 ```
 
 Every write goes through the same file it would if you'd hand-edited it,
@@ -276,8 +318,9 @@ the built binary instead (`node`, with the path to `dist/index.mjs` and
 `mcp` as args).
 
 Tools: `list_endpoints`, `get_state`, `set_response`, `set_scenario`,
-`reset_state`, `create_endpoint`, `update_endpoint`, `delete_endpoint`,
-`import_openapi`.
+`reset_state`, `create_endpoint`, `scaffold_responses`, `update_endpoint`,
+`delete_endpoint`, `import_openapi`, `get_types`, `generate_data`,
+`regenerate_response`, `apply_generated_body`, `refresh_schema`.
 
 `import_openapi` turns an OpenAPI 3.x document into mocks, generating example
 bodies from the schemas. It takes JSON (convert YAML first), never overwrites
