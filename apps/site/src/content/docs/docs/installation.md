@@ -33,7 +33,7 @@ Add a script so nobody has to remember the command:
 }
 ```
 
-Then `npm run mock` serves `./laqi/` and opens the panel, using the version
+Then `npm run mock` serves `./laqi/` (the panel is at `http://127.0.0.1:8000/__laqi`), using the version
 the lockfile pins. A teammate who clones the repo and runs `npm install`
 gets the same laqi you have, which a global install cannot promise.
 

@@ -89,12 +89,12 @@ a language picker. Types are derived from the live response body on
 demand, so they can never go stale against a body you changed by hand.
 
 The same operation works from an existing endpoint or from a pasted
-model, and covers 25 languages:
+model, and covers 27 languages:
 
 C (cJSON), C++, C#, Crystal, Dart, Elixir, Elm, Flow, Go, Haskell, Java,
 JavaScript, JavaScript PropTypes, JSON Schema, Kotlin, Objective-C, PHP,
-Pike, Python, Ruby, Rust, Scala 3, Smithy, Swift, TypeScript — plus
-TypeScript with Zod or Effect Schema validators built in.
+Pike, Python, Ruby, Rust, Scala 3, Smithy, Swift, TypeScript, TypeScript
+with Effect Schema, TypeScript with Zod.
 
 ```ts
 // TypeScript

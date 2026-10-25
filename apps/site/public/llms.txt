@@ -31,7 +31,7 @@ serves (default 8000). Fastest path:
 - [Realistic data and types](https://laqi.dev/docs/data-generators/):
   paste a TypeScript model and get seeded fake data back (`email` fields
   get emails, `createdAt` gets dates); derive types from a live response
-  in twenty-five languages, including TypeScript, Python, Go, Rust,
+  in twenty-seven languages, including TypeScript, Python, Go, Rust,
   Swift, Kotlin, and Zod/Effect Schema validators.
 
 ## For AI agents

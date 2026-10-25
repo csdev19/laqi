@@ -34,7 +34,7 @@ import { createMcpServer } from './server'
  *
  * The same reasoning covers two more things the docs transcribe by hand and
  * that drifted the same way: the root README's list of control plane routes
- * (it listed nine; `control-plane-app.ts` mounts twenty-two) and the number
+ * (it listed nine; `control-plane-app.ts` mounts twenty-three) and the number
  * of languages the type generator targets (the site said twenty-five, the
  * generator reports twenty-seven). They live in this file because it is
  * already the one place that compares the docs with the code.

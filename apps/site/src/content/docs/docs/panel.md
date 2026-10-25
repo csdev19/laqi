@@ -49,7 +49,7 @@ The endpoint detail view edits the definition itself — status, delay,
 body, response names — and writes it back to the file it came from. It
 also hands you a ready-made `curl` carrying `X-Laqi-Response`, and the
 [data generation](/docs/data-generators/) tools: paste a model for a
-realistic body, or copy the current response's types in twenty-five
+realistic body, or copy the current response's types in twenty-seven
 languages.
 
 ## Three ways to say what it returns
@@ -59,7 +59,7 @@ path, the response name and the status mean the same thing in all three and
 never move; only the source of the body changes. Blank writes a placeholder,
 a model generates realistic data from your types, and JSON takes the body
 you paste, exactly as pasted. Once it exists, the endpoint detail turns that
-body back into types in twenty-five languages, and regenerates it.
+body back into types in twenty-seven languages, and regenerates it.
 
 The status field is also the catalogue's search box, so it accepts whatever
 you type; what it will not accept is a code that is not one. `201e44` reads

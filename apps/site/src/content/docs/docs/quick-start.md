@@ -27,8 +27,8 @@ see [Mock files](/docs/mock-files/) — or import an OpenAPI document.
 laqi
 ```
 
-That serves the folder at `http://127.0.0.1:8000` and opens the control
-panel at `http://127.0.0.1:8000/__laqi`. (`laqi start` is the same
+That serves the folder at `http://127.0.0.1:8000`. The control panel is at
+`http://127.0.0.1:8000/__laqi`; open it in your browser. (`laqi start` is the same
 command, spelled out.) The folder is watched: edit a file and the server
 picks it up, no restart.
 
