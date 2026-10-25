@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { bodyHash } from './canonical-json'
 import { loadMocks, type LoadedEndpoint, type LoadError } from './loader'
 import { resolveResponse } from './resolve'
 import { buildRouteTable } from './route-table'
@@ -14,6 +15,7 @@ import {
 } from './writer'
 import {
   formatEndpointId,
+  GenerationEvidenceSchema,
   isHttpMethod,
   parseEndpointKey,
   suggestResponses,
@@ -496,6 +498,12 @@ export class Project {
    * Refuses when the response changed since `revision` was read, or when the
    * body about to be overwritten is not one laqi vouches for — `confirm`
    * waives the second, never the first.
+   *
+   * Also refuses before touching the file when the pair is not one fact: a
+   * missing body or evidence, evidence that is not the evidence shape, or a
+   * body that is not the one the evidence hashes. `confirm` waives none of
+   * these, because they would let a caller write a body and have laqi vouch
+   * for it. A literal `null` body is a body; only `undefined` is absent.
    */
   applyGeneratedBody(params: {
     id: string
@@ -508,6 +516,22 @@ export class Project {
     const located = this.locate(params.id, params.response)
     if (!located.ok) return located
 
+    if (params.body === undefined) {
+      return fail('a generated body is required: send the body together with its evidence')
+    }
+    const evidence = GenerationEvidenceSchema.safeParse(params.generation)
+    if (!evidence.success) {
+      const why = params.generation === undefined ? 'missing' : 'malformed'
+      return fail(
+        `the generation evidence is ${why}: send the evidence that came back with the body (${evidence.error.issues.map((i) => i.message).join('; ')})`,
+      )
+    }
+    if (bodyHash(params.body) !== evidence.data.bodyHash) {
+      return fail(
+        'the body does not match the evidence: its hash is not evidence.bodyHash, so laqi will not vouch for it',
+      )
+    }
+
     const result = updateResponseInFile({
       root: this.root,
       bounds: this.bounds(),
@@ -516,7 +540,7 @@ export class Project {
       response: located.value.name,
       revision: params.revision,
       confirm: params.confirm,
-      patch: { body: params.body, generation: params.generation },
+      patch: { body: params.body, generation: evidence.data },
     })
 
     if (result.ok) return ok({ revision: result.revision, file: located.value.file })

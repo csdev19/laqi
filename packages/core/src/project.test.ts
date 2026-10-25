@@ -522,6 +522,13 @@ describe('scaffoldResponses', () => {
   })
 })
 
+/** Evidence that truthfully describes `body`. */
+const evidenceFor = (body: unknown) => ({
+  seed: 9,
+  options: { arrayLength: 1 },
+  bodyHash: bodyHash(body),
+})
+
 describe('applyGeneratedBody — the body and its evidence are one fact', () => {
   const schema = {
     name: 'User',
@@ -531,11 +538,6 @@ describe('applyGeneratedBody — the body and its evidence are one fact', () => 
   }
   const oldBody = [{ id: 1 }]
   const newBody = [{ id: 2 }]
-  const evidenceFor = (body: unknown) => ({
-    seed: 9,
-    options: { arrayLength: 1 },
-    bodyHash: bodyHash(body),
-  })
 
   /** A response laqi vouches for, so only the apply checks under test can refuse. */
   function seedGenerated(): { revision: string; before: string } {

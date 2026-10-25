@@ -1,6 +1,7 @@
 import type { LaqiEvent, LoadedEndpoint, LoadError } from '@laqi/core'
 import {
   EndpointSchema,
+  GenerationEvidenceSchema,
   isHttpMethod,
   RESERVED_PREFIX,
   StateSchema,
@@ -240,9 +241,11 @@ const RegenerateRequestSchema = z.object({
   arrayLength: z.number().int().optional(),
 })
 
+// `z.unknown()` alone makes a key optional, so the body needs a refinement to
+// be required. `null` is a body; only an absent key is refused.
 const ApplyBodyRequestSchema = z.object({
-  body: z.unknown(),
-  evidence: z.unknown(),
+  body: z.unknown().refine((body) => body !== undefined, 'body is required'),
+  evidence: GenerationEvidenceSchema,
   revision: z.string().min(1),
   confirm: z.boolean().optional(),
 })
