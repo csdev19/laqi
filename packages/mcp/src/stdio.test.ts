@@ -543,6 +543,75 @@ describe('regenerating and applying a body over stdio', () => {
     expect((refused.json() as { conflict: string }).conflict).toBe('stale-revision')
   }, 60_000)
 
+  describe('a body and its evidence are one fact', () => {
+    function fileBytes(): string {
+      return readFileSync(join(root, 'laqi', 'api.json'), 'utf8')
+    }
+
+    /** A fresh preview to apply, and the bytes on disk that a refusal must leave alone. */
+    async function preview() {
+      const { revision } = await seed()
+      const next = await call('regenerate_response', { endpointId: 'GET /users', seed: 9 })
+      const { preview: body, generation } = next.json() as Record<string, unknown>
+      return { revision, body, generation, before: fileBytes() }
+    }
+
+    it('refuses a missing generation and writes nothing', async () => {
+      const { revision, body, before } = await preview()
+
+      const refused = await call('apply_generated_body', {
+        endpointId: 'GET /users',
+        body,
+        revision,
+      })
+
+      expect(refused.isError).toBe(true)
+      expect(fileBytes()).toBe(before)
+    }, 60_000)
+
+    it('refuses a missing body, even with the response vouched for, and writes nothing', async () => {
+      const { revision, generation, before } = await preview()
+
+      const refused = await call('apply_generated_body', {
+        endpointId: 'GET /users',
+        generation,
+        revision,
+      })
+
+      expect(refused.isError).toBe(true)
+      expect(fileBytes()).toBe(before)
+    }, 60_000)
+
+    it('refuses a body that is not the one the evidence hashes, and writes nothing', async () => {
+      const { revision, generation, before } = await preview()
+
+      const refused = await call('apply_generated_body', {
+        endpointId: 'GET /users',
+        body: [{ id: 1, title: 'hand-written', kind: 'task' }],
+        generation,
+        revision,
+      })
+
+      expect(refused.isError).toBe(true)
+      expect(refused.text).toContain('bodyHash')
+      expect(fileBytes()).toBe(before)
+    }, 60_000)
+
+    it('refuses evidence that is not the GenerationEvidence shape', async () => {
+      const { revision, body, before } = await preview()
+
+      const refused = await call('apply_generated_body', {
+        endpointId: 'GET /users',
+        body,
+        generation: { seed: 'nine', bodyHash: 'not-a-hash' },
+        revision,
+      })
+
+      expect(refused.isError).toBe(true)
+      expect(fileBytes()).toBe(before)
+    }, 60_000)
+  })
+
   it('refuses to refresh a schema that came from a paste, and writes nothing', async () => {
     const { revision } = await seed()
     const before = readApiFile()['GET /users']?.responses['ok']

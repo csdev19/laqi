@@ -779,3 +779,54 @@ describe('generation routes', () => {
     expect((await app.request('/api/endpoints/GET%20%2Fnope/types')).status).toBe(404)
   })
 })
+
+describe('PUT /api/endpoints/:id/responses/:name/body — the body and its evidence travel together', () => {
+  const evidence = { seed: 1, options: { arrayLength: 1 }, bodyHash: 'a'.repeat(64) }
+
+  async function put(payload: unknown) {
+    const applyGeneratedBody = vi.fn(() => ({ ok: true as const, revision: 'r2' }))
+    const app = createControlPlaneApp(makeRuntime({ applyGeneratedBody }))
+    const res = await app.request('/api/endpoints/GET%20%2Fusers/responses/ok/body', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    return { res, applyGeneratedBody }
+  }
+
+  it('rejects a request without the evidence key', async () => {
+    const { res, applyGeneratedBody } = await put({ body: [{ id: 1 }], revision: 'r1' })
+
+    expect(res.status).toBe(400)
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('rejects a request without the body key', async () => {
+    const { res, applyGeneratedBody } = await put({ evidence, revision: 'r1' })
+
+    expect(res.status).toBe(400)
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('rejects evidence that is not the GenerationEvidence shape', async () => {
+    const { res, applyGeneratedBody } = await put({
+      body: [],
+      evidence: { seed: 'one' },
+      revision: 'r1',
+    })
+
+    expect(res.status).toBe(400)
+    expect(applyGeneratedBody).not.toHaveBeenCalled()
+  })
+
+  it('passes a literal null body through as null', async () => {
+    const { res, applyGeneratedBody } = await put({ body: null, evidence, revision: 'r1' })
+
+    expect(res.status).toBe(200)
+    expect(applyGeneratedBody).toHaveBeenCalledWith(
+      'GET /users',
+      'ok',
+      expect.objectContaining({ body: null, evidence }),
+    )
+  })
+})

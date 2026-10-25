@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ConfigSchema } from '@laqi/schema'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { bodyHash } from './canonical-json'
 import { Project } from './project'
 
 let root: string
@@ -518,5 +519,125 @@ describe('scaffoldResponses', () => {
     const result = project.scaffoldResponses('GET /nope')
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.code).toBe('not-found')
+  })
+})
+
+describe('applyGeneratedBody — the body and its evidence are one fact', () => {
+  const schema = {
+    name: 'User',
+    document: { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' },
+    source: { kind: 'typescript-paste' as const },
+    diagnostics: [],
+  }
+  const oldBody = [{ id: 1 }]
+  const newBody = [{ id: 2 }]
+  const evidenceFor = (body: unknown) => ({
+    seed: 9,
+    options: { arrayLength: 1 },
+    bodyHash: bodyHash(body),
+  })
+
+  /** A response laqi vouches for, so only the apply checks under test can refuse. */
+  function seedGenerated(): { revision: string; before: string } {
+    writeMocks({
+      'GET /users': {
+        default: 'ok',
+        responses: {
+          ok: { status: 200, body: oldBody, schema, generation: evidenceFor(oldBody) },
+        },
+      },
+    })
+    const revision = unwrap(project.getResponseRevision('GET /users', 'ok'))
+    return { revision, before: readFileSync(join(root, 'laqi/api.json'), 'utf8') }
+  }
+
+  function expectRefused(result: { ok: boolean; error?: string }, before: string, reason: RegExp) {
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(reason)
+    // Byte for byte: a refused write must not even reformat the file.
+    expect(readFileSync(join(root, 'laqi/api.json'), 'utf8')).toBe(before)
+  }
+
+  it('applies a body with matching evidence', () => {
+    const { revision } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: newBody,
+      generation: evidenceFor(newBody),
+      revision,
+    })
+
+    expect(result.ok).toBe(true)
+    const stored = (readMocks()['GET /users'] as { responses: Record<string, unknown> }).responses
+    expect(stored['ok']).toMatchObject({ body: newBody, generation: evidenceFor(newBody) })
+  })
+
+  it('refuses a missing evidence key and leaves the stored response unchanged', () => {
+    const { revision, before } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: newBody,
+      generation: undefined,
+      revision,
+    })
+
+    expectRefused(result, before, /evidence/i)
+  })
+
+  it('refuses a missing body key even with confirm unset, and leaves the stored response unchanged', () => {
+    const { revision, before } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: undefined,
+      generation: evidenceFor(newBody),
+      revision,
+    })
+
+    expectRefused(result, before, /body/i)
+  })
+
+  it('refuses a body whose hash is not the evidence’s, and writes nothing', () => {
+    const { revision, before } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: [{ id: 3, handWritten: true }],
+      generation: evidenceFor(newBody),
+      revision,
+    })
+
+    expectRefused(result, before, /bodyHash|hash/i)
+  })
+
+  it('refuses evidence that is not the GenerationEvidence shape', () => {
+    const { revision, before } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: newBody,
+      generation: { seed: 'nine', bodyHash: 'not-a-hash' },
+      revision,
+    })
+
+    expectRefused(result, before, /evidence/i)
+  })
+
+  it('stores a literal null body as null, distinct from removing the key', () => {
+    const { revision } = seedGenerated()
+
+    const result = project.applyGeneratedBody({
+      id: 'GET /users',
+      body: null,
+      generation: evidenceFor(null),
+      revision,
+    })
+
+    expect(result.ok).toBe(true)
+    const stored = (readMocks()['GET /users'] as { responses: Record<string, object> }).responses
+    expect(stored['ok']).toHaveProperty('body', null)
+    expect(stored['ok']).toHaveProperty('generation', evidenceFor(null))
   })
 })
