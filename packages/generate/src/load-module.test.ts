@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -123,6 +123,71 @@ describe('surviving the module', () => {
     // The budget is 10s; anything much beyond it means nothing was killed.
     expect(Date.now() - started).toBeLessThan(20_000)
   }, 40_000)
+
+  it('answers at once when a valid module leaves a timer running', async () => {
+    const pidFile = join(scratch, 'timer.pid')
+    const path = moduleWith(
+      'timer.mjs',
+      `import { writeFileSync } from 'node:fs'\n` +
+        `writeFileSync(${JSON.stringify(pidFile)}, String(process.pid))\n` +
+        `setInterval(() => {}, 1000)\n` +
+        `export const S = { '~standard': { version: 1, vendor: 'x', jsonSchema: { output: () => ({ type: 'string' }) } } }\n`,
+    )
+
+    const started = Date.now()
+    const result = await loadModuleSchema({
+      resolvedPath: path,
+      exportName: 'S',
+      side: 'output',
+    })
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) return
+    expect(result.document['type']).toBe('string')
+    // The verdict was ready as soon as the module imported. Anything near the
+    // 10s budget means the loader waited for the child to exit on its own.
+    expect(Date.now() - started).toBeLessThan(2_000)
+
+    // The timer would keep the child alive for ever, so it must have been
+    // killed, not left behind.
+    const pid = Number(readFileSync(pidFile, 'utf8'))
+    expect(() => process.kill(pid, 0)).toThrow(/ESRCH/)
+  }, 30_000)
+
+  it('is not fooled by a schema whose examples contain {"ok":', async () => {
+    const path = moduleWith(
+      'nested-ok.mjs',
+      `export const S = { '~standard': { version: 1, vendor: 'x', jsonSchema: { output: () => ({ type: 'object', examples: [{ ok: false, code: 'crashed', error: 'not the verdict' }] }) } } }\n`,
+    )
+
+    const result = await loadModuleSchema({
+      resolvedPath: path,
+      exportName: 'S',
+      side: 'output',
+    })
+
+    expect(result).toMatchObject({ ok: true })
+    if (!result.ok) return
+    expect(result.document['examples']).toEqual([
+      { ok: false, code: 'crashed', error: 'not the verdict' },
+    ])
+  }, 30_000)
+
+  it('is not fooled by a module that prints something shaped like a verdict', async () => {
+    const path = moduleWith(
+      'fake-verdict.mjs',
+      `console.log(JSON.stringify({ ok: false, code: 'crashed', error: 'printed by the module' }))\n` +
+        `export const S = { '~standard': { version: 1, vendor: 'x', jsonSchema: { output: () => ({ type: 'string' }) } } }\n`,
+    )
+
+    const result = await loadModuleSchema({
+      resolvedPath: path,
+      exportName: 'S',
+      side: 'output',
+    })
+
+    expect(result).toMatchObject({ ok: true })
+  }, 30_000)
 
   it('reads the verdict even when the module printed on its way in', async () => {
     const path = moduleWith(
