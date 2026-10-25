@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { DIALECT_2020_12 } from '@laqi/schema'
 
 /** How long a module gets to import itself and convert. Then the child dies. */
@@ -39,8 +40,12 @@ const CHILD = `
 const { pathToFileURL } = require('node:url')
 const request = JSON.parse(process.env.LAQI_MODULE_REQUEST)
 
+// The verdict is one line: a newline, the frame this load was given, then
+// JSON (which never holds a raw newline). Exiting in the write callback is
+// what keeps a module with a live timer, pool or watcher from holding the
+// child open after the answer is already out.
 function say(result) {
-  process.stdout.write(JSON.stringify(result))
+  process.stdout.write('\\n' + request.frame + JSON.stringify(result) + '\\n', () => process.exit(0))
 }
 
 import(pathToFileURL(request.resolvedPath).href).then((module) => {
@@ -109,14 +114,19 @@ import(pathToFileURL(request.resolvedPath).href).then((module) => {
  */
 export async function loadModuleSchema(request: ModuleLoadRequest): Promise<ModuleLoadResult> {
   return new Promise((resolve) => {
+    // Per load, so a module cannot print something that passes for the
+    // verdict without having read this process's environment.
+    const frame = `@laqi-verdict:${randomUUID()}:`
     const child = spawn(process.execPath, ['-e', CHILD], {
-      env: { ...process.env, LAQI_MODULE_REQUEST: JSON.stringify(request) },
+      env: { ...process.env, LAQI_MODULE_REQUEST: JSON.stringify({ ...request, frame }) },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
     let out = ''
     let err = ''
     let settled = false
+    let exited = false
+    let verdict: ModuleLoadResult | undefined
 
     const finish = (result: ModuleLoadResult) => {
       if (settled) return
@@ -125,17 +135,31 @@ export async function loadModuleSchema(request: ModuleLoadRequest): Promise<Modu
       resolve(result)
     }
 
+    // The answer is known, so the child has nothing left to do. It is killed
+    // here rather than trusted to exit, and the caller hears back only once
+    // it has exited, so no process outlives the promise.
+    const accept = (result: ModuleLoadResult) => {
+      verdict = result.ok ? withDialect(result) : result
+      child.kill('SIGKILL')
+      if (exited) finish(verdict)
+    }
+
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
-      finish({
-        ok: false,
-        code: 'timeout',
-        error: `loading ${request.exportName} took longer than ${MODULE_LOAD_TIMEOUT_MS / 1000} seconds, so laqi stopped it`,
-      })
+      finish(
+        verdict ?? {
+          ok: false,
+          code: 'timeout',
+          error: `loading ${request.exportName} took longer than ${MODULE_LOAD_TIMEOUT_MS / 1000} seconds, so laqi stopped it`,
+        },
+      )
     }, MODULE_LOAD_TIMEOUT_MS)
 
     child.stdout.on('data', (chunk: Buffer) => {
       out += chunk.toString('utf8')
+      if (verdict !== undefined) return
+      const found = readResult(out, frame)
+      if (found !== undefined) accept(found)
     })
     child.stderr.on('data', (chunk: Buffer) => {
       err += chunk.toString('utf8')
@@ -145,9 +169,14 @@ export async function loadModuleSchema(request: ModuleLoadRequest): Promise<Modu
       finish({ ok: false, code: 'crashed', error: cause.message })
     })
 
+    child.on('exit', () => {
+      exited = true
+      if (verdict !== undefined) finish(verdict)
+    })
+
     child.on('close', (code) => {
-      if (settled) return
-      const parsed = readResult(out)
+      if (settled || verdict !== undefined) return
+      const parsed = readResult(out, frame)
       if (parsed !== undefined) {
         finish(parsed.ok ? withDialect(parsed) : parsed)
         return
@@ -166,21 +195,26 @@ export async function loadModuleSchema(request: ModuleLoadRequest): Promise<Modu
 }
 
 /**
- * The child's verdict, or undefined when stdout holds no verdict at all.
+ * The child's verdict, or undefined when stdout holds no complete verdict yet.
  *
- * A loaded module may print whatever it likes, so the JSON is looked for at
- * the END of the stream rather than assumed to be all of it. A module that
- * logs on import is ordinary, and having that turn into "the loader broke"
- * would be a bug report about the wrong thing.
+ * A loaded module may print whatever it likes, so the verdict is the one line
+ * that starts with this load's frame, not "the last thing that looks like
+ * JSON". A module that logs on import is ordinary, and a schema whose
+ * examples hold `{"ok":` is ordinary too; neither may turn into "the loader
+ * broke". Only whole lines count, so a verdict still arriving is waited for.
  */
-function readResult(out: string): ModuleLoadResult | undefined {
-  const start = out.lastIndexOf('{"ok":')
-  if (start === -1) return undefined
-  try {
-    return JSON.parse(out.slice(start)) as ModuleLoadResult
-  } catch {
-    return undefined
+function readResult(out: string, frame: string): ModuleLoadResult | undefined {
+  const lines = out.split('\n')
+  // The last piece has no newline after it yet, so it may be half a line.
+  for (const line of lines.slice(0, -1)) {
+    if (!line.startsWith(frame)) continue
+    try {
+      return JSON.parse(line.slice(frame.length)) as ModuleLoadResult
+    } catch {
+      return undefined
+    }
   }
+  return undefined
 }
 
 /**
