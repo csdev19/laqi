@@ -7,6 +7,24 @@ title: ADR-0005 — Monorepo aligned with rakoi
 **Status:** Accepted
 **Date:** 2026-08-24
 
+> **Note, 2026-10-24.** The decision below is unchanged; this records where the
+> code stands against it.
+>
+> - **`core` is Node-bound today.** Its loader, writer, project, state store,
+>   revision, canonical-JSON and atomic-file modules import `node:fs`,
+>   `node:path` or `node:crypto`. Only `server` is free of `node:` imports.
+>   "`core` + `server` run the same on Node and on the edge" is therefore not
+>   true yet: `server` could run on a Worker, `core` cannot.
+> - **`apps/relay` does not exist.** [ADR-0007](/decisions/0007-public-url/)
+>   defers the relay to phase 2, so the diagram's `relay` entry is planned, not
+>   built.
+> - **The relay needs a storage port in `core` first.** `core` would have to
+>   take its file and hash access through an interface that a Worker can
+>   implement before the relay can reuse it. That port is not implemented.
+>
+> The package graph as it is now lives in
+> [Architecture](/architecture/#the-package-graph).
+
 ## Context
 
 v1 was a flat npm package of four files. v2 has at least four distinct
