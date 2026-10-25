@@ -18,49 +18,85 @@ today, and what must stay true_.
 ## The package graph
 
 Nine packages and three apps. Dependencies point in one direction only — no
-package imports something that imports it back.
+package imports something that imports it back. Each box depends only on boxes
+above it; the annotations next to each box say which ones.
 
 ```
-                    ┌────────────┐
-                    │   schema   │  Zod contracts. Depends on nothing.
-                    └─────┬──────┘
-                          │
-                    ┌─────▼──────┐
-                    │    core    │  Project logic: load, resolve, write.
-                    └─────┬──────┘  Fully synchronous.
-          ┌───────────────┼───────────────┐
-          │               │               │
-    ┌─────▼────┐    ┌─────▼────┐    ┌─────▼────┐
-    │  server  │    │   mcp    │    │  editor  │
-    │  (Hono)  │    │ (agents) │    │  (React) │
-    └─────┬────┘    └─────┬────┘    └─────┬────┘
-          │               │               │
-          └───────────────┼───────────────┘
-                          │
-                    ┌─────▼──────┐
-                    │  apps/cli  │  The composition root. The only thing
-                    └────────────┘  that knows every other piece exists.
-
-    ┌────────────┐   Consumed by mcp and cli. Depends on no workspace
-    │  generate  │   package at all — which is why it could be migrated
-    └────────────┘   to Effect in isolation.
-
-    tokens · tui · config    Leaves. CSS tokens, terminal rendering,
-                             shared tsconfig.
+    ┌──────────┐  ┌──────────┐  ┌────────┐  ┌──────────┐
+    │  schema  │  │  tokens  │  │  tui   │  │  config  │
+    │  (Zod)   │  │  (CSS)   │  │        │  │          │
+    └────┬─────┘  └──────────┘  └────────┘  └──────────┘
+         │         Leaves: none of these four depends on a workspace package.
+    ┌────▼─────┐
+    │   core   │   core → schema
+    └────┬─────┘   Fully synchronous. Node-bound today: it imports node:fs,
+         │         node:path and node:crypto.
+   ┌─────┴─────────────┐
+   │                   │
+┌──▼───────┐      ┌────▼─────┐
+│  server  │      │ generate │   server → core, schema   (no node: imports)
+│  (Hono)  │      │ (Effect) │   generate → core, schema
+└──┬───────┘      └────┬─────┘
+   │              ┌────┴──────────┐
+   │         ┌────▼────┐     ┌────▼────┐
+   │         │   mcp   │     │ editor  │   mcp → core, generate, schema
+   │         │ (agents)│     │ (React) │   editor → core (events), generate
+   │         └────┬────┘     └────┬────┘            (examples), schema, tokens
+   │              │               │
+┌──▼──────────────▼───────────────▼──┐
+│              apps/cli              │   cli → core, schema, server, generate,
+└────────────────────────────────────┘          mcp, editor, tui
 ```
 
-| Package          | Source lines | Role                                                                                                  |
-| ---------------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| `@laqi/schema`   | 149          | Zod contracts for mock files, config and state. The vocabulary everything else speaks                 |
-| `@laqi/core`     | 1,314        | Loading, state resolution, atomic writes. Fully synchronous, `ProjectResult<T>` as its error channel  |
-| `@laqi/generate` | 1,290        | Types ⇄ data: parse TypeScript, infer from JSON, generate mocks, print types. Effect-first internally |
-| `@laqi/server`   | 754          | The mock server, the control plane and the public app, on Hono                                        |
-| `@laqi/mcp`      | 679          | The agent-facing tool surface                                                                         |
-| `@laqi/editor`   | 2,236        | The control panel — a plain React SPA                                                                 |
-| `@laqi/tui`      | 341          | Terminal rendering: layout, palette, screens                                                          |
-| `@laqi/tokens`   | —            | Design tokens as CSS, shared by the panel and the site                                                |
-| `@laqi/config`   | —            | Shared tsconfig base                                                                                  |
-| `apps/cli`       | 2,831        | The `laqi` binary. Owns the process and composes everything                                           |
+Lines show the layering; the annotations and the edge list below give the exact
+dependencies. `apps/cli` loads `generate` and `mcp` with dynamic `import()`.
+
+`apps/site` depends on `tokens`, and `examples/todo-app` depends on the `laqi`
+binary (`apps/cli`). `apps/documentation` depends on no workspace package.
+
+The list below is the same graph as data, one `dependent -> dependency` edge per
+line, named by directory. `scripts/docs/architecture-graph.test.ts` derives the
+real edges from every workspace `package.json` and fails when this list
+differs, in either direction. When a dependency changes, change one line here.
+
+<!-- graph:edges -->
+
+```
+cli -> core
+cli -> editor
+cli -> generate
+cli -> mcp
+cli -> schema
+cli -> server
+cli -> tui
+core -> schema
+editor -> core
+editor -> generate
+editor -> schema
+editor -> tokens
+generate -> core
+generate -> schema
+mcp -> core
+mcp -> generate
+mcp -> schema
+server -> core
+server -> schema
+site -> tokens
+todo-app -> cli
+```
+
+| Package          | Source lines | Role                                                                                                                                                                                    |
+| ---------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@laqi/schema`   | 149          | Zod contracts for mock files, config and state. The vocabulary everything else speaks                                                                                                   |
+| `@laqi/core`     | 1,314        | Loading, state resolution, atomic writes. Fully synchronous, `ProjectResult<T>` as its error channel. Imports `node:fs`, `node:path` and `node:crypto`, so it runs on Node and Bun only |
+| `@laqi/generate` | 1,290        | Types ⇄ data: parse TypeScript, infer from JSON, generate mocks, print types. Effect-first internally                                                                                   |
+| `@laqi/server`   | 754          | The mock server, the control plane and the public app, on Hono                                                                                                                          |
+| `@laqi/mcp`      | 679          | The agent-facing tool surface                                                                                                                                                           |
+| `@laqi/editor`   | 2,236        | The control panel — a plain React SPA                                                                                                                                                   |
+| `@laqi/tui`      | 341          | Terminal rendering: layout, palette, screens                                                                                                                                            |
+| `@laqi/tokens`   | —            | Design tokens as CSS, shared by the panel and the site                                                                                                                                  |
+| `@laqi/config`   | —            | Shared tsconfig base                                                                                                                                                                    |
+| `apps/cli`       | 2,831        | The `laqi` binary. Owns the process and composes everything                                                                                                                             |
 
 ## What actually ships
 
@@ -86,8 +122,10 @@ Two consequences worth holding on to:
 Rules that hold across packages. Breaking one is a bug, not a style choice.
 
 **The composition root is `apps/cli`.** It is the only place that knows about
-every package. Nothing below it reaches sideways: `@laqi/server` does not import
-`@laqi/mcp`, and neither imports the other's internals.
+every package. Between the packages below it, only the edges in the list above
+exist: `@laqi/server` does not import `@laqi/mcp` or `@laqi/editor`, and no
+package imports `apps/cli`. `@laqi/generate` is shared on purpose — `mcp` and
+`editor` both build on it — so it sits below them rather than beside them.
 
 **Heavy dependencies load lazily.** `typescript` (23 MB), `quicktype-core` and
 `@faker-js/faker` are behind dynamic `import()`, so starting a mock server never
